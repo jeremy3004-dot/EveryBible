@@ -196,44 +196,44 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     traySource,
-    /Ionicons name="close" size=\{13\}/,
-    'Already-highlighted color chips should show the inline X badge from the recording'
+    /Ionicons name="checkmark" size=\{20\}/,
+    'Already-highlighted colors should show a check that fades in over the swatch'
   );
 
   assert.match(
     traySource,
-    /Ionicons[\s\S]*name={icon}[\s\S]*size=\{16\}/s,
-    'The action pills should keep compact icons so larger buttons still feel balanced'
+    /Ionicons[\s\S]*name={icon}[\s\S]*size=\{22\}/s,
+    'The borderless actions carry their weight in the icon, above a short label'
   );
 
   assert.match(
     traySource,
-    /minHeight:\s*62/,
+    /minHeight:\s*56/,
     'The action pills should be tall enough for comfortable bottom-tray tapping'
   );
 
   assert.match(
     traySource,
-    /actionButton:[\s\S]*flex:\s*1,[\s\S]*minWidth:\s*0,[\s\S]*minHeight:\s*62/,
+    /actionButton:[\s\S]*flex:\s*1,[\s\S]*minWidth:\s*0,[\s\S]*minHeight:\s*56/,
     'The action pills should flex across the rail without a fixed width so the tray avoids clipping'
   );
 
   assert.match(
     traySource,
-    /selectionControlsRow:[\s\S]*flexDirection:\s*'column'[\s\S]*gap:\s*10/,
+    /selectionControlsRow:[\s\S]*flexDirection:\s*'column'[\s\S]*gap:\s*spacing\.lg/,
     'The highlight row and action rail should stack vertically so the bottom tray does not clip controls'
   );
 
   assert.match(
     traySource,
-    /highlightRow:[\s\S]*justifyContent:\s*'space-around'/,
-    'The highlight colors should distribute across their row instead of clustering left'
+    /highlightRow:[\s\S]*justifyContent:\s*'space-between'/,
+    'The highlight colors should span their row edge to edge instead of clustering left'
   );
 
   assert.match(
     traySource,
-    /actionButtonRail:[\s\S]*alignItems:\s*'stretch'[\s\S]*justifyContent:\s*'space-between'[\s\S]*gap:\s*8/,
-    'The action buttons should distribute across the rail with consistent spacing'
+    /actionButtonRail:[\s\S]*alignItems:\s*'stretch'[\s\S]*justifyContent:\s*'space-between'/,
+    'The action buttons should share the rail in equal columns'
   );
 
   assert.doesNotMatch(
@@ -244,8 +244,8 @@ test('BibleReaderScreen wires a bottom selection tray with copy, note, share, an
 
   assert.match(
     traySource,
-    /paddingHorizontal:\s*spacing\.lg/,
-    'The tray should use compact side padding so the final image action is not clipped'
+    /sheet:[\s\S]*paddingHorizontal:\s*spacing\.xl/,
+    'The tray keeps one side margin shared by the title, the colors and the actions'
   );
 
   // The tray scrolls vertically when it outgrows the screen at large text

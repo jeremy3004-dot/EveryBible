@@ -112,7 +112,9 @@ test('with a screen reader on, every verse of a prose paragraph is its own selec
   }
 
   await view.press(buttons[1]);
-  assert.ok(view.getByText(new RegExp(`${t('annotations.selected')}: John 3:2`)));
+  assert.ok(
+    view.getByRole('header', { name: new RegExp(`${t('annotations.selected')}: John 3:2`) })
+  );
   assert.deepEqual(
     view.getByRole('button', { name: verseLabel(JOHN_3[1]) }).props.accessibilityState,
     { selected: true }

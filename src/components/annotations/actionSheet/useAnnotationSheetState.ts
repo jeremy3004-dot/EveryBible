@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useLatestCallback } from '../../audio/playbackControlsParts/useLatestCallback';
+import { selectionHaptic, softHaptic } from '../../../utils/haptics';
 import { getNoteToSave } from './annotationActionSheetModel';
 
 interface AnnotationSheetStateOptions {
@@ -76,6 +77,12 @@ export function useAnnotationSheetState({
       return;
     }
 
+    // Clearing is the gentler tap, so adding and removing feel different.
+    if (isActive) {
+      softHaptic();
+    } else {
+      selectionHaptic();
+    }
     setIsSaving(true);
     try {
       if (isActive) {

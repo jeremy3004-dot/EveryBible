@@ -1531,6 +1531,7 @@ export const ja = {
     selected: '選択中',
     note: 'メモ',
     copy: 'コピー',
+    audio: 'オーディオ',
     removeHighlight: 'ハイライトを削除',
   },
   groups: {

@@ -1,10 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { spacing } from '../../../design/system';
 import { ActionPill } from './ActionPill';
-import { HIGHLIGHT_COLORS, PRESSED_SCALE } from './annotationActionSheetModel';
+import { HIGHLIGHT_COLORS } from './annotationActionSheetModel';
+import { COLOR_DOT_GROWTH, ColorDot } from './ColorDot';
 
 interface SheetActionsProps {
   canAnnotate: boolean;
@@ -19,9 +19,9 @@ interface SheetActionsProps {
 }
 
 /**
- * The sheet's actions panel: the five highlight colours (an applied one shows an X
- * and removes itself) above the rail of verse actions. Scrolls when it outgrows
- * the sheet at large text.
+ * The sheet's actions panel: the five highlight colours spread edge to edge (an
+ * applied one shows a check and removes itself) above a hairline and the rail of
+ * verse actions. Scrolls when it outgrows the sheet at large text.
  */
 export function SheetActions({
   canAnnotate,
@@ -52,41 +52,23 @@ export function SheetActions({
             const isActive = activeHighlightColorSet.has(color.hex);
 
             return (
-              <Pressable
+              <ColorDot
                 key={color.id}
-                accessibilityLabel={t(`annotations.colors.${color.id}`)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive, disabled: !canAnnotate }}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.colorDot,
-                  {
-                    backgroundColor: color.hex,
-                    borderColor: isActive ? colors.biblePrimaryText : 'transparent',
-                    opacity: canAnnotate ? 1 : 0.46,
-                    transform: [{ scale: pressed && canAnnotate ? PRESSED_SCALE : 1 }],
-                  },
-                ]}
+                color={color.hex}
+                label={t(`annotations.colors.${color.id}`)}
+                isActive={isActive}
+                canAnnotate={canAnnotate}
                 onPress={() => {
-                  if (!canAnnotate) {
-                    return;
+                  if (canAnnotate) {
+                    onToggleHighlight(color.hex, isActive);
                   }
-
-                  onToggleHighlight(color.hex, isActive);
                 }}
-                disabled={!canAnnotate}
-              >
-                {isActive ? (
-                  <View style={styles.colorDotRemoveOverlay} pointerEvents="none">
-                    <Ionicons name="close" size={13} color={colors.bibleSurface} />
-                  </View>
-                ) : null}
-              </Pressable>
+              />
             );
           })}
         </View>
 
-        <View style={styles.actionButtonRail}>
+        <View style={[styles.actionButtonRail, { borderTopColor: colors.bibleDivider }]}>
           <ActionPill
             icon="create-outline"
             label={t('annotations.note')}
@@ -102,7 +84,8 @@ export function SheetActions({
           />
           <ActionPill
             icon="headset-outline"
-            label={t('bible.shareChapterAudio')}
+            label={t('annotations.audio')}
+            accessibilityLabel={t('bible.shareChapterAudio')}
             onPress={onShareAudio}
           />
         </View>
@@ -121,34 +104,24 @@ const styles = StyleSheet.create({
   },
   selectionControlsRow: {
     flexDirection: 'column',
-    gap: 10,
+    gap: spacing.lg,
     minWidth: 0,
   },
   highlightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  colorDot: {
-    position: 'relative',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  colorDotRemoveOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    // Room for an applied colour to grow: the scroll view clips at its edges, and
+    // the end dots sit right against them.
+    paddingVertical: spacing.xs,
+    paddingHorizontal: COLOR_DOT_GROWTH,
   },
   actionButtonRail: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'stretch',
     justifyContent: 'space-between',
-    gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.sm,
   },
 });

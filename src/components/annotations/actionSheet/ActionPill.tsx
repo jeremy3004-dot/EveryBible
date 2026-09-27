@@ -8,12 +8,23 @@ import { PRESSED_SCALE } from './annotationActionSheetModel';
 interface ActionPillProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  /** The spoken name when the visible label is a short form ("Audio"). */
+  accessibilityLabel?: string;
   onPress: () => void;
   disabled?: boolean;
 }
 
-/** One verse action (Note, Copy, Share, ...) in the sheet's action rail. */
-export function ActionPill({ icon, label, onPress, disabled = false }: ActionPillProps) {
+/**
+ * One verse action (Note, Copy, Share, ...) in the sheet's action rail: an icon
+ * over a one-word label, with no box of its own. A press shows a soft fill.
+ */
+export function ActionPill({
+  icon,
+  label,
+  accessibilityLabel,
+  onPress,
+  disabled = false,
+}: ActionPillProps) {
   const { colors } = useTheme();
   // Past the shared large-text threshold five pills no longer fit one row with
   // readable labels, so the rail wraps to three per row instead of shrinking.
@@ -25,8 +36,7 @@ export function ActionPill({ icon, label, onPress, disabled = false }: ActionPil
         styles.actionButton,
         isLargeText ? styles.actionButtonLargeText : null,
         {
-          backgroundColor: colors.bibleElevatedSurface,
-          borderColor: colors.bibleDivider,
+          backgroundColor: pressed && !disabled ? colors.bibleElevatedSurface : 'transparent',
           opacity: disabled ? 0.44 : 1,
           transform: [{ scale: pressed && !disabled ? PRESSED_SCALE : 1 }],
         },
@@ -36,12 +46,12 @@ export function ActionPill({ icon, label, onPress, disabled = false }: ActionPil
       accessibilityRole="button"
       // Named explicitly: Android otherwise folds the icon-font glyph into the
       // name it derives from the pill's children.
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={8}
     >
       <Ionicons
         name={icon}
-        size={16}
+        size={22}
         color={disabled ? colors.bibleSecondaryText : colors.biblePrimaryText}
       />
       <Text style={[styles.actionLabel, { color: colors.biblePrimaryText }]}>{label}</Text>
@@ -53,14 +63,13 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     minWidth: 0,
-    minHeight: 62,
-    borderWidth: 1,
-    borderRadius: 14,
+    minHeight: 56,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
     paddingVertical: 6,
-    gap: 3,
+    gap: 6,
   },
   actionButtonLargeText: {
     flexBasis: '30%',

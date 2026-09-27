@@ -1635,6 +1635,7 @@ export const ne = {
     highlight: 'हाइलाइट',
     note: 'टिप्पणी',
     copy: 'कपी गर्नुहोस्',
+    audio: 'अडियो',
     removeHighlight: 'हाइलाइट हटाउनुहोस्',
     editNote: 'टिप्पणी सम्पादन गर्नुहोस्',
     deleteAnnotation: 'हटाउनुहोस्',

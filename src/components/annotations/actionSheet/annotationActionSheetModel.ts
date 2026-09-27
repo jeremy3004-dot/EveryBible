@@ -6,6 +6,13 @@ export const HIGHLIGHT_COLORS = [
   { id: 'blue', hex: '#4A90E2' },
 ] as const;
 
+// The check on an applied colour. Near-black reads on all five swatches (4.7:1 on
+// red, 5.3:1 on blue, 13.7:1 on yellow) in both themes, so it is not a theme colour.
+export const HIGHLIGHT_CHECK_INK = '#1A1914';
+
+// The sheet rises with a slight settle: damping ratio ~0.74, a few points of overshoot.
+export const SHEET_RISE_SPRING = { damping: 24, stiffness: 260 } as const;
+
 /** How far a pressed control shrinks. */
 export const PRESSED_SCALE = 0.96;
 

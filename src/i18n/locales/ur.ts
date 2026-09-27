@@ -1544,6 +1544,7 @@ export const ur = {
     selected: 'منتخب',
     note: 'نوٹ',
     copy: 'کاپی کریں',
+    audio: 'آڈیو',
     removeHighlight: 'نمایاں ہٹائیں',
   },
   groups: {

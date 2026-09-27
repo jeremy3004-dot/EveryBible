@@ -1593,6 +1593,7 @@ export const ru = {
     highlight: 'Выделить',
     note: 'Заметка',
     copy: 'Копировать',
+    audio: 'Аудио',
     removeHighlight: 'Убрать выделение',
     editNote: 'Изменить заметку',
     deleteAnnotation: 'Удалить',

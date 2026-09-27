@@ -1,22 +1,27 @@
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import { radius, shadows, spacing, typography } from '../../design/system';
-import { hexWithAlpha } from '../../utils';
+import { getReadingFontFamily } from '../../design/fonts';
+import { motion, radius, shadows, spacing } from '../../design/system';
 import {
   getNoteInputMaxHeight,
   getSheetMaxHeight,
-  PRESSED_SCALE,
+  SHEET_RISE_SPRING,
 } from './actionSheet/annotationActionSheetModel';
 import { NoteComposer } from './actionSheet/NoteComposer';
 import { SheetActions } from './actionSheet/SheetActions';
@@ -27,7 +32,6 @@ interface AnnotationActionSheetProps {
   referenceLabel: string;
   selectedText: string;
   canAnnotate: boolean;
-  closeButtonAccessibilityLabel: string;
   bottomInset?: number;
   activeHighlightColors: string[];
   onCopy: () => void;
@@ -44,7 +48,9 @@ interface AnnotationActionSheetProps {
 /**
  * The reader's tray for the selected verses: highlight colours and verse actions,
  * or the note composer. Drawn inline over the reader, not in a modal, so the
- * Bible stays tappable around it. Panels and state live in ./actionSheet.
+ * Bible stays tappable around it: a tap on the page, or on the only selected verse
+ * again, closes it, so it carries no close button (VoiceOver's escape gesture and
+ * Android back close it too). Panels and state live in ./actionSheet.
  */
 function AnnotationActionSheetContent({
   referenceLabel,
@@ -58,13 +64,13 @@ function AnnotationActionSheetContent({
   onNote,
   onRemoveHighlight,
   onClose,
-  closeButtonAccessibilityLabel,
   bottomInset = 0,
   activeHighlightColors,
   existingNote,
 }: AnnotationActionSheetProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const maxHeight = getSheetMaxHeight(windowHeight, insets.top);
@@ -78,7 +84,94 @@ function AnnotationActionSheetContent({
     onNote,
     onClose,
   });
+  // The reference is the title, set like a citation in the reading serif (the
+  // platform serif for scripts Lora cannot draw).
+  const titleFontFamily = getReadingFontFamily(i18n.language, 600);
+  const entering = reduceMotion
+    ? FadeIn.duration(motion.duration.base)
+    : SlideInDown.springify()
+        .damping(SHEET_RISE_SPRING.damping)
+        .stiffness(SHEET_RISE_SPRING.stiffness);
+  const exiting = reduceMotion
+    ? FadeOut.duration(motion.duration.fast)
+    : SlideOutDown.duration(motion.duration.base);
 
+  return (
+    <Animated.View
+      entering={entering}
+      exiting={exiting}
+      // VoiceOver's escape gesture closes the sheet, as Android back does.
+      onAccessibilityEscape={sheet.close}
+      style={[
+        styles.sheet,
+        {
+          backgroundColor: colors.bibleSurface,
+          borderColor: colors.bibleDivider,
+          paddingBottom: spacing.xl + bottomInset,
+          maxHeight,
+        },
+      ]}
+    >
+      {/* Fills the gap under the sheet while the rising spring overshoots. */}
+      <View
+        pointerEvents="none"
+        style={[styles.overshootSkirt, { backgroundColor: colors.bibleSurface }]}
+      />
+
+      <Text
+        accessibilityRole="header"
+        // Sighted readers see the dashed underline; a screen reader hears what the
+        // reference is.
+        accessibilityLabel={`${t('annotations.selected')}: ${sheet.referenceLabel}`}
+        style={[
+          styles.title,
+          titleFontFamily ? { fontFamily: titleFontFamily } : styles.titlePlatformWeight,
+          { color: colors.biblePrimaryText },
+        ]}
+      >
+        {sheet.referenceLabel}
+      </Text>
+
+      {sheet.mode === 'actions' ? (
+        <SheetActions
+          canAnnotate={canAnnotate}
+          isSaving={sheet.isSaving}
+          activeHighlightColors={activeHighlightColors}
+          onToggleHighlight={(color, isActive) => {
+            void sheet.toggleHighlight(color, isActive);
+          }}
+          onOpenNote={sheet.openNote}
+          onCopy={onCopy}
+          onShare={onShare}
+          onShareImage={onShareImage}
+          onShareAudio={onShareAudio}
+        />
+      ) : (
+        <NoteComposer
+          selectedText={sheet.selectedText}
+          noteText={sheet.noteText}
+          onChangeNoteText={sheet.setNoteText}
+          noteInputMaxHeight={getNoteInputMaxHeight(windowHeight)}
+          canAnnotate={canAnnotate}
+          isSaving={sheet.isSaving}
+          onCancel={sheet.cancelNote}
+          onDone={() => {
+            void sheet.saveNote();
+          }}
+        />
+      )}
+    </Animated.View>
+  );
+}
+
+export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
+  const insets = useSafeAreaInsets();
+
+  // The overlay stays mounted and only the sheet comes and goes: Reanimated runs
+  // an exiting animation only on the outermost view React removes, so a sheet
+  // removed together with its overlay vanished instead of sliding away. The
+  // empty overlay takes no touches. Each opening mounts a fresh sheet, so a
+  // reopened sheet starts in the actions with no draft.
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -88,98 +181,13 @@ function AnnotationActionSheetContent({
       // and scrolls instead of pushing its title off the top.
       style={[styles.overlay, { paddingTop: insets.top }]}
     >
-      <View
-        // VoiceOver's escape gesture closes the sheet, as Android back does.
-        onAccessibilityEscape={sheet.close}
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: colors.bibleSurface,
-            borderColor: colors.bibleDivider,
-            paddingBottom: spacing.xl + bottomInset,
-            maxHeight,
-          },
-        ]}
-      >
-        <View style={styles.handle}>
-          <View
-            style={[
-              styles.handleBar,
-              { backgroundColor: hexWithAlpha(colors.bibleSecondaryText, 0.333) },
-            ]}
-          />
-        </View>
-
-        <View style={styles.titleRow}>
-          <Text
-            accessibilityRole="header"
-            style={[styles.title, { color: colors.biblePrimaryText }]}
-          >
-            {t('annotations.selected')}: {sheet.referenceLabel}
-          </Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.closeButton,
-              {
-                backgroundColor: colors.bibleElevatedSurface,
-                borderColor: colors.bibleDivider,
-                transform: [{ scale: pressed ? PRESSED_SCALE : 1 }],
-              },
-            ]}
-            onPress={sheet.close}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={closeButtonAccessibilityLabel}
-          >
-            <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-          </Pressable>
-        </View>
-
-        {sheet.mode === 'actions' ? (
-          <SheetActions
-            canAnnotate={canAnnotate}
-            isSaving={sheet.isSaving}
-            activeHighlightColors={activeHighlightColors}
-            onToggleHighlight={(color, isActive) => {
-              void sheet.toggleHighlight(color, isActive);
-            }}
-            onOpenNote={sheet.openNote}
-            onCopy={onCopy}
-            onShare={onShare}
-            onShareImage={onShareImage}
-            onShareAudio={onShareAudio}
-          />
-        ) : (
-          <NoteComposer
-            referenceLabel={sheet.referenceLabel}
-            selectedText={sheet.selectedText}
-            noteText={sheet.noteText}
-            onChangeNoteText={sheet.setNoteText}
-            noteInputMaxHeight={getNoteInputMaxHeight(windowHeight)}
-            canAnnotate={canAnnotate}
-            isSaving={sheet.isSaving}
-            onCancel={sheet.cancelNote}
-            onDone={() => {
-              void sheet.saveNote();
-            }}
-          />
-        )}
-      </View>
+      {props.visible ? <AnnotationActionSheetContent {...props} /> : null}
     </KeyboardAvoidingView>
   );
 }
 
-export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
-  const resetKey = props.visible ? 'open' : 'closed';
-
-  if (!props.visible) {
-    return null;
-  }
-
-  return <AnnotationActionSheetContent key={resetKey} {...props} />;
-}
-
-const CLOSE_BUTTON_SIZE = 32;
+// Deeper than the spring's few points of overshoot.
+const OVERSHOOT_SKIRT_HEIGHT = 48;
 
 const styles = StyleSheet.create({
   overlay: {
@@ -192,42 +200,25 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.sheet,
     borderWidth: 1,
     borderBottomWidth: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
     flexShrink: 1,
     ...shadows.floating,
   },
-  handle: {
-    alignItems: 'center',
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
-  },
-  handleBar: {
-    width: 36,
-    height: 4,
-    borderRadius: radius.pill,
-  },
-  titleRow: {
-    minHeight: 30,
-    marginBottom: spacing.md,
-    justifyContent: 'center',
+  overshootSkirt: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '100%',
+    height: OVERSHOOT_SKIRT_HEIGHT,
   },
   title: {
-    ...typography.label,
-    textAlign: 'center',
-    // Clears the close button pinned to the right (and mirrors it on the left so
-    // the text stays centred): a title that wraps at large text ran under it.
-    paddingHorizontal: CLOSE_BUTTON_SIZE + spacing.sm,
+    fontSize: 19,
+    lineHeight: 25,
+    marginBottom: spacing.lg,
   },
-  closeButton: {
-    position: 'absolute',
-    right: 0,
-    width: CLOSE_BUTTON_SIZE,
-    height: CLOSE_BUTTON_SIZE,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  titlePlatformWeight: {
+    fontWeight: '600',
   },
 });

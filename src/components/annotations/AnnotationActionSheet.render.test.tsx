@@ -36,7 +36,6 @@ function sheetProps(onClose: () => void, overrides: Partial<Props> = {}): Props 
     referenceLabel: 'John 3:16',
     selectedText: 'For God so loved the world',
     canAnnotate: true,
-    closeButtonAccessibilityLabel: 'Close verse actions',
     activeHighlightColors: [],
     onCopy: noop,
     onShare: noop,
@@ -98,7 +97,7 @@ test('once the sheet is hidden, the back button falls through to the reader agai
   const view = await harness.render(<AnnotationActionSheet {...sheetProps(onClose)} />);
 
   await view.rerender(<AnnotationActionSheet {...sheetProps(onClose, { visible: false })} />);
-  assert.equal(view.queryByRole('button', { name: 'Close verse actions' }), null);
+  assert.equal(view.queryByRole('header'), null);
   assert.equal(await pressBack(), false, 'the handler was removed');
   assert.equal(closed, 0);
 });
@@ -130,7 +129,6 @@ test('the sheet is drawn inline, not in a modal, so the Bible stays tappable aro
     'box-none',
     'touches outside the sheet reach the Bible'
   );
-  assert.ok(view.getByRole('button', { name: 'Close verse actions' }));
 });
 
 // Unnamed, Android derives each pill's name from its children, and the Ionicons
@@ -152,31 +150,6 @@ test('each verse action is named by its label alone, not by its icon glyph', asy
   }
 });
 
-test('a wrapped sheet title stays clear of the close button pinned beside it', async () => {
-  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
-  const view = await harness.render(
-    <AnnotationActionSheet
-      {...sheetProps(() => {}, { referenceLabel: '1 Thessalonians 5:16-18' })}
-    />
-  );
-
-  const close = view.getByRole('button', { name: 'Close verse actions' });
-  const closeStyle =
-    flattenStyle(
-      typeof close.props.style === 'function'
-        ? close.props.style({ pressed: false })
-        : close.props.style
-    ) ?? {};
-  assert.equal(closeStyle.position, 'absolute');
-  const title = view.getByText(`${t('annotations.selected')}: 1 Thessalonians 5:16-18`);
-  const titleStyle = flattenStyle(title.props.style) ?? {};
-  const inset = Number(titleStyle.paddingHorizontal ?? titleStyle.paddingRight ?? 0);
-  assert.ok(
-    inset >= Number(closeStyle.width) + Number(closeStyle.right ?? 0),
-    `a ${inset}pt inset keeps a two-line title out from under the ${closeStyle.width}pt button`
-  );
-});
-
 type View = Awaited<ReturnType<typeof harness.render>>;
 
 const isScrollView = (node: ReactTestInstance) => (node.type as unknown) === 'ScrollView';
@@ -184,7 +157,7 @@ const scrollViewAbove = (node: ReactTestInstance) => hostAncestors(node).find(is
 
 /** The sheet surface: the view that carries the height cap, around the title. */
 function sheetSurface(view: View, title: string) {
-  const surface = hostAncestors(view.getByText(title)).find(
+  const surface = hostAncestors(view.getByRole('header', { name: title })).find(
     (node) => flattenStyle(node.props.style)?.maxHeight != null
   );
   assert.ok(surface, 'the sheet surface bounds its height');
@@ -211,16 +184,15 @@ test('at large text on a small phone the sheet stays below the status bar and it
   assert.ok(maxHeight > available / 2 && maxHeight < available, `cap ${maxHeight}`);
   assert.equal(style.flexShrink, 1, 'the keyboard can squeeze the sheet further');
 
-  // The colours and action pills scroll; the title and close button stay put.
+  // The colours and actions scroll; the title stays put.
   const scroll = scrollViewAbove(view.getByRole('button', { name: t('annotations.copy') }));
   assert.ok(scroll, 'the actions sit in a scroll view');
   assert.ok(hostAncestors(scroll).includes(surface));
   assert.ok(scrollViewAbove(view.getByRole('button', { name: t('annotations.colors.red') })));
-  assert.equal(scrollViewAbove(view.getByText(title)), undefined, 'the title does not scroll');
   assert.equal(
-    scrollViewAbove(view.getByRole('button', { name: 'Close verse actions' })),
+    scrollViewAbove(view.getByRole('header', { name: title })),
     undefined,
-    'the close button does not scroll'
+    'the title does not scroll'
   );
 });
 

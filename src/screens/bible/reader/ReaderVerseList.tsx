@@ -1,4 +1,4 @@
-import { StyleSheet, FlatList, Text, View } from 'react-native';
+import { StyleSheet, FlatList, Pressable, Text, View } from 'react-native';
 import { spacing, typography } from '../../../design/system';
 import {
   buildReaderParagraphs,
@@ -221,6 +221,13 @@ export const ReaderVerseList = memo(function ReaderVerseList({
     setSelectedVerses((current) => toggleBibleSelectionVerse(current, verse.verse));
   };
 
+  // The verse action sheet has no close button: a tap on the page around the
+  // verses (a heading, the margin, the end of a line) drops the selection, and with
+  // it the sheet. Verse taps are caught by the verse spans first.
+  const handleReaderPageTap = () => {
+    setSelectedVerses((current) => (current.length === 0 ? current : []));
+  };
+
   const stackedVerse: StackedVerseContext = {
     usePremiumTypography,
     textStyle,
@@ -237,8 +244,11 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   };
 
   const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
-    <View
+    <Pressable
       key={paragraph.key}
+      onPress={handleReaderPageTap}
+      // Only a touch target: screen readers keep reaching each verse on its own.
+      accessible={false}
       style={[
         styles.readerBlock,
         usePremiumTypography ? [styles.premiumReaderBlock, styles.premiumReaderContentShell] : null,
@@ -335,7 +345,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
           paragraph.verses.map((verse) => renderStackedVerse(verse, stackedVerse))
         )}
       </View>
-    </View>
+    </Pressable>
   );
 
   // The memoized rows read the latest renderer through this ref, so their props stay

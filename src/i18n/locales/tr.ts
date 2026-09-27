@@ -1577,6 +1577,7 @@ export const tr = {
     selected: 'Seçili',
     note: 'Not',
     copy: 'Kopyala',
+    audio: 'Ses',
     removeHighlight: 'Vurguyu kaldır',
   },
   groups: {

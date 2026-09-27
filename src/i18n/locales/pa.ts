@@ -1205,6 +1205,7 @@ export const pa = {
     selected: 'ਚੁਣਿਆ ਗਿਆ',
     note: 'ਨੋਟ',
     copy: 'ਕਾਪੀ ਕਰੋ',
+    audio: 'ਆਡੀਓ',
     removeHighlight: 'ਹਾਈਲਾਈਟ ਹਟਾਓ',
   },
   groups: {

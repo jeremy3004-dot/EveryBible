@@ -1629,6 +1629,7 @@ export const fr = {
     selected: 'Sélectionné',
     note: 'Note',
     copy: 'Copier',
+    audio: 'Audio',
     removeHighlight: 'Supprimer le surlignage',
   },
   groups: {

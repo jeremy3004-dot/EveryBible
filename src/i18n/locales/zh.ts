@@ -1484,6 +1484,7 @@ export const zh = {
     selected: '已选择',
     note: '笔记',
     copy: '复制',
+    audio: '音频',
     removeHighlight: '取消高亮',
   },
   groups: {

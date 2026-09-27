@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { ComponentProps } from 'react';
 import { act } from 'react-test-renderer';
 import { mockBarrel } from '../../testing/mockModules';
-import { flattenStyle, installRenderHarness, within } from '../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 
 // What each control on the verse action sheet does: highlight colours, the
 // action pills, the note composer, and closing.
@@ -28,7 +28,6 @@ function recordingProps(overrides: Partial<Props> = {}) {
     referenceLabel: 'John 3:16',
     selectedText: 'For God so loved the world',
     canAnnotate: true,
-    closeButtonAccessibilityLabel: 'Close verse actions',
     activeHighlightColors: [],
     onCopy: record('copy'),
     onShare: record('share'),
@@ -52,19 +51,61 @@ async function renderSheet(overrides: Partial<Props> = {}) {
   return { view, calls, props, rerender };
 }
 
-const colorDot = (view: Awaited<ReturnType<typeof renderSheet>>['view'], id: string) =>
+type SheetView = Awaited<ReturnType<typeof renderSheet>>['view'];
+
+const colorDot = (view: SheetView, id: string) =>
   view.getByRole('button', { name: t(`annotations.colors.${id}`) });
 
-test('a closed sheet renders nothing', async () => {
+const sheetHeader = (view: SheetView) =>
+  view.getByRole('header', { name: `${t('annotations.selected')}: John 3:16` });
+
+/** The dot's visible circle, the view that springs larger once its colour is applied. */
+const dotCircle = (dot: ReturnType<typeof colorDot>) => {
+  const circle = within(dot)
+    .queryAllByType('View')
+    .find((node) => flattenStyle(node.props.style)?.borderRadius != null);
+  assert.ok(circle, 'the dot draws a circle');
+  return circle;
+};
+
+test('a closed sheet draws no sheet, only its empty overlay that lets touches through', async () => {
   const { view } = await renderSheet({ visible: false });
 
-  assert.equal(view.queryAllByType('KeyboardAvoidingView').length, 0);
+  assert.equal(view.queryByRole('header'), null);
+  assert.equal(view.queryAllByType('Pressable').length, 0);
+  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  assert.equal(overlay.props.pointerEvents, 'box-none');
 });
 
-test('the sheet is titled with the selected reference', async () => {
+// Apple's sheets title themselves with the thing itself, not a status label; the
+// "Selected" context stays for VoiceOver, which cannot see the dashed underline.
+test('the sheet is titled with the reference alone, and screen readers hear it as the selection', async () => {
   const { view } = await renderSheet();
 
-  assert.ok(view.getByText(`${t('annotations.selected')}: John 3:16`));
+  assert.ok(sheetHeader(view));
+  assert.equal(view.getByText('John 3:16').props.accessibilityRole, 'header');
+  assert.equal(view.queryByText(`${t('annotations.selected')}: John 3:16`), null);
+});
+
+// Tapping outside the sheet or the verse again closes it, so the sheet carries no
+// close button and, since it does not drag, no grab handle either.
+test('the sheet has no close button and no drag handle', async () => {
+  const { view } = await renderSheet();
+
+  assert.equal(view.queryByRole('button', { name: t('common.done') }), null);
+  assert.equal(view.queryByRole('button', { name: t('interface.close') }), null);
+  const handles = view
+    .queryAllByType('View')
+    .filter((node) => flattenStyle(node.props.style)?.height === 4);
+  assert.deepEqual(handles, []);
+});
+
+test('the chapter audio action shows a short label but keeps its full name for screen readers', async () => {
+  const { view } = await renderSheet();
+
+  const audio = view.getByRole('button', { name: t('bible.shareChapterAudio') });
+  assert.ok(within(audio).getByText(t('annotations.audio')));
+  assert.equal(within(audio).queryByText(t('bible.shareChapterAudio')), null);
 });
 
 test('each action pill runs its own action', async () => {
@@ -83,7 +124,7 @@ test('the five highlight colours apply their colour, and an applied one removes 
 
   const blue = colorDot(view, 'blue');
   assert.deepEqual(blue.props.accessibilityState, { selected: true, disabled: false });
-  assert.equal(within(blue).queryAllByType('Icon').length, 1, 'an applied colour shows its X');
+  assert.equal(within(blue).queryAllByType('Icon').length, 1, 'an applied colour shows its check');
   assert.deepEqual(colorDot(view, 'red').props.accessibilityState, {
     selected: false,
     disabled: false,
@@ -97,6 +138,82 @@ test('the five highlight colours apply their colour, and an applied one removes 
   await view.flush();
 
   assert.deepEqual(calls, [`highlight:${RED}`, `removeHighlight:${BLUE}`]);
+});
+
+test('picking a colour taps a selection haptic, and clearing one a softer tap', async () => {
+  const { view } = await renderSheet({ activeHighlightColors: [BLUE] });
+
+  await view.press(colorDot(view, 'red'));
+  await view.flush();
+  assert.deepEqual(harness.haptics, [{ kind: 'selection' }]);
+
+  await view.press(colorDot(view, 'blue'));
+  await view.flush();
+  assert.deepEqual(harness.haptics, [{ kind: 'selection' }, { kind: 'impact', style: 'soft' }]);
+});
+
+test('a colour that cannot be applied gives no haptic', async () => {
+  const { view } = await renderSheet({ canAnnotate: false });
+
+  await view.press(colorDot(view, 'red'));
+  assert.deepEqual(harness.haptics, []);
+});
+
+test('an applied colour springs a little larger and its check fades in', async () => {
+  const { view } = await renderSheet({ activeHighlightColors: [BLUE] });
+
+  const springs = harness.animations.filter((call) => call.kind === 'spring');
+  assert.ok(
+    springs.some((call) => Number(call.toValue) > 1),
+    'the applied dot springs up past its resting size'
+  );
+  assert.ok(
+    harness.animations.some((call) => call.kind === 'timing' && call.toValue === 1),
+    'the check fades in'
+  );
+  const blue = flattenStyle(dotCircle(colorDot(view, 'blue')).props.style) ?? {};
+  const red = flattenStyle(dotCircle(colorDot(view, 'red')).props.style) ?? {};
+  assert.equal(blue.width, red.width, 'the dots share one size; only the scale grows');
+});
+
+test('with reduced motion an applied colour is sized and checked without animating', async () => {
+  harness.setReduceMotion(true);
+  await renderSheet({ activeHighlightColors: [BLUE] });
+
+  assert.deepEqual(harness.animations, []);
+});
+
+test('the sheet rises with a spring and slides away when it closes', async () => {
+  const { view } = await renderSheet();
+
+  const surface = hostAncestors(sheetHeader(view)).find((node) => node.props.entering);
+  assert.ok(surface, 'the sheet surface animates in');
+  assert.equal(surface.props.entering.__layoutAnimation, 'SlideInDown');
+  assert.equal(surface.props.exiting.__layoutAnimation, 'SlideOutDown');
+});
+
+// Reanimated animates only the outermost removed view, so the sheet surface must be
+// what closing removes; removing its overlay too made the sheet vanish in one frame.
+test('closing removes only the animated sheet, leaving its overlay in place', async () => {
+  const { view, rerender } = await renderSheet();
+  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  const surface = hostAncestors(sheetHeader(view)).find((node) => node.props.exiting);
+  assert.ok(surface);
+  assert.ok(hostAncestors(surface).includes(overlay), 'the sheet sits inside the overlay');
+
+  await rerender({ visible: false });
+  assert.equal(view.queryAllByType('KeyboardAvoidingView').length, 1, 'the overlay stays');
+  assert.equal(view.queryByRole('header'), null, 'the sheet is gone');
+});
+
+test('with reduced motion the sheet fades in and out instead of sliding', async () => {
+  harness.setReduceMotion(true);
+  const { view } = await renderSheet();
+
+  const surface = hostAncestors(sheetHeader(view)).find((node) => node.props.entering);
+  assert.ok(surface);
+  assert.equal(surface.props.entering.__layoutAnimation, 'FadeIn');
+  assert.equal(surface.props.exiting.__layoutAnimation, 'FadeOut');
 });
 
 test('a second colour tap while one is still saving is ignored', async () => {
@@ -143,7 +260,7 @@ test('Note opens a composer under the verse preview, prefilled with the existing
 
   await view.press(view.getByRole('button', { name: t('annotations.note') }));
 
-  assert.ok(view.getByText('John 3:16'));
+  assert.ok(sheetHeader(view), 'the title still names the reference');
   assert.ok(view.getByText('For God so loved the world'));
   const input = view.getByLabelText(t('annotations.noteHint'));
   assert.equal(input.props.value, 'Remember this');
@@ -209,12 +326,12 @@ test('Cancel returns to the actions and keeps the draft for the next Note', asyn
   assert.deepEqual(calls, []);
 });
 
-test('the close button closes the sheet and drops an unsaved draft', async () => {
+test('escaping the sheet closes it and drops an unsaved draft', async () => {
   const { view, calls, rerender } = await renderSheet({ existingNote: 'Saved' });
   await view.press(view.getByRole('button', { name: t('annotations.note') }));
   await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'Unsaved');
 
-  await view.press(view.getByRole('button', { name: 'Close verse actions' }));
+  await view.fire(sheetHeader(view), 'onAccessibilityEscape');
   assert.deepEqual(calls, ['close']);
   assert.ok(view.getByRole('button', { name: t('annotations.copy') }), 'back to the actions');
 

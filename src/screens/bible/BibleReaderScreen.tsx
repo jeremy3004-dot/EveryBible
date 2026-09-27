@@ -1489,7 +1489,6 @@ export function BibleReaderScreen() {
         referenceLabel={selectedVerseReferenceLabel}
         selectedText={selectedVerseText}
         canAnnotate={true}
-        closeButtonAccessibilityLabel={t('common.done')}
         bottomInset={safeInsets.bottom}
         activeHighlightColors={selectedHighlightColors}
         onCopy={() => {

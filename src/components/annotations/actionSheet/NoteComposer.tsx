@@ -5,7 +5,6 @@ import { spacing, typography } from '../../../design/system';
 import { NOTE_INPUT_MIN_HEIGHT, PRESSED_SCALE } from './annotationActionSheetModel';
 
 interface NoteComposerProps {
-  referenceLabel: string;
   selectedText: string;
   noteText: string;
   onChangeNoteText: (text: string) => void;
@@ -16,9 +15,11 @@ interface NoteComposerProps {
   onDone: () => void;
 }
 
-/** The sheet's note panel: the verse preview above the note field, Cancel and Done. */
+/**
+ * The sheet's note panel: the verse preview above the note field, Cancel and Done.
+ * The sheet's title already names the reference, so the preview is the text alone.
+ */
 export function NoteComposer({
-  referenceLabel,
   selectedText,
   noteText,
   onChangeNoteText,
@@ -34,7 +35,7 @@ export function NoteComposer({
 
   return (
     <>
-      {/* Only the reference and verse preview scroll. The field and its
+      {/* Only the verse preview scrolls. The field and its
           buttons stay pinned at the bottom of the sheet, directly above
           the keyboard, so what the user is typing and Done are always in
           reach however little room the keyboard leaves. */}
@@ -44,9 +45,6 @@ export function NoteComposer({
         keyboardShouldPersistTaps="handled"
         alwaysBounceVertical={false}
       >
-        <Text style={[styles.noteReference, { color: colors.bibleSecondaryText }]}>
-          {referenceLabel}
-        </Text>
         <Text style={[styles.notePreview, { color: colors.bibleSecondaryText }]} numberOfLines={3}>
           {selectedText}
         </Text>
@@ -125,10 +123,6 @@ const styles = StyleSheet.create({
   noteComposer: {
     marginTop: spacing.md,
     gap: spacing.md,
-  },
-  noteReference: {
-    ...typography.micro,
-    textAlign: 'center',
   },
   notePreview: {
     ...typography.body,

@@ -24,9 +24,49 @@ test('tapping verses selects them and the action sheet names the selected range'
   await tapVerse(view, 0);
   await tapVerse(view, 1);
 
-  assert.ok(view.getByText(`${t('annotations.selected')}: John 3:1-2 BSB`));
-  await view.press(view.getByRole('button', { name: t('common.done') }));
-  assert.equal(view.queryByText(/John 3:1-2 BSB/), null, 'closing clears the selection');
+  assert.ok(view.getByRole('header', { name: `${t('annotations.selected')}: John 3:1-2 BSB` }));
+});
+
+const sheetTitle = (view: View) => view.queryByText(/^John 3:\d/);
+
+test('tapping the only selected verse again closes the action sheet', async () => {
+  const view = await renderReader();
+
+  await tapVerse(view, 1);
+  assert.ok(sheetTitle(view));
+  await tapVerse(view, 1);
+  assert.equal(sheetTitle(view), null);
+});
+
+// The sheet has no close button: a tap on the page around the verses closes it,
+// while a tap on another verse still adds that verse to the selection.
+test('tapping the page outside the verses closes the action sheet', async () => {
+  const view = await renderReader();
+  await tapVerse(view, 1);
+
+  const verse = view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20)));
+  const page = hostAncestors(verse).find(
+    (node) => node !== verse && typeof node.props.onPress === 'function'
+  );
+  assert.ok(page, 'the page around the verses takes a tap');
+  assert.equal(page.props.accessible, false, 'screen readers still reach each verse on its own');
+
+  await view.press(page);
+  assert.equal(sheetTitle(view), null, 'closing clears the selection');
+  assert.deepEqual(callsNamed('upsertAnnotation'), [], 'nothing is saved');
+});
+
+test('a tap on the page with nothing selected leaves the reader as it was', async () => {
+  const view = await renderReader();
+
+  const verse = view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20)));
+  const page = hostAncestors(verse).find(
+    (node) => node !== verse && typeof node.props.onPress === 'function'
+  );
+  assert.ok(page);
+  await view.press(page);
+  assert.equal(sheetTitle(view), null);
+  assert.deepEqual(harness.haptics, []);
 });
 
 test('copy and share hand the selected verses over with their reference', async () => {

@@ -1574,6 +1574,7 @@ export const id = {
     selected: 'Terpilih',
     note: 'Catatan',
     copy: 'Salin',
+    audio: 'Audio',
     removeHighlight: 'Hapus sorotan',
   },
   groups: {

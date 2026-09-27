@@ -1609,6 +1609,7 @@ export const ar = {
     selected: 'مختارة',
     note: 'ملاحظة',
     copy: 'نسخ',
+    audio: 'الصوت',
     removeHighlight: 'إزالة التظليل',
   },
   groups: {

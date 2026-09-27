@@ -21,6 +21,14 @@ export const lightHaptic = () => {
 };
 
 /**
+ * Soft haptic feedback, gentler than light
+ * Use for: undoing or clearing something (removing a highlight)
+ */
+export const softHaptic = () => {
+  safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft));
+};
+
+/**
  * Medium haptic feedback for standard interactions
  * Use for: button taps, page changes, confirming actions
  */

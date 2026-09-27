@@ -7,6 +7,7 @@ export {
   warningHaptic,
   errorHaptic,
   selectionHaptic,
+  softHaptic,
 } from './haptics';
 
 export { hexWithAlpha } from './color';

@@ -25,6 +25,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'common.error': 'Error',
     // Reviewed 2026-09-26: the Audio sheet's title; Spanish writes "audio" as English does.
     'audio.sheetTitle': 'Audio',
+    'annotations.audio': 'Audio',
     // Reviewed 2026-09-26: the Psalms' "Selah"; Reina-Valera transliterates it exactly as English.
     'audio.playerBar.selah': 'Selah',
   },
@@ -75,6 +76,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     // Reviewed 2026-09-26: Audio sheet labels whose French word is spelled as in English
     // (the sheet title, the repeat chip for a Bible passage, and the village sound tile).
     'audio.sheetTitle': 'Audio',
+    'annotations.audio': 'Audio',
     'audio.repeatOptionPassage': 'Passage',
     'interface.music.village.label': 'Village',
   },
@@ -126,6 +128,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'annotations.colors.orange': 'Orange',
     'bible.audioDownloads': 'Audio',
     'audio.sheetTitle': 'Audio',
+    'annotations.audio': 'Audio',
     'audio.showText': 'Text',
     'auth.name': 'Name',
     'about.version': 'Version {{version}}',
@@ -211,6 +214,7 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'bible.books.TIT': 'Titus',
     // Reviewed 2026-09-26: the Audio sheet's title; Indonesian writes "audio" as English does.
     'audio.sheetTitle': 'Audio',
+    'annotations.audio': 'Audio',
   },
   ja: {
     // Brand names only: the app name and the Every Language organization name.

@@ -1603,6 +1603,7 @@ export const pt = {
     selected: 'Selecionado',
     note: 'Nota',
     copy: 'Copiar',
+    audio: 'Áudio',
     removeHighlight: 'Remover destaque',
   },
   groups: {

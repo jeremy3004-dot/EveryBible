@@ -1203,6 +1203,7 @@ export const mr = {
     selected: 'निवडले',
     note: 'टीप',
     copy: 'कॉपी करा',
+    audio: 'ऑडिओ',
     removeHighlight: 'हायलाइट काढा',
   },
   groups: {

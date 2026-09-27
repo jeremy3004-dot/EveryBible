@@ -490,7 +490,8 @@ test('selecting a verse slides the tab bar away until the selection closes', asy
     true
   );
 
-  await view.press(view.getByRole('button', { name: t('common.done') }));
+  // A second tap on the only selected verse closes the selection.
+  await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
   assert.equal(reader.setParamsCalls().at(-1)?.tabBarCollapseProgress, 0);
 });
 

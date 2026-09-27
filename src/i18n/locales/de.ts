@@ -1594,6 +1594,7 @@ export const de = {
     selected: 'Ausgewählt',
     note: 'Notiz',
     copy: 'Kopieren',
+    audio: 'Audio',
     removeHighlight: 'Markierung entfernen',
   },
   groups: {

@@ -1572,6 +1572,7 @@ export const vi = {
     selected: 'Đã chọn',
     note: 'Ghi chú',
     copy: 'Sao chép',
+    audio: 'Âm thanh',
     removeHighlight: 'Xóa phần tô sáng',
   },
   groups: {

@@ -43,9 +43,11 @@ async function measure(view: View) {
   await view.fire(reader.readerList(view), 'onLayout', {
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 700 } },
   });
-  const cells = view
-    .queryAllByType('View')
-    .filter((node) => typeof node.props.onLayout === 'function');
+  // A paragraph block is a Pressable (a tap beside the verses closes the action
+  // sheet), which the fakes draw as its own host type rather than a View.
+  const cells = [...view.queryAllByType('View'), ...view.queryAllByType('Pressable')].filter(
+    (node) => typeof node.props.onLayout === 'function'
+  );
   for (const cell of cells) {
     // Virtualized cells report y relative to their own wrapper: always 0.
     await view.fire(cell, 'onLayout', {
@@ -92,7 +94,9 @@ test('read mode flows a paragraph’s verses inline, each a tappable span with a
   assert.equal(flattenStyle(number.props.style)?.color, theme.secondaryText);
 
   await view.press(verseSpan(view, 2));
-  assert.ok(view.getByText(new RegExp(`${t('annotations.selected')}: John 3:2`)));
+  assert.ok(
+    view.getByRole('header', { name: new RegExp(`${t('annotations.selected')}: John 3:2`) })
+  );
 });
 
 test('section titles are headers in the bold reading face at the reading-heading size', async () => {
@@ -363,7 +367,7 @@ test('listen progress ticks update the elapsed time without re-rendering the rea
 test('switching to a translation without text drops the selection for the audio player', async () => {
   const view = await renderReader();
   await view.press(verseSpan(view, 2));
-  assert.ok(view.getByRole('button', { name: t('common.done') }));
+  assert.ok(view.getByText(/^John 3:2 /), 'the action sheet is open');
 
   // Switching to an audio-only translation leaves the chapter without text.
   const audioOnly = { ...BSB, id: 'audio', abbreviation: 'AUD', hasText: false };
@@ -372,7 +376,7 @@ test('switching to a translation without text drops the selection for the audio 
   });
   await view.flush();
 
-  assert.equal(view.queryByRole('button', { name: t('common.done') }), null);
+  assert.equal(view.queryByText(/^John 3:2 /), null, 'the action sheet closed');
   assert.ok(view.getByRole('button', { name: t('interface.playChapterAudio') }));
 });
 

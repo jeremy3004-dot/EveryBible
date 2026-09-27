@@ -1202,6 +1202,7 @@ export const hi = {
     highlight: 'हाइलाइट',
     note: 'नोट',
     copy: 'कॉपी करें',
+    audio: 'ऑडियो',
     removeHighlight: 'हाइलाइट हटाएँ',
     editNote: 'नोट संपादित करें',
     deleteAnnotation: 'हटाएँ',

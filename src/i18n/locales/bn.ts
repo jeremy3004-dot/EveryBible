@@ -1197,6 +1197,7 @@ export const bn = {
     selected: 'নির্বাচিত',
     note: 'নোট',
     copy: 'কপি করুন',
+    audio: 'অডিও',
     removeHighlight: 'হাইলাইট সরান',
   },
   groups: {

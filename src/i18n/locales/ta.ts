@@ -1245,6 +1245,7 @@ export const ta = {
     selected: 'தேர்ந்தெடுக்கப்பட்டது',
     note: 'குறிப்பு',
     copy: 'நகலெடு',
+    audio: 'ஆடியோ',
     removeHighlight: 'சிறப்புக்குறியை அகற்று',
   },
   groups: {

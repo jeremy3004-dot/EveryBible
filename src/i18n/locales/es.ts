@@ -2062,6 +2062,7 @@ export const es = {
     selected: 'Seleccionado',
     note: 'Nota',
     copy: 'Copiar',
+    audio: 'Audio',
     removeHighlight: 'Quitar resaltado',
   },
   prayer: {

@@ -1219,6 +1219,7 @@ export const te = {
     selected: 'ఎంపిక చేయబడింది',
     note: 'గమనిక',
     copy: 'కాపీ చేయండి',
+    audio: 'ఆడియో',
     removeHighlight: 'హైలైట్‌ని తీసివేయండి',
   },
   groups: {

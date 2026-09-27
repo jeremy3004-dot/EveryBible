@@ -1523,6 +1523,7 @@ export const ko = {
     selected: '선택됨',
     note: '메모',
     copy: '복사',
+    audio: '오디오',
     removeHighlight: '하이라이트 제거',
   },
   groups: {
