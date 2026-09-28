@@ -5,9 +5,10 @@ import { audioPlayer } from '../../services/audio';
 // state they share cannot live in one player's refs.
 
 /**
- * Whether the listener (or the sleep timer) paused playback, as opposed to the
- * system (a call, another app's audio, a headphone unplug). Only a system pause
- * may be undone when iOS reports that an interruption has ended.
+ * Whether playback was paused or ended by the listener, the sleep timer or chapter
+ * completion, as opposed to the system (a call, another app's audio, a headphone
+ * unplug). Only a system pause may be undone when an interruption ends; explicit
+ * Play clears this intent.
  */
 export const pausedByListener = { current: false };
 
@@ -24,6 +25,22 @@ export const chapterTransition = { current: false };
  * reopened reader has since played something else, and leave it alone.
  */
 export const playRequest = { current: 0 };
+
+/**
+ * Manual chapter walks share one player and can wait for coverage before claiming
+ * playRequest. Completion yields to their intent without cancelling an active load.
+ * pendingId covers a walk already waiting when the native chapter finishes.
+ */
+export const navigationIntent: { current: number; pendingId: number | null } = {
+  current: 0,
+  pendingId: null,
+};
+
+/**
+ * The latest seek or skip across every reader of the one native player. Separate
+ * from playRequest so adjusting position cannot cancel a chapter still loading.
+ */
+export const seekRequest = { current: 0 };
 
 /**
  * The play request whose chapter is being loaded. That load reports its own failure,

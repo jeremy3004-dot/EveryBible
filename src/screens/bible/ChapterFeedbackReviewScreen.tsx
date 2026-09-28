@@ -43,18 +43,28 @@ export function ChapterFeedbackReviewScreen({ route, navigation }: Props) {
   const { load, cancel, input, items, cursor, loading } = list;
   const voiceNote = useFeedbackVoiceNote(input);
   const stopVoiceNote = voiceNote.stop;
-  const decisions = useFeedbackDecisions({ translationId, passcode, query: input, reload: load });
+  const decisions = useFeedbackDecisions({
+    translationId,
+    passcode,
+    enabled,
+    query: input,
+    reload: load,
+  });
+  const cancelDecisions = decisions.cancel;
+  const activateDecisions = decisions.activate;
   const chapterLabel = `${getTranslatedBookName(bookId, t)} ${chapter}`;
 
   // A filter change rebuilds `load`, so it also stops the voice note and refetches.
   useFocusEffect(
     useCallback(() => {
+      activateDecisions();
       void load();
       return () => {
         cancel();
         stopVoiceNote();
+        cancelDecisions();
       };
-    }, [load, cancel, stopVoiceNote])
+    }, [load, cancel, stopVoiceNote, cancelDecisions, activateDecisions])
   );
 
   const headline = getChapterReviewHeadline(list.summary, loading);

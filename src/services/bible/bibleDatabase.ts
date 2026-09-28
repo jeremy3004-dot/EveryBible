@@ -6,6 +6,7 @@ import { bibleBooks } from '../../constants/books';
 import {
   buildBibleFallbackSearchTerms,
   buildBibleSearchQuery,
+  buildBibleSearchVerificationTerms,
   buildBibleSubstringSearchTerms,
   buildInstalledBibleDatabaseSource,
   isBundledBibleDatabaseReady,
@@ -29,6 +30,12 @@ import {
 
 let db: SQLite.SQLiteDatabase | null = null;
 const installedDatabaseCache = new Map<string, SQLite.SQLiteDatabase>();
+// A delayed query error belongs to the file this handle opened, even when the
+// translation has since been deleted and installed at a new candidate path.
+const installedDatabaseSources = new WeakMap<
+  SQLite.SQLiteDatabase,
+  Extract<BibleDatabaseSource, { kind: 'installed' }>
+>();
 const pendingInstalledDatabaseOpens = new Map<string, Promise<SQLite.SQLiteDatabase>>();
 // Search-index cache keys whose index is known to be complete. Only a ready index is cached: a
 // pack's index can finish building in the background, so "not ready" is probed again.
@@ -42,8 +49,10 @@ const DATABASE_ASSET_ID: number = require('../../../assets/databases/bible-bsb-v
 // The shipped database's exact verse count (BSB 31,086 + WEB 31,098 + ASV 31,086 + NPIULB
 // 31,102). Raise it with BUNDLED_BIBLE_SCHEMA_VERSION on every rebuild (CLAUDE.md rule 11).
 export const DEFAULT_MINIMUM_READY_VERSE_COUNT = 124372;
+// JS caches own reader handles; temporary probes must not share their native binding.
 const SQLITE_OPEN_OPTIONS = {
   finalizeUnusedStatementsBeforeClosing: false,
+  useNewConnection: true,
 } as const;
 
 export class BibleSearchUnavailableError extends Error {
@@ -525,6 +534,7 @@ async function openInstalledDatabase(
     }
     throw error;
   }
+  installedDatabaseSources.set(database, source);
   installedDatabaseCache.set(cacheKey, database);
   return database;
 }
@@ -535,11 +545,11 @@ async function openInstalledDatabase(
  * unreadable so the reader resets the install instead of failing on every chapter.
  */
 async function toInstalledDatabaseReadError(
-  translationId: string,
+  database: SQLite.SQLiteDatabase,
   error: unknown
 ): Promise<unknown> {
-  const source = resolveBibleDatabaseSource(translationId);
-  if (source.kind !== 'installed' || !isCorruptDatabaseError(error)) {
+  const source = installedDatabaseSources.get(database);
+  if (!source || !isCorruptDatabaseError(error)) {
     return error;
   }
   const localPath = `${source.directory}/${source.databaseName}`;
@@ -569,7 +579,7 @@ export async function getChapter(
       [translationId, bookId, chapter]
     );
   } catch (error) {
-    throw await toInstalledDatabaseReadError(translationId, error);
+    throw await toInstalledDatabaseReadError(database, error);
   }
 
   return results.map((row) => ({
@@ -627,7 +637,8 @@ function getCanonicalBookOrderSql(): string {
 // without them on both sides, or परमेश्वर matched 81 of its 3,932 verses. Only for words in
 // the scripts that use joiners (Arabic through Sinhala): the replace() makes a Latin scan ~3x
 // slower.
-const JOINER_FREE_TEXT_SQL = "replace(replace(text, char(8205), ''), char(8204), '')";
+const getJoinerFreeTextSql = (column: 'text' | 'v.text') =>
+  `replace(replace(${column}, char(8205), ''), char(8204), '')`;
 const JOINER_PATTERN = /\u200C|\u200D/g;
 const JOINER_SCRIPT_PATTERN = /[\u0600-\u06FF]|[\u0900-\u0DFF]/;
 
@@ -649,7 +660,7 @@ async function searchVersesBySubstring(
   );
   const conditions = terms
     .map((spellings, index) => {
-      const column = joinerFree[index] ? JOINER_FREE_TEXT_SQL : 'text';
+      const column = joinerFree[index] ? getJoinerFreeTextSql('text') : 'text';
       return `AND (${spellings.map(() => `instr(${column}, ?) > 0`).join(' OR ')})`;
     })
     .join(' ');
@@ -747,6 +758,12 @@ export async function searchVerses(
     // scores against the whole index, and ties still fall back to book, chapter and verse, so
     // the ranking is the one searching every translation gave. translation_id stays in the
     // filter for a translation whose ids are not contiguous.
+    const verificationTerms = buildBibleSearchVerificationTerms(query).map((term) =>
+      term.replace(JOINER_PATTERN, '')
+    );
+    const verificationSql = verificationTerms
+      .map(() => `AND instr(${getJoinerFreeTextSql('v.text')}, ?) > 0`)
+      .join(' ');
     const indexedResults = await database.getAllAsync<VerseRow>(
       `
         SELECT v.*
@@ -755,10 +772,11 @@ export async function searchVerses(
         WHERE verses_fts MATCH ?
           AND verses_fts.rowid BETWEEN ? AND ?
           AND v.translation_id = ?
+          ${verificationSql}
         ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
         LIMIT ?
       `,
-      [ftsQuery, idRange.first, idRange.last, translationId, limit]
+      [ftsQuery, idRange.first, idRange.last, translationId, ...verificationTerms, limit]
     );
 
     return indexedResults.map(toVerse);

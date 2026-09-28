@@ -287,18 +287,27 @@ export async function createBackgroundAudioDownloadTransport(): Promise<AudioDow
       },
       // Chapter tasks are named after their BOOK job even inside a translation download, so both
       // of these must match in the translation's task-id namespace. (N22)
-      reattachJob: async (jobId) => {
+      reattachJob: async (jobId, signal) => {
+        if (signal?.aborted) return;
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
-        tasks
-          .filter((task) => audioDownloadTaskIdMatchesJob(task.id, jobId))
-          .forEach((task) => {
-            task.resume();
-          });
+        for (const task of tasks) {
+          if (signal?.aborted) return;
+          if (audioDownloadTaskIdMatchesJob(task.id, jobId)) await task.resume();
+        }
       },
-      cancelJob: async (jobId) => {
+      cancelJob: async (jobId, options) => {
         const tasks = await backgroundDownloader.getExistingDownloadTasks();
+        const [prefix, translationId, scope] = jobId.split(':');
+        const selectedBookJobs =
+          options && scope === 'translation'
+            ? options.bookIds.map((bookId) => `${prefix}:${translationId}:book:${bookId}`)
+            : [];
         const matchingTasks = tasks.filter((candidate) =>
-          audioDownloadTaskIdMatchesJob(candidate.id, jobId)
+          options
+            ? selectedBookJobs.some((bookJobId) =>
+                audioDownloadTaskIdMatchesJob(candidate.id, bookJobId)
+              )
+            : audioDownloadTaskIdMatchesJob(candidate.id, jobId)
         );
         for (const task of matchingTasks) {
           await task.stop();

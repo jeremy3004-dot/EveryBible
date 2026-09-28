@@ -349,3 +349,50 @@ test('a failed write is reported to its caller without blocking the next operati
     [REGISTRY_URI]
   );
 });
+
+test('cold registry retains run ownership and rejects malformed ownership fields', async () => {
+  const disk = fileSystemDouble();
+  const store = createPersistentAudioDownloadJobStore({
+    fileSystem: disk.fileSystem,
+    rootUri: 'file:///audio/',
+  });
+  const parent = makeJob('audio-download:bsb:translation:all', {
+    scope: 'translation',
+    bookId: undefined,
+    runId: 'collection-run',
+    requestedBookIds: ['PHM'],
+  });
+  delete parent.bookId; // Translation records have no book field in their serialized shape.
+  await store.upsertJob(parent);
+  const child = makeJob('audio-download:bsb:book:PHM', {
+    bookId: 'PHM',
+    runId: 'book-run',
+    parentRunId: 'collection-run',
+  });
+  await store.upsertJob(child);
+  const cold = fileSystemDouble({ contents: disk.files.get(REGISTRY_URI) });
+  const recovered = createPersistentAudioDownloadJobStore({
+    fileSystem: cold.fileSystem,
+    rootUri: 'file:///audio/',
+  });
+  assert.deepEqual(await recovered.getJob(parent.id), parent);
+  assert.deepEqual(await recovered.getJob(child.id), child);
+  const malformed = fileSystemDouble({
+    contents: JSON.stringify({
+      jobs: [
+        child,
+        makeJob('legacy'),
+        { ...child, id: 'invalid-run', runId: 7 },
+        { ...child, id: 'unowned-parent', runId: undefined },
+      ],
+    }),
+  });
+  const validated = createPersistentAudioDownloadJobStore({
+    fileSystem: malformed.fileSystem,
+    rootUri: 'file:///audio/',
+  });
+  assert.deepEqual(
+    (await validated.listJobs()).map((job) => job.id),
+    [child.id, 'legacy']
+  );
+});

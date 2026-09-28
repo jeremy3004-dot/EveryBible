@@ -100,6 +100,15 @@ export const createTextPackInstallSlice: BibleSliceCreator<TextPackInstallSlice>
           await invalidateInstalledBibleDatabaseAtPath(translation.textPackLocalPath);
         }
 
+        // Load the transfer owner before exposing its cancel control. Otherwise a cancel
+        // during this import can reach the service before any transfer exists and be lost.
+        const {
+          downloadCatalogTextPack,
+          isTextPackDownloadCancelled: isDownloadCancelled,
+          getCatalogTextPackPaths,
+        } = await import('../../services/bible/cloudTranslationService');
+        isTextPackDownloadCancelled = isDownloadCancelled;
+
         set((state) => ({
           error: null,
           downloadProgress: {
@@ -113,12 +122,6 @@ export const createTextPackInstallSlice: BibleSliceCreator<TextPackInstallSlice>
         }));
 
         const textPack = translation?.catalog?.text;
-        const {
-          downloadCatalogTextPack,
-          isTextPackDownloadCancelled: isDownloadCancelled,
-          getCatalogTextPackPaths,
-        } = await import('../../services/bible/cloudTranslationService');
-        isTextPackDownloadCancelled = isDownloadCancelled;
 
         const handleProgress = (progress: TextPackTransferProgress) => {
           const activeProgress = get().downloadProgress;
@@ -181,12 +184,38 @@ export const createTextPackInstallSlice: BibleSliceCreator<TextPackInstallSlice>
         await invalidateInstalledBibleDatabaseAtPath(localPath);
         const { validateCatalogTextPack } =
           await import('../../services/bible/cloudTranslationService');
-        const representative = await validateCatalogTextPack(
-          localPath,
-          textPack.verseCount ?? 1,
-          textPack.sha256,
-          translationId
-        );
+        let representative: Awaited<ReturnType<typeof validateCatalogTextPack>>;
+        try {
+          representative = await validateCatalogTextPack(
+            localPath,
+            textPack.verseCount ?? 1,
+            textPack.sha256,
+            translationId
+          );
+        } catch (validationError) {
+          // The transfer has activated this unique candidate, but the store has
+          // not registered it. Clean only this operation's returned file, never
+          // the prior pack or a path whose ownership has changed.
+          if (
+            localPath === packPaths?.finalPath &&
+            localPath !== translation?.textPackLocalPath &&
+            activeTextDownloadOperationIds.get(translationId) === operationId
+          ) {
+            try {
+              await invalidateInstalledBibleDatabaseAtPath(localPath);
+              const { deleteCatalogTextPackArtifacts } =
+                await import('../../services/bible/cloudTranslationService');
+              await deleteCatalogTextPackArtifacts(localPath);
+            } catch (cleanupError) {
+              console.warn(
+                '[Bible] Failed to remove invalid text pack candidate:',
+                translationId,
+                cleanupError
+              );
+            }
+          }
+          throw validationError;
+        }
 
         const activeProgress = get().downloadProgress;
         if (activeTextDownloadOperationIds.get(translationId) !== operationId) {

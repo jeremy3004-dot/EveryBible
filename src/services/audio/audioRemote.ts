@@ -204,7 +204,8 @@ function normalizeFileExtension(extension: string | null | undefined): string | 
   }
 
   const normalized = extension.trim().replace(/^\./, '').toLowerCase();
-  return normalized.length > 0 ? normalized : undefined;
+  // Catalog extensions become local filename suffixes; never admit path or URI syntax.
+  return /^[a-z0-9]+$/.test(normalized) ? normalized : undefined;
 }
 
 function inferFileExtensionFromPath(path: string | null | undefined): string | undefined {
@@ -435,7 +436,7 @@ export function getConfiguredAudioGranularity(
 }
 
 export function getRemoteAudioFileExtension(translationId: string): string {
-  return resolveRemoteAudioMetadata(translationId)?.fileExtension ?? 'mp3';
+  return normalizeFileExtension(resolveRemoteAudioMetadata(translationId)?.fileExtension) ?? 'mp3';
 }
 
 function buildStreamTemplateAudioUrl(

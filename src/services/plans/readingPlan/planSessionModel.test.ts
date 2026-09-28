@@ -72,3 +72,35 @@ test('a recurring plan keys sessions by its dated cycle and never advances the d
   assert.notEqual(completion?.dayCompletionKey, '1');
   assert.equal(completion?.completionKey, `${completion?.dayCompletionKey}:morning`);
 });
+
+test('an explicit recurring occurrence keeps session lookup and final completion together across midnight', () => {
+  const recurring = plan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
+  const completion = resolvePlanSessionCompletion(
+    recurring,
+    entries,
+    1,
+    'morning',
+    { '2026-09-01:evening': '2026-09-01T22:00:00Z', '2026-10-01:morning': '2026-10-01T00:05:00Z' },
+    new Date(2026, 9, 1, 5),
+    '2026-09-01'
+  );
+  assert.equal(completion?.completionKey, '2026-09-01:morning');
+  assert.equal(completion?.dayCompletionKey, '2026-09-01');
+  assert.equal(completion?.isFinalSession, true);
+  assert.equal(completion?.nextSessionKey, null);
+});
+
+test('sequential session completion ignores an optional calendar occurrence', () => {
+  const completion = resolvePlanSessionCompletion(
+    plan(),
+    entries,
+    1,
+    'morning',
+    {},
+    new Date(),
+    '2026-09-30'
+  );
+  assert.equal(completion?.completionKey, '1:morning');
+  assert.equal(completion?.dayCompletionKey, '1');
+  assert.equal(completion?.advanceDayOnCompletion, true);
+});

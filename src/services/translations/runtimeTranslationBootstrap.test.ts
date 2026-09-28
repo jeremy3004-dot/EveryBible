@@ -65,6 +65,9 @@ const storeState: StoreState = {
 mockModule(mock, sourcePath('stores/bibleStore.ts'), {
   useBibleStore: { getState: () => storeState },
 });
+mockModule(mock, sourcePath('stores/authStore.ts'), {
+  useAuthStore: { getState: () => ({ user: { uid: 'user-1' }, authGeneration: 0 }) },
+});
 
 // ─── Fake translationService ──────────────────────────────────────────────────
 

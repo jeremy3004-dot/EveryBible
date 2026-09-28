@@ -111,6 +111,24 @@ const applyPreferenceMergeLocally = (
 };
 
 const PROGRESS_MERGE_RPC = 'merge_user_progress';
+const POSITION_RETRY_MESSAGE =
+  'Your reading progress was saved. Please try again later to sync your place in the Bible.';
+const isMissingPositionStampColumn = (error: { code?: string; message?: string } | null): boolean =>
+  Boolean(
+    error &&
+    (error.code === 'PGRST204' || error.code === '42703') &&
+    /position_updated_(at|for)/.test(error.message ?? '')
+  );
+
+const legacyServerLostPosition = (
+  selected: ReturnType<typeof mergeReadingSnapshot>,
+  stored: UserProgress
+): boolean =>
+  (!Object.prototype.hasOwnProperty.call(stored, 'position_updated_at') ||
+    !Object.prototype.hasOwnProperty.call(stored, 'position_updated_for')) &&
+  selected.readingPositionUpdatedAt != null &&
+  (selected.readingPosition.bookId !== stored.current_book ||
+    selected.readingPosition.chapter !== stored.current_chapter);
 
 /**
  * PostgREST (PGRST202, HTTP 404) or Postgres (42883) reporting that the merge
@@ -238,6 +256,7 @@ const applyMergedReadingState = async (
         lastReadDate: progressState.lastReadDate,
         currentBook: bibleState.currentBook,
         currentChapter: bibleState.currentChapter,
+        readingPositionUpdatedAt: bibleState.readingPositionUpdatedAt,
       },
       remoteData
     );
@@ -246,6 +265,7 @@ const applyMergedReadingState = async (
       bibleState.applySyncedReadingPosition({
         bookId: mergedReading.readingPosition.bookId,
         chapter: mergedReading.readingPosition.chapter,
+        updatedAt: mergedReading.readingPositionUpdatedAt ?? null,
       });
     }
     return mergedReading;
@@ -384,6 +404,9 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
       if (!adopted) {
         return staleSyncResult();
       }
+      if (legacyServerLostPosition(adopted, storedRow as UserProgress)) {
+        return { success: false, error: POSITION_RETRY_MESSAGE };
+      }
       return { success: true, merged: mergedReading.changed || adopted.changed };
     }
 
@@ -397,6 +420,29 @@ const syncProgressForIdentityImpl = async (identity: SyncIdentityBoundary): Prom
     }
 
     const { error: upsertError } = await write.value!;
+
+    if (isMissingPositionStampColumn(upsertError) && row.position_updated_at !== undefined) {
+      const legacyRow = { ...row };
+      delete legacyRow.position_updated_at;
+      delete legacyRow.position_updated_for;
+      const fallback = await identity.runIfCurrent(() =>
+        supabase
+          .from('user_progress')
+          .upsert(legacyRow, { onConflict: 'user_id' })
+          .select('*')
+          .single()
+      );
+      if (!fallback.applied) return staleSyncResult();
+      const { data: stored, error } = await fallback.value!;
+      if (error) return { success: false, error: error.message };
+      if (!(await identity.isCurrent())) return staleSyncResult();
+      if (!stored) return { success: false, error: POSITION_RETRY_MESSAGE };
+      const adopted = await applyMergedReadingState(stored as UserProgress, identity);
+      if (!adopted) return staleSyncResult();
+      return legacyServerLostPosition(adopted, stored as UserProgress)
+        ? { success: false, error: POSITION_RETRY_MESSAGE }
+        : { success: true, merged: mergedReading.changed || adopted.changed };
+    }
 
     if (upsertError) {
       return { success: false, error: upsertError.message };

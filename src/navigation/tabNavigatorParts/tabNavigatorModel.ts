@@ -160,6 +160,7 @@ export function getBibleTabResumeParams(
     preferredMode: resume.preferredBibleMode,
     planId: undefined,
     planDayNumber: undefined,
+    planOccurrenceKey: undefined,
     returnToPlanOnComplete: undefined,
     sessionContext: undefined,
   };

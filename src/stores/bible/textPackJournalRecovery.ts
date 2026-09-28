@@ -50,13 +50,27 @@ export async function recoverTextPackJournal(store: BibleStoreAccess): Promise<v
       validateCatalogTextPack,
     } = await import('../../services/bible/cloudTranslationService');
     const translationsBeingDeleted = new Set(Object.keys(journal.deletions));
+    // A failed delete can outlive a successful reinstall at a unique candidate path.
+    // Only an install captured by that delete belongs to its tombstone.
+    const installsBeingDeleted = new Set(
+      Object.entries(journal.installs)
+        .filter(([translationId, install]) => {
+          const deletion = journal.deletions[translationId];
+          return deletion?.paths.some((path) =>
+            [install.finalPath, install.stagingPath, install.rollbackPath].includes(path)
+          );
+        })
+        .map(([translationId]) => translationId)
+    );
 
     for (const [translationId, deletion] of Object.entries(journal.deletions)) {
       const releaseTextPackMutation = await acquireTextPackMutationLock(translationId);
       try {
         store.setState((state) => ({
           translations: state.translations.map((translation) =>
-            translation.id === translationId
+            translation.id === translationId &&
+            (!translation.textPackLocalPath ||
+              deletion.paths.includes(translation.textPackLocalPath))
               ? resetTranslationDownloadState(translation)
               : translation
           ),
@@ -64,7 +78,9 @@ export async function recoverTextPackJournal(store: BibleStoreAccess): Promise<v
         await Promise.all(deletion.paths.map((path) => deleteCatalogTextPackArtifacts(path)));
         completedDeletions.set(translationId, {
           deletionOperationId: deletion.operationId,
-          installOperationId: journal.installs[translationId]?.operationId,
+          installOperationId: installsBeingDeleted.has(translationId)
+            ? journal.installs[translationId]?.operationId
+            : undefined,
         });
       } catch (error) {
         console.warn('[Bible] Text pack deletion recovery is pending:', translationId, error);
@@ -75,7 +91,7 @@ export async function recoverTextPackJournal(store: BibleStoreAccess): Promise<v
 
     for (const [translationId, install] of Object.entries(journal.installs)) {
       if (
-        translationsBeingDeleted.has(translationId) ||
+        installsBeingDeleted.has(translationId) ||
         activeTextDownloadOperationIds.has(translationId)
       ) {
         continue;

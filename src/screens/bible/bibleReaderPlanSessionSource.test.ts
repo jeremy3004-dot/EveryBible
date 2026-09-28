@@ -39,13 +39,28 @@ test('PlanDetailScreen launches plan chapters with explicit plan-session params'
   );
   assert.match(
     detailSource,
-    /shouldAutoplayPlanDayLaunch\(\{\s*trigger: 'open',\s*preferredMode: preferredChapterLaunchMode,[\s\S]*?\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),/,
+    /const handleOpenChapter = useCallback\(\s*async \(\s*dayNumber: number,\s*sessionKey\?: PlanSessionKey,\s*preferredMode = preferredChapterLaunchMode\s*\)/,
+    'Generic plan-day launches should default to the persisted listen-or-read preference'
+  );
+  assert.match(
+    detailSource,
+    /shouldAutoplayPlanDayLaunch\(\{\s*trigger: 'open',\s*preferredMode,\s*audioStatus: useAudioStore\.getState\(\)\.status,[\s\S]*?\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),/,
     'PlanDetailScreen should request autoplay under the listen preference through the shared rule that keeps a paused listener paused'
   );
   assert.match(
     detailSource,
-    /preferredMode:\s*preferredChapterLaunchMode,/,
-    'PlanDetailScreen should forward the persisted listen-or-read preference into BibleReader'
+    /\.\.\.\(autoplayAudio \? \{ autoplayAudio: true \} : \{\}\),\s*preferredMode,/,
+    'PlanDetailScreen should forward the selected listen-or-read mode into BibleReader'
+  );
+  assert.match(
+    detailSource,
+    /const handleReadDay = useCallback\([\s\S]*?handleOpenChapter\(dayNumber, sessionKey, 'read'\)/,
+    'The explicit Read action should override the saved preference with read mode'
+  );
+  assert.match(
+    detailSource,
+    /onRead=\{handleReadDay\}/,
+    'The plan day Read button should use the explicit read-mode callback'
   );
   assert.match(
     detailSource,
@@ -88,11 +103,8 @@ test('BibleReaderScreen derives the current plan-day chapter list and chapter in
     /const activePlanChapterIndex = useMemo\(/,
     'BibleReaderScreen should track the current chapter position inside the plan session'
   );
-  assert.match(
-    source,
-    /setPlanDayResume\(activePlanId,\s*planDayNumber,\s*bookId,\s*chapter\)/,
-    'BibleReaderScreen should persist the current plan-day chapter so a reopened day can resume in place'
-  );
+  // Resume persistence and recurring-date ownership are covered behaviourally in
+  // reader/useReaderPlanSession.render.test.tsx.
   // Skipping the on-load markChapterRead in a plan session is covered behaviourally in
   // readerChapterLoader.test.ts.
 });

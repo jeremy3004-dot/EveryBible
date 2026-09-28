@@ -441,7 +441,7 @@ const MAX_INDEXED_SEARCH_WORDS = 16;
 
 // NFC, like the stored verse text: a keyboard that types a composition exclusion (U+095B ज़)
 // or decomposed letters otherwise sends a token the index never saw.
-export function buildBibleSearchQuery(query: string): string | null {
+function getIndexedBibleSearchWords(query: string): string[] {
   const tokens =
     query
       .normalize('NFC')
@@ -463,11 +463,24 @@ export function buildBibleSearchQuery(query: string): string | null {
     }
   }
 
-  if (normalizedTokens.length === 0) {
-    return null;
-  }
+  return normalizedTokens;
+}
 
-  return normalizedTokens.map((token) => `"${token.replace(/"/g, '""')}"*`).join(' ');
+export function buildBibleSearchQuery(query: string): string | null {
+  const words = getIndexedBibleSearchWords(query);
+  return words.length ? words.map((token) => `"${token.replace(/"/g, '""')}"*`).join(' ') : null;
+}
+
+const COMBINING_MARK_PATTERN = /\p{M}/u;
+const MARK_SENSITIVE_SCRIPT_PATTERN = /[\u0600-\u06FF]|[\u0900-\u0DFF]/u;
+
+// unicode61 separates these words at vowel signs and other marks, so येशू and यिशै
+// both become य/श. Verify the typed word in the FTS candidates before their SQL limit.
+// Latin marks remain governed by FTS diacritic folding, including Vietnamese accents.
+export function buildBibleSearchVerificationTerms(query: string): string[] {
+  return getIndexedBibleSearchWords(query).filter(
+    (word) => COMBINING_MARK_PATTERN.test(word) && MARK_SENSITIVE_SCRIPT_PATTERN.test(word)
+  );
 }
 
 // Scripts written without spaces between words. FTS5's unicode61 tokenizer only splits at

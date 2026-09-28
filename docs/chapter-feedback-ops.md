@@ -24,6 +24,20 @@ attempts share the existing attempt table under a separate hashed-IP namespace
 Both lockouts key on the edge-stamped `cf-connecting-ip` (then `x-real-ip`; IPv6 by /64),
 never on `x-forwarded-for`, and refuse with 503 if the attempt counter is unavailable.
 
+### Local access credential recovery
+
+Before removing or replacing either access code, the app records a nonsecret durable
+hydration block. It clears that block only after SecureStore confirms deletion or the
+matching replacement. If native cleanup or saving fails, a later launch cannot restore
+the previous account's code; access requires re-entry. A newly verified code can still
+serve the current launch while its save remains blocked. If the block itself cannot be
+stored, the app refuses to enable the new access mode.
+
+Signed-in written feedback can queue offline. If a queued Council response meets an
+expired access code, its text stays queued until a fresh code is entered and sync retries
+it with the original submission ID. Fresh invalid-code submissions still fail; invalid
+payloads and queued responses older than 30 days are removed.
+
 ### Translator passcodes: one per team
 
 Each translation team has its own passcode (owner decision 2026-09-24). A passcode
@@ -177,8 +191,16 @@ accuracy approval.
 
 Recordings stay in the private `chapter-feedback-audio` bucket, as M4A (`audio/mp4`),
 up to one minute and 5 MB. Authenticated uploads use the existing user-scoped path;
-anonymous uploads go through the submit function to an `anonymous/` path. Failed
-uploads with invalid or incomplete MP4/M4A containers are rejected on the server
+anonymous uploads go through the submit function to an `anonymous/` path.
+
+Closing the feedback sheet or leaving the reader for another tab or screen cancels a
+pending recording start, stops an active microphone, and releases its preview audio.
+A finished voice note stays in the same chapter/account draft and can be previewed
+or sent after returning. Changing the chapter, translation, or authenticated session
+clears the old draft. Send stays disabled while native
+recording finalization is pending, until the voice draft is ready.
+
+Failed uploads with invalid or incomplete MP4/M4A containers are rejected on the server
 for both paths, regardless of their declared MIME type. The container check is
 structural, not a full codec decode. Failed
 submission preserves the draft for retry. Translator playback refreshes a scoped,

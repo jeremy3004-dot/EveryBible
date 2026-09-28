@@ -8,15 +8,18 @@
  * awaits, such as the INITIAL_SESSION emit. A throwing read therefore failed every
  * catalog request and raised unhandled rejections whenever the keychain refused:
  * an unsigned iOS build (ERR_KEY_CHAIN on every call), a read before the device's
- * first unlock, or an Android keystore fault. So no method here ever throws:
+ * first unlock, or an Android keystore fault. Standard Supabase storage methods
+ * never throw:
  *
  * - A failed read answers null (no session), so requests go out with the public key.
  * - A failed write keeps the value in memory for the rest of this launch, so a
  *   sign-in or token refresh still works, and later reads return it rather than the
  *   older keychain copy (whose refresh token the server may already have rotated).
  *   Each later read retries the write, so the keychain catches up once it answers.
- * - A failed delete remembers the removal for this launch, so a signed-out session
- *   is not read back from the keychain.
+ * - A failed delete remembers the removal in a nonsecret durable intent, so the session
+ *   is not read back from the keychain even after restart. Native deletion is
+ *   retried on reads; the intent retires only after a read confirms absence.
+ *   App sign-out uses removeItemDurably, which rejects if intent admission fails.
  *
  * The first failure is reported; later ones in the same launch are not.
  *
@@ -44,6 +47,27 @@ export interface AuthSessionStorage {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
+  removeItemDurably?: (key: string) => Promise<void>;
+  /** Serialized with session writes/removals; undefined leaves the current value unchanged. */
+  updateItemIfCurrent?: (
+    key: string,
+    update: (current: string | null) => string | undefined
+  ) => Promise<boolean>;
+}
+
+/** Nonsecret durable intent, separate from the credential it masks. */
+export interface AuthSessionRemovalIntents {
+  has: (key: string) => boolean;
+  mark: (key: string) => void;
+  clear: (key: string) => void;
+}
+
+/** App sign-out did not establish a durable local removal. */
+export class AuthSessionRemovalNotAdmittedError extends Error {
+  constructor() {
+    super('Could not safely end the session on this device');
+    this.name = 'AuthSessionRemovalNotAdmittedError';
+  }
 }
 
 // One keychain per process, so its health is process state too.
@@ -59,14 +83,15 @@ export function isAuthSessionStorageUnreadable(): boolean {
 }
 
 /**
- * `reportFailure` must not throw. `options` go with every keychain call; the client
+ * `reportFailure` is best effort. `options` go with every keychain call; the client
  * passes expo-secure-store's AFTER_FIRST_UNLOCK (its value comes from the native
  * module, so this import-free module cannot name it).
  */
 export function createAuthSessionStorage(
   secureStore: SecureKeyValueStore,
   reportFailure: (error: unknown) => void,
-  options: SecureStoreOptions = {}
+  options: SecureStoreOptions = {},
+  removalIntents?: AuthSessionRemovalIntents
 ): AuthSessionStorage {
   // A string is a value the keychain refused to store; null is a removal it refused.
   const pending = new Map<string, string | null>();
@@ -89,13 +114,31 @@ export function createAuthSessionStorage(
   const noteFailure = (error: unknown): void => {
     if (failureReported) return;
     failureReported = true;
-    reportFailure(error);
+    try {
+      reportFailure(error);
+    } catch {
+      // Diagnostics cannot change credential storage outcomes.
+    }
   };
 
   const persist = async (key: string, value: string | null): Promise<boolean> => {
+    if (removalIntents) {
+      try {
+        // Also mask an older credential if its replacement cannot be persisted.
+        removalIntents.mark(key);
+      } catch (error) {
+        // Supabase background saves/removals must keep their memory fallback.
+        noteFailure(error);
+      }
+    }
     try {
       if (value === null) {
         await secureStore.deleteItemAsync(key, options);
+        // Expo's iOS deletion ignores SecItemDelete status; resolution alone is
+        // insufficient proof that the retained credential is gone.
+        if (removalIntents && (await secureStore.getItemAsync(key, options)) !== null) {
+          throw new Error('Native session removal was not confirmed');
+        }
       } else {
         if (!resaved.has(key)) {
           await secureStore.deleteItemAsync(key, options);
@@ -103,6 +146,7 @@ export function createAuthSessionStorage(
         await secureStore.setItemAsync(key, value, options);
         resaved.add(key);
       }
+      removalIntents?.clear(key);
       return true;
     } catch (error) {
       noteFailure(error);
@@ -116,24 +160,58 @@ export function createAuthSessionStorage(
     }
   };
 
+  // Shared by reads and atomic metadata updates inside the same per-key queue.
+  const readCurrent = async (key: string): Promise<string | null> => {
+    if (pending.has(key)) {
+      const value = pending.get(key) ?? null;
+      await flushPending(key, value);
+      lastReadFailed = false;
+      return value;
+    }
+    try {
+      if (removalIntents?.has(key)) {
+        pending.set(key, null);
+        await flushPending(key, null);
+        lastReadFailed = false;
+        return null;
+      }
+      const value = await secureStore.getItemAsync(key, options);
+      lastReadFailed = false;
+      return value;
+    } catch (error) {
+      lastReadFailed = true;
+      noteFailure(error);
+      return null;
+    }
+  };
+
   return {
-    getItem: (key) =>
+    ...(removalIntents
+      ? {
+          removeItemDurably: (key: string) =>
+            serialize(key, async () => {
+              try {
+                removalIntents.mark(key);
+              } catch (error) {
+                noteFailure(error);
+                throw new AuthSessionRemovalNotAdmittedError();
+              }
+              pending.set(key, null);
+              await flushPending(key, null);
+            }),
+        }
+      : {}),
+    getItem: (key) => serialize(key, () => readCurrent(key)),
+    updateItemIfCurrent: (key, update) =>
       serialize(key, async () => {
-        if (pending.has(key)) {
-          const value = pending.get(key) ?? null;
-          await flushPending(key, value);
-          lastReadFailed = false;
-          return value;
+        const value = update(await readCurrent(key));
+        if (value === undefined) return false;
+        if (await persist(key, value)) {
+          pending.delete(key);
+        } else {
+          pending.set(key, value);
         }
-        try {
-          const value = await secureStore.getItemAsync(key, options);
-          lastReadFailed = false;
-          return value;
-        } catch (error) {
-          lastReadFailed = true;
-          noteFailure(error);
-          return null;
-        }
+        return true;
       }),
     setItem: (key, value) =>
       serialize(key, async () => {

@@ -8,8 +8,10 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import {
   getAnnotationsForChapter,
   softDeleteAnnotation,
+  subscribeToAnnotationChanges,
   upsertAnnotation,
 } from '../../../services/annotations/annotationService';
+import { getPrivateDataOwner } from '../../../stores/privateDataScope';
 import { selectionHaptic } from '../../../utils/haptics';
 import { announceForAccessibility } from '../../../utils/a11y';
 import type { Verse } from '../../../types';
@@ -77,6 +79,25 @@ export function useVerseSelection({
 }: UseVerseSelectionInput) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const annotationOwner = getPrivateDataOwner();
+  const isCurrentAnnotationOwner = () => getPrivateDataOwner() === annotationOwner;
+  const annotationContext = `${bookId}:${chapter}:${currentTranslation}`;
+  const annotationContextRef = useRef(annotationContext);
+  annotationContextRef.current = annotationContext;
+  const isCurrentAnnotationContext = () => annotationContextRef.current === annotationContext;
+  // A new selection array also identifies closing and reopening the same verses.
+  const selectedVersesRef = useRef(selectedVerses);
+  selectedVersesRef.current = selectedVerses;
+  const isCurrentSelection = () => selectedVersesRef.current === selectedVerses;
+  useEffect(
+    () =>
+      subscribeToAnnotationChanges(() => {
+        // A mounted reader can keep its private composer open while auth changes
+        // elsewhere. Close the old draft rather than retargeting it to the new owner.
+        if (getPrivateDataOwner() !== annotationOwner) dismissSelectedVerseSelection();
+      }),
+    [annotationOwner, dismissSelectedVerseSelection]
+  );
   const selectedVerseReferenceLabel =
     selectedVerses.length > 0
       ? formatBibleSelectionReference({
@@ -173,7 +194,12 @@ export function useVerseSelection({
 
   const reloadAnnotations = async () => {
     const result = await getAnnotationsForChapter(bookId, chapter);
-    if (result.success && result.data) {
+    if (
+      isCurrentAnnotationOwner() &&
+      isCurrentAnnotationContext() &&
+      result.success &&
+      result.data
+    ) {
       setAnnotations(result.data);
     }
   };
@@ -235,6 +261,13 @@ export function useVerseSelection({
     verseImageSheetDismissedRef.current?.();
   };
 
+  const handleCloseVerseImageSheet = () => {
+    verseImageShareRequestRef.current = null;
+    verseImageSheetDismissedRef.current?.();
+    setIsSharingVerseImage(false);
+    setShowVerseImageSheet(false);
+  };
+
   // iOS presents a share sheet from the top view controller, which is the picker Modal until its
   // fade-out ends. Presenting then fails ("… whose view is not in the window hierarchy") and the
   // share promise never settles, so the share waits for the picker to be gone: its onDismiss on
@@ -273,6 +306,7 @@ export function useVerseSelection({
     const isCurrent = () => verseImageShareRequestRef.current === request;
 
     setIsSharingVerseImage(true);
+    let releaseUnsharedImage: (() => void) | null = null;
 
     try {
       // The card is captured while the picker still shows it; the sheet is presented once it's gone.
@@ -284,19 +318,23 @@ export function useVerseSelection({
         const available = await Sharing.isAvailableAsync();
         if (!isCurrent()) return;
         if (available && verseImageSharePreviewRef.current) {
-          const { captureRef } = await import('react-native-view-shot');
+          const { captureRef, releaseCapture } = await import('react-native-view-shot');
           if (!isCurrent()) return;
           const imageUri = await captureRef(verseImageSharePreviewRef, {
             format: 'png',
             quality: 1,
             result: 'tmpfile',
           });
+          releaseUnsharedImage = () => releaseCapture(imageUri);
           if (!isCurrent()) return;
-          shareImage = () =>
-            Sharing.shareAsync(imageUri, {
+          shareImage = () => {
+            // The recipient may keep reading this file after native sharing returns.
+            releaseUnsharedImage = null;
+            return Sharing.shareAsync(imageUri, {
               dialogTitle: t('groups.share'),
               mimeType: 'image/png',
             });
+          };
         }
       } catch (error) {
         if (!isCurrent()) return;
@@ -325,6 +363,13 @@ export function useVerseSelection({
       if (!isCurrent()) return;
       reportVerseImageShareFailure(error);
     } finally {
+      if (!isCurrent()) {
+        try {
+          releaseUnsharedImage?.();
+        } catch {
+          // Best-effort cleanup must not disturb a newer share request.
+        }
+      }
       if (isCurrent()) {
         verseImageShareRequestRef.current = null;
         setIsSharingVerseImage(false);
@@ -333,15 +378,23 @@ export function useVerseSelection({
   };
 
   const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {
+    if (!isCurrentAnnotationOwner() || !isCurrentAnnotationContext()) return false;
     const succeeded = await applyReaderAnnotationEdits(edits, {
-      softDelete: softDeleteAnnotation,
-      upsert: upsertAnnotation,
+      // Each awaited write yields. Auth can change between two edits, so checking
+      // only when the operation starts would send the rest to the new owner's store.
+      softDelete: (id) =>
+        isCurrentAnnotationOwner() ? softDeleteAnnotation(id) : Promise.resolve({ success: false }),
+      upsert: (annotation) =>
+        isCurrentAnnotationOwner()
+          ? upsertAnnotation(annotation)
+          : Promise.resolve({ success: false }),
     });
+    if (!isCurrentAnnotationOwner() || !isCurrentAnnotationContext()) return false;
     if (!succeeded) {
       Alert.alert(t('common.error'), t('common.unexpectedError'));
     }
     await reloadAnnotations();
-    return succeeded;
+    return succeeded && isCurrentAnnotationOwner() && isCurrentAnnotationContext();
   };
 
   const readerAnnotationEditInput = () => ({
@@ -358,9 +411,12 @@ export function useVerseSelection({
     }
 
     if (
-      await commitAnnotationEdits(
+      (await commitAnnotationEdits(
         planReaderHighlightApply({ ...readerAnnotationEditInput(), color })
-      )
+      )) &&
+      isCurrentAnnotationOwner() &&
+      isCurrentAnnotationContext() &&
+      isCurrentSelection()
     ) {
       setSelectedVerses([]);
       announceForAccessibility(t('interface.highlightAdded'));
@@ -373,9 +429,12 @@ export function useVerseSelection({
     }
 
     if (
-      await commitAnnotationEdits(
+      (await commitAnnotationEdits(
         planReaderHighlightRemove({ ...readerAnnotationEditInput(), color })
-      )
+      )) &&
+      isCurrentAnnotationOwner() &&
+      isCurrentAnnotationContext() &&
+      isCurrentSelection()
     ) {
       setSelectedVerses([]);
       announceForAccessibility(t('interface.highlightRemoved'));
@@ -390,10 +449,10 @@ export function useVerseSelection({
     const succeeded = await commitAnnotationEdits(
       planReaderNoteSave({ ...readerAnnotationEditInput(), content: text })
     );
-    if (succeeded) {
+    if (succeeded && isCurrentAnnotationOwner() && isCurrentAnnotationContext()) {
       announceForAccessibility(t('annotations.saved'));
     }
-    return succeeded;
+    return succeeded && isCurrentAnnotationOwner() && isCurrentAnnotationContext();
   };
 
   return {
@@ -408,6 +467,7 @@ export function useVerseSelection({
     handleShareSelectedVerseImage,
     handleShareSelectedVerses,
     handleVerseImageSheetDismissed,
+    handleCloseVerseImageSheet,
     highlightByVerse,
     selectedHighlightColors,
     selectedNoteAnnotation,

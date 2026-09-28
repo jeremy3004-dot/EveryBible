@@ -74,6 +74,8 @@ export function toSharePayload(
 }
 
 export interface LessonAudioShareDeps {
+  /** False once the lesson sheet that requested this share was dismissed or replaced. */
+  isCurrent?: () => boolean;
   /** Copies (or reuses) the chapter recording as a local file the share sheet can attach. */
   prepareAsset: (source: LessonAudioSource) => Promise<{ uri: string; mimeType: string } | null>;
   /** Null when the native sharing module is unavailable (Expo Go, stale dev client). */
@@ -146,13 +148,16 @@ const isRemoteUrl = (url: string) => /^https?:\/\//i.test(url);
 /**
  * "Share audio": attach the chapter recording itself; when the file cannot be
  * prepared or shared, share the recording's web address instead. A downloaded
- * file's local path means nothing to the recipient, so it is left out.
+ * file's local path means nothing to the recipient, so it is left out. Returns
+ * 'cancelled' when the requesting sheet is no longer current before presentation.
  */
 export async function shareLessonAudio(
   source: LessonAudioSource,
   message: string,
   deps: LessonAudioShareDeps
-): Promise<'file' | 'link'> {
+): Promise<'file' | 'link' | 'cancelled'> {
+  const isCurrent = deps.isCurrent ?? (() => true);
+  if (!isCurrent()) return 'cancelled';
   if (deps.shareFile) {
     let asset: { uri: string; mimeType: string } | null = null;
     try {
@@ -161,6 +166,7 @@ export async function shareLessonAudio(
       asset = null;
     }
     if (asset) {
+      if (!isCurrent()) return 'cancelled';
       try {
         await deps.shareFile(asset.uri, asset.mimeType);
         return 'file';
@@ -171,6 +177,7 @@ export async function shareLessonAudio(
     }
   }
 
+  if (!isCurrent()) return 'cancelled';
   await deps.shareMessage(
     toSharePayload(deps.os, message, isRemoteUrl(source.url) ? source.url : null)
   );

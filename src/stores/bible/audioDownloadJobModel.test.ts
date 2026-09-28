@@ -162,20 +162,46 @@ test('completed books are appended once each, keeping the existing order', () =>
   ]);
 });
 
-test("cancelling an audio banner targets the translation's active job over the banner's mirror", () => {
+test('legacy child progress maps to its containing collection, but an independent book keeps the banner id', () => {
+  const collectionId = 'audio-download:aud:translation:all';
   const translations = [
     makeRuntimeTranslation({
       id: 'aud',
-      activeDownloadJob: mapAudioDownloadJob(makeAudioJob({ id: 'collection-job' })),
+      activeDownloadJob: mapAudioDownloadJob(
+        makeAudioJob({
+          id: collectionId,
+          translationId: 'aud',
+          scope: 'translation',
+          requestedBookIds: ['GEN'],
+        })
+      ),
     }),
   ];
 
-  assert.equal(
-    resolveAudioCancellationJobId(
-      { translationId: 'aud', jobId: 'nested-book-job', progress: 10, status: 'downloading' },
-      translations
-    ),
-    'collection-job'
+  assert.deepEqual(
+    [
+      resolveAudioCancellationJobId(
+        {
+          translationId: 'aud',
+          bookId: 'GEN',
+          jobId: 'audio-download:aud:book:GEN',
+          progress: 10,
+          status: 'downloading',
+        },
+        translations
+      ),
+      resolveAudioCancellationJobId(
+        {
+          translationId: 'aud',
+          bookId: 'MRK',
+          jobId: 'audio-download:aud:book:MRK',
+          progress: 10,
+          status: 'downloading',
+        },
+        translations
+      ),
+    ],
+    [collectionId, 'audio-download:aud:book:MRK']
   );
 });
 

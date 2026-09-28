@@ -387,6 +387,7 @@ test('submitting in the same tick sends one prayer and a thrown service error al
   };
   await view.press(view.getByRole('button', { name: t('prayer.submitRequest') }));
   assert.ok(view.getByText('Pray for peace'));
+  assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.value, '');
 });
 
 test('a submitted prayer finishing after sign-out cannot resurrect the list or draft', async () => {
@@ -554,6 +555,7 @@ test('same-tick report submissions send once and a thrown error permits retry', 
   await view.flush();
   assert.equal(backend.mutations.length, 2);
   assert.equal(view.queryByText('Pray for my neighbour'), null);
+  assert.equal(view.queryByLabelText(t('prayer.reportNotePlaceholder')), null);
 });
 
 test('a submitted prayer rejection after unmount cannot show an alert', async () => {
@@ -574,4 +576,283 @@ test('a submitted prayer rejection after unmount cannot show an alert', async ()
     await submitting;
   });
   assert.deepEqual(harness.rn.__recorded.alerts, []);
+});
+
+for (const newerDraft of ['Second prayer draft', 'First prayer']) {
+  test(`pending submission preserves a newer editable draft (${newerDraft}) when the old request succeeds`, async () => {
+    backend.result = {
+      success: true,
+      data: [request({ id: 'existing', content: 'Existing prayer' })],
+    };
+    backend.pendingMutation = deferred();
+    const view = await renderWall();
+    await view.fire(
+      view.getByLabelText(t('prayer.requestPlaceholder')),
+      'onChangeText',
+      'First prayer'
+    );
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = (
+        view.getByRole('button', { name: t('prayer.submitRequest') }).props
+          .onPress as () => Promise<void>
+      )();
+    });
+    assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.editable, true);
+    await view.fire(
+      view.getByLabelText(t('prayer.requestPlaceholder')),
+      'onChangeText',
+      'Second prayer draft'
+    );
+    if (newerDraft === 'First prayer') {
+      await view.fire(
+        view.getByLabelText(t('prayer.requestPlaceholder')),
+        'onChangeText',
+        newerDraft
+      );
+    }
+    await act(async () => {
+      backend.pendingMutation?.resolve({
+        success: true,
+        data: request({ content: 'First prayer' }),
+      });
+      await pending;
+    });
+    assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.value, newerDraft);
+    assert.equal(backend.mutations.length, 1);
+    assert.ok(view.getByText('First prayer'));
+    const rows = view.queryAllByType('FlatList')[0].props.data as Array<{ id: string }>;
+    assert.deepEqual(
+      rows.map((row) => row.id),
+      ['req-1', 'existing']
+    );
+  });
+}
+
+for (const outcome of ['success', 'failure', 'throw']) {
+  test(`an old report ${outcome} cannot dismiss a reopened report draft`, async () => {
+    backend.result = {
+      success: true,
+      data: [request(), request({ id: 'req-2', content: 'Another prayer' })],
+    };
+    backend.pendingMutation = deferred();
+    const view = await renderWall();
+    await showAction(view, t('prayer.report'));
+    await view.press(view.getByRole('radio', { name: t('prayer.reportReasonSpam') }));
+    await view.press(view.getByRole('button', { name: t('prayer.reportSend') }));
+    const modal = view.queryAllByType('Modal').find((node) => node.props.visible)!;
+    assert.ok(modal);
+    await view.fire(modal, 'onRequestClose');
+    let card = view.getByText('Another prayer');
+    while (typeof card.props.onLongPress !== 'function' && card.parent) card = card.parent;
+    await view.fire(card, 'onLongPress');
+    const sheet = harness.rn.__recorded.actionSheets.at(-1)!;
+    const options = (sheet.options as { options: string[] }).options;
+    await act(async () =>
+      (sheet.callback as (index: number) => void)(options.indexOf(t('prayer.report')))
+    );
+    await view.flush();
+    await view.fire(
+      view.getByLabelText(t('prayer.reportNotePlaceholder')),
+      'onChangeText',
+      'Reopened draft'
+    );
+    await view.press(view.getByRole('radio', { name: t('prayer.reportReasonOther') }));
+    const alertsBefore = harness.rn.__recorded.alerts.length;
+    await act(async () => {
+      if (outcome === 'throw') backend.pendingMutation?.reject(new Error('network failure'));
+      else backend.pendingMutation?.resolve({ success: outcome === 'success' });
+    });
+    await view.flush();
+    assert.equal(
+      view.getByLabelText(t('prayer.reportNotePlaceholder')).props.value,
+      'Reopened draft'
+    );
+    assert.equal(harness.rn.__recorded.alerts.length, alertsBefore);
+    assert.equal(view.getByRole('button', { name: t('prayer.reportSend') }).props.disabled, false);
+    assert.equal(view.queryByText('Pray for my neighbour') === null, outcome === 'success');
+    assert.ok(view.getByText('Another prayer'));
+  });
+}
+
+for (const snapshotOutcome of ['success', 'failure', 'throw']) {
+  test(`an older refresh ${snapshotOutcome} cannot remove a newly confirmed prayer`, async () => {
+    backend.result = { success: true, data: [request()] };
+    const view = await renderWall();
+    const refresh = deferred<ListResult>();
+    backend.pages.push(refresh.promise);
+    const [list] = view.queryAllByType('FlatList');
+    const control = list.props.refreshControl as ReactElement<{ onRefresh: () => Promise<void> }>;
+    let refreshing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      refreshing = control.props.onRefresh();
+    });
+    await view.fire(
+      view.getByLabelText(t('prayer.requestPlaceholder')),
+      'onChangeText',
+      'New confirmed prayer'
+    );
+    backend.mutationResult = {
+      success: true,
+      data: request({ id: 'new', content: 'New confirmed prayer', user_id: 'viewer-1' }),
+    };
+    await view.press(view.getByRole('button', { name: t('prayer.submitRequest') }));
+    assert.ok(view.getByText('New confirmed prayer'));
+    await act(async () => {
+      if (snapshotOutcome === 'throw') refresh.reject(new Error('network failure'));
+      else
+        refresh.resolve(
+          snapshotOutcome === 'success' ? { success: true, data: [request()] } : { success: false }
+        );
+      await refreshing;
+    });
+    assert.ok(view.getByText('New confirmed prayer'));
+    const updated = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+      refreshing: boolean;
+    }>;
+    assert.equal(updated.props.refreshing, false);
+  });
+}
+
+for (const success of [true, false]) {
+  test(`a ${success ? 'confirmed' : 'failed'} interaction ${success ? 'invalidates' : 'permits'} an older refresh`, async () => {
+    backend.result = { success: true, data: [request()] };
+    const view = await renderWall();
+    const refresh = deferred<ListResult>();
+    backend.pages.push(refresh.promise);
+    const control = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+      onRefresh: () => Promise<void>;
+    }>;
+    let refreshing: Promise<void> = Promise.resolve();
+    await act(async () => {
+      refreshing = control.props.onRefresh();
+    });
+    await view.press(prayedPill(view, 0));
+    await settleWrite(view, 0, { success });
+    await act(async () => {
+      refresh.resolve({ success: true, data: [request({ prayed_count: 5 })] });
+      await refreshing;
+    });
+    assert.ok(
+      view.getByRole('button', {
+        name: t('prayer.prayedCount', { count: success ? 1 : 5 }),
+        selected: success,
+      })
+    );
+    const updated = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+      refreshing: boolean;
+    }>;
+    assert.equal(updated.props.refreshing, false);
+  });
+}
+
+test('a pending older page cannot restore a newly blocked author', async () => {
+  const page = deferred<ListResult>();
+  const cursor = { created_at: '2026-09-20T10:00:00Z', id: 'req-1' };
+  backend.pages = [{ success: true, data: [request()], nextCursor: cursor }, page.promise];
+  const view = await renderWall();
+  let loading: Promise<void> = Promise.resolve();
+  await act(async () => {
+    loading = (view.queryAllByType('FlatList')[0].props.onEndReached as () => Promise<void>)();
+  });
+  backend.mutationResult = { success: true };
+  await showAction(view, t('prayer.blockAuthor'));
+  const confirm = (
+    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
+  )[1].onPress!;
+  await act(async () => {
+    await confirm();
+  });
+  await act(async () => {
+    page.resolve({
+      success: true,
+      data: [request({ id: 'older', content: 'Older prayer from blocked author' })],
+    });
+    await loading;
+  });
+  assert.equal(view.queryByText('Older prayer from blocked author'), null);
+  assert.equal(view.queryByText('Pray for my neighbour'), null);
+  // The discarded page releases its loading guard so the same cursor can retry.
+  backend.pages.push({
+    success: true,
+    data: [request({ id: 'allowed', user_id: 'different', content: 'Allowed author' })],
+  });
+  await view.fire(view.queryAllByType('FlatList')[0], 'onEndReached');
+  assert.ok(view.getByText('Allowed author'));
+});
+
+test('an older refresh cannot restore a confirmed deleted request', async () => {
+  backend.result = { success: true, data: [request({ user_id: 'viewer-1' })] };
+  const view = await renderWall();
+  const refresh = deferred<ListResult>();
+  backend.pages.push(refresh.promise);
+  const control = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+    onRefresh: () => Promise<void>;
+  }>;
+  let refreshing: Promise<void> = Promise.resolve();
+  await act(async () => {
+    refreshing = control.props.onRefresh();
+  });
+  backend.mutationResult = { success: true };
+  await showAction(view, t('common.delete'));
+  const confirm = (
+    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
+  )[1].onPress!;
+  await act(async () => {
+    await confirm();
+  });
+  await act(async () => {
+    refresh.resolve({ success: true, data: [request({ user_id: 'viewer-1' })] });
+    await refreshing;
+  });
+  assert.equal(view.queryByText('Pray for my neighbour'), null);
+});
+
+test('a refresh which already contains the pending create result does not duplicate its confirmation', async () => {
+  backend.result = { success: true, data: [] };
+  const view = await renderWall();
+  const created = request({ id: 'created', content: 'One confirmed prayer', user_id: 'viewer-1' });
+  backend.pendingMutation = deferred();
+  await view.fire(
+    view.getByLabelText(t('prayer.requestPlaceholder')),
+    'onChangeText',
+    'One confirmed prayer'
+  );
+  let posting: Promise<void> = Promise.resolve();
+  await act(async () => {
+    posting = (
+      view.getByRole('button', { name: t('prayer.submitRequest') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  backend.pages.push({
+    success: true,
+    data: [
+      {
+        ...created,
+        content: 'Freshly edited prayer',
+        prayed_count: 7,
+        encouraged_count: 3,
+        is_answered: true,
+      },
+    ],
+  });
+  await pullToRefresh(view);
+  assert.equal(view.queryAllByText('Freshly edited prayer').length, 1);
+  await act(async () => {
+    backend.pendingMutation?.resolve({ success: true, data: created });
+    await posting;
+  });
+  assert.equal(view.queryAllByText('Freshly edited prayer').length, 1);
+  assert.equal(view.queryAllByText('One confirmed prayer').length, 0);
+  const rows = view.queryAllByType('FlatList')[0].props.data as Array<{
+    id: string;
+    prayed_count: number;
+    encouraged_count: number;
+    is_answered: boolean;
+  }>;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].prayed_count, 7);
+  assert.equal(rows[0].encouraged_count, 3);
+  assert.equal(rows[0].is_answered, true);
 });

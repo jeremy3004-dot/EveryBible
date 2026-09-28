@@ -84,7 +84,7 @@ test('releasing unloads the owned sound, and the next Play loads a fresh one', a
   const first = h.owner.play(h.loader('https://audio.test/a.mp3'));
   const old = h.finishCreation(0);
   await first;
-  h.owner.release();
+  await h.owner.release();
 
   assert.equal(old.unloaded, true);
   assert.equal(h.owner.getSound(), null);
@@ -155,10 +155,78 @@ test('release during resume cannot report playback started for the replacement s
   const playing = deferred<void>();
   old.playAsync = () => playing.promise;
   const result = owner.play(async () => old);
-  owner.release();
+  const release = owner.release();
   const current = new FakeSound('https://audio.test/b.mp3');
-  await owner.play(async () => current);
+  const next = owner.play(async () => current);
   playing.resolve();
+  await release;
+  assert.equal(await next, true);
   assert.equal(await result, false);
   assert.equal(owner.getSound(), current);
+});
+
+test('release drains a native Play already started before unloading the old lesson', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  const sound = new FakeSound('https://audio.test/a.mp3');
+  const gate = deferred<void>();
+  let nativePlaying = false;
+  sound.playAsync = async () => {
+    await gate.promise;
+    nativePlaying = true;
+  };
+  sound.unloadAsync = async () => {
+    sound.unloaded = true;
+    nativePlaying = false;
+  };
+  const play = owner.play(async () => sound);
+  await Promise.resolve();
+  const release = owner.release();
+  gate.resolve();
+  assert.equal(await play, false);
+  await release;
+  assert.equal(nativePlaying, false, 'late native Play cannot outlive the awaited release');
+});
+
+test('a failed lesson release rejects the handoff and can retry the retained sound', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  const sound = new FakeSound('https://audio.test/a.mp3');
+  await owner.play(async () => sound);
+  let attempts = 0;
+  sound.unloadAsync = async () => {
+    if (++attempts === 1) throw new Error('unload failed');
+    sound.unloaded = true;
+  };
+  await assert.rejects(owner.release(), /unload failed/);
+  await owner.release();
+  assert.equal(sound.unloaded, true);
+});
+
+test('a fresh Lesson Play cannot replace a sound whose unload failed', async () => {
+  const owner = createLessonSoundOwner<FakeSound>();
+  const old = new FakeSound('https://audio.test/old.mp3');
+  await owner.play(async () => old);
+  let attempts = 0;
+  old.unloadAsync = async () => {
+    if (++attempts <= 2) throw new Error('old sound still loaded');
+    old.unloaded = true;
+  };
+  await assert.rejects(owner.release(), /old sound still loaded/);
+  let creates = 0;
+  await assert.rejects(
+    owner.play(async () => {
+      creates += 1;
+      return new FakeSound('https://audio.test/new.mp3');
+    }),
+    /old sound still loaded/
+  );
+  assert.equal(creates, 0, 'new sound must not load while old unload remains failed');
+  assert.equal(
+    await owner.play(async () => {
+      creates += 1;
+      return new FakeSound('https://audio.test/new.mp3');
+    }),
+    true
+  );
+  assert.equal(old.unloaded, true);
+  assert.equal(creates, 1);
 });

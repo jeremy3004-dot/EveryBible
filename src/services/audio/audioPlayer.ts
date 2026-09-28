@@ -23,6 +23,8 @@ import TrackPlayer, {
 } from './trackPlayer';
 import type { PlaybackRate } from '../../types';
 
+const STALLED_STREAM_CHECK_INTERVAL_MS = 5000;
+
 // ---------------------------------------------------------------------------
 // Audio-mode configuration (re-exported for backgroundMusicPlayer)
 // ---------------------------------------------------------------------------
@@ -76,6 +78,7 @@ class AudioPlayer {
   private loaded = false;
   private loadRequestId = 0;
   private pendingLoadRequestId: number | null = null;
+  private failedLoadRequestId: number | null = null;
   // A speed chosen while a chapter loads: the wrapper has no sound to apply it to yet,
   // so it is applied when that load completes.
   private pendingRate: PlaybackRate | null = null;
@@ -87,6 +90,44 @@ class AudioPlayer {
   private lastDurationMillis = 0;
   private lastIsPlaying = false;
   private lastIsBuffering = false;
+  // Playback and its callbacks outlive the reader, so stream health does too.
+  private streamCheckTimer: ReturnType<typeof setInterval> | null = null;
+  private streamCheckInFlight: Promise<void> | null = null;
+  private streamIsBuffering = false;
+  private pausedByCommand = false;
+
+  private stopStreamChecks(): void {
+    if (this.streamCheckTimer !== null) {
+      clearInterval(this.streamCheckTimer);
+      this.streamCheckTimer = null;
+    }
+  }
+
+  private syncStreamChecks(): void {
+    if (
+      !this.loaded ||
+      !this.streamIsBuffering ||
+      this.pendingLoadRequestId !== null ||
+      this.pausedByCommand
+    ) {
+      this.stopStreamChecks();
+      return;
+    }
+    if (this.streamCheckTimer !== null) return;
+    this.streamCheckTimer = setInterval(() => {
+      // Keep the native read single-flight even across a track replacement. The
+      // wrapper fences its captured sound before reporting a late release.
+      if (this.streamCheckInFlight !== null) return;
+      this.streamCheckInFlight = this.verifyLoaded()
+        .catch(() => {
+          // The wrapper reports a released sound. An unexpected bridge failure
+          // leaves the next cadence available without an unhandled rejection.
+        })
+        .finally(() => {
+          this.streamCheckInFlight = null;
+        });
+    }, STALLED_STREAM_CHECK_INTERVAL_MS);
+  }
 
   async configure(): Promise<void> {
     if (this.isConfigured) return;
@@ -131,7 +172,10 @@ class AudioPlayer {
       TrackPlayer.addEventListener(Event.PlaybackState, (data: PlaybackStateEvent) => {
         // The wrapper has dropped a failed or released sound: nothing is left to
         // resume, so Play has to load the chapter again.
-        if (data.state === State.Error) this.loaded = false;
+        if (data.state === State.Error) {
+          this.loaded = false;
+          this.failedLoadRequestId = this.pendingLoadRequestId;
+        }
         this.lastIsPlaying = data.state === State.Playing;
         // Until Play starts a chapter being loaded, its first status (paused) and
         // Ready are part of loading it, not a pause. So is a failure: the load rejects
@@ -141,6 +185,10 @@ class AudioPlayer {
           (data.state === State.Paused || data.state === State.Ready || data.state === State.Error);
         this.lastIsBuffering =
           data.state === State.Buffering || data.state === State.Loading || isStartingChapter;
+        // Startup Ready/Paused/Error snapshots look busy in the UI, but only
+        // native buffering/loading warrants checking an already loaded stream.
+        this.streamIsBuffering = data.state === State.Buffering || data.state === State.Loading;
+        this.syncStreamChecks();
         // Stopped only follows stop(), whose caller has already reset playback to idle;
         // a snapshot now would read as a pause and bring the torn-down chapter back.
         if (data.state === State.Stopped) return;
@@ -159,7 +207,12 @@ class AudioPlayer {
         // A load error means the sound is gone: expo-av unloads it on a fatal status
         // (dropped stream, decode failure) and rejects every later call. Play must then
         // load the chapter again rather than resume it.
-        if (data.code === 'LOAD_ERROR') this.loaded = false;
+        if (data.code === 'LOAD_ERROR') {
+          this.loaded = false;
+          this.failedLoadRequestId = this.pendingLoadRequestId;
+        }
+        this.streamIsBuffering = false;
+        this.stopStreamChecks();
         this.callbacks.onError?.(data.message);
       })
     );
@@ -171,8 +224,12 @@ class AudioPlayer {
   async loadAndPlay(url: string, rate: PlaybackRate = 1.0, startPositionMs = 0): Promise<void> {
     const requestId = ++this.loadRequestId;
     this.pendingLoadRequestId = requestId;
+    this.failedLoadRequestId = null;
     this.pendingRate = null;
     this.loaded = false;
+    this.streamIsBuffering = false;
+    this.pausedByCommand = false;
+    this.stopStreamChecks();
     try {
       await this.configure();
       if (requestId !== this.loadRequestId) return;
@@ -186,19 +243,27 @@ class AudioPlayer {
       } else {
         await TrackPlayer.loadAndPlay(url, rate);
       }
-      if (requestId === this.loadRequestId) {
+      // Native initial Play can report a released sound, then resolve through
+      // the wrapper's error callback. That request never admitted a usable sound.
+      if (requestId === this.loadRequestId && requestId !== this.failedLoadRequestId) {
         this.loaded = true;
         const chosenRate = this.pendingRate;
         this.pendingRate = null;
         if (chosenRate !== null && chosenRate !== rate) await this.setRate(chosenRate);
       }
     } finally {
-      if (this.pendingLoadRequestId === requestId) this.pendingLoadRequestId = null;
+      if (this.pendingLoadRequestId === requestId) {
+        this.pendingLoadRequestId = null;
+        this.failedLoadRequestId = null;
+        this.syncStreamChecks();
+      }
     }
   }
 
   async play(): Promise<void> {
     if (!this.loaded) return;
+    this.pausedByCommand = false;
+    this.syncStreamChecks();
     try {
       await TrackPlayer.play();
     } catch (error) {
@@ -207,13 +272,17 @@ class AudioPlayer {
     }
   }
 
-  async pause(): Promise<void> {
+  async pause({ requireSuspension = false }: { requireSuspension?: boolean } = {}): Promise<void> {
     if (!this.loaded && this.pendingLoadRequestId === null) return;
+    this.pausedByCommand = true;
+    this.stopStreamChecks();
     this.loadRequestId += 1;
     this.pendingLoadRequestId = null;
     try {
-      await TrackPlayer.pause();
+      await TrackPlayer.pause(requireSuspension ? { requireSuspension: true } : undefined);
     } catch (error) {
+      // The strict native path already reported its error through PlaybackError.
+      if (requireSuspension) throw error;
       const message = error instanceof Error ? error.message : 'Failed to pause audio';
       this.callbacks.onError?.(message);
     }
@@ -224,10 +293,13 @@ class AudioPlayer {
   }
 
   async stop(): Promise<void> {
+    this.pausedByCommand = true;
+    this.stopStreamChecks();
     this.loadRequestId += 1;
     this.pendingLoadRequestId = null;
     this.pendingRate = null;
     this.loaded = false;
+    this.streamIsBuffering = false;
     this.lastPositionMillis = 0;
     this.lastDurationMillis = 0;
     this.lastIsPlaying = false;

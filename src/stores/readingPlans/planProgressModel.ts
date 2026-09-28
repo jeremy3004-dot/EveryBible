@@ -1,6 +1,7 @@
 import { computeNextDay, isPlanCompleted } from '../../services/plans/readingPlanModel';
 import type {
   PlanSessionKey,
+  ReadingPlanDayResume,
   ReadingPlanProgress,
   ReadingPlansPersistedState,
   ReadingPlansStoreState,
@@ -39,6 +40,13 @@ export const withoutKey = (record: Record<string, string>, key: string): Record<
 
 export const buildPlanDayResumeKey = (planId: string, dayNumber: number): string =>
   `${planId}:${dayNumber}`;
+
+/** Legacy rows remain usable for sequential plans, but cannot prove ownership of a dated day. */
+export const resolvePlanDayResumeOccurrence = (
+  resume: ReadingPlanDayResume | null,
+  occurrenceKey?: string
+): ReadingPlanDayResume | null =>
+  occurrenceKey && resume?.occurrenceKey !== occurrenceKey ? null : resume;
 
 /**
  * The earliest a re-join may start: 1 ms past the latest of the leaves it follows (the queued

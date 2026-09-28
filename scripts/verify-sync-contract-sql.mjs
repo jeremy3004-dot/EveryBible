@@ -1232,4 +1232,228 @@ const boundedFn = await one(
 assert.equal(boundedFn.prosecdef, false);
 assert.deepEqual(boundedFn.proconfig, ['search_path=""']);
 
+await db.exec(
+  await fs.readFile(
+    new URL('../supabase/migrations/20260928090000_reading_position_stamp.sql', import.meta.url),
+    'utf8'
+  )
+);
+
+// A new unread listening/plan position must outlive an older read position.
+const POSITION_READER = '66666666-6666-4666-8666-666666666666';
+await signUp(POSITION_READER);
+await db.query(
+  `insert into public.user_progress (user_id, chapters_read, current_book, current_chapter, synced_at)
+  values ($1, '{"JHN_3":1000}', 'JHN', 3, '2026-09-01')`,
+  [POSITION_READER]
+);
+const positionChoice = Date.now();
+const positionUpload = (overrides = {}) => {
+  const payload = {
+    user_id: POSITION_READER,
+    chapters_read: { JHN_3: 1000 },
+    streak_days: 1,
+    last_read_date: today,
+    current_book: 'JHN',
+    current_chapter: 10,
+    position_updated_at: positionChoice,
+    ...overrides,
+  };
+  return { position_updated_for: `${payload.current_book}_${payload.current_chapter}`, ...payload };
+};
+const savedPosition = (await mergeProgress(POSITION_READER, positionUpload())).rows[0];
+assert.deepEqual(
+  positionOf(savedPosition),
+  ['JHN', 10],
+  'new unread position survives older read position'
+);
+
+assert.equal(Number(savedPosition.position_updated_at), positionChoice);
+const positionBase = Date.now() - 10_000;
+const setPosition = (fields = {}) =>
+  db.query(
+    `update public.user_progress set current_book=$2, current_chapter=$3,
+   chapters_read=$4::jsonb, position_updated_at=$5, position_updated_for=$6, synced_at=now() where user_id=$1`,
+    [
+      POSITION_READER,
+      fields.book ?? 'JHN',
+      fields.chapter ?? 10,
+      JSON.stringify(fields.chapters ?? {}),
+      fields.stamp ?? null,
+      fields.stamp == null ? null : `${fields.book ?? 'JHN'}_${fields.chapter ?? 10}`,
+    ]
+  );
+// Legacy read T200 cannot be downgraded by same-position explicit T100.
+await setPosition({ chapters: { JHN_10: positionBase + 200 } });
+let stamped = (
+  await mergeProgress(
+    POSITION_READER,
+    positionUpload({
+      current_chapter: 10,
+      chapters_read: { JHN_10: positionBase + 100 },
+      position_updated_at: positionBase + 100,
+    })
+  )
+).rows[0];
+assert.equal(Number(stamped.position_updated_at), positionBase + 200);
+stamped = (
+  await mergeProgress(
+    POSITION_READER,
+    positionUpload({
+      current_chapter: 3,
+      chapters_read: { JHN_3: positionBase + 150 },
+      position_updated_at: positionBase + 150,
+    })
+  )
+).rows[0];
+assert.deepEqual(positionOf(stamped), ['JHN', 10]);
+assert.equal(Number(stamped.position_updated_at), positionBase + 200);
+// An old client can contribute actual newer reads without a fabricated upload stamp.
+const {
+  position_updated_at: _oldStamp,
+  position_updated_for: _oldAnchor,
+  ...legacyChoice
+} = positionUpload({
+  current_chapter: 10,
+  chapters_read: { JHN_10: positionBase + 300 },
+});
+stamped = (await mergeProgress(POSITION_READER, legacyChoice)).rows[0];
+assert.equal(Number(stamped.position_updated_at), positionBase + 300);
+const legacyEmpty = { ...legacyChoice, current_chapter: 1, current_book: 'GEN', chapters_read: {} };
+stamped = (await mergeProgress(POSITION_READER, legacyEmpty)).rows[0];
+assert.deepEqual(positionOf(stamped), ['JHN', 10]);
+// Explicit Genesis 1 is a real choice, even without any completed reads.
+stamped = (
+  await mergeProgress(
+    POSITION_READER,
+    positionUpload({
+      current_book: 'GEN',
+      current_chapter: 1,
+      chapters_read: {},
+      position_updated_at: positionBase + 400,
+    })
+  )
+).rows[0];
+assert.deepEqual(positionOf(stamped), ['GEN', 1]);
+// Tied choices converge by the same bytewise chapter key on both arrival orders.
+for (const reverse of [false, true]) {
+  await setPosition({ book: reverse ? 'REV' : 'GEN', chapter: 1, stamp: positionBase + 500 });
+  stamped = (
+    await mergeProgress(
+      POSITION_READER,
+      positionUpload({
+        current_book: reverse ? 'GEN' : 'REV',
+        current_chapter: 1,
+        chapters_read: {},
+        position_updated_at: positionBase + 500,
+      })
+    )
+  ).rows[0];
+  assert.deepEqual(positionOf(stamped), ['REV', 1]);
+  assert.equal(Number(stamped.position_updated_at), positionBase + 500);
+  assert.equal(stamped.position_updated_for, 'REV_1');
+}
+// Simultaneously admitted requests retain both completed reads and newest position.
+await setPosition();
+await Promise.all([
+  mergeProgress(
+    POSITION_READER,
+    positionUpload({
+      current_chapter: 10,
+      chapters_read: { JHN_10: positionBase + 600 },
+      position_updated_at: positionBase + 600,
+    })
+  ),
+  mergeProgress(
+    POSITION_READER,
+    positionUpload({
+      current_chapter: 11,
+      chapters_read: { JHN_11: positionBase + 700 },
+      position_updated_at: positionBase + 700,
+    })
+  ),
+]);
+stamped = await progressOf(POSITION_READER);
+assert.deepEqual(positionOf(stamped), ['JHN', 11]);
+assert.equal(stamped.chapters_read.JHN_10, positionBase + 600);
+assert.equal(stamped.chapters_read.JHN_11, positionBase + 700);
+assert.equal(Number(stamped.position_updated_at), positionBase + 700);
+// Far-future position stamps count as now, not one day ahead or forever.
+await setPosition();
+const beforeFuture = Date.now();
+stamped = (
+  await mergeProgress(
+    POSITION_READER,
+    positionUpload({ position_updated_at: Date.now() + 400 * DAY })
+  )
+).rows[0];
+assert.ok(
+  Number(stamped.position_updated_at) >= beforeFuture &&
+    Number(stamped.position_updated_at) <= Date.now()
+);
+await setPosition({ stamp: Date.now() + 400 * DAY });
+stamped = (
+  await mergeProgress(POSITION_READER, positionUpload({ position_updated_at: positionBase + 800 }))
+).rows[0];
+assert.ok(
+  Number(stamped.position_updated_at) >= beforeFuture &&
+    Number(stamped.position_updated_at) <= Date.now()
+);
+for (const invalid of [0, -1, 1.5, '100', 9007199254740992]) {
+  await assert.rejects(
+    mergeProgress(POSITION_READER, positionUpload({ position_updated_at: invalid })),
+    { code: '22023' }
+  );
+}
+await assert.rejects(mergeProgress(POSITION_READER, positionUpload({ user_id: OTHER_READER })), {
+  code: '42501',
+});
+await assert.rejects(mergeProgress(null, positionUpload()), /permission denied/);
+const positionFn = await one(
+  `select prosecdef, proconfig from pg_proc where proname = 'merge_user_progress'`
+);
+assert.equal(positionFn.prosecdef, false);
+assert.deepEqual(positionFn.proconfig, ['search_path=""']);
+
+// A deployed legacy direct upsert omits the new fields: its new tuple must not
+// inherit the previous tuple's stamp, or that stamp can defeat a later choice.
+await setPosition({ stamp: positionBase + 900 });
+await oldUpsert(
+  POSITION_READER,
+  upload({
+    user_id: POSITION_READER,
+    current_book: 'JHN',
+    current_chapter: 3,
+    chapters_read: { JHN_3: 1000 },
+  })
+);
+const legacyDirect = await one('select * from public.user_progress where user_id=$1', [
+  POSITION_READER,
+]);
+assert.equal(legacyDirect.position_updated_at, null, 'legacy changed tuple clears inherited stamp');
+assert.equal(legacyDirect.position_updated_for, null);
+stamped = (
+  await mergeProgress(POSITION_READER, positionUpload({ position_updated_at: positionBase + 850 }))
+).rows[0];
+assert.deepEqual(positionOf(stamped), ['JHN', 10]);
+assert.equal(stamped.position_updated_for, 'JHN_10');
+for (const anchor of [null, 'JHN_10']) {
+  await setPosition({ stamp: positionBase + 900 });
+  stamped = (
+    await mergeProgress(
+      POSITION_READER,
+      positionUpload({
+        current_chapter: 3,
+        position_updated_at: positionBase + 1000,
+        position_updated_for: anchor,
+      })
+    )
+  ).rows[0];
+  assert.deepEqual(
+    positionOf(stamped),
+    ['JHN', 10],
+    'wrong or missing anchor cannot confer recency'
+  );
+}
+
 console.log('verify-sync-contract-sql: all checks passed');

@@ -2,6 +2,7 @@ import type { AudioPlaybackSequenceEntry } from '../../../types/audio';
 import type { ListeningHistoryEntry } from '../../../stores/libraryModel';
 import type {
   ReadingPlanProgress,
+  ReadingPlansStoreState,
   PlanSessionKey,
   RhythmSessionContext,
 } from '../../../services/plans/types';
@@ -23,7 +24,9 @@ import {
 import { getPlanChapterFocusVerse } from '../../../services/plans';
 import {
   buildPlanSessionCompletionKey,
+  getPlanCompletionEntryKey,
   getDaySessionEntries,
+  isRecurringPlan,
   isMultiSessionPlan,
 } from '../../../services/plans/readingPlanModel';
 import type { RootTabNavigationHandle } from './readerConstants';
@@ -35,16 +38,18 @@ export interface UseReaderPlanSessionInput {
   bookId: string;
   chapter: number;
   chaptersRead: Record<string, number>;
+  chaptersListened?: Record<string, number>;
   getRootTabBarStyle: (collapseProgress: number) => ViewStyle;
   getRootTabNavigation: () => RootTabNavigationHandle;
   listeningHistory: ListeningHistoryEntry[];
   planDayNumber: number | undefined;
   planSessionKey: PlanSessionKey | undefined;
+  planOccurrenceKey?: string;
   playbackSequenceEntries: AudioPlaybackSequenceEntry[];
   requestedFocusVerse: number | undefined;
   returnToPlanOnComplete: boolean;
   sessionContext: RhythmSessionContext | undefined;
-  setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
+  setPlanDayResume: ReadingPlansStoreState['setPlanDayResume'];
   /** The screen's local "now", refreshed at midnight and on foreground (useLocalToday). */
   today: Date;
   /** `today` as a local date key. */
@@ -59,11 +64,13 @@ export function useReaderPlanSession({
   bookId,
   chapter,
   chaptersRead,
+  chaptersListened,
   getRootTabBarStyle,
   getRootTabNavigation,
   listeningHistory,
   planDayNumber,
   planSessionKey,
+  planOccurrenceKey,
   playbackSequenceEntries,
   requestedFocusVerse,
   returnToPlanOnComplete,
@@ -83,6 +90,12 @@ export function useReaderPlanSession({
     [activePlanId]
   );
   const activePlanIsMultiSession = isMultiSessionPlan(activePlanRecord);
+  // A mounted screen's date snapshot can retain its midnight hour after grace expires.
+  // Use the same current clock as completion actions when saving the occurrence.
+  const planDayResumeOccurrenceKey =
+    activePlanRecord && isRecurringPlan(activePlanRecord) && typeof planDayNumber === 'number'
+      ? getPlanCompletionEntryKey(activePlanRecord, planDayNumber, undefined, planOccurrenceKey)
+      : undefined;
   const activePlanDayEntries = useMemo(
     () =>
       typeof planDayNumber === 'number'
@@ -236,8 +249,16 @@ export function useReaderPlanSession({
       return;
     }
 
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanChapterIndex, activePlanId, bookId, chapter, planDayNumber, setPlanDayResume]);
+    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter, planDayResumeOccurrenceKey);
+  }, [
+    activePlanChapterIndex,
+    activePlanId,
+    bookId,
+    chapter,
+    planDayNumber,
+    planDayResumeOccurrenceKey,
+    setPlanDayResume,
+  ]);
   const activePlanDaySummary = useMemo(() => {
     if (!activePlanId || typeof planDayNumber !== 'number' || !activePlanProgress) {
       return null;
@@ -248,8 +269,10 @@ export function useReaderPlanSession({
       entries: activePlanEntries,
       progress: activePlanProgress,
       chaptersRead,
+      chaptersListened,
       listeningHistory,
       dayNumber: planDayNumber,
+      occurrenceKey: planOccurrenceKey,
       today,
     });
   }, [
@@ -258,8 +281,10 @@ export function useReaderPlanSession({
     activePlanRecord,
     activePlanProgress,
     chaptersRead,
+    chaptersListened,
     listeningHistory,
     planDayNumber,
+    planOccurrenceKey,
     today,
   ]);
   const activePlanSessionSummary = useMemo(
@@ -281,7 +306,13 @@ export function useReaderPlanSession({
       (group) =>
         group.sessionKey !== activePlanSessionKey &&
         !activePlanProgress?.completed_sessions?.[
-          buildPlanSessionCompletionKey(activePlanRecord, planDayNumber, group.sessionKey)
+          buildPlanSessionCompletionKey(
+            activePlanRecord,
+            planDayNumber,
+            group.sessionKey,
+            undefined,
+            planOccurrenceKey
+          )
         ]
     );
   const activePlanSessionTitle = activePlanSessionKey
@@ -317,6 +348,7 @@ export function useReaderPlanSession({
         return {
           planId: nextSegment.type === 'plan' ? nextSegment.planId : undefined,
           planDayNumber: nextSegment.type === 'plan' ? nextSegment.dayNumber : undefined,
+          planOccurrenceKey: nextSegment.type === 'plan' ? nextSegment.occurrenceKey : undefined,
           returnToPlanOnComplete: true,
           sessionContext: activeRhythmSession,
         };
@@ -326,6 +358,7 @@ export function useReaderPlanSession({
         return {
           planId: activePlanId,
           planDayNumber,
+          ...(planOccurrenceKey ? { planOccurrenceKey } : {}),
           ...(activePlanSessionKey ? { planSessionKey: activePlanSessionKey } : {}),
           returnToPlanOnComplete: true,
         };
@@ -338,6 +371,7 @@ export function useReaderPlanSession({
       activePlanSessionKey,
       activeRhythmSession,
       planDayNumber,
+      planOccurrenceKey,
       activePlanPlaybackSequenceEntries,
       returnToPlanOnComplete,
     ]
@@ -356,6 +390,7 @@ export function useReaderPlanSession({
       chapter,
       targetChapterKeys: targetSummary.targetChapterKeys,
       completedChapterKeys: targetSummary.completedChapterKeys,
+      chaptersListened,
       listeningHistory,
       dateKey: todayDateKey,
       listenCompletionThreshold: PLAN_LISTEN_COMPLETION_THRESHOLD,
@@ -366,6 +401,7 @@ export function useReaderPlanSession({
     activePlanSessionSummary,
     bookId,
     chapter,
+    chaptersListened,
     listeningHistory,
     todayDateKey,
   ]);

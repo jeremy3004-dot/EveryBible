@@ -94,6 +94,8 @@ export type UserReadingPlanProgress = ReadingPlanProgress;
 export interface ReadingPlanDayResume {
   bookId: string;
   chapter: number;
+  /** The dated occurrence of a recurring plan day; absent on sequential/legacy resumes. */
+  occurrenceKey?: string;
 }
 
 export type RhythmId = string;
@@ -140,6 +142,7 @@ export interface ReadingPlanRhythmMutationResult {
 }
 
 export interface ReadingPlanRhythmSessionSegment {
+  occurrenceKey?: string;
   itemId: RhythmItemId;
   type: 'plan' | 'passage';
   title: string;
@@ -228,8 +231,18 @@ export interface ReadingPlansStoreState extends ReadingPlansPersistedState {
   unsavePlan: (planId: string) => void;
   upsertProgress: (progress: ReadingPlanProgress) => ReadingPlanProgress;
   replaceProgress: (progressList: ReadingPlanProgress[]) => void;
-  setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
-  getPlanDayResume: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
+  setPlanDayResume: (
+    planId: string,
+    dayNumber: number,
+    bookId: string,
+    chapter: number,
+    occurrenceKey?: string
+  ) => void;
+  getPlanDayResume: (
+    planId: string,
+    dayNumber: number,
+    occurrenceKey?: string
+  ) => ReadingPlanDayResume | null;
   clearPlanDayResume: (planId: string, dayNumber: number) => void;
   markDayComplete: (
     planId: string,

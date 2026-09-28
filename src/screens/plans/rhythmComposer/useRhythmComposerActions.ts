@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { RhythmComposerScreenProps } from '../../../navigation/types';
@@ -6,6 +6,7 @@ import { getLocalizedRhythmTitle } from '../../../services/plans/rhythmLocalizat
 import { buildPresetRhythmItems, type RhythmPreset } from '../../../services/plans/rhythmPresets';
 import type { ReadingPlanRhythm } from '../../../services/plans/types';
 import { useReadingPlansStore } from '../../../stores/readingPlansStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { mediumHaptic, successHaptic } from '../../../utils';
 import { resolveRhythmErrorMessage } from './rhythmComposerModel';
 
@@ -27,6 +28,17 @@ export function useRhythmComposerActions(
   // Set once a preset is saved: the composer stays mounted and tappable through the
   // replace transition, and a second tap would save a second rhythm.
   const savedRef = useRef(false);
+  const mountedRef = useRef(false);
+  const deleteRequestRef = useRef(0);
+  // Clear ownership during commit, before a new route can receive a press;
+  // a passive effect would leave the old confirmation current until it runs.
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      deleteRequestRef.current += 1;
+    };
+  }, [currentRhythm?.id]);
 
   const applyPreset = useCallback(
     (preset: RhythmPreset) => {
@@ -57,9 +69,21 @@ export function useRhythmComposerActions(
   );
 
   const confirmDelete = useCallback(() => {
-    if (!currentRhythm) {
+    if (!currentRhythm || !mountedRef.current) {
       return;
     }
+    const request = ++deleteRequestRef.current;
+    const { user, authGeneration } = useAuthStore.getState();
+    const ownerId = user?.uid ?? null;
+    const isCurrent = () => {
+      const current = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        request === deleteRequestRef.current &&
+        (current.user?.uid ?? null) === ownerId &&
+        current.authGeneration === authGeneration
+      );
+    };
 
     Alert.alert(
       t('readingPlans.deleteRhythmConfirmTitle'),
@@ -72,6 +96,7 @@ export function useRhythmComposerActions(
           text: t('common.delete', { defaultValue: 'Delete' }),
           style: 'destructive',
           onPress: () => {
+            if (!isCurrent()) return;
             mediumHaptic();
             deleteRhythm(currentRhythm.id);
             navigation.popToTop();

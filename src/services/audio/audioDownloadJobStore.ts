@@ -22,7 +22,12 @@ const isAudioDownloadJobRecord = (value: unknown): value is AudioDownloadJobReco
       record.status === 'failed') &&
     typeof record.createdAt === 'number' &&
     typeof record.updatedAt === 'number' &&
-    typeof record.attemptCount === 'number'
+    typeof record.attemptCount === 'number' &&
+    (record.runId === undefined || (typeof record.runId === 'string' && record.runId.length > 0)) &&
+    (record.parentRunId === undefined ||
+      (typeof record.parentRunId === 'string' &&
+        record.parentRunId.length > 0 &&
+        typeof record.runId === 'string'))
   );
 };
 

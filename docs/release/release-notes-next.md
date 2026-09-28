@@ -9,6 +9,78 @@ Phone testing still to do before release: `device-qa-checklist.md`. Decisions wa
 owner: `owner-decisions-2026-09-24.md`. TestFlight "What to Test" text for tonight's build:
 `testflight-what-to-test.md`.
 
+## Separate optimization candidate — 2026-09-28
+
+These follow-up changes are isolated from the frozen100-fix TestFlight candidate and have not been published. See [continuation verification](../qa/2026-09-28-optimization-continuation.md).
+
+- Sleep timers stop buffering playback after the reader closes; late buffering callbacks cannot undo Pause.
+- Text-only translations keep chapter navigation without offering an unusable Play button.
+- Language lists and Home verse cards avoid unnecessary redraws during audio downloads, while availability, source labels, fonts and catalog changes remain live.
+- Gather story text and discussion questions avoid unnecessary redraws on audio progress ticks; highlighting, reading preferences and Replay/Share actions remain live. Previous verse backgrounds explicitly clear as narration advances on Android.
+- Submitting a prayer preserves a newer draft typed while the submission is pending.
+- Finishing an older prayer report preserves a newly opened report form and its draft.
+- Older prayer refreshes cannot hide newly submitted requests or undo confirmed changes; a submission already received by refresh appears only once.
+- Android playback metadata prevents delayed artwork from restoring an older title after discreet mode, reset, or shutdown.
+
+## Local reliability changes under verification — 2026-09-27
+
+These changes are unstaged local work after `86d0b043`; they have not been committed,
+uploaded, or published. Detailed regressions, verification, and remaining device gates
+are recorded in [the audit checkpoint](../qa/2026-09-27-autonomous-audit.md).
+
+- Playback commands respect the latest Play, Pause, seek, chapter, and speed choice,
+  including commands that finish after a newer one. Pause stays available while audio loads,
+  and stalled native stream checks continue after the reader closes. Released players retire
+  their listeners without an unhandled status request. Retrying a failed start at a saved
+  position loads a fresh player instead of reporting playback with no native sound. Queue additions made during a delayed
+  chapter lookup remain available to automatic and manual advance. Finished chapters stay stopped until
+  the listener starts them again. Read Along follows programmatic seeks on Android.
+- Bible and Gather narration hand off playback without sounding together. Feedback
+  recording and preview participate in the same handoff and wait for native cleanup,
+  including background sounds already being released and loop replacements still loading.
+  Ambient and reviewer-preview callbacks avoid hidden status queries on released players. Sound 0% silences outgoing crossfades.
+  Contributor drafts clear when the chapter or account changes, and leaving the reader
+  releases its microphone and preview while preserving valid same-chapter drafts.
+- Offline downloads validate cached audio and SQLite structure, preserve newer installs
+  during stale cleanup, recover independent jobs, and scope collection cancellation to
+  the requested books. Concurrent-download progress and reader cancellation reporting
+  pass the integrated checks. Interrupted files without verified completion are downloaded
+  again instead of being marked available offline; repaired files pass Android offline playback.
+  A late streaming fallback cannot delete a newer repaired download. Delayed corruption
+  errors from a replaced text pack cannot close its healthy replacement connection. Failed deletion
+  cleanup preserves a later successful reinstall and its recovery journal. Healthy
+  installed Bibles remain readable and searchable when the bundled database cannot initialize.
+- Bible search preserves typed Indic and Arabic combining marks, preventing unrelated
+  results caused by the search index dropping those marks. Offline Nepali search is verified.
+- Reading plans count completed listens consistently, preserve recurring-session resume
+  positions and the specific dated reading selected before midnight, keep chapter navigation within a pinned session ahead of an older queue,
+  and avoid a development-runtime crash when entering a plan reader. Android chapter-skip
+  availability now reaches native controls. The rebuilt Android test binary updates chapter-skip
+  actions in the existing media session when entering a pinned reading plan.
+- Saved reading position has its own timestamp, so choosing an unread plan or audio-only
+  chapter no longer lets an older completed chapter replace it during sync. Older clients
+  cannot carry a previous chapter's timestamp onto a different chapter. Cross-device
+  convergence requires the complete `20260928090000_reading_position_stamp.sql` migration
+  applied atomically before release; it is prepared locally and has not been applied.
+- Delayed image shares, audio clips, translation choices, annotation saves, and reminder
+  callbacks respect the screen, request, or account that initiated them.
+- Privacy locking and saved credentials retain ownership across asynchronous native
+  operations; failed credential removal cannot silently restore a signed-out account on
+  a normal cold restart. Recovery and profile requests cannot update a replacement login.
+- Reader, chapter-browser, and plan-search results respond to the first tap while the
+  keyboard is open. The audio scrubber exposes its adjustable accessibility actions.
+- Sleep and repeat choices made during a pending chapter lookup apply before the next
+  chapter starts. Bible links and reminder taps waiting behind loading or privacy unlock
+  follow the latest valid arrival, including when cached startup responses finish late.
+- A delayed startup Bible download respects a newer selection even after switching away
+  and back. Startup preference reads, downloads and uploads cannot adopt or write a replacement account’s choice. Reading-plan storage hydrates before account cleanup, preserving guest progress
+  on first sign-in and preventing late restoration of a signed-out account’s plans.
+
+The current checks cover source tests and isolated iOS simulator/Android emulator
+builds, including embedded Android and iOS Release builds with source-matched installs, cold resume and playback; Android also passed offline playback. Physical-device, authenticated live-service, and store-distributed release verification
+remain separate gates. The ignored Android prebuild setup incident is documented in the
+audit checkpoint; exact restoration of all original ignored native files is not claimed.
+
 ## Baselines
 
 | What                                                          | Build                                                                                    | Source commit                                                  | Where it is                                                   |
@@ -50,6 +122,7 @@ commits).
 - A slim header stays pinned at the top of a plan page when you scroll.
 - From a plan reading you can swipe back (or use Android's Back button) to return to the plan.
 - Opening a plan day no longer restarts audio you had paused.
+- The Read button on a plan day opens reading without autoplay, even when you usually listen.
 - The empty "My Plans" screen now explains itself in a full sentence.
 
 **Your account and your devices**

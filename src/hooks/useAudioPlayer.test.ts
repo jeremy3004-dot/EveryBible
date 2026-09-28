@@ -8,6 +8,8 @@ import type { AudioChapterMap } from '../services/bible/contentAvailability';
 import { createInstance } from 'i18next';
 import { zh } from '../i18n/locales/zh';
 import { shallow } from 'zustand/shallow';
+import { assertDefined } from '../utils/assertDefined';
+import type { BackgroundMusicChoice, PlaybackRate } from '../types';
 
 // ---------------------------------------------------------------------------
 // A deterministic hook harness.
@@ -23,6 +25,143 @@ import { shallow } from 'zustand/shallow';
 const runtime = createReactHookRuntime();
 const rn = mockReactNative(mock);
 
+// One integration regression drives the real shim and audioPlayer facade, while
+// the rest of this harness keeps using its recording transport double.
+let nativeStatusListener: ((status: NativeIntegrationStatus) => void) | undefined;
+let integrationSeekGate: Promise<void> | null = null;
+let integrationNativeReleased = false;
+let integrationInitialPlayFailure: { error: Error; response?: Promise<void> } | null = null;
+let integrationNativeCreates = 0;
+let integrationStatusGate: Promise<void> | null = null;
+let integrationStatusCalls = 0;
+const integrationNativeStatus = {
+  isLoaded: true as const,
+  positionMillis: 0,
+  durationMillis: 600_000,
+  isPlaying: false,
+  isBuffering: false,
+  didJustFinish: false,
+};
+// Ambient integration uses the real service with native intent applied before
+// any delayed JS response, as Expo's Android status command does.
+class AmbientNativeSound {
+  playing = false;
+  loaded = true;
+  volume = 0;
+  stopGate: Promise<void> | null = null;
+  stopCalls = 0;
+  unloadCalls = 0;
+  async playAsync() {
+    this.playing = true;
+  }
+  async pauseAsync() {
+    this.playing = false;
+  }
+  async stopAsync() {
+    this.stopCalls += 1;
+    this.playing = false;
+    if (this.stopGate) await this.stopGate;
+  }
+  async unloadAsync() {
+    this.unloadCalls += 1;
+    this.loaded = false;
+    this.playing = false;
+  }
+  async setVolumeAsync(volume: number) {
+    this.volume = volume;
+  }
+  async setPositionAsync() {}
+  setOnPlaybackStatusUpdate() {}
+}
+const ambientNativeSounds: AmbientNativeSound[] = [];
+for (const name of ['ambient', 'piano', 'soft-guitar', 'harp', 'flute', 'sitar', 'ocean-waves']) {
+  mockModule(mock, sourcePath(`../assets/audio/background/${name}.m4a`), { default: 1 });
+}
+mockModule(mock, sourcePath('services/audio/backgroundSoundCache.ts'), {
+  backgroundSoundCache: {
+    refresh: async () => {},
+    getAvailability: () => 'bundled',
+    getCachedUri: async () => null,
+    ensureCached: async () => null,
+    discard: async () => {},
+  },
+});
+
+mockModule(mock, 'expo-av', {
+  Audio: {
+    setAudioModeAsync: async () => {},
+    Sound: {
+      createAsync: async (
+        _source: unknown,
+        _initial: unknown,
+        listener: (status: NativeIntegrationStatus) => void
+      ) => {
+        if (typeof _source === 'number') {
+          const sound = new AmbientNativeSound();
+          ambientNativeSounds.push(sound);
+          return { sound };
+        }
+        nativeStatusListener = listener;
+        integrationNativeCreates += 1;
+        // Android keeps shouldPlay armed at EOF, even though isPlaying is false.
+        let shouldPlay = false;
+        let releasedAfterInitialPlay = false;
+        const seek = async (positionMillis: number, playIntent = shouldPlay) => {
+          const gate = integrationSeekGate;
+          if (gate) await gate;
+          shouldPlay = playIntent;
+          const status = { ...integrationNativeStatus, positionMillis, isPlaying: shouldPlay };
+          nativeStatusListener?.(status);
+          return status;
+        };
+        return {
+          sound: {
+            playAsync: async () => {
+              const failure = integrationInitialPlayFailure;
+              if (failure) {
+                integrationInitialPlayFailure = null;
+                // Expo's error callback marks this sound unloaded before a
+                // pending transport rejection reaches the JS caller.
+                releasedAfterInitialPlay = true;
+                listener({ isLoaded: false, error: failure.error.message });
+                await failure.response;
+                throw failure.error;
+              }
+              shouldPlay = true;
+              return { ...integrationNativeStatus, isPlaying: true };
+            },
+            pauseAsync: async () => {
+              shouldPlay = false;
+              nativeStatusListener?.({ ...integrationNativeStatus, isPlaying: false });
+            },
+            setRateAsync: async () => {},
+            setVolumeAsync: async () => {},
+            getStatusAsync: async () => {
+              integrationStatusCalls += 1;
+              const released = integrationNativeReleased || releasedAfterInitialPlay;
+              const status = { ...integrationNativeStatus, isPlaying: shouldPlay };
+              const gate = integrationStatusGate;
+              if (gate) await gate;
+              if (released) throw new Error('Player does not exist.');
+              return status;
+            },
+            setPositionAsync: (positionMillis: number) => seek(positionMillis),
+            setStatusAsync: (status: { positionMillis: number; shouldPlay: boolean }) =>
+              seek(status.positionMillis, status.shouldPlay),
+            stopAsync: async () => integrationNativeStatus,
+            unloadAsync: async () => integrationNativeStatus,
+            setOnPlaybackStatusUpdate: () => {
+              nativeStatusListener = undefined;
+            },
+          },
+        };
+      },
+    },
+  },
+  InterruptionModeIOS: { DoNotMix: 1 },
+  InterruptionModeAndroid: { DoNotMix: 1 },
+});
+
 // ---------------------------------------------------------------------------
 // Recording doubles for every native-backed collaborator
 // ---------------------------------------------------------------------------
@@ -35,6 +174,8 @@ interface ProgressSnapshot {
   isBuffering: boolean;
   didJustFinish: boolean;
 }
+
+type NativeIntegrationStatus = ProgressSnapshot | { isLoaded: false; error?: string };
 
 interface AudioAsset {
   url: string;
@@ -124,7 +265,7 @@ interface AudioPlayerDouble {
   loaded: boolean;
   callbacks: AudioPlayerCallbacks;
   setCallbacks(callbacks: AudioPlayerCallbacks): void;
-  loadAndPlay(url: string, rate: number, startPositionMs?: number): Promise<void>;
+  loadAndPlay(url: string, rate: PlaybackRate, startPositionMs?: number): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
@@ -142,7 +283,7 @@ const audioPlayerDouble: AudioPlayerDouble = {
     audioPlayerDouble.callbacks = callbacks;
     recorded.player.push({ method: 'setCallbacks', args: [] });
   },
-  async loadAndPlay(url: string, rate: number, startPositionMs?: number) {
+  async loadAndPlay(url: string, rate: PlaybackRate, startPositionMs?: number) {
     recorded.player.push({
       method: 'loadAndPlay',
       // A load from the top (offset 0) is recorded as [url, rate].
@@ -186,9 +327,13 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
   async setRate(rate: number) {
     recorded.player.push({ method: 'setRate', args: [rate] });
+    const gate = playerGates.get(`rate:${rate}`);
+    if (gate) await gate;
   },
   async setVolume(volume: number) {
     recorded.narrationVolumes.push(volume);
+    const gate = playerGates.get(`volume:${volume}`);
+    if (gate) await gate;
   },
   async verifyLoaded() {
     recorded.player.push({ method: 'verifyLoaded', args: [] });
@@ -202,16 +347,24 @@ const audioPlayerDouble: AudioPlayerDouble = {
   },
 };
 
+let liveAmbientPlayer:
+  | (typeof import('../services/audio/backgroundMusicPlayer'))['backgroundMusicPlayer']
+  | null = null;
 const backgroundMusicDouble = {
   async sync(choice: string, shouldPlay: boolean) {
     recorded.backgroundMusic.push({ method: 'sync', choice, shouldPlay });
+    if (liveAmbientPlayer)
+      await liveAmbientPlayer.sync(choice as BackgroundMusicChoice, shouldPlay);
   },
   setLevel(level: number) {
     recorded.backgroundMusicLevels.push(level);
+    liveAmbientPlayer?.setLevel(level);
   },
-  getShuffleCandidates: () => ['piano', 'harp', 'ocean-waves'],
+  getShuffleCandidates: () =>
+    liveAmbientPlayer?.getShuffleCandidates() ?? ['piano', 'harp', 'ocean-waves'],
   async stop() {
     recorded.backgroundMusic.push({ method: 'stop' });
+    if (liveAmbientPlayer) await liveAmbientPlayer.stop();
   },
 };
 
@@ -233,6 +386,8 @@ const bibleState = {
   currentBook: 'GEN',
   currentChapter: 1,
   hasReaderHistory: false,
+  setReadingPosition: (position: { bookId: string; chapter: number }) =>
+    bibleState.applySyncedReadingPosition(position),
   applySyncedReadingPosition: ({ bookId, chapter }: { bookId: string; chapter: number }) => {
     bibleState.currentBook = bookId;
     bibleState.currentChapter = chapter;
@@ -939,6 +1094,94 @@ test('an undecodable download is deleted so it stops being preferred', async () 
   assert.deepEqual(recorded.deletedFiles, ['file:///audio/GEN-1.m4a']);
 });
 
+for (const repairTiming of ['during local decode', 'during remote fallback'] as const) {
+  test(`fallback cleanup preserves a replacement completed ${repairTiming}`, async (context) => {
+    const local = 'file:///audio/bsb/GEN/1.mp3';
+    const remote = 'https://cdn.example/bsb/GEN/1.mp3';
+    const files = new Map([[local, 'old-corrupt-audio']]);
+    const { expoAudioFileSystemAdapter } = await import('../services/audio/audioDownloadStorage');
+    const { runAudioBookExclusively } = await import('../services/audio/download/activeDownloads');
+    // This harness supplies the optional adapter delete method.
+    context.mock.method(
+      expoAudioFileSystemAdapter as typeof expoAudioFileSystemAdapter & {
+        deleteFile: (uri: string) => Promise<void>;
+      },
+      'deleteFile',
+      async (uri: string) => {
+        recorded.deletedFiles.push(uri);
+        files.delete(uri);
+      }
+    );
+    scenario.chapterAudio = async () => ({ url: local, duration: 100 });
+    scenario.failLoadUrls = new Set([local]);
+    scenario.remoteFallback = async () => ({ url: remote, duration: 900 });
+    const heldUrl = repairTiming === 'during local decode' ? local : remote;
+    const gate = deferPlayerOperation();
+    if (repairTiming === 'during local decode') {
+      const load = audioPlayerDouble.loadAndPlay.bind(audioPlayerDouble);
+      context.mock.method(
+        audioPlayerDouble,
+        'loadAndPlay',
+        async (url: string, rate: PlaybackRate, start?: number) => {
+          if (url !== local) return load(url, rate, start);
+          recorded.player.push({ method: 'loadAndPlay', args: [url, rate] });
+          await gate.promise;
+          throw new Error(`decode failed: ${url}`);
+        }
+      );
+    } else {
+      playerGates.set(`load:${heldUrl}`, gate.promise);
+    }
+    const player = mountPlayer();
+    const playing = player.api.playChapter('GEN', 1);
+    await settleUntil(() => playerCalls('loadAndPlay').some((call) => call.args[0] === heldUrl));
+
+    // The real download lease also covers direct native writes to the stable URI.
+    await runAudioBookExclusively(
+      'file:///audio/bsb/GEN/',
+      new AbortController().signal,
+      async () => {
+        files.set(local, 'new-verified-audio');
+      }
+    );
+    gate.resolve();
+    await playing;
+
+    assert.equal(store().status, 'playing');
+    assert.equal(files.get(local), 'new-verified-audio');
+    assert.deepEqual(recorded.deletedFiles, []);
+  });
+}
+
+test('fallback cleanup does not delete a chapter while its book writer already owns the path', async () => {
+  const local = 'file:///audio/bsb/GEN/1.mp3';
+  const remote = 'https://cdn.example/bsb/GEN/1.mp3';
+  const { runAudioBookExclusively } = await import('../services/audio/download/activeDownloads');
+  const gate = deferPlayerOperation();
+  let writerStarted = false;
+  const writing = runAudioBookExclusively(
+    'file:///audio/bsb/GEN/',
+    new AbortController().signal,
+    async () => {
+      writerStarted = true;
+      await gate.promise;
+    }
+  );
+  await settleUntil(() => writerStarted);
+  scenario.chapterAudio = async () => ({ url: local, duration: 100 });
+  scenario.failLoadUrls = new Set([local]);
+  scenario.remoteFallback = async () => ({ url: remote, duration: 900 });
+  const player = mountPlayer();
+  try {
+    await player.api.playChapter('GEN', 1);
+    assert.equal(store().status, 'playing');
+    assert.deepEqual(recorded.deletedFiles, []);
+  } finally {
+    gate.resolve();
+    await writing;
+  }
+});
+
 test('an undecodable download with no streamed copy reports the playback failure', async () => {
   scenario.chapterAudio = async () => ({ url: 'file:///audio/GEN-1.m4a', duration: 100 });
   scenario.failLoadUrls = new Set(['file:///audio/GEN-1.m4a']);
@@ -1273,7 +1516,7 @@ test('a resume that fails to load keeps the saved place for the next try', async
   assert.equal(store().status, 'playing');
 });
 
-test('a second Play while a resume is still loading resumes at the same place', async () => {
+test('Pause while a resume is still loading preserves its position for a fresh Play', async () => {
   let release!: () => void;
   playerGates.set(
     'load:https://cdn.example/bsb/GEN/1.mp3',
@@ -1285,13 +1528,18 @@ test('a second Play while a resume is still loading resumes at the same place', 
   coldStartAt(180_000);
 
   const first = player.rerender().togglePlayPause();
-  await new Promise((resolve) => setImmediate(resolve));
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
   playerGates.clear();
   const second = player.rerender().togglePlayPause();
   release();
   await Promise.all([first, second]);
 
   assert.equal(loadedStartOffset(), 180_000);
+  assert.equal(store().currentPosition, 180_000);
+  assert.equal(store().status, 'paused');
+
+  await player.rerender().togglePlayPause();
+  assert.equal(store().status, 'playing');
   assert.equal(store().currentPosition, 180_000);
 });
 
@@ -1323,6 +1571,25 @@ test('togglePlayPause pauses a chapter that is playing', async () => {
   await player.rerender().togglePlayPause();
 
   assert.equal(store().status, 'paused');
+});
+
+test('togglePlayPause pauses a pending native load and its completion cannot restart playback', async () => {
+  const gate = deferPlayerOperation();
+  playerGates.set(`load:${GEN_1}`, gate.promise);
+  const player = mountPlayer();
+  const starting = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+  assert.equal(store().status, 'loading');
+
+  const pausing = player.rerender().togglePlayPause();
+  const statusAfterTap = store().status;
+  gate.resolve();
+  await Promise.all([starting, pausing]);
+
+  assert.equal(statusAfterTap, 'paused', 'the displayed Pause action cancels loading immediately');
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, 1, 'Pause must not start another load');
+  assert.ok(playerCalls('pause').length > 0);
 });
 
 test('togglePlayPause resumes a loaded chapter that is part way through', async () => {
@@ -1399,26 +1666,29 @@ test('Play on a sound the native side released reloads the chapter in one tap', 
 // buffers the player checks that the sound still exists and reports the failure.
 test('a chapter stuck buffering on a released stream turns into an error Play can recover', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
-  const player = mountPlayer();
-  await player.api.playChapter('GEN', 1);
-  emitStatus({ isPlaying: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
-  emitStatus({ isBuffering: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
-  player.rerender();
-  assert.equal(store().status, 'loading');
-
-  t.mock.timers.tick(5_000);
-  assert.equal(playerCalls('verifyLoaded').length, 1);
-  assert.equal(store().status, 'loading');
-
-  scenario.nativeSoundReleased = true;
-  t.mock.timers.tick(5_000);
-  assert.equal(store().status, 'error');
-
-  recorded.player.length = 0;
-  await player.rerender().togglePlayPause();
-  assert.equal(playerCalls('loadAndPlay').length, 1);
-  assert.equal(loadedStartOffset(), 90_000);
-  emitStatus({ isPlaying: false, positionMillis: 90_000 });
+  const native = await startNativeStreamHealthPlayer();
+  try {
+    native.buffering();
+    native.player.rerender();
+    assert.equal(store().status, 'loading');
+    t.mock.timers.tick(5_000);
+    await flushPlayerOperations();
+    assert.equal(integrationStatusCalls, 1);
+    assert.equal(store().status, 'loading');
+    integrationNativeReleased = true;
+    t.mock.timers.tick(5_000);
+    await flushPlayerOperations();
+    assert.equal(integrationStatusCalls, 2);
+    assert.equal(store().status, 'error');
+    recorded.player.length = 0;
+    integrationNativeReleased = false;
+    await native.player.rerender().togglePlayPause();
+    assert.equal(playerCalls('loadAndPlay').length, 1);
+    assert.equal(loadedStartOffset(), 90_000);
+    assert.equal(store().error, null);
+  } finally {
+    await native.cleanup();
+  }
 });
 
 test('the first load of a chapter is not checked as a stalled stream', async (t) => {
@@ -1503,6 +1773,40 @@ test('skipping does nothing when no chapter is loaded', async () => {
   assert.equal(playerCalls('seekTo').length, 0);
 });
 
+for (const superseded of [true, false]) {
+  test(`a native seek rejection ${superseded ? 'cannot fail a newer successful seek' : 'still reports the current seek error'}`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('GEN', 1);
+    const { audioPlayer: realPlayer } = await import('../services/audio/audioPlayer');
+    const originalSeek = audioPlayerDouble.seekTo;
+    realPlayer.setCallbacks({ ...audioPlayerDouble.callbacks });
+    try {
+      await realPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+      audioPlayerDouble.seekTo = (positionMs) => realPlayer.seekTo(positionMs);
+      let rejectSeek!: (error: Error) => void;
+      integrationSeekGate = new Promise((_resolve, reject) => {
+        rejectSeek = reject;
+      });
+      const earlier = player.api.seekTo(20_000);
+      integrationSeekGate = null;
+      if (superseded) {
+        await player.api.seekTo(45_000);
+        assert.equal(store().currentPosition, 45_000);
+      }
+      rejectSeek(new Error('native seek rejected'));
+      await earlier;
+      assert.equal(store().status, superseded ? 'playing' : 'error');
+      assert.equal(store().error, superseded ? null : 'interface.audioPlayFailed');
+      if (superseded) assert.equal(store().currentPosition, 45_000);
+    } finally {
+      integrationSeekGate = null;
+      audioPlayerDouble.seekTo = originalSeek;
+      realPlayer.setCallbacks({});
+      await realPlayer.stop();
+    }
+  });
+}
+
 test('changePlaybackRate applies the speed to the player and remembers it', async () => {
   const player = mountPlayer();
 
@@ -1519,6 +1823,30 @@ test('a chapter started after a rate change is loaded at that rate', async () =>
   await player.rerender().playChapter('GEN', 1);
 
   assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.25);
+});
+
+test('a new chapter uses the speed selected while the old native rate change is pending', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('rate:1.5', gate.promise);
+  const changing = player.api.changePlaybackRate(1.5);
+  await player.api.playChapter('GEN', 2);
+  gate.resolve();
+  await changing;
+  assert.equal(store().playbackRate, 1.5);
+  assert.equal(playerCalls('loadAndPlay').at(-1)?.args[1], 1.5);
+});
+
+test('an older native rate completion cannot overwrite a newer speed selection', async () => {
+  const player = mountPlayer();
+  const gate = deferPlayerOperation();
+  playerGates.set('rate:1.5', gate.promise);
+  const earlier = player.api.changePlaybackRate(1.5);
+  await player.api.changePlaybackRate(1.25);
+  gate.resolve();
+  await earlier;
+  assert.equal(store().playbackRate, 1.25);
 });
 
 // Resolving a chapter can take a manifest lookup and the load itself a few seconds on
@@ -1709,7 +2037,7 @@ test('the transport subscription still sees status, track and playback settings 
 // Chapter navigation
 // ---------------------------------------------------------------------------
 
-test('nextChapter follows the queue before anything else', async () => {
+test('nextChapter follows the queue without a pinned session', async () => {
   const player = mountPlayer();
   store().addToQueue('bsb', 'GEN', 1);
   store().addToQueue('web', 'PSA', 23);
@@ -1819,6 +2147,81 @@ test('previousChapter refuses to walk out of a pinned plan session', async () =>
 
   assert.equal(result, null);
 });
+
+for (const status of ['playing', 'paused'] as const) {
+  for (const direction of ['nextChapter', 'previousChapter'] as const) {
+    for (const boundary of [false, true]) {
+      test(`${status} ${direction} ${boundary ? 'holds the pinned boundary' : 'follows the pinned session'} over a retained queue`, async () => {
+        const player = mountPlayer();
+        const first = { bookId: 'GEN', chapter: 1 };
+        const last = { bookId: 'PSA', chapter: 23 };
+        const sequence = [first, last];
+        const forwards = direction === 'nextChapter';
+        const current = forwards === boundary ? last : first;
+        const target = forwards ? last : first;
+        store().addToQueue('web', 'REV', 22);
+        store().addToQueue('bsb', current.bookId, current.chapter);
+        store().addToQueue('web', 'REV', 1);
+        store().setPlaybackSequence(sequence);
+        await player.rerender().playChapter(current.bookId, current.chapter);
+        if (status === 'paused') await player.rerender().pause();
+        const queue = [...store().queue];
+        const queueIndex = store().queueIndex;
+        recorded.player.length = 0;
+
+        const result = await player.rerender()[direction]();
+
+        assert.deepEqual(result, boundary ? null : target);
+        assert.equal(store().currentBookId, boundary ? current.bookId : target.bookId);
+        assert.equal(store().currentChapter, boundary ? current.chapter : target.chapter);
+        assert.equal(store().currentTranslationId, 'bsb');
+        assert.equal(store().status, status);
+        assert.deepEqual(store().playbackSequence, sequence);
+        if (boundary) {
+          assert.deepEqual(store().queue, queue);
+          assert.equal(store().queueIndex, queueIndex);
+          assert.equal(recorded.player.length, 0, 'a pinned boundary issues no transport command');
+        } else {
+          assert.equal(playerCalls('loadAndPlay').length, status === 'playing' ? 1 : 0);
+          // Selecting a track outside the queue retains the existing store
+          // contract: replace the queue with that target and reset its index.
+          assert.deepEqual(
+            store().queue.map(({ translationId, bookId, chapter }) => ({
+              translationId,
+              bookId,
+              chapter,
+            })),
+            [{ translationId: 'bsb', ...target }]
+          );
+          assert.equal(store().queueIndex, 0);
+        }
+      });
+    }
+  }
+}
+
+for (const direction of ['nextChapter', 'previousChapter'] as const) {
+  test(`${direction} preserves queue entries when the pinned target is already queued`, async () => {
+    const player = mountPlayer();
+    const first = { bookId: 'GEN', chapter: 1 };
+    const last = { bookId: 'PSA', chapter: 23 };
+    const current = direction === 'nextChapter' ? first : last;
+    const target = direction === 'nextChapter' ? last : first;
+    store().addToQueue('bsb', target.bookId, target.chapter);
+    store().addToQueue('web', 'REV', 22);
+    store().addToQueue('bsb', current.bookId, current.chapter);
+    store().addToQueue('web', 'REV', 1);
+    store().setPlaybackSequence([first, last]);
+    await player.rerender().playChapter(current.bookId, current.chapter);
+    const queue = [...store().queue];
+    assert.equal(store().queueIndex, 2);
+
+    assert.deepEqual(await player.rerender()[direction](), target);
+    assert.deepEqual(store().queue, queue);
+    assert.equal(store().queueIndex, 0, 'queue sync selects the actual pinned target');
+    assert.deepEqual(store().playbackSequence, [first, last]);
+  });
+}
 
 test('navigating away from a paused chapter selects it without sounding', async () => {
   const player = mountPlayer();
@@ -1954,6 +2357,144 @@ test('navigating away from a playing chapter starts the new one immediately', as
 
   assert.equal(store().status, 'playing');
   assert.equal(store().currentChapter, 2);
+});
+
+test('a delayed next-chapter lookup cannot replace a chapter the listener picked meanwhile', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const navigation = player.rerender().nextChapter();
+
+  await player.api.playChapter('JHN', 3);
+  const loadsBeforeRelease = playerCalls('loadAndPlay').length;
+  gate.resolve();
+  const result = await navigation;
+
+  assert.equal(store().currentBookId, 'JHN');
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('loadAndPlay').length, loadsBeforeRelease);
+  assert.equal(result, null);
+});
+
+for (const command of ['pause', 'stop'] as const) {
+  test(`a delayed chapter lookup leaves a newer ${command} in control`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('GEN', 1);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    const navigation = player.rerender().nextChapter();
+
+    await player.api[command]();
+    const trackAfterCommand = {
+      bookId: store().currentBookId,
+      chapter: store().currentChapter,
+      status: store().status,
+    };
+    const loadsBeforeRelease = playerCalls('loadAndPlay').length;
+    gate.resolve();
+
+    assert.equal(await navigation, null);
+    assert.deepEqual(
+      { bookId: store().currentBookId, chapter: store().currentChapter, status: store().status },
+      trackAfterCommand
+    );
+    assert.equal(playerCalls('loadAndPlay').length, loadsBeforeRelease);
+  });
+}
+
+for (const olderResolvesFirst of [true, false]) {
+  test(`the latest chapter step wins when the ${olderResolvesFirst ? 'older' : 'newer'} lookup resolves first`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('JHN', 3);
+    const nextGate = deferPlayerOperation();
+    scenario.coverageGate = nextGate.promise;
+    const next = player.rerender().nextChapter();
+    const previousGate = deferPlayerOperation();
+    scenario.coverageGate = previousGate.promise;
+    const previous = player.api.previousChapter();
+
+    if (olderResolvesFirst) {
+      nextGate.resolve();
+      assert.equal(await next, null);
+      assert.equal(store().currentChapter, 3);
+      previousGate.resolve();
+    } else {
+      previousGate.resolve();
+      await previous;
+      nextGate.resolve();
+      assert.equal(await next, null);
+    }
+
+    assert.deepEqual(await previous, { bookId: 'JHN', chapter: 2 });
+    assert.equal(store().currentChapter, 2);
+    assert.equal(store().status, 'playing');
+  });
+}
+
+test('a step with no covered neighbor does not cancel the chapter currently loading', async () => {
+  scenario.contentSummary = { audioChapters: { GEN: [1] } };
+  const gate = deferPlayerOperation();
+  playerGates.set(`load:${GEN_1}`, gate.promise);
+  const player = mountPlayer();
+  const loading = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+
+  const result = await player.rerender().nextChapter();
+  gate.resolve();
+  await loading;
+
+  assert.equal(result, null);
+  assert.equal(store().currentChapter, 1);
+  assert.equal(store().status, 'playing');
+});
+
+for (const mode of ['linear', 'queue', 'sequence'] as const) {
+  test(`a ${mode} step superseded during native stop returns no stale reader target`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('JHN', 3);
+    await player.rerender().pause();
+    if (mode === 'queue') {
+      store().clearQueue();
+      store().addToQueue('bsb', 'JHN', 3);
+      store().addToQueue('bsb', 'JHN', 4);
+      store().syncQueueToTrack('bsb', 'JHN', 3);
+    }
+    if (mode === 'sequence') {
+      store().setPlaybackSequence([3, 4].map((chapter) => ({ bookId: 'JHN', chapter })));
+    }
+    const gate = deferPlayerOperation();
+    playerGates.set('stop', gate.promise);
+    const stopsBeforeNavigation = playerCalls('stop').length;
+    const navigation = player.rerender().nextChapter();
+    await settleUntil(() => playerCalls('stop').length > stopsBeforeNavigation);
+
+    playerGates.delete('stop');
+    await player.api.playChapter('JHN', 5);
+    gate.resolve();
+    const result = await navigation;
+
+    assert.equal(store().currentChapter, 5);
+    assert.equal(store().status, 'playing');
+    assert.equal(result, null);
+  });
+}
+
+test('a step superseded while loading returns no stale reader target', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('JHN', 3);
+  const gate = deferPlayerOperation();
+  playerGates.set('load:https://cdn.example/bsb/JHN/4.mp3', gate.promise);
+  const navigation = player.rerender().nextChapter();
+  await settleUntil(() => store().currentChapter === 4 && playerCalls('loadAndPlay').length === 2);
+
+  await player.api.playChapter('JHN', 5);
+  gate.resolve();
+
+  assert.equal(await navigation, null);
+  assert.equal(store().currentChapter, 5);
+  assert.equal(store().status, 'playing');
 });
 
 test('navigation skips chapters a sparse audio set does not cover', async () => {
@@ -2254,6 +2795,112 @@ test('a finished chapter leaves no resume point for the next launch', async () =
   assert.equal(store().currentChapter, 1);
 });
 
+test('post-finish native statuses cannot revive playback or restore the completed resume offset', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(false);
+  const { audioPlayer: realPlayer } = await import('../services/audio/audioPlayer');
+  let finished: Promise<void> | undefined;
+  realPlayer.setCallbacks({
+    ...audioPlayerDouble.callbacks,
+    onPlaybackFinished: () => {
+      finished = finishPlayback();
+    },
+  });
+  try {
+    await realPlayer.loadAndPlay('https://cdn.example/bsb/GEN/1.mp3');
+    nativeStatusListener?.({
+      ...integrationNativeStatus,
+      positionMillis: DEFAULT_DURATION_MS,
+      didJustFinish: true,
+    });
+    await finished;
+    assert.equal(store().status, 'idle');
+    assert.equal(store().lastPosition, 0);
+    const completedCount = recorded.listened.length;
+    nativeStatusListener?.({ ...integrationNativeStatus, positionMillis: DEFAULT_DURATION_MS });
+    assert.equal(store().status, 'idle');
+    assert.equal(store().lastPosition, 0);
+    nativeStatusListener?.({
+      ...integrationNativeStatus,
+      positionMillis: DEFAULT_DURATION_MS,
+      didJustFinish: true,
+    });
+    assert.equal(store().status, 'idle');
+    assert.equal(store().lastPosition, 0);
+    assert.equal(recorded.listened.length, completedCount);
+
+    audioPlayerDouble.loaded = false;
+    store().resetPlayback();
+    recorded.player.length = 0;
+    await player.rerender().togglePlayPause();
+    assert.equal(loadedStartOffset(), 0);
+  } finally {
+    realPlayer.setCallbacks({});
+    await realPlayer.stop();
+  }
+});
+
+for (const command of ['seek', 'skip'] as const) {
+  test(`completed chapter ${command} stays paused through interruption end until explicit Play`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('GEN', 1);
+    store().setAutoAdvanceChapter(false);
+    const { audioPlayer: realPlayer } = await import('../services/audio/audioPlayer');
+    let finished: Promise<void> | undefined;
+    realPlayer.setCallbacks({
+      ...audioPlayerDouble.callbacks,
+      onPlaybackFinished: () => {
+        finished = finishPlayback();
+      },
+    });
+    const originalSeek = audioPlayerDouble.seekTo;
+    audioPlayerDouble.seekTo = (positionMs) => realPlayer.seekTo(positionMs);
+    try {
+      await realPlayer.loadAndPlay('https://cdn.example/bsb/GEN/1.mp3');
+      nativeStatusListener?.({
+        ...integrationNativeStatus,
+        positionMillis: DEFAULT_DURATION_MS,
+        didJustFinish: true,
+      });
+      await finished;
+      assert.equal(store().status, 'idle');
+      const positionMs = command === 'seek' ? 31_000 : DEFAULT_DURATION_MS - 10_000;
+      if (command === 'seek') await player.api.seekTo(positionMs);
+      else {
+        player.unmount();
+        await remoteCommandListener?.({ command: 'seek-backward' });
+      }
+      assert.equal(store().status, 'paused');
+      assert.equal(store().currentPosition, positionMs);
+      assert.equal(store().lastPosition, positionMs);
+      nativeStatusListener?.({ ...integrationNativeStatus, positionMillis: positionMs });
+      recorded.player.length = 0;
+      await remoteCommandListener?.({ command: 'interruption-ended' });
+      assert.equal(store().status, 'paused');
+      assert.equal(playerCalls('resume').length, 0);
+
+      await remoteCommandListener?.({ command: 'play' });
+      assert.equal(store().status, 'playing');
+      assert.equal(playerCalls('resume').length, 1);
+      // Explicit Play clears terminal intent: a later genuine OS pause may resume.
+      emitStatus({
+        isPlaying: false,
+        positionMillis: positionMs,
+        durationMillis: DEFAULT_DURATION_MS,
+      });
+      recorded.player.length = 0;
+      await remoteCommandListener?.({ command: 'interruption-ended' });
+      assert.equal(store().status, 'playing');
+      assert.equal(playerCalls('resume').length, 1);
+    } finally {
+      audioPlayerDouble.seekTo = originalSeek;
+      realPlayer.setCallbacks({});
+      await realPlayer.stop();
+    }
+  });
+}
+
 test('finishing a chapter in chapter-repeat mode replays it', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);
@@ -2521,6 +3168,217 @@ test('auto-advance after a queued chapter follows the coverage of that chapter t
   assert.equal(store().currentBookId, 'MAT');
   assert.equal(store().currentChapter, 5);
   assert.deepEqual(loadedUrls(), [`https://cdn.example/${SPARSE_EL}/MAT/5.mp3`]);
+});
+
+for (const nextStartsFirst of [false, true]) {
+  test(`manual Next owns EOF book repeat when it starts ${nextStartsFirst ? 'before' : 'after'} completion`, async () => {
+    addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 50);
+    store().setRepeatMode('book');
+    player.rerender();
+    const { audioPlayer: realPlayer } = await import('../services/audio/audioPlayer');
+    let finished: Promise<void> | undefined;
+    realPlayer.setCallbacks({
+      ...audioPlayerDouble.callbacks,
+      onPlaybackFinished: () => {
+        finished = finishPlayback();
+      },
+    });
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    try {
+      await realPlayer.loadAndPlay('https://cdn.example/el/GEN/50.mp3');
+      const next = nextStartsFirst ? player.api.nextChapter() : undefined;
+      if (nextStartsFirst) scenario.coverageGate = null;
+      nativeStatusListener?.({
+        ...integrationNativeStatus,
+        positionMillis: DEFAULT_DURATION_MS,
+        didJustFinish: true,
+      });
+      const laterNext = nextStartsFirst ? next : player.api.nextChapter();
+      gate.resolve();
+      await Promise.all([finished, laterNext]);
+      assert.equal(store().currentBookId, 'EXO');
+      assert.equal(store().currentChapter, 1);
+      assert.equal(store().status, 'playing');
+      assert.equal(
+        recorded.listened.filter(({ bookId, chapter }) => bookId === 'GEN' && chapter === 50)
+          .length,
+        1
+      );
+    } finally {
+      gate.resolve();
+      realPlayer.setCallbacks({});
+      await realPlayer.stop();
+    }
+  });
+}
+
+test('end-of-chapter sleep timer cancels a manual Next still waiting for coverage at EOF', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setSleepTimer('end-of-chapter');
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const next = player.api.nextChapter();
+  await finishPlayback();
+  const loadsAtFinish = playerCalls('loadAndPlay').length;
+  gate.resolve();
+  assert.equal(await next, null);
+  assert.equal(store().status, 'idle');
+  assert.equal(store().currentBookId, 'GEN');
+  assert.equal(store().currentChapter, 50);
+  assert.equal(store().sleepTimerMinutes, null);
+  assert.equal(playerCalls('loadAndPlay').length, loadsAtFinish);
+  assert.equal(recorded.listened.length, 1);
+  await player.api.playChapter('EXO', 1);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentBookId, 'EXO');
+  assert.equal(store().sleepTimerMinutes, null);
+});
+
+test('a manual Next claimed before EOF keeps the end-of-chapter timer for its target', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setSleepTimer('end-of-chapter');
+  assert.deepEqual(await player.api.nextChapter(), { bookId: 'EXO', chapter: 1 });
+  assert.equal(store().status, 'playing');
+  assert.equal(store().sleepTimerMinutes, 'end-of-chapter');
+  await finishPlayback();
+  assert.equal(store().currentBookId, 'EXO');
+  assert.equal(store().status, 'idle');
+  assert.equal(store().sleepTimerMinutes, null);
+});
+
+test('a native interruption pauses a manual Next waiting for coverage', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const next = player.api.nextChapter();
+  emitStatus({ isPlaying: false, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  assert.equal(store().status, 'paused');
+  const loadsAtInterruption = playerCalls('loadAndPlay').length;
+  gate.resolve();
+  assert.deepEqual(await next, { bookId: 'EXO', chapter: 1 });
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('loadAndPlay').length, loadsAtInterruption);
+  assert.equal(recorded.nowPlaying.at(-1)?.bookId, 'EXO');
+  assert.equal(recorded.nowPlaying.at(-1)?.chapter, 1);
+  assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, false);
+  await remoteCommandListener?.({ command: 'play' });
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentBookId, 'EXO');
+});
+
+test('manual Next with no target settles EOF without allowing the older book repeat', async () => {
+  addSparseTranslation({ GEN: [1, 50] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setRepeatMode('book');
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const finishing = finishPlayback();
+  const next = player.api.nextChapter();
+  gate.resolve();
+  await finishing;
+  assert.equal(await next, null);
+  assert.equal(store().status, 'idle');
+  assert.equal(store().currentChapter, 50);
+  assert.equal(store().lastPosition, 0);
+  assert.equal(recorded.listened.length, 1);
+});
+
+test('unresolved coverage retains canonical manual Next instead of old book repeat', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setRepeatMode('book');
+  scenario.liveCoverage.delete(SPARSE_EL);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const finishing = finishPlayback();
+  const next = player.api.nextChapter();
+  gate.resolve();
+  await Promise.all([finishing, next]);
+  assert.equal(store().currentBookId, 'EXO');
+  assert.equal(store().status, 'playing');
+});
+
+for (const command of ['pause', 'stop', 'play'] as const) {
+  test(`a newer explicit ${command} owns pending completion and manual Next`, async () => {
+    addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 50);
+    store().setRepeatMode('book');
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    const finishing = finishPlayback();
+    const next = player.api.nextChapter();
+    if (command === 'play') await player.api.playChapter('JHN', 3);
+    else await player.api[command]();
+    const expected = {
+      status: store().status,
+      bookId: store().currentBookId,
+      chapter: store().currentChapter,
+    };
+    const loadsBeforeRelease = playerCalls('loadAndPlay').length;
+    gate.resolve();
+    await finishing;
+    assert.equal(await next, null);
+    assert.deepEqual(
+      { status: store().status, bookId: store().currentBookId, chapter: store().currentChapter },
+      expected
+    );
+    assert.equal(playerCalls('loadAndPlay').length, loadsBeforeRelease);
+  });
+}
+
+test('an older step cleanup cannot clear a newer manual intent before EOF', async () => {
+  addSparseTranslation({ GEN: [1, 49, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setRepeatMode('book');
+  const olderGate = deferPlayerOperation();
+  scenario.coverageGate = olderGate.promise;
+  const next = player.api.nextChapter();
+  const newerGate = deferPlayerOperation();
+  scenario.coverageGate = newerGate.promise;
+  const previous = player.api.previousChapter();
+  olderGate.resolve();
+  assert.equal(await next, null);
+  scenario.coverageGate = null;
+  await finishPlayback();
+  newerGate.resolve();
+  assert.deepEqual(await previous, { bookId: 'GEN', chapter: 49 });
+  assert.equal(store().currentChapter, 49);
+  assert.equal(store().status, 'playing');
+});
+
+test('a rejected pending manual lookup clears its ticket and leaves completed playback idle', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  store().setRepeatMode('book');
+  let rejectCoverage!: (error: Error) => void;
+  scenario.coverageGate = new Promise((_resolve, reject) => {
+    rejectCoverage = reject;
+  });
+  const next = player.api.nextChapter();
+  const rejected = assert.rejects(next, /coverage lookup rejected/);
+  scenario.coverageGate = null;
+  await finishPlayback();
+  rejectCoverage(new Error('coverage lookup rejected'));
+  await rejected;
+  const { navigationIntent } = await import('./audioPlayer/sharedPlaybackState');
+  assert.equal(navigationIntent.pendingId, null);
+  assert.equal(store().status, 'idle');
+  assert.equal(store().currentChapter, 50);
+  assert.equal(recorded.listened.length, 1);
 });
 
 test('auto-advance stops cleanly when a sparse set has no further audio', async () => {
@@ -2964,6 +3822,83 @@ test('a chapter with neighbours on both sides offers both skip directions', asyn
 
   assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, true);
   assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, true);
+});
+
+for (const status of ['playing', 'paused'] as const) {
+  test(`pinned singleton metadata disables both directions despite retained queue while ${status}`, async () => {
+    const player = mountPlayer();
+    store().addToQueue('bsb', 'GEN', 1);
+    store().addToQueue('bsb', 'HEB', 1);
+    store().addToQueue('bsb', 'JHN', 3);
+    store().setPlaybackSequence([{ bookId: 'HEB', chapter: 1 }]);
+
+    await player.rerender().playChapter('HEB', 1);
+    if (status === 'paused') await player.rerender().pause();
+
+    assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, false);
+    assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, false);
+    assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, status === 'playing');
+  });
+
+  const sequence = [
+    { bookId: 'GEN', chapter: 1 },
+    { bookId: 'PSA', chapter: 23 },
+    { bookId: 'HEB', chapter: 1 },
+  ];
+  for (const [index, current] of sequence.entries()) {
+    test(`pinned sequence metadata reflects entry ${index + 1} boundaries while ${status}`, async () => {
+      const player = mountPlayer();
+      store().addToQueue('bsb', 'GEN', 2);
+      store().addToQueue('bsb', current.bookId, current.chapter);
+      store().addToQueue('bsb', 'JHN', 3);
+      store().setPlaybackSequence(sequence);
+
+      await player.rerender().playChapter(current.bookId, current.chapter);
+      if (status === 'paused') await player.rerender().pause();
+
+      assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, index < sequence.length - 1);
+      assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, index > 0);
+      assert.equal(recorded.nowPlaying.at(-1)?.isPlaying, status === 'playing');
+    });
+  }
+}
+
+test('a pinned sequence does not restrict metadata for a chapter outside it', async () => {
+  const player = mountPlayer();
+  store().setPlaybackSequence([{ bookId: 'HEB', chapter: 1 }]);
+
+  await player.rerender().playChapter('GEN', 2);
+
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, true);
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, true);
+});
+
+test('explicit skip metadata overrides retain priority over pinned sequence boundaries', async () => {
+  const player = mountPlayer();
+  store().setPlaybackSequence([{ bookId: 'HEB', chapter: 1 }]);
+  await player.rerender().playChapter('HEB', 1);
+  const { syncPlayerNowPlaying } = await import('./audioPlayer/nowPlayingSync');
+  const { useAudioPlayerSession } = await import('./audioPlayer/playerSession');
+  const session = runtime.mount(useAudioPlayerSession).result.current;
+  const context = {
+    session,
+    t: activeTranslate,
+    fallbackTranslationId: 'bsb',
+    peekAudioCoverage: () => undefined,
+  };
+
+  syncPlayerNowPlaying(context, { canSkipNext: true, canSkipPrevious: true });
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, true);
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, true);
+
+  store().setPlaybackSequence([
+    { bookId: 'GEN', chapter: 1 },
+    { bookId: 'HEB', chapter: 1 },
+    { bookId: 'JHN', chapter: 3 },
+  ]);
+  syncPlayerNowPlaying(context, { canSkipNext: false, canSkipPrevious: false });
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipNext, false);
+  assert.equal(recorded.nowPlaying.at(-1)?.canSkipPrevious, false);
 });
 
 test('the last chapter of the Bible offers no next skip', async () => {
@@ -3423,6 +4358,19 @@ test('the end of an interruption resumes a chapter the interruption paused', asy
   assert.equal(playerCalls('resume').length, 1);
 });
 
+test('a seek during an OS pause preserves automatic interruption resume', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  emitStatus({ isPlaying: false, positionMillis: 30_000, durationMillis: DEFAULT_DURATION_MS });
+  await player.api.seekTo(31_000);
+  recorded.player.length = 0;
+  await remoteCommandListener?.({ command: 'interruption-ended' });
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentPosition, 31_000);
+  assert.equal(playerCalls('resume').length, 1);
+});
+
 test('the end of an interruption leaves a chapter the listener paused alone', async () => {
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);
@@ -3585,6 +4533,48 @@ function deferPlayerOperation() {
   return { promise, resolve };
 }
 const flushPlayerOperations = () => new Promise((resolve) => setImmediate(resolve));
+
+for (const commands of ['seek then seek', 'seek then skip', 'skip then seek'] as const) {
+  test(`the newest same-chapter position wins for ${commands}`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('JHN', 3);
+    store().setPosition(60_000);
+    const gate = deferPlayerOperation();
+    playerGates.set('seek', gate.promise);
+    const older = commands.startsWith('skip')
+      ? player.api.skipForward()
+      : player.api.seekTo(120_000);
+    await flushPlayerOperations();
+    playerGates.delete('seek');
+    if (commands.endsWith('skip')) {
+      await player.api.skipForward();
+    } else {
+      await player.api.seekTo(240_000);
+    }
+    const newerPosition = playerCalls('seekTo').at(-1)?.args[0];
+    gate.resolve();
+    await older;
+
+    assert.equal(store().currentPosition, newerPosition);
+    assert.equal(store().lastPosition, newerPosition);
+  });
+}
+
+test('a seek during a pending chapter load does not cancel the load', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('load:https://cdn.example/bsb/JHN/3.mp3', gate.promise);
+  const loading = player.api.playChapter('JHN', 3);
+  await flushPlayerOperations();
+  await player.api.seekTo(20_000);
+  gate.resolve();
+  await loading;
+
+  assert.equal(store().currentBookId, 'JHN');
+  assert.equal(store().currentChapter, 3);
+  assert.equal(store().status, 'playing');
+});
 
 test('a delayed seek cannot overwrite the position of a newly selected chapter', async () => {
   const player = mountPlayer();
@@ -3940,6 +4930,68 @@ test('the sleep timer still pauses playback after the reader has closed', async 
   emitStatus({ isPlaying: false, positionMillis: 300_000 });
 });
 
+test('a late buffering snapshot cannot restart a manually paused sleep countdown', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  await player.api.pause();
+  player.unmount();
+  recorded.player.length = 0;
+  t.mock.timers.setTime(BASE_TIME + 6 * 60 * 1000);
+
+  emitStatus({ isPlaying: false, isBuffering: true, positionMillis: 1000 });
+
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+  assert.equal(store().sleepTimerRemainingMs, 5 * 60 * 1000);
+  assert.equal(playerCalls('pause').length, 0);
+
+  await player.api.resume();
+  emitStatus({ isPlaying: false, isBuffering: true, positionMillis: 1000 });
+  assert.equal(store().status, 'loading');
+  assert.equal(store().sleepTimerEndTime, BASE_TIME + 11 * 60 * 1000);
+});
+
+test('a buffering snapshot before the deadline keeps the sleep countdown running', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.unmount();
+  recorded.player.length = 0;
+  t.mock.timers.setTime(BASE_TIME + 4 * 60 * 1000);
+
+  emitStatus({ isPlaying: false, isBuffering: true, positionMillis: 1000 });
+
+  assert.equal(store().status, 'loading');
+  assert.equal(store().sleepTimerEndTime, BASE_TIME + 5 * 60 * 1000);
+  assert.equal(playerCalls('pause').length, 0);
+});
+
+test('a buffering snapshot after suspended JS expires the closed-reader sleep timer', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setSleepTimer(5);
+  player.rerender();
+  player.unmount();
+  recorded.player.length = 0;
+
+  // Advance the wall clock without running JS timers, then deliver the first
+  // native status after JS resumes while the stream is still buffering.
+  t.mock.timers.setTime(BASE_TIME + 5 * 60 * 1000);
+  emitStatus({ isPlaying: false, isBuffering: true, positionMillis: 1000 });
+  await Promise.resolve();
+
+  assert.equal(playerCalls('pause').length, 1);
+  assert.equal(store().status, 'paused');
+  assert.equal(store().sleepTimerEndTime, null);
+  emitStatus({ isPlaying: false, isBuffering: true, positionMillis: 1000 });
+  assert.equal(store().status, 'paused');
+  assert.equal(playerCalls('pause').length, 1);
+});
+
 // With the reader closed the sleep timer is only checked on native progress, which a
 // new chapter reports once it is already sounding. A timer that has run out by the
 // end of a chapter must not start the next one at all.
@@ -4167,28 +5219,30 @@ test('a mid-play network failure goes through the transient-network rules', asyn
 
 test('a stream released while buffering mid-play shows the failure and reports it once', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
-  const player = mountPlayer();
-  await startChapterAt(player, 90_000);
-  emitStatus({ isBuffering: true, positionMillis: 90_000, durationMillis: DEFAULT_DURATION_MS });
-  player.rerender();
-  scenario.nativeSoundReleased = true;
-
-  t.mock.timers.tick(5_000);
-  player.rerender();
-  t.mock.timers.tick(10_000);
-
-  assert.equal(store().status, 'error');
-  assert.equal(store().error, 'interface.audioPlayFailed');
-  assert.deepEqual(
-    recorded.reports.map((report) => report.source),
-    ['audio.load']
-  );
-
-  recorded.player.length = 0;
-  await player.rerender().togglePlayPause();
-  assert.equal(loadedStartOffset(), 90_000);
-  assert.equal(store().status, 'playing');
-  assert.equal(store().error, null);
+  const native = await startNativeStreamHealthPlayer();
+  try {
+    native.buffering();
+    native.player.rerender();
+    integrationNativeReleased = true;
+    t.mock.timers.tick(5_000);
+    await flushPlayerOperations();
+    native.player.rerender();
+    t.mock.timers.tick(10_000);
+    assert.equal(store().status, 'error');
+    assert.equal(store().error, 'interface.audioPlayFailed');
+    assert.deepEqual(
+      recorded.reports.map((report) => report.source),
+      ['audio.load']
+    );
+    recorded.player.length = 0;
+    integrationNativeReleased = false;
+    await native.player.rerender().togglePlayPause();
+    assert.equal(loadedStartOffset(), 90_000);
+    assert.equal(store().status, 'playing');
+    assert.equal(store().error, null);
+  } finally {
+    await native.cleanup();
+  }
 });
 
 test('moving to another chapter after a mid-play failure clears it', async () => {
@@ -4337,6 +5391,68 @@ test('native progress past the end verse seeks back to the start verse', async (
   assert.equal(playerCalls('loadAndPlay').length, 0);
 });
 
+for (const takeover of ['chapter', 'stop', 'sleep timer then chapter', 'seek', 'skip'] as const) {
+  test(`a pending passage loop seek cannot overwrite ${takeover}`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+    const player = mountPlayer();
+    useAudioStore.setState({ repeatMode: 'passage', repeatPassage: JOHN_3_16_TO_18 });
+    await player.api.playChapterForTranslation('bsb', 'JHN', 3, undefined, {
+      startPositionMs: JOHN_3_16_MS,
+    });
+    const playing = { isPlaying: true, durationMillis: DEFAULT_DURATION_MS };
+    emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 4_000 });
+    await passageSettled();
+    if (takeover === 'sleep timer then chapter') {
+      store().setSleepTimer(5);
+      player.rerender();
+    }
+
+    const gate = deferPlayerOperation();
+    playerGates.set('seek', gate.promise);
+    emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 3_000 });
+    emitStatus({ ...playing, positionMillis: JOHN_3_19_MS - 2_000 });
+    emitStatus({ ...playing, positionMillis: JOHN_3_19_MS + 500 });
+    await flushPlayerOperations();
+    assert.equal(playerCalls('seekTo').at(-1)?.args[0], JOHN_3_16_MS);
+
+    if (takeover === 'sleep timer then chapter') {
+      tickSeconds(t.mock.timers, 5 * 60);
+      assert.equal(store().status, 'paused');
+      assert.equal(store().sleepTimerEndTime, null);
+    }
+    playerGates.delete('seek');
+    if (takeover === 'stop') {
+      await player.api.stop();
+    } else if (takeover === 'seek') {
+      await player.api.seekTo(200_000);
+    } else if (takeover === 'skip') {
+      await player.api.skipForward();
+    } else {
+      await player.api.playChapterForTranslation('bsb', 'MRK', 2);
+    }
+    const positionAfterTakeover = store().currentPosition;
+    gate.resolve();
+    await passageSettled();
+
+    assert.equal(
+      store().currentPosition,
+      positionAfterTakeover,
+      'the newer command owns the position'
+    );
+    if (takeover === 'stop') {
+      assert.equal(store().status, 'idle');
+    } else if (takeover === 'seek' || takeover === 'skip') {
+      assert.equal(store().currentBookId, 'JHN');
+      assert.equal(store().currentChapter, 3);
+      assert.equal(store().lastPosition, positionAfterTakeover);
+    } else {
+      assert.equal(store().currentBookId, 'MRK');
+      assert.equal(store().currentChapter, 2);
+      assert.equal(store().lastPosition, 0, 'the newer chapter owns its durable resume point');
+    }
+  });
+}
+
 test('a seek past the end verse plays on, and the chapter end returns to the start verse', async () => {
   const player = mountPlayer();
   useAudioStore.setState({ repeatMode: 'passage', repeatPassage: JOHN_3_16_TO_18 });
@@ -4465,6 +5581,111 @@ test('a lock-screen Pause during Selah ends it and pauses the bed', async (t) =>
   });
 });
 
+for (const takeover of ['chapter', 'stop'] as const) {
+  test(`a pending Selah pick-up seek cannot write position after newer ${takeover}`, async (t) => {
+    const resumeAt = await holdGenesisInSelah(t);
+    const player = mountPlayer();
+    const gate = deferPlayerOperation();
+    playerGates.set('seek', gate.promise);
+    const resuming = remoteCommandListener?.({ command: 'play' });
+    await settleUntil(() => playerCalls('seekTo').length === 1);
+    assert.equal(playerCalls('seekTo')[0]?.args[0], resumeAt);
+    if (takeover === 'chapter') await player.api.playChapter('JHN', 3);
+    else await player.api.stop();
+    assert.equal(store().currentPosition, 0);
+    const lastPositionAfterTakeover = store().lastPosition;
+    gate.resolve();
+    await resuming;
+    assert.equal(store().currentPosition, 0);
+    assert.equal(store().lastPosition, lastPositionAfterTakeover);
+  });
+}
+
+for (const newer of ['seek', 'skip'] as const) {
+  test(`a newer ${newer} owns position while a Selah resume seek is pending`, async (t) => {
+    await holdGenesisInSelah(t);
+    const player = mountPlayer();
+    const gate = deferPlayerOperation();
+    playerGates.set('seek', gate.promise);
+    const resuming = remoteCommandListener?.({ command: 'play' });
+    await settleUntil(() => playerCalls('seekTo').length === 1);
+    playerGates.delete('seek');
+    if (newer === 'seek') await player.api.seekTo(10_000);
+    else await player.api.skipBackward();
+    const chosenPosition = store().currentPosition;
+    gate.resolve();
+    await resuming;
+    assert.equal(store().currentPosition, chosenPosition);
+    assert.equal(recorded.nowPlaying.at(-1)?.positionMs, chosenPosition);
+    assert.equal(store().status, 'playing');
+    assert.equal(store().selahActive, false);
+    t.mock.timers.tick(750);
+    assert.equal(recorded.narrationVolumes.at(-1), 1);
+  });
+}
+
+test('a normal resume publishes the newer scrub position instead of its old pick-up point', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  emitStatus({ isPlaying: true, positionMillis: 42_000, durationMillis: DEFAULT_DURATION_MS });
+  await player.api.pause();
+  const gate = deferPlayerOperation();
+  playerGates.set('seek', gate.promise);
+  const resuming = remoteCommandListener?.({ command: 'play' });
+  await settleUntil(() => playerCalls('seekTo').length === 1);
+  playerGates.delete('seek');
+  await player.api.seekTo(10_000);
+  gate.resolve();
+  await resuming;
+  assert.equal(store().currentPosition, 10_000);
+  assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 10_000);
+  assert.equal(store().status, 'playing');
+});
+
+test('a scrub during Selah silencing is not followed by the older pick-up seek', async (t) => {
+  await holdGenesisInSelah(t);
+  const player = mountPlayer();
+  const gate = deferPlayerOperation();
+  playerGates.set('volume:0', gate.promise);
+  const resuming = remoteCommandListener?.({ command: 'play' });
+  await settleUntil(() => recorded.narrationVolumes.at(-1) === 0);
+  await player.api.seekTo(10_000);
+  gate.resolve();
+  await resuming;
+  assert.deepEqual(
+    playerCalls('seekTo').map((call) => call.args[0]),
+    [10_000]
+  );
+  assert.equal(store().currentPosition, 10_000);
+  assert.equal(recorded.nowPlaying.at(-1)?.positionMs, 10_000);
+  assert.equal(store().status, 'playing');
+  t.mock.timers.tick(750);
+  await flushPlayerOperations();
+});
+
+test('a Selah resume leaves the interpolation anchor of a still-pending newer scrub intact', async (t) => {
+  await holdGenesisInSelah(t);
+  const player = mountPlayer();
+  const oldGate = deferPlayerOperation();
+  playerGates.set('seek', oldGate.promise);
+  const resuming = remoteCommandListener?.({ command: 'play' });
+  await settleUntil(() => playerCalls('seekTo').length === 1);
+  // A native playing report starts interpolation while resume's seek is still settling.
+  emitStatus({ isPlaying: true, positionMillis: 42_000, durationMillis: DEFAULT_DURATION_MS });
+  const newGate = deferPlayerOperation();
+  playerGates.set('seek', newGate.promise);
+  const seeking = player.api.seekTo(10_000);
+  oldGate.resolve();
+  await resuming;
+  newGate.resolve();
+  await seeking;
+  t.mock.timers.tick(250);
+  assert.equal(store().currentPosition, 10_250);
+  assert.equal(store().status, 'playing');
+  t.mock.timers.tick(500);
+  await flushPlayerOperations();
+});
+
 test('a sleep timer running out during Selah, reader closed, ends everything', async (t) => {
   await holdGenesisInSelah(t);
   store().setSleepTimer(5);
@@ -4512,3 +5733,1372 @@ test('the lock-screen play/pause button resumes out of Selah', async (t) => {
   assert.equal(store().selahActive, false);
   assert.equal(store().status, 'playing');
 });
+
+test('Gather handoff pauses the live Bible transport and waits for its native pause and ambient stop', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setBackgroundMusicChoice('piano');
+  recorded.backgroundMusic.length = 0;
+  const gate = deferPlayerOperation();
+  playerGates.set('pause', gate.promise);
+  const lesson = claimNarration('lesson', {}, async () => {});
+  assert.equal(
+    store().status,
+    'paused',
+    'registered high-level pause claims Bible intent immediately'
+  );
+  let ready = false;
+  void lesson.ready.then(() => {
+    ready = true;
+  });
+  await Promise.resolve();
+  assert.equal(ready, false, 'lesson cannot start while the old native pause is pending');
+  playerGates.delete('pause');
+  gate.resolve();
+  await lesson.ready;
+  assert.equal(ready, true);
+  assert.ok(playerCalls('pause').length >= 1);
+  assert.deepEqual(recorded.backgroundMusic.at(-1), { method: 'stop' });
+  assert.equal(store().backgroundMusicChoice, 'piano', 'handoff preserves the selected bed');
+});
+
+test('a new Bible Play releases a Gather sound before starting narration', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  let lessonPlaying = false;
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  await owner.play(async () => ({
+    playAsync: async () => {
+      lessonPlaying = true;
+    },
+    unloadAsync: async () => {
+      lessonPlaying = false;
+    },
+  }));
+  assert.equal(lessonPlaying, true);
+  await player.api.playChapter('GEN', 1);
+  assert.equal(lessonPlaying, false);
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+});
+
+test('remote Play takes Bible ownership back from Gather without leaving its sound playing', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  let lessonPlaying = false;
+  await owner.play(async () => ({
+    playAsync: async () => {
+      lessonPlaying = true;
+    },
+    unloadAsync: async () => {
+      lessonPlaying = false;
+    },
+  }));
+  assert.equal(lessonPlaying, true);
+  await remoteCommandListener?.({ command: 'play' });
+  assert.equal(lessonPlaying, false);
+  assert.equal(store().status, 'playing');
+});
+
+test('remote Play waits for a contributor voice note to release before resuming Bible narration', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  let finishRelease!: () => void;
+  const release = new Promise<void>((resolve) => {
+    finishRelease = resolve;
+  });
+  let feedbackActive = true;
+  const feedback = claimNarration('feedback', {}, async () => {
+    await release;
+    feedbackActive = false;
+  });
+  await feedback.ready;
+  assert.equal(store().status, 'paused');
+
+  const resumed = remoteCommandListener?.({ command: 'play' });
+  await Promise.resolve();
+  assert.equal(feedbackActive, true);
+  assert.equal(store().status, 'paused', 'Bible must wait for contributor native teardown');
+  finishRelease();
+  await resumed;
+  assert.equal(feedbackActive, false);
+  assert.equal(store().status, 'playing');
+});
+
+test('Pause during a pending Gather-to-Bible handoff cancels the waiting Bible start', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  const gate = deferPlayerOperation();
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  await owner.play(async () => ({ playAsync: async () => {}, unloadAsync: () => gate.promise }));
+  const bible = player.api.playChapter('GEN', 1);
+  await player.api.pause();
+  gate.resolve();
+  await bible;
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+  assert.equal(store().status, 'paused');
+});
+
+test('Stop during a pending Gather-to-Bible handoff cancels the waiting Bible start', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  const gate = deferPlayerOperation();
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  await owner.play(async () => ({ playAsync: async () => {}, unloadAsync: () => gate.promise }));
+  const bible = player.api.playChapter('GEN', 1);
+  await player.api.stop();
+  gate.resolve();
+  await bible;
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+  assert.equal(store().status, 'idle');
+});
+
+test('Bible waits for a Gather native Play already in flight before taking over', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  const gate = deferPlayerOperation();
+  let audible = false;
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  const pendingLesson = owner.play(async () => ({
+    playAsync: async () => {
+      await gate.promise;
+      audible = true;
+    },
+    unloadAsync: async () => {
+      audible = false;
+    },
+  }));
+  await Promise.resolve();
+  const bible = player.api.playChapter('GEN', 1);
+  await Promise.resolve();
+  assert.equal(playerCalls('loadAndPlay').length, 0);
+  gate.resolve();
+  assert.equal(await pendingLesson, false);
+  await bible;
+  assert.equal(audible, false);
+  assert.equal(store().status, 'playing');
+});
+
+test('failed Gather release blocks Bible Play and a later explicit Play retries it', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const { createLessonSoundOwner } = await import('../screens/learn/lessonSoundOwner');
+  const player = mountPlayer();
+  const owner = createLessonSoundOwner<{
+    playAsync: () => Promise<void>;
+    unloadAsync: () => Promise<void>;
+  }>();
+  let attempts = 0;
+  const lesson = claimNarration('lesson', owner, () => owner.release());
+  await lesson.ready;
+  await owner.play(async () => ({
+    playAsync: async () => {},
+    unloadAsync: async () => {
+      if (++attempts === 1) throw new Error('unload failed');
+    },
+  }));
+  await player.api.playChapter('GEN', 1);
+  assert.equal(playerCalls('loadAndPlay').length, 0, 'a failed outgoing release cannot overlap');
+  await player.api.playChapter('GEN', 1);
+  assert.equal(attempts, 2);
+  assert.equal(playerCalls('loadAndPlay').length, 1);
+  assert.equal(store().status, 'playing');
+});
+
+test('failed Bible suspension blocks Gather Play and its next claim retries pause', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  playerGates.set('pause', Promise.reject(new Error('native pause failed')));
+  const lessonOwner = {};
+  const first = claimNarration('lesson', lessonOwner, async () => {});
+  await assert.rejects(first.ready, /native pause failed/);
+  playerGates.delete('pause');
+  const retry = claimNarration('lesson', lessonOwner, async () => {});
+  await retry.ready;
+  assert.equal(retry.isCurrent(), true);
+  assert.equal(playerCalls('pause').length, 2);
+});
+
+test('Bible-lesson-Bible rapid alternation gives the last Bible Play the sound', async () => {
+  const { claimNarration } = await import('../services/audio/narrationOwnership');
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  playerGates.set('pause', gate.promise);
+  const lesson = claimNarration('lesson', {}, async () => {});
+  const nextBible = player.api.playChapter('GEN', 2);
+  assert.equal(lesson.isCurrent(), false);
+  assert.equal(playerCalls('loadAndPlay').length, 1, 'new Bible waits for the old pause');
+  playerGates.delete('pause');
+  gate.resolve();
+  await Promise.all([lesson.ready, nextBible]);
+  assert.equal(store().status, 'playing');
+  assert.equal(store().currentChapter, 2);
+  assert.equal(playerCalls('loadAndPlay').length, 2);
+});
+
+const startLiveAmbient = async () => {
+  const { backgroundMusicPlayer } = await import('../services/audio/backgroundMusicPlayer');
+  liveAmbientPlayer = backgroundMusicPlayer;
+  ambientNativeSounds.length = 0;
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setBackgroundMusicChoice('piano');
+  await flushPlayerOperations();
+  return player;
+};
+
+for (const detached of ['paused crossfade', 'Sound Off'] as const) {
+  test(`feedback handoff waits for ambient cleanup already detached by ${detached}`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+    const { claimNarration } = await import('../services/audio/narrationOwnership');
+    const player = await startLiveAmbient();
+    const gate = deferPlayerOperation();
+    try {
+      t.mock.timers.tick(2500);
+      const first = assertDefined(ambientNativeSounds[0], 'first ambient loop');
+      first.stopGate = gate.promise;
+      if (detached === 'paused crossfade') {
+        store().setBackgroundMusicChoice('harp');
+        await flushPlayerOperations();
+        t.mock.timers.tick(100);
+        store().setBackgroundMusicChoice('flute');
+        await flushPlayerOperations();
+        t.mock.timers.tick(100);
+        assert.equal(assertDefined(ambientNativeSounds[1], 'second ambient loop').playing, true);
+        assert.ok(assertDefined(ambientNativeSounds[1], 'second ambient loop').volume > 0);
+      } else {
+        store().setBackgroundMusicChoice('off');
+      }
+      const feedback = claimNarration('feedback', {}, async () => {});
+      let ready = false;
+      void feedback.ready.then(() => {
+        ready = true;
+      });
+      await flushPlayerOperations();
+      const readyBeforeCleanup = ready;
+      assert.equal(
+        first.playing,
+        false,
+        'first native stop applies before its delayed JS response'
+      );
+      gate.resolve();
+      await feedback.ready;
+      await flushPlayerOperations();
+      assert.equal(
+        readyBeforeCleanup,
+        false,
+        'a recorder must not start while old ambient cleanup is pending'
+      );
+      assert.ok(ambientNativeSounds.every((sound) => !sound.playing && !sound.loaded));
+      assert.ok(ambientNativeSounds.every((sound) => sound.unloadCalls === 1));
+      assert.equal(
+        store().backgroundMusicChoice,
+        detached === 'paused crossfade' ? 'flute' : 'off'
+      );
+    } finally {
+      gate.resolve();
+      await liveAmbientPlayer?.stop();
+      liveAmbientPlayer = null;
+      await player.api.stop();
+    }
+  });
+}
+
+for (const ending of ['pause', 'sleep expiry'] as const) {
+  test(`ordinary ${ending} silences real ambient crossfades while preserving the selected preset`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+    const player = await startLiveAmbient();
+    try {
+      t.mock.timers.tick(2500);
+      store().setBackgroundMusicChoice('harp');
+      await flushPlayerOperations();
+      t.mock.timers.tick(100);
+      store().setBackgroundMusicChoice('flute');
+      await flushPlayerOperations();
+      t.mock.timers.tick(100);
+      if (ending === 'pause') await player.api.pause();
+      else {
+        store().setSleepTimer('end-of-chapter');
+        await finishPlayback();
+      }
+      await flushPlayerOperations();
+      assert.equal(store().status, ending === 'pause' ? 'paused' : 'idle');
+      assert.equal(store().backgroundMusicChoice, 'flute');
+      assert.ok(ambientNativeSounds.every((sound) => !sound.playing));
+    } finally {
+      await liveAmbientPlayer?.stop();
+      liveAmbientPlayer = null;
+      await player.api.stop();
+    }
+  });
+}
+
+async function waitForCompletionCoverage(translationId: string): Promise<void> {
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes(translationId); i += 1) {
+    await flushPlayerOperations();
+  }
+  assert.ok(
+    recorded.coverageLookups.includes(translationId),
+    `${translationId} coverage is pending`
+  );
+}
+
+test('completion queue edit: an item appended while skipped queued coverage resolves is retained and played', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ PSA: [117] });
+  store().setAutoAdvanceChapter(true);
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes(SPARSE_EL); i += 1)
+    await flushPlayerOperations();
+  assert.ok(
+    recorded.coverageLookups.includes(SPARSE_EL),
+    'queued sparse translation manifest is pending'
+  );
+  player.api.addToQueue('PSA', 23);
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.ok(store().queue.some((entry) => entry.id === 'bsb:PSA:23'));
+});
+
+test('completion queue control: queue entry appended before completion survives a skipped sparse chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ PSA: [117] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  player.api.addToQueue('PSA', 23);
+  await finishPlayback();
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.ok(store().queue.some((entry) => entry.id === 'bsb:PSA:23'));
+});
+test('completion queue control: appending during valid next-entry coverage preserves the live queue', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ GEN: [2] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  const finishing = finishPlayback();
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes(SPARSE_EL); i += 1)
+    await flushPlayerOperations();
+  player.api.addToQueue('PSA', 23);
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().currentTranslationId, SPARSE_EL);
+  assert.equal(store().currentChapter, 2);
+  assert.ok(store().queue.some((entry) => entry.id === 'bsb:PSA:23'));
+});
+
+test('completion queue edit: append during linear coverage is played without replacing the queue', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  store().setAutoAdvanceChapter(true);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes('bsb'); i += 1)
+    await flushPlayerOperations();
+  assert.ok(recorded.coverageLookups.includes('bsb'));
+  player.api.addToQueue('PSA', 23);
+  const admittedQueue = store().queue.map((entry) => entry.id);
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    admittedQueue
+  );
+});
+
+test('completion queue edit: removing the pending candidate cannot dispatch the removed chapter', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ GEN: [2] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  player.api.addToQueue('PSA', 23);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes(SPARSE_EL); i += 1)
+    await flushPlayerOperations();
+  assert.ok(recorded.coverageLookups.includes(SPARSE_EL));
+  player.api.removeFromQueue(`${SPARSE_EL}:GEN:2`);
+  const admittedQueue = store().queue.map((entry) => entry.id);
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    admittedQueue
+  );
+});
+
+test('completion queue edit: removing finished anchor during coverage preserves edited queue and ends', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ GEN: [2] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  for (let i = 0; i < 30 && !recorded.coverageLookups.includes(SPARSE_EL); i += 1)
+    await flushPlayerOperations();
+  assert.ok(recorded.coverageLookups.includes(SPARSE_EL));
+  player.api.removeFromQueue('bsb:GEN:1');
+  const admittedQueue = store().queue.map((entry) => entry.id);
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().status, 'idle');
+  assert.equal(store().currentChapter, 1);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    admittedQueue
+  );
+});
+
+test('completion queue edit: live reorder selects its first available successor by ID', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ GEN: [2] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  player.api.addToQueue('PSA', 23);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  await waitForCompletionCoverage(SPARSE_EL);
+  // No reorder UI exists yet; exercise the real store's queue replacement seam.
+  const [finished, pending, appended] = store().queue;
+  useAudioStore.setState({ queue: [finished, appended, pending] });
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.equal(store().queueIndex, 1);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    ['bsb:GEN:1', 'bsb:PSA:23', `${SPARSE_EL}:GEN:2`]
+  );
+});
+
+test('completion queue edit: successive coverage waits accept further additions without retrying resolved translations', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  addSparseTranslation({ PSA: [117] });
+  bibleState.translations = [...bibleState.translations, { id: 'web', name: 'World English' }];
+  scenario.liveCoverage.set('web', { PSA: [117] });
+  store().addToQueue(SPARSE_EL, 'GEN', 2);
+  const sparseGate = deferPlayerOperation();
+  const webGate = deferPlayerOperation();
+  scenario.coverageGate = sparseGate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  await waitForCompletionCoverage(SPARSE_EL);
+  store().addToQueue('web', 'GEN', 3);
+  scenario.coverageGate = webGate.promise;
+  sparseGate.resolve();
+  await waitForCompletionCoverage('web');
+  player.api.addToQueue('PSA', 23);
+  player.api.addToQueue('JHN', 3);
+  const admittedQueue = store().queue.map((entry) => entry.id);
+  scenario.coverageGate = null;
+  webGate.resolve();
+  await finishing;
+  assert.equal(store().currentBookId, 'PSA');
+  assert.equal(store().currentChapter, 23);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    admittedQueue
+  );
+  const persisted = JSON.parse(mmkv.store.get('audio-storage')!).state;
+  assert.deepEqual(
+    persisted.queue.map((entry: { id: string }) => entry.id),
+    admittedQueue
+  );
+  assert.equal(recorded.coverageLookups.filter((id) => id === SPARSE_EL).length, 1);
+  assert.equal(recorded.coverageLookups.filter((id) => id === 'web').length, 1);
+});
+
+for (const append of [false, true]) {
+  test(`completion queue control: initially empty queue keeps ${append ? 'a new queued entry' : 'linear auto-advance'}`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('GEN', 1);
+    player.api.clearQueue();
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage('bsb');
+    if (append) player.api.addToQueue('PSA', 23);
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().status, 'playing');
+    assert.equal(store().currentBookId, append ? 'PSA' : 'GEN');
+    assert.equal(store().currentChapter, append ? 23 : 2);
+  });
+}
+
+for (const command of ['pause', 'stop', 'play', 'nextChapter'] as const) {
+  test(`completion queue control: ${command} owns playback despite additions during queued coverage`, async () => {
+    const player = mountPlayer();
+    await player.api.playChapter('GEN', 1);
+    addSparseTranslation({ PSA: [117] });
+    store().addToQueue(SPARSE_EL, 'GEN', 2);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    player.api.addToQueue('PSA', 23);
+    const newer = command === 'play' ? player.api.playChapter('JHN', 3) : player.api[command]();
+    scenario.coverageGate = null;
+    gate.resolve();
+    await Promise.all([finishing, newer]);
+    if (command === 'play') {
+      assert.equal(store().currentBookId, 'JHN');
+      assert.equal(store().currentChapter, 3);
+      assert.equal(store().status, 'playing');
+    } else if (command === 'nextChapter') {
+      assert.equal(store().currentBookId, 'GEN');
+      assert.equal(store().currentChapter, 2);
+      assert.equal(store().status, 'playing');
+    } else {
+      assert.equal(store().currentBookId, command === 'pause' ? 'GEN' : null);
+      assert.equal(store().currentChapter, command === 'pause' ? 1 : null);
+      assert.equal(store().status, command === 'pause' ? 'paused' : 'idle');
+    }
+  });
+}
+
+for (const paused of [false, true]) {
+  for (const shiftedIndex of [false, true]) {
+    test(`manual Next preserves a queued chapter added during coverage (${paused ? 'paused' : 'playing'}, ${shiftedIndex ? 'shifted index' : 'append'})`, async () => {
+      addSparseTranslation({ GEN: [1, 5] });
+      const player = mountPlayer(SPARSE_EL);
+      await player.api.playChapter('GEN', 1);
+      if (paused) await player.api.pause();
+      if (shiftedIndex) {
+        player.api.clearQueue();
+        player.api.addToQueue('PSA', 23);
+        player.api.addToQueue('GEN', 1);
+        store().setQueueIndex(1);
+      }
+      const gate = deferPlayerOperation();
+      scenario.coverageGate = gate.promise;
+      recorded.coverageLookups.length = 0;
+      const next = player.api.nextChapter();
+      await waitForCompletionCoverage(SPARSE_EL);
+      if (shiftedIndex) player.api.removeFromQueue(`${SPARSE_EL}:PSA:23`);
+      store().addToQueue('web', 'REV', 22);
+      const queueIds = store().queue.map((entry) => entry.id);
+      gate.resolve();
+      assert.deepEqual(await next, { bookId: 'REV', chapter: 22 });
+      assert.equal(store().currentTranslationId, 'web');
+      assert.equal(store().status, paused ? 'paused' : 'playing');
+      assert.equal(store().queueIndex, 1);
+      assert.deepEqual(
+        store().queue.map((entry) => entry.id),
+        queueIds
+      );
+      const persisted = JSON.parse(
+        assertDefined(mmkv.store.get('audio-storage'), 'persisted audio queue')
+      ) as {
+        state: { queue: Array<{ id: string }>; queueIndex: number };
+      };
+      assert.deepEqual(
+        persisted.state.queue.map((entry) => entry.id),
+        queueIds
+      );
+      assert.equal(persisted.state.queueIndex, 1);
+    });
+  }
+}
+
+for (const direction of ['nextChapter', 'previousChapter'] as const) {
+  test(`manual ${direction} uses ordinary sparse adjacency when an added queue entry was removed during coverage`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    const current = direction === 'nextChapter' ? 1 : 5;
+    await player.api.playChapter('GEN', current);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const stepping = player.api[direction]();
+    await waitForCompletionCoverage(SPARSE_EL);
+    store().addToQueue('web', 'REV', 22);
+    player.api.removeFromQueue('web:REV:22');
+    gate.resolve();
+    assert.deepEqual(await stepping, { bookId: 'GEN', chapter: current === 1 ? 5 : 1 });
+    assert.equal(
+      store().queue.some((entry) => entry.id === 'web:REV:22'),
+      false
+    );
+  });
+
+  test(`manual ${direction} respects a pinned session introduced while coverage resolves`, async () => {
+    addSparseTranslation({ GEN: [1, 5, 50] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 5);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const stepping = player.api[direction]();
+    await waitForCompletionCoverage(SPARSE_EL);
+    store().addToQueue('web', 'REV', 22);
+    const sequence = [
+      { bookId: 'JHN', chapter: 3 },
+      { bookId: 'GEN', chapter: 5 },
+      { bookId: 'PSA', chapter: 23 },
+    ];
+    store().setPlaybackSequence(sequence);
+    gate.resolve();
+    assert.deepEqual(await stepping, direction === 'nextChapter' ? sequence[2] : sequence[0]);
+    assert.deepEqual(store().playbackSequence, sequence);
+    assert.equal(store().currentTranslationId, SPARSE_EL);
+  });
+}
+
+test('manual Next retains a pinned boundary introduced while coverage resolves despite a new queued chapter', async () => {
+  addSparseTranslation({ GEN: [1, 5] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const next = player.api.nextChapter();
+  await waitForCompletionCoverage(SPARSE_EL);
+  store().addToQueue('web', 'REV', 22);
+  const sequence = [{ bookId: 'GEN', chapter: 1 }];
+  store().setPlaybackSequence(sequence);
+  const queueIds = store().queue.map((entry) => entry.id);
+  const loadsBeforeResolve = playerCalls('loadAndPlay').length;
+  gate.resolve();
+  assert.equal(await next, null);
+  assert.equal(store().currentChapter, 1);
+  assert.deepEqual(store().playbackSequence, sequence);
+  assert.deepEqual(
+    store().queue.map((entry) => entry.id),
+    queueIds
+  );
+  assert.equal(playerCalls('loadAndPlay').length, loadsBeforeResolve);
+});
+
+for (const command of ['nextChapter', 'previousChapter', 'play', 'pause'] as const) {
+  test(`manual queued coverage control: newer ${command} keeps ownership after a queue append`, async () => {
+    addSparseTranslation({ GEN: [1, 5, 50] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 5);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const olderNext = player.api.nextChapter();
+    await waitForCompletionCoverage(SPARSE_EL);
+    store().addToQueue('web', 'REV', 22);
+    scenario.coverageGate = null;
+    if (command === 'play') await player.api.playChapter('JHN', 3);
+    else await player.api[command]();
+    const current = {
+      ...transportSnapshot(),
+      queueIndex: store().queueIndex,
+      queueIds: store().queue.map((entry) => entry.id),
+    };
+    const loadsBeforeResolve = playerCalls('loadAndPlay').length;
+    gate.resolve();
+    assert.equal(await olderNext, null);
+    assert.deepEqual(
+      {
+        ...transportSnapshot(),
+        queueIndex: store().queueIndex,
+        queueIds: store().queue.map((entry) => entry.id),
+      },
+      current
+    );
+    assert.equal(playerCalls('loadAndPlay').length, loadsBeforeResolve);
+  });
+}
+
+for (const path of [
+  'linear',
+  'replace minutes',
+  'book repeat',
+  'passage repeat',
+  'queue',
+] as const) {
+  test(`a late End of chapter timer stops ${path} while finished coverage resolves`, async () => {
+    addSparseTranslation({ GEN: [1, 5, 50] });
+    const player = mountPlayer(SPARSE_EL);
+    const current = path === 'book repeat' ? 50 : 1;
+    await player.api.playChapter('GEN', current);
+    if (path === 'replace minutes') player.api.startSleepTimer(30);
+    if (path === 'book repeat') store().setRepeatMode('book');
+    if (path === 'passage repeat') {
+      store().setRepeatPassage({
+        bookId: 'GEN',
+        start: { chapter: 1, verse: 1 },
+        end: { chapter: 1, verse: 2 },
+      });
+      await passageSettled();
+    }
+    if (path === 'queue') player.api.addToQueue('GEN', 5);
+    emitStatus({ isPlaying: false, didJustFinish: true, positionMillis: DEFAULT_DURATION_MS });
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const loadsBefore = playerCalls('loadAndPlay').length;
+    const heardBefore = recorded.listened.length;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    assert.equal(store().currentChapter, current);
+    player.api.startSleepTimer('end-of-chapter');
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.deepEqual(
+      {
+        status: store().status,
+        chapter: store().currentChapter,
+        timer: store().sleepTimerMinutes,
+        loads: playerCalls('loadAndPlay').length,
+      },
+      { status: 'idle', chapter: current, timer: null, loads: loadsBefore }
+    );
+    assert.equal(
+      recorded.listened.length,
+      heardBefore + 1,
+      'the finished chapter still counts once'
+    );
+    await player.api.playChapter('GEN', 5);
+    assert.equal(
+      store().status,
+      'playing',
+      'explicit Play remains available after timer consumption'
+    );
+    assert.equal(store().sleepTimerMinutes, null);
+  });
+}
+
+for (const replacement of [null, 15] as const) {
+  test(`a late End of chapter choice replaced by ${replacement ?? 'Off'} permits normal advance`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    player.api.startSleepTimer('end-of-chapter');
+    player.api.startSleepTimer(replacement);
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().currentChapter, 5);
+    assert.equal(store().status, 'playing');
+    assert.equal(store().sleepTimerMinutes, replacement);
+  });
+}
+
+for (const command of ['nextChapter', 'play', 'pause'] as const) {
+  test(`a newer ${command} retains its End of chapter choice after an old completion lookup`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    player.api.startSleepTimer('end-of-chapter');
+    if (command === 'nextChapter') {
+      store().addToQueue('web', 'REV', 22);
+      await player.api.nextChapter();
+    } else if (command === 'play') await player.api.playChapter('JHN', 3);
+    else await player.api.pause();
+    const latest = transportSnapshot();
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.deepEqual(transportSnapshot(), latest);
+    assert.equal(
+      store().sleepTimerMinutes,
+      'end-of-chapter',
+      'old EOF cannot consume replacement intent'
+    );
+    if (command !== 'pause') {
+      await finishPlayback();
+      assert.equal(store().status, 'idle');
+      assert.equal(
+        store().sleepTimerMinutes,
+        null,
+        'the replacement chapter consumes its own timer'
+      );
+    }
+  });
+}
+
+test('a late End of chapter choice invalidates manual Next that has not claimed a target', async () => {
+  addSparseTranslation({ GEN: [1, 5] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 1);
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const finishing = finishPlayback();
+  await waitForCompletionCoverage(SPARSE_EL);
+  const next = player.api.nextChapter();
+  player.api.startSleepTimer('end-of-chapter');
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(await next, null);
+  assert.equal(store().currentChapter, 1);
+  assert.equal(store().status, 'idle');
+  assert.equal(store().sleepTimerMinutes, null);
+});
+
+test('replacing or canceling a countdown ignores its old deadline across background and foreground', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 1);
+  player.api.startSleepTimer(5);
+  player.rerender();
+  tickSeconds(t.mock.timers, 4 * 60);
+  player.api.startSleepTimer(15);
+  rn.AppState.emit('background');
+  tickSeconds(t.mock.timers, 60);
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  rn.AppState.emit('active');
+  player.rerender();
+  assert.equal(store().status, 'playing');
+  assert.equal(store().sleepTimerMinutes, 15);
+  assert.equal(playerCalls('pause').length, 0);
+  player.api.clearSleepTimer();
+  tickSeconds(t.mock.timers, 15 * 60);
+  emitStatus({ isPlaying: true, positionMillis: 300_000, durationMillis: DEFAULT_DURATION_MS });
+  assert.equal(store().status, 'playing');
+  assert.equal(playerCalls('pause').length, 0);
+});
+
+for (const changed of [true, false]) {
+  test(`completion repeat choice: book repeat ${changed ? 'turned Off' : 'unchanged'} during manifest wait`, async () => {
+    addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 50);
+    player.api.setRepeatMode('book');
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    if (changed) player.api.setRepeatMode('off');
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().repeatMode, changed ? 'off' : 'book');
+    assert.deepEqual(
+      { book: store().currentBookId, chapter: store().currentChapter, status: store().status },
+      { book: changed ? 'EXO' : 'GEN', chapter: 1, status: 'playing' }
+    );
+  });
+}
+
+for (const changed of [true, false]) {
+  test(`completion repeat choice: chapter repeat ${changed ? 'selected' : 'not selected'} during adjacency wait`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    if (changed) player.api.setRepeatMode('chapter');
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().repeatMode, changed ? 'chapter' : 'off');
+    assert.equal(store().currentChapter, changed ? 1 : 5);
+    assert.equal(store().status, 'playing');
+  });
+}
+
+for (const changed of [true, false]) {
+  test(`completion repeat choice: passage repeat ${changed ? 'turned Off' : 'unchanged'} during passage wait`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    store().setRepeatPassage({
+      bookId: 'GEN',
+      start: { chapter: 1, verse: 1 },
+      end: { chapter: 1, verse: 2 },
+    });
+    await passageSettled();
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    if (changed) player.api.setRepeatMode('off');
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().repeatMode, changed ? 'off' : 'passage');
+    assert.equal(store().currentChapter, changed ? 5 : 1);
+    assert.equal(store().status, 'playing');
+  });
+}
+
+for (const changed of [true, false]) {
+  test(`completion repeat choice: passage range ${changed ? 'changed' : 'unchanged'} while passage manifest resolves`, async () => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    store().setRepeatPassage({
+      bookId: 'GEN',
+      start: { chapter: 1, verse: 1 },
+      end: { chapter: 5, verse: 2 },
+    });
+    await passageSettled();
+    const gate = deferPlayerOperation();
+    scenario.coverageGate = gate.promise;
+    recorded.coverageLookups.length = 0;
+    const finishing = finishPlayback();
+    await waitForCompletionCoverage(SPARSE_EL);
+    if (changed)
+      store().setRepeatPassage({
+        bookId: 'GEN',
+        start: { chapter: 1, verse: 1 },
+        end: { chapter: 1, verse: 2 },
+      });
+    await passageSettled();
+    assert.equal(
+      store().currentChapter,
+      1,
+      'changing an in-chapter passage does not itself load a different chapter'
+    );
+    scenario.coverageGate = null;
+    gate.resolve();
+    await finishing;
+    assert.equal(store().repeatMode, 'passage');
+    assert.equal(store().currentChapter, changed ? 1 : 5);
+    assert.equal(store().status, 'playing');
+  });
+}
+
+test('completion repeat choice: rapid chip edits commit only the last mode', async () => {
+  addSparseTranslation({ GEN: [1, 50], EXO: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 50);
+  player.api.setRepeatMode('book');
+  const gate = deferPlayerOperation();
+  scenario.coverageGate = gate.promise;
+  recorded.coverageLookups.length = 0;
+  const heardBefore = recorded.listened.length;
+  const finishing = finishPlayback();
+  await waitForCompletionCoverage(SPARSE_EL);
+  player.api.setRepeatMode('off');
+  player.api.setRepeatMode('book');
+  player.api.setRepeatMode('chapter');
+  scenario.coverageGate = null;
+  gate.resolve();
+  await finishing;
+  assert.equal(store().repeatMode, 'chapter');
+  assert.equal(store().currentChapter, 50);
+  assert.equal(store().status, 'playing');
+  assert.equal(recorded.listened.length, heardBefore + 1);
+  assert.equal(
+    recorded.coverageLookups.filter((id) => id === SPARSE_EL).length,
+    2,
+    'completion resolves coverage once; the explicit load also checks coverage'
+  );
+});
+
+test('completion repeat choice: edits across queue and book lookups keep the latest mode', async () => {
+  addSparseTranslation({ GEN: [1, 5] });
+  bibleState.translations.push({ id: 'web', name: 'World English Bible' });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 1);
+  store().addToQueue('web', 'REV', 22);
+  const queueGate = deferPlayerOperation();
+  const bookGate = deferPlayerOperation();
+  scenario.coverageGate = queueGate.promise;
+  recorded.coverageLookups.length = 0;
+  const loadsBefore = playerCalls('loadAndPlay').length;
+  const heardBefore = recorded.listened.length;
+  const finishing = finishPlayback();
+  try {
+    await waitForCompletionCoverage('web');
+    player.api.setRepeatMode('book');
+    scenario.coverageGate = bookGate.promise;
+    queueGate.resolve();
+    await waitForCompletionCoverage(SPARSE_EL);
+    player.api.setRepeatMode('chapter');
+    player.api.setRepeatMode('off');
+    player.api.setRepeatMode('chapter');
+    scenario.coverageGate = null;
+    bookGate.resolve();
+    await finishing;
+    assert.deepEqual(
+      {
+        translation: store().currentTranslationId,
+        book: store().currentBookId,
+        chapter: store().currentChapter,
+      },
+      { translation: SPARSE_EL, book: 'GEN', chapter: 1 }
+    );
+    assert.equal(store().status, 'playing');
+    assert.equal(playerCalls('loadAndPlay').length, loadsBefore + 1);
+    assert.equal(recorded.listened.length, heardBefore + 1);
+  } finally {
+    scenario.coverageGate = null;
+    queueGate.resolve();
+    bookGate.resolve();
+    await finishing;
+  }
+});
+
+test('completion repeat choice: a settled empty passage falls through to the queued chapter once', async () => {
+  addSparseTranslation({ GEN: [1] });
+  const player = mountPlayer(SPARSE_EL);
+  await player.api.playChapter('GEN', 1);
+  store().setRepeatPassage({
+    bookId: 'GEN',
+    start: { chapter: 2, verse: 1 },
+    end: { chapter: 2, verse: 2 },
+  });
+  await passageSettled();
+  store().addToQueue('web', 'REV', 22);
+  recorded.coverageLookups.length = 0;
+  await finishPlayback();
+  assert.deepEqual(
+    {
+      translation: store().currentTranslationId,
+      book: store().currentBookId,
+      chapter: store().currentChapter,
+    },
+    { translation: 'web', book: 'REV', chapter: 22 }
+  );
+  assert.equal(store().status, 'playing');
+  assert.equal(recorded.coverageLookups.filter((id) => id === SPARSE_EL).length, 1);
+});
+
+test('completion repeat choice: undefined book coverage is cached and retains ordinary book repeat', async () => {
+  const player = mountPlayer();
+  await player.api.playChapter('GEN', 50);
+  player.api.setRepeatMode('book');
+  recorded.coverageLookups.length = 0;
+  await finishPlayback();
+  assert.equal(store().currentChapter, 1);
+  assert.equal(store().status, 'playing');
+  assert.equal(recorded.coverageLookups.filter((id) => id === 'bsb').length, 2);
+});
+
+for (const changed of [true, false]) {
+  test(`completion repeat choice: passage ${changed ? 'turned Off' : 'unchanged'} while verse timings resolve`, async (t) => {
+    addSparseTranslation({ GEN: [1, 5] });
+    const player = mountPlayer(SPARSE_EL);
+    await player.api.playChapter('GEN', 1);
+    store().setRepeatPassage({
+      bookId: 'GEN',
+      start: { chapter: 1, verse: 1 },
+      end: { chapter: 1, verse: 2 },
+    });
+    await passageSettled();
+    const { resetPassageRepeatState } = await import('./audioPlayer/passageRepeat');
+    const timingService = await import('../services/bible/verseTimestamps');
+    resetPassageRepeatState();
+    timingService.setVerseTimestampMetadataResolver((id) => ({
+      id,
+      hasTiming: true,
+      timing: {
+        strategy: 'stream-template',
+        baseUrl: 'https://cdn.example/timings',
+        chapterPathTemplate: '{bookId}/{chapter}.json',
+      },
+    }));
+    const gate = deferPlayerOperation();
+    const fetchTimings = t.mock.method(globalThis, 'fetch', async () => {
+      await gate.promise;
+      return new Response(JSON.stringify({ 1: 0, 2: 3, 3: 6 }), { status: 200 });
+    });
+    const finishing = finishPlayback();
+    try {
+      for (let i = 0; i < 30 && fetchTimings.mock.callCount() === 0; i += 1) {
+        await flushPlayerOperations();
+      }
+      assert.equal(fetchTimings.mock.callCount(), 1, 'the real timing service awaits its response');
+      if (changed) player.api.setRepeatMode('off');
+      gate.resolve();
+      await finishing;
+      assert.equal(store().currentChapter, changed ? 5 : 1);
+      assert.equal(store().status, 'playing');
+      assert.equal(store().repeatMode, changed ? 'off' : 'passage');
+    } finally {
+      gate.resolve();
+      await finishing;
+      fetchTimings.mock.restore();
+      timingService.setVerseTimestampMetadataResolver(null);
+      resetPassageRepeatState();
+    }
+  });
+}
+
+/** Real hook, facade and Expo-backed shim; only the native Sound is scripted. */
+async function startNativeStreamHealthPlayer() {
+  const player = mountPlayer();
+  const { audioPlayer: realPlayer } = await import('../services/audio/audioPlayer');
+  const originals = {
+    loadAndPlay: audioPlayerDouble.loadAndPlay,
+    pause: audioPlayerDouble.pause,
+    resume: audioPlayerDouble.resume,
+    stop: audioPlayerDouble.stop,
+    verifyLoaded: audioPlayerDouble.verifyLoaded,
+    isLoaded: audioPlayerDouble.isLoaded,
+  };
+  const nativeBefore = { ...integrationNativeStatus };
+  integrationNativeReleased = false;
+  integrationInitialPlayFailure = null;
+  integrationStatusGate = null;
+  integrationStatusCalls = 0;
+  Object.assign(integrationNativeStatus, {
+    positionMillis: 0,
+    isPlaying: false,
+    isBuffering: false,
+    didJustFinish: false,
+  });
+  realPlayer.setCallbacks({ ...audioPlayerDouble.callbacks });
+  audioPlayerDouble.loadAndPlay = async (url, rate, positionMs) => {
+    recorded.player.push({ method: 'loadAndPlay', args: [url, rate, positionMs] });
+    await realPlayer.loadAndPlay(url, rate, positionMs);
+  };
+  audioPlayerDouble.pause = () => realPlayer.pause();
+  audioPlayerDouble.resume = () => realPlayer.resume();
+  audioPlayerDouble.stop = () => realPlayer.stop();
+  audioPlayerDouble.verifyLoaded = () => realPlayer.verifyLoaded();
+  audioPlayerDouble.isLoaded = () => realPlayer.isLoaded();
+  await player.api.playChapter('GEN', 1);
+  Object.assign(integrationNativeStatus, { positionMillis: 90_000, isPlaying: true });
+  nativeStatusListener?.({ ...integrationNativeStatus });
+  player.rerender();
+  const buffering = () => {
+    Object.assign(integrationNativeStatus, { isPlaying: false, isBuffering: true });
+    nativeStatusListener?.({ ...integrationNativeStatus });
+  };
+  const cleanup = async () => {
+    integrationNativeReleased = false;
+    integrationInitialPlayFailure = null;
+    integrationStatusGate = null;
+    // Stop through the hook as a closed reader's remote Stop would, draining
+    // its shared listening telemetry as well as the native facade timer.
+    await player.api.stop();
+    await flushPlayerOperations();
+    realPlayer.setCallbacks({});
+    Object.assign(audioPlayerDouble, originals);
+    Object.assign(integrationNativeStatus, nativeBefore);
+  };
+  return { player, realPlayer, buffering, cleanup };
+}
+
+for (const positionMs of [180_000, 0]) {
+  test(`initial native Play failure: Retry recreates the released sound at ${positionMs}ms`, async () => {
+    const native = await startNativeStreamHealthPlayer();
+    try {
+      await native.player.api.stop();
+      coldStartAt(positionMs);
+      integrationInitialPlayFailure = { error: new Error('Player does not exist.') };
+      await native.player.rerender().togglePlayPause();
+      assert.equal(store().status, 'error');
+      assert.equal(store().currentPosition, positionMs);
+      const createsBeforeRetry = integrationNativeCreates;
+
+      await native.player.rerender().togglePlayPause();
+      assert.equal(
+        integrationNativeCreates,
+        createsBeforeRetry + 1,
+        'Retry must load the native sound dropped during initial Play'
+      );
+      assert.equal(store().status, 'playing');
+      assert.equal(store().currentPosition, positionMs);
+      assert.equal(native.realPlayer.isLoaded(), true);
+    } finally {
+      await native.cleanup();
+    }
+  });
+}
+
+test('initial native Play failure: a late rejection cannot poison a newer loaded chapter', async () => {
+  const native = await startNativeStreamHealthPlayer();
+  const gate = deferPlayerOperation();
+  let loading: Promise<void> | undefined;
+  try {
+    await native.player.api.stop();
+    coldStartAt(180_000);
+    integrationInitialPlayFailure = {
+      error: new Error('Player does not exist.'),
+      response: gate.promise,
+    };
+    loading = native.player.rerender().togglePlayPause();
+    await settleUntil(() => integrationInitialPlayFailure === null);
+    await native.player.api.playChapter('GEN', 2);
+    gate.resolve();
+    await loading;
+    assert.equal(store().currentChapter, 2);
+    assert.equal(store().status, 'playing');
+    assert.equal(store().error, null);
+    assert.equal(native.realPlayer.isLoaded(), true);
+  } finally {
+    gate.resolve();
+    await loading;
+    await native.cleanup();
+  }
+});
+
+for (const closedAt of ['before buffering', 'while buffering', 'never'] as const) {
+  test(`stream health: real player detects native release with reader closed ${closedAt}`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+    const native = await startNativeStreamHealthPlayer();
+    try {
+      if (closedAt === 'before buffering') native.player.unmount();
+      native.buffering();
+      if (closedAt !== 'before buffering') native.player.rerender();
+      if (closedAt === 'while buffering') native.player.unmount();
+      integrationNativeReleased = true;
+      t.mock.timers.tick(4_999);
+      assert.equal(store().status, 'loading');
+      assert.equal(integrationStatusCalls, 0);
+      t.mock.timers.tick(1);
+      await flushPlayerOperations();
+      assert.equal(store().status, 'error');
+      assert.equal(store().currentPosition, 90_000);
+      assert.equal(store().error, 'interface.audioPlayFailed');
+      assert.equal(integrationStatusCalls, 1);
+      assert.equal(recorded.reports.length, 1);
+      t.mock.timers.tick(10_000);
+      await flushPlayerOperations();
+      assert.equal(integrationStatusCalls, 1, 'released sound is checked only once');
+      integrationNativeReleased = false;
+      await dispatchRemoteCommand({ command: 'play' });
+      assert.equal(store().status, 'playing');
+      assert.equal(store().error, null);
+      assert.equal(loadedStartOffset(), 90_000);
+    } finally {
+      await native.cleanup();
+    }
+  });
+}
+
+test('stream health: delayed native release probe cannot fail a replacement chapter', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  const native = await startNativeStreamHealthPlayer();
+  const gate = deferPlayerOperation();
+  try {
+    native.player.unmount();
+    native.buffering();
+    integrationNativeReleased = true;
+    integrationStatusGate = gate.promise;
+    t.mock.timers.tick(5_000);
+    assert.equal(integrationStatusCalls, 1);
+    integrationNativeReleased = false;
+    integrationStatusGate = null;
+    await native.player.api.playChapter('GEN', 2);
+    assert.equal(store().currentChapter, 2);
+    gate.resolve();
+    await flushPlayerOperations();
+    assert.equal(store().status, 'playing');
+    assert.equal(store().error, null);
+    assert.equal(recorded.reports.length, 0);
+    native.buffering();
+    t.mock.timers.tick(5_000);
+    await flushPlayerOperations();
+    assert.equal(
+      integrationStatusCalls,
+      2,
+      'new buffering track can be verified after the old probe drains'
+    );
+    assert.equal(store().error, null);
+  } finally {
+    gate.resolve();
+    await flushPlayerOperations();
+    await native.cleanup();
+  }
+});
+
+for (const nativePause of [false, true]) {
+  test(`stream health: ${nativePause ? 'OS' : 'listener'} pause ends checks after reader closes`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+    const native = await startNativeStreamHealthPlayer();
+    try {
+      native.player.unmount();
+      native.buffering();
+      if (nativePause) {
+        Object.assign(integrationNativeStatus, { isPlaying: false, isBuffering: false });
+        nativeStatusListener?.({ ...integrationNativeStatus });
+      } else {
+        await native.player.api.pause();
+      }
+      t.mock.timers.tick(10_000);
+      await flushPlayerOperations();
+      assert.equal(store().status, 'paused');
+      assert.equal(integrationStatusCalls, 0);
+      await dispatchRemoteCommand({ command: 'interruption-ended' });
+      assert.equal(store().status, nativePause ? 'playing' : 'paused');
+      assert.equal(store().error, null);
+    } finally {
+      await native.cleanup();
+    }
+  });
+}

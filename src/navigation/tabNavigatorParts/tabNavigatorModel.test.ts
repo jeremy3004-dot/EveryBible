@@ -155,6 +155,7 @@ const freeReaderParams = {
   preferredMode: 'listen',
   planId: undefined,
   planDayNumber: undefined,
+  planOccurrenceKey: undefined,
   returnToPlanOnComplete: undefined,
   sessionContext: undefined,
 };

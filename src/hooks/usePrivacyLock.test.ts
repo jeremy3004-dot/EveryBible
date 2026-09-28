@@ -1,5 +1,6 @@
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactHookRuntime } from '../testing/reactHookRuntime';
 import { createReactNativeStub } from '../testing/reactNativeStub';
@@ -20,9 +21,16 @@ mockModule(mock, 'react-native', rn);
 mockExpoCrypto(mock);
 
 const secureStore = new Map<string, string>();
+let pauseSecureRead: (() => Promise<void>) | null = null;
+let pauseSecureWrite: (() => Promise<void>) | null = null;
 mockModule(mock, 'expo-secure-store', {
-  getItemAsync: async (key: string) => secureStore.get(key) ?? null,
+  getItemAsync: async (key: string) => {
+    const record = secureStore.get(key) ?? null;
+    await pauseSecureRead?.();
+    return record;
+  },
   setItemAsync: async (key: string, value: string) => {
+    await pauseSecureWrite?.();
     secureStore.set(key, value);
   },
   deleteItemAsync: async (key: string) => {
@@ -74,6 +82,9 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  pauseSecureRead = null;
+  pauseSecureWrite = null;
+  secureStore.clear();
   usePrivacyStore.setState(usePrivacyStore.getInitialState(), true);
   rn.AppState.currentState = 'active';
 });
@@ -113,6 +124,202 @@ test('backgrounding a configured discreet install locks it', () => {
   rn.AppState.emit('background');
 
   assert.equal(usePrivacyStore.getState().isLocked, true);
+  unmount();
+});
+
+const configureLockedPin = () => {
+  const salt = 'test-salt';
+  secureStore.set(
+    'everybible.privacy.settings',
+    JSON.stringify({
+      mode: 'discreet',
+      pinCredential: {
+        salt,
+        hash: createHash('sha256').update(`${salt}:1234`).digest('hex'),
+      },
+      failedPinAttempts: 0,
+      pinLockedUntil: null,
+    })
+  );
+  configureDiscreet();
+  usePrivacyStore.getState().lock();
+  recordIconReconciles();
+};
+
+for (const backgroundDuringSave of [false, true]) {
+  test(`a discreet PIN change ${backgroundDuringSave ? 'preserves a background lock' : 'stays unlocked without a new lock'}`, async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    configureLockedPin();
+    assert.equal(await usePrivacyStore.getState().unlock('1234'), true);
+    const unmount = mountPrivacyLock();
+    let markWriteStarted!: () => void;
+    const writeStarted = new Promise<void>((resolve) => {
+      markWriteStarted = resolve;
+    });
+    let releaseWrite!: () => void;
+    const writePaused = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    pauseSecureWrite = () => {
+      markWriteStarted();
+      return writePaused;
+    };
+
+    const save = usePrivacyStore
+      .getState()
+      .saveConfiguration({ mode: 'discreet', pinInput: '5678' });
+    await writeStarted;
+    if (backgroundDuringSave) {
+      rn.AppState.emit('background');
+      rn.AppState.emit('active');
+      assert.equal(usePrivacyStore.getState().isLocked, true);
+    }
+    releaseWrite();
+    assert.deepEqual(await save, { success: true, errorKey: null });
+    assert.equal(usePrivacyStore.getState().isLocked, backgroundDuringSave);
+
+    pauseSecureWrite = null;
+    usePrivacyStore.getState().lock();
+    assert.equal(await usePrivacyStore.getState().unlock('5678'), true, 'the new PIN was saved');
+    unmount();
+  });
+}
+
+test('an old PIN attempt during a pending PIN change cannot restore the old credential', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  configureLockedPin();
+  assert.equal(await usePrivacyStore.getState().unlock('1234'), true);
+  const unmount = mountPrivacyLock();
+  let markWriteStarted!: () => void;
+  const writeStarted = new Promise<void>((resolve) => {
+    markWriteStarted = resolve;
+  });
+  let releaseWrite!: () => void;
+  const writePaused = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  pauseSecureWrite = () => {
+    markWriteStarted();
+    return writePaused;
+  };
+  const save = usePrivacyStore.getState().saveConfiguration({ mode: 'discreet', pinInput: '5678' });
+  await writeStarted;
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  const oldAttempt = usePrivacyStore.getState().unlock('1234');
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  pauseSecureWrite = null;
+  releaseWrite();
+  await save;
+  const oldSuccess = await oldAttempt;
+
+  assert.equal(oldSuccess, false);
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+  assert.equal(await usePrivacyStore.getState().unlock('5678'), true);
+  usePrivacyStore.getState().lock();
+  assert.equal(await usePrivacyStore.getState().unlock('1234'), false);
+  unmount();
+});
+
+test('overlapping configuration saves leave the store and persisted record at the latest request', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  configureLockedPin();
+  assert.equal(await usePrivacyStore.getState().unlock('1234'), true);
+  let markWriteStarted!: () => void;
+  const writeStarted = new Promise<void>((resolve) => {
+    markWriteStarted = resolve;
+  });
+  let releaseWrite!: () => void;
+  const writePaused = new Promise<void>((resolve) => {
+    releaseWrite = resolve;
+  });
+  pauseSecureWrite = () => {
+    markWriteStarted();
+    return writePaused;
+  };
+  const earlier = usePrivacyStore
+    .getState()
+    .saveConfiguration({ mode: 'discreet', pinInput: '5678' });
+  await writeStarted;
+  pauseSecureWrite = null;
+  const latest = usePrivacyStore.getState().saveConfiguration({ mode: 'standard' });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  releaseWrite();
+  await Promise.all([earlier, latest]);
+
+  assert.equal(usePrivacyStore.getState().mode, 'standard');
+  assert.equal(usePrivacyStore.getState().hasPin, false);
+  const persisted = JSON.parse(secureStore.get('everybible.privacy.settings')!);
+  assert.equal(persisted.mode, 'standard');
+  assert.equal(persisted.pinCredential, null);
+});
+
+test('a PIN verification started before backgrounding cannot unlock the new foreground session', async () => {
+  configureLockedPin();
+  const unmount = mountPrivacyLock();
+  let markReadStarted!: () => void;
+  const readStarted = new Promise<void>((resolve) => {
+    markReadStarted = resolve;
+  });
+  let releaseRead!: () => void;
+  const readPaused = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  pauseSecureRead = () => {
+    markReadStarted();
+    return readPaused;
+  };
+
+  const attempt = usePrivacyStore.getState().unlock('1234');
+  await readStarted;
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  releaseRead();
+  const success = await attempt;
+
+  assert.equal(
+    usePrivacyStore.getState().isLocked,
+    true,
+    'returning from the background requires a fresh PIN attempt'
+  );
+  assert.equal(success, false, 'the caller must not treat the stale verification as an unlock');
+  pauseSecureRead = null;
+  assert.equal(await usePrivacyStore.getState().unlock('1234'), true);
+  assert.equal(usePrivacyStore.getState().isLocked, false, 'a fresh correct attempt still unlocks');
+  unmount();
+});
+
+test('PIN attempts queued before backgrounding cannot unlock the new foreground session', async () => {
+  configureLockedPin();
+  const unmount = mountPrivacyLock();
+  let markReadStarted!: () => void;
+  const readStarted = new Promise<void>((resolve) => {
+    markReadStarted = resolve;
+  });
+  let releaseRead!: () => void;
+  const readPaused = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  pauseSecureRead = () => {
+    markReadStarted();
+    return readPaused;
+  };
+
+  const wrongAttempt = usePrivacyStore.getState().unlock('9999');
+  await readStarted;
+  const queuedCorrectAttempt = usePrivacyStore.getState().unlock('1234');
+  rn.AppState.emit('background');
+  rn.AppState.emit('active');
+  releaseRead();
+  const outcomes = await Promise.all([wrongAttempt, queuedCorrectAttempt]);
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+  assert.deepEqual(outcomes, [false, false]);
+  assert.equal(
+    JSON.parse(secureStore.get('everybible.privacy.settings')!).failedPinAttempts,
+    1,
+    'the completed wrong attempt remains counted, while the invalidated queued attempt never runs'
+  );
   unmount();
 });
 

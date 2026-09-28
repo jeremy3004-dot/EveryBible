@@ -4,7 +4,12 @@ import { getStateFromPath as defaultGetStateFromPath } from '@react-navigation/n
 import type { RootTabParamList } from './types';
 import { buildBibleNavState } from './buildBibleNavState';
 import { rootNavigationRef } from './rootNavigation';
-import { subscribeToNavigatorLinks } from './linkLifecycle';
+import { isSupportedNavigationUrl, subscribeToNavigatorLinks } from './linkLifecycle';
+import {
+  captureInboundNavigationLaunch,
+  claimInboundNavigation,
+  isCurrentInboundNavigation,
+} from './inboundNavigationOwnership';
 
 export { buildBibleNavState } from './buildBibleNavState';
 export { flushParkedLink } from './linkLifecycle';
@@ -29,10 +34,17 @@ const getInitialURLOnce = (): Promise<string | null> | null => {
     return null;
   }
   hasDeliveredInitialUrl = true;
+  const launchArrival = captureInboundNavigationLaunch();
   return Promise.race([
     Linking.getInitialURL(),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), INITIAL_URL_TIMEOUT_MS)),
-  ]);
+  ]).then((url) => {
+    if (!url || !isCurrentInboundNavigation(launchArrival) || !isSupportedNavigationUrl(url)) {
+      return null;
+    }
+    claimInboundNavigation();
+    return url;
+  });
 };
 
 /**

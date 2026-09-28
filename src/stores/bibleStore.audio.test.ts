@@ -754,13 +754,20 @@ test('reattaching audio downloads with an empty registry clears any stale progre
 
   assert.equal(useBibleStore.getState().downloadProgress, null);
   assert.deepEqual(doubles.audio.reattachedJobIds, []);
-  assert.equal(doubles.audio.ensureRunningCalls, 1);
+  assert.equal(doubles.audio.ensureRunningCalls, 0);
 });
 
 test('reattaching audio downloads revives an in-flight job and resumes its book download', async () => {
   doubles.audio.jobs.push(
     makeAudioJob({ id: 'job-1', translationId: 'bsb', bookId: 'GEN', status: 'downloading' })
   );
+  // The fake download completes immediately; mirror the real service's registry completion.
+  doubles.audio.runBookDownload = async (call) => {
+    call.hooks.onReattach?.(
+      makeAudioJob({ id: 'job-1', translationId: 'bsb', bookId: 'GEN', status: 'downloading' })
+    );
+    doubles.audio.jobs.length = 0;
+  };
 
   await useBibleStore.getState().reattachAudioDownloads();
   await flushAsyncWork();
@@ -838,7 +845,7 @@ test('reattaching audio downloads ignores completed and failed jobs so no phanto
   assert.equal(useBibleStore.getState().downloadProgress, null);
 });
 
-test('reattaching audio downloads keeps only the newest job per translation', async () => {
+test('reattaching audio downloads recovers every independent book on a translation', async () => {
   doubles.audio.jobs.push(
     makeAudioJob({
       id: 'older',
@@ -859,10 +866,10 @@ test('reattaching audio downloads keeps only the newest job per translation', as
   await useBibleStore.getState().reattachAudioDownloads();
   await flushAsyncWork();
 
-  assert.deepEqual(doubles.audio.reattachedJobIds, ['newer']);
+  assert.deepEqual(doubles.audio.reattachedJobIds, ['older', 'newer']);
   assert.deepEqual(
     doubles.audio.bookDownloads.map((call) => call.book.id),
-    ['MRK']
+    ['GEN', 'MRK']
   );
 });
 
@@ -877,7 +884,7 @@ test('reattaching audio downloads keeps going when the transport cannot revive a
   await flushAsyncWork();
 
   assert.equal(warn.mock.callCount(), 1);
-  assert.equal(doubles.audio.ensureRunningCalls, 1);
+  assert.equal(doubles.audio.ensureRunningCalls, 0);
   assert.equal(doubles.audio.bookDownloads.length, 1);
 });
 

@@ -131,6 +131,7 @@ export function BibleSearchResults({
         keyExtractor={searchResultKey}
         contentContainerStyle={contentContainerStyle}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
       />
     </View>

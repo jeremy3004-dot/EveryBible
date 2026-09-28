@@ -123,3 +123,14 @@ test('the app listens for links once, however often the navigator remounts', asy
   }
   assert.equal(urlListeners.size, 1);
 });
+
+test('password-reset token links remain parked through the privacy gate', async () => {
+  const reset = 'com.everybible.app://reset-password?token_hash=valid-token&type=recovery';
+  const navigator = await mountNavigator();
+  emitUrl(reset);
+  assert.deepEqual(navigator.delivered, []);
+  navigationReady = true;
+  (await load()).flushParkedLink();
+  assert.deepEqual(navigator.delivered, [reset]);
+  navigator.unmount();
+});

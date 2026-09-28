@@ -1,7 +1,12 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { flattenStyle, hostAncestors, within } from '../../testing/render';
-import { installFeedbackReviewFixture } from './ChapterFeedbackReviewScreen.renderFixture';
+import {
+  concern,
+  feedbackPage,
+  installFeedbackReviewFixture,
+} from './ChapterFeedbackReviewScreen.renderFixture';
 
 const {
   harness,
@@ -17,6 +22,7 @@ const {
   recordingSound,
   gateSoundLoads,
   listenButton,
+  responders,
 } = installFeedbackReviewFixture(mock);
 
 const passcodeArgs = { apiVersion: 2, passcode: '123456', translationId: 'bsb' };
@@ -194,16 +200,16 @@ test('review audio has named play and pause buttons and marks the item listened'
   assert.deepEqual(calls.audioUrl.length, 1);
   assert.equal((calls.audioUrl[0] as { feedbackId: string }).feedbackId, 'c1');
   assert.deepEqual(created, [
-    { source: { uri: 'https://media.test/c1.m4a' }, status: { shouldPlay: true } },
+    { source: { uri: 'https://media.test/c1.m4a' }, status: { shouldPlay: false } },
   ]);
 
   await view.press(audioButton('bible.translatorReviewPause'));
   await view.flush();
-  assert.deepEqual(soundCalls, ['pause']);
+  assert.deepEqual(soundCalls, ['play', 'pause']);
 
   await view.press(audioButton('bible.translatorReviewListen'));
   await view.flush();
-  assert.deepEqual(soundCalls, ['pause', 'play']);
+  assert.deepEqual(soundCalls, ['play', 'pause', 'play']);
 
   assert.deepEqual(listened, []);
   playback.onStatus?.({ isLoaded: true, positionMillis: 8000, durationMillis: 12000 });
@@ -212,6 +218,72 @@ test('review audio has named play and pause buttons and marks the item listened'
 
 // Listen starts play() without awaiting it, so a released load settles on a later turn.
 const settleReleasedLoad = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('reviewer playback drains Bible narration before loading a silent native sound', async () => {
+  const { bibleNarrationOwner, claimNarration, resetNarrationOwnership } =
+    await import('../../services/audio/narrationOwnership');
+  resetNarrationOwnership();
+  let bibleSuspensions = 0;
+  let finishSuspension: () => void = () => {};
+  const bible = claimNarration(
+    'bible',
+    bibleNarrationOwner,
+    () =>
+      new Promise<void>((resolve) => {
+        bibleSuspensions += 1;
+        finishSuspension = resolve;
+      })
+  );
+  const view = await renderReview();
+  try {
+    await view.press(listenButton(view, 'bible.translatorReviewListen'));
+    await view.flush();
+    assert.equal(bibleSuspensions, 1);
+    assert.equal(created.length, 0, 'reviewer waits for Bible native suspension');
+    await act(async () => finishSuspension());
+    await view.flush();
+    assert.deepEqual(created[0]?.status, { shouldPlay: false });
+    assert.deepEqual(soundCalls, ['play']);
+  } finally {
+    finishSuspension();
+    await view.unmount();
+    bible.cancel();
+    resetNarrationOwnership();
+  }
+});
+
+test('an old Pause completion cannot clear the newer reviewer clip', async () => {
+  responders.fetch = async () =>
+    feedbackPage({ feedback: [concern, { ...concern, id: 'c2', comment: 'Second note' }] });
+  const loads = gateSoundLoads();
+  const view = await renderReview();
+  const buttons = (key: string) =>
+    view.queryAllByRole('button', { name: `${t(key)}, ${t('myFeedback.audioLabel')}` });
+  let finishPause: () => void = () => {};
+  try {
+    await view.press(buttons('bible.translatorReviewListen')[0]);
+    await loads.loadsStarted(1);
+    const first = recordingSound('first');
+    first.pauseAsync = () =>
+      new Promise<void>((resolve) => {
+        finishPause = resolve;
+      });
+    await act(async () => loads.release(0, first));
+    await view.flush();
+    act(() => buttons('bible.translatorReviewPause')[0].props.onPress());
+    await view.press(buttons('bible.translatorReviewListen')[0]);
+    await loads.loadsStarted(2);
+    await act(async () => loads.release(1, recordingSound('second')));
+    await view.flush();
+    assert.equal(buttons('bible.translatorReviewPause').length, 1);
+    await act(async () => finishPause());
+    await view.flush();
+    assert.equal(buttons('bible.translatorReviewPause').length, 1);
+  } finally {
+    finishPause();
+    await view.unmount();
+  }
+});
 
 test('a voice note that finishes loading after the screen closes is unloaded, not played', async () => {
   const loads = gateSoundLoads();
@@ -224,6 +296,98 @@ test('a voice note that finishes loading after the screen closes is unloaded, no
   await settleReleasedLoad();
 
   assert.deepEqual(soundCalls, ['late:unload']);
+  assert.deepEqual(created[0]?.status, { shouldPlay: false });
+});
+
+test('Bible takeover waits for a pending reviewer factory and its native unload', async () => {
+  const { bibleNarrationOwner, claimNarration, resetNarrationOwnership } =
+    await import('../../services/audio/narrationOwnership');
+  resetNarrationOwnership();
+  const loads = gateSoundLoads();
+  const view = await renderReview();
+  let finishUnload: () => void = () => {};
+  try {
+    await view.press(listenButton(view, 'bible.translatorReviewListen'));
+    await loads.loadsStarted(1);
+    const bible = claimNarration('bible', bibleNarrationOwner, async () => {});
+    let ready = false;
+    void bible.ready.then(() => {
+      ready = true;
+    });
+    await view.flush();
+    assert.equal(ready, false);
+    const late = recordingSound('late');
+    late.unloadAsync = () =>
+      new Promise<void>((resolve) => {
+        soundCalls.push('late:unload');
+        finishUnload = resolve;
+      });
+    await act(async () => loads.release(0, late));
+    await view.flush();
+    assert.deepEqual(soundCalls, ['late:unload']);
+    assert.equal(ready, false, 'takeover must wait for actual native release');
+    await act(async () => finishUnload());
+    await bible.ready;
+    assert.equal(ready, true);
+  } finally {
+    finishUnload();
+    await view.unmount();
+    resetNarrationOwnership();
+  }
+});
+
+test('a failed URL refresh reports the error and a current Listen can retry', async () => {
+  responders.audioUrl = async () => ({ success: false });
+  const view = await renderReview();
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await view.flush();
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('bible.translatorReviewAudioError'));
+  assert.deepEqual(created, []);
+  responders.audioUrl = async () => ({
+    success: true,
+    playbackUrl: 'https://media.test/retry.m4a',
+  });
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await view.flush();
+  assert.ok(listenButton(view, 'bible.translatorReviewPause'));
+  assert.deepEqual(soundCalls, ['play']);
+  await view.unmount();
+});
+
+test('a replaced clip status cannot mark it listened or stop the current clip', async () => {
+  responders.fetch = async () =>
+    feedbackPage({ feedback: [concern, { ...concern, id: 'c2', comment: 'Second note' }] });
+  const loads = gateSoundLoads();
+  const view = await renderReview();
+  let oldStatus: (status: {
+    isLoaded: boolean;
+    positionMillis: number;
+    durationMillis: number;
+    didJustFinish: boolean;
+  }) => void = () => {};
+  const first = recordingSound('first');
+  first.setOnPlaybackStatusUpdate = (listener) => {
+    oldStatus = listener;
+  };
+  await view.press(
+    view.queryAllByRole('button', {
+      name: `${t('bible.translatorReviewListen')}, ${t('myFeedback.audioLabel')}`,
+    })[0]
+  );
+  await loads.loadsStarted(1);
+  await act(async () => loads.release(0, first));
+  await view.flush();
+  await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  await loads.loadsStarted(2);
+  await act(async () => loads.release(1, recordingSound('second')));
+  await view.flush();
+  await act(async () =>
+    oldStatus({ isLoaded: true, positionMillis: 12000, durationMillis: 12000, didJustFinish: true })
+  );
+  assert.deepEqual(listened, []);
+  assert.ok(listenButton(view, 'bible.translatorReviewPause'));
+  assert.deepEqual(soundCalls, ['first:play', 'first:unload', 'second:play']);
+  await view.unmount();
 });
 
 test('pressing Listen twice during a load leaves one clip playing, and Pause stops it', async () => {
@@ -233,17 +397,16 @@ test('pressing Listen twice during a load leaves one clip playing, and Pause sto
   await view.press(listenButton(view, 'bible.translatorReviewListen'));
   await loads.loadsStarted(1);
   await view.press(listenButton(view, 'bible.translatorReviewListen'));
+  assert.equal(created.length, 1, 'replacement waits for the outgoing native factory');
+  await act(async () => loads.release(0, recordingSound('older')));
   await loads.loadsStarted(2);
-  loads.release(1, recordingSound('newer'));
-  await settleReleasedLoad();
-  loads.release(0, recordingSound('older'));
-  await settleReleasedLoad();
+  await act(async () => loads.release(1, recordingSound('newer')));
   await view.flush();
 
-  assert.deepEqual(soundCalls, ['older:unload']);
+  assert.deepEqual(soundCalls, ['older:unload', 'newer:play']);
 
   await view.press(listenButton(view, 'bible.translatorReviewPause'));
   await view.flush();
 
-  assert.deepEqual(soundCalls, ['older:unload', 'newer:pause']);
+  assert.deepEqual(soundCalls, ['older:unload', 'newer:play', 'newer:pause']);
 });

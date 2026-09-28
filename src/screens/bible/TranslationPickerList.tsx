@@ -40,6 +40,7 @@ const TRANSLATION_PICKER_ROW_ESTIMATED_SIZE = 76;
  * per-Bible manage sheet. Sections, rows, hooks and models live in ./picker.
  */
 export function TranslationPickerList({
+  isActive = true,
   onRequestClose,
   onTranslationActivated,
 }: TranslationPickerCallbacks) {
@@ -84,13 +85,19 @@ export function TranslationPickerList({
   } = useTranslationPickerCatalog();
   const { rows, languageOptions, resolvedPreferredLanguage, currentTranslation } =
     useTranslationPickerRows(visibleTranslations, searchQuery);
-  const { downloadQueue, downloadQueueState, handleDownloadTextTranslation } =
-    useTranslationPickerDownloads({ onRequestClose, onTranslationActivated });
+  const {
+    downloadQueue,
+    downloadQueueState,
+    handleDownloadTextTranslation,
+    invalidateDownloadRetry,
+  } = useTranslationPickerDownloads({ isActive, onRequestClose, onTranslationActivated });
   const handleTranslationSelect = useTranslationSelection({
+    isActive,
     hasHydratedRuntimeCatalog,
     setIsHydratingRuntimeCatalog,
     downloadQueue,
     handleDownloadTextTranslation,
+    invalidateDownloadRetry,
     onRequestClose,
     onTranslationActivated,
   });

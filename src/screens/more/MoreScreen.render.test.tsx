@@ -62,6 +62,10 @@ mockModule(mock, 'expo-image-picker', {
   launchImageLibraryAsync: async () => ({ canceled: true }),
 });
 mockModule(mock, sourcePath('services/auth/index.ts'), { updateUserProfile: async () => ({}) });
+mockModule(mock, sourcePath('services/auth/authSession.ts'), {
+  isAccessTokenExpired: (session: { expires_at?: number }) =>
+    (session.expires_at ?? 0) * 1000 - Date.now() < 90_000,
+});
 mockModule(mock, sourcePath('services/storage/storageService.ts'), {
   uploadAvatar: async () => ({}),
 });
@@ -440,4 +444,28 @@ test('the account card shows when this account last synced, never another accoun
     card.queryAllByType('Text').at(-1)?.props.children,
     t('more.sync.syncedAgo', { relative: t('more.sync.relativeHours', { count: 2 }) })
   );
+});
+
+test('failed local sign-out shows a localized error and allows another attempt', async () => {
+  signIn();
+  harness.authStore.setState({
+    signOut: async () => {
+      throw new Error('private native error');
+    },
+  });
+  const view = await renderMore();
+  await view.press(view.getByRole('button', { name: t('more.signOut') }));
+  const confirm = (
+    harness.rn.__recorded.alerts[0].buttons as Array<{
+      style?: string;
+      onPress?: () => Promise<void>;
+    }>
+  ).find((button) => button.style === 'destructive');
+  await act(async () => {
+    await confirm?.onPress?.();
+  });
+  const error = harness.rn.__recorded.alerts.at(-1)!;
+  assert.equal(error.title, t('common.error'));
+  assert.equal(error.message, t('common.unexpectedError'));
+  assert.ok(view.getByRole('button', { name: t('more.signOut'), busy: false, disabled: false }));
 });

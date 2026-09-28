@@ -261,6 +261,15 @@ export const sanitizeTranslationDownloadJob = (value: unknown): TranslationDownl
   return {
     id,
     kind: value.kind as TranslationDownloadJob['kind'],
+    ...(value.kind === 'translation-audio' && 'requestedBookIds' in value
+      ? {
+          requestedBookIds: Array.isArray(value.requestedBookIds)
+            ? value.requestedBookIds.filter(
+                (bookId): bookId is string => typeof bookId === 'string' && bookId.length > 0
+              )
+            : [],
+        }
+      : {}),
     state,
     progress: Math.max(0, Math.min(100, progress)),
     startedAt,

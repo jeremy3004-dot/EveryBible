@@ -1,8 +1,11 @@
 import { createLessonSoundOwner } from '../../learn/lessonSoundOwner';
-import { useEffect, useRef, useState } from 'react';
+import { claimNarration, type NarrationClaim } from '../../../services/audio/narrationOwnership';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { InteractionManager } from 'react-native';
 import { Audio } from 'expo-av';
 import { useTranslation } from 'react-i18next';
+import { useLatestCallback } from '../../../components/audio/playbackControlsParts/useLatestCallback';
 import { withPrivacyLockGrace } from '../../../services/privacy/privacyLockGrace';
 import {
   CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS,
@@ -17,6 +20,7 @@ import { CHAPTER_FEEDBACK_AUDIO_TIMER_MS } from './readerConstants';
 import type { ChapterFeedbackAudioState } from './feedbackAudioSession';
 
 export interface ChapterFeedbackAudioInput {
+  contextKey: string;
   isSubmittingFeedback: boolean;
   setFeedbackSubmitError: (message: string | null) => void;
 }
@@ -25,20 +29,37 @@ export interface ChapterFeedbackAudioInput {
  * The voice note a chapter-feedback contributor can attach: recording it (with the
  * microphone prompt, a max-duration timer and native teardown), previewing it, and
  * throwing it away. Owns every recorder and sound it creates, including ones that
- * finish loading after the reader closed.
+ * finish loading after the reader closed. Drafts and native results belong to the
+ * supplied chapter/account context; replacing it discards the prior voice note.
  */
 export function useChapterFeedbackAudio({
+  contextKey,
   isSubmittingFeedback,
   setFeedbackSubmitError,
 }: ChapterFeedbackAudioInput) {
   const { t } = useTranslation();
+  const feedbackAudioContextRef = useRef(contextKey);
+  const feedbackAudioContextGenerationRef = useRef(0);
   const [feedbackAudioState, setFeedbackAudioState] = useState<ChapterFeedbackAudioState>('idle');
   const [feedbackAudioDraft, setFeedbackAudioDraft] = useState<ChapterFeedbackAudioDraft | null>(
     null
   );
   const [feedbackAudioElapsedMs, setFeedbackAudioElapsedMs] = useState(0);
+  const feedbackAudioElapsedMsRef = useRef(0);
+  const updateFeedbackAudioElapsedMs = (elapsedMs: number) => {
+    feedbackAudioElapsedMsRef.current = elapsedMs;
+    setFeedbackAudioElapsedMs(elapsedMs);
+  };
   const [feedbackAudioPermissionDenied, setFeedbackAudioPermissionDenied] = useState(false);
+  const [isFeedbackAudioStarting, setIsFeedbackAudioStarting] = useState(false);
   const feedbackAudioRecordingRef = useRef<Audio.Recording | null>(null);
+  const feedbackAudioRecordingContextRef = useRef(0);
+  const feedbackAudioRecordingCanDraftRef = useRef(false);
+  const feedbackAudioStopInFlightRef = useRef<Promise<void> | null>(null);
+  const feedbackAudioNativeStartRef = useRef<Promise<void> | null>(null);
+  const feedbackAudioPreviewOperationRef = useRef<Promise<boolean> | null>(null);
+  const feedbackAudioSuspendRef = useRef<Promise<void> | null>(null);
+  const feedbackAudioClaimRef = useRef<NarrationClaim | null>(null);
   const feedbackAudioStartedAtRef = useRef<number | null>(null);
   const feedbackAudioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // The preview sound has one owner, as the lesson audio does: each tap releases the
@@ -56,17 +77,10 @@ export function useChapterFeedbackAudio({
         clearInterval(feedbackAudioTimerRef.current);
       }
       feedbackAudioRecordingRequestRef.current += 1;
-      feedbackAudioPreview.release();
-      const recording = feedbackAudioRecordingRef.current;
-      void (async () => {
-        try {
-          await recording?.stopAndUnloadAsync();
-        } catch {
-          // Recording teardown can race with native screen cleanup.
-        } finally {
-          await restoreFeedbackAudioPlaybackMode();
-        }
-      })();
+      feedbackAudioClaimRef.current?.cancel();
+      if (!feedbackAudioClaimRef.current) {
+        void feedbackAudioPreview.release().catch(() => undefined);
+      }
     };
   }, [feedbackAudioPreview]);
 
@@ -78,10 +92,31 @@ export function useChapterFeedbackAudio({
   };
 
   const stopFeedbackAudioPreview = async () => {
-    feedbackAudioPreview.release();
+    const pending = feedbackAudioPreviewOperationRef.current;
+    const release = feedbackAudioPreview.release();
+    void release.catch(() => undefined);
+    await pending?.catch(() => undefined);
+    await release;
+    await feedbackAudioPreview.release();
   };
 
-  const stopFeedbackAudioRecording = async () => {
+  const isRecorderReleased = async (recording: Audio.Recording): Promise<boolean> => {
+    try {
+      const status = await recording.getStatusAsync();
+      return status.isDoneRecording === true && status.canRecord === false;
+    } catch {
+      return false;
+    }
+  };
+
+  const stopFeedbackAudioRecording = async (requireSuspension = false): Promise<void> => {
+    if (feedbackAudioStopInFlightRef.current) {
+      await feedbackAudioStopInFlightRef.current;
+      if (requireSuspension && feedbackAudioRecordingRef.current) {
+        await stopFeedbackAudioRecording(true);
+      }
+      return;
+    }
     const recording = feedbackAudioRecordingRef.current;
     if (!recording) {
       await restoreFeedbackAudioPlaybackMode();
@@ -89,35 +124,92 @@ export function useChapterFeedbackAudio({
     }
 
     clearFeedbackAudioTimer();
-    feedbackAudioRecordingRef.current = null;
-    setFeedbackAudioState('preview');
+    const contextGeneration = feedbackAudioRecordingContextRef.current;
 
-    try {
-      const status = await recording.getStatusAsync();
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
+    const stop: Promise<void> = (async () => {
+      try {
+        // Native stop returns the final duration and unloads the recorder itself; a separate
+        // status read is unnecessary and must never get in the way of releasing the mic.
+        const status = await recording.stopAndUnloadAsync();
+        const canDraft = feedbackAudioRecordingCanDraftRef.current;
+        if (feedbackAudioRecordingRef.current === recording) {
+          feedbackAudioRecordingRef.current = null;
+          feedbackAudioRecordingCanDraftRef.current = false;
+        }
+        if (!canDraft || contextGeneration !== feedbackAudioContextGenerationRef.current) return;
+        const elapsedMs = feedbackAudioElapsedMsRef.current;
+        const durationMs =
+          typeof status.durationMillis === 'number' ? status.durationMillis : elapsedMs;
+        const uri = recording.getURI();
 
-      if (!uri) {
-        setFeedbackAudioState('error');
-        setFeedbackSubmitError(t('bible.chapterFeedbackAudioRecordingMissing'));
-        return;
+        if (!uri) {
+          setFeedbackAudioState('error');
+          setFeedbackSubmitError(t('bible.chapterFeedbackAudioRecordingMissing'));
+          return;
+        }
+
+        setFeedbackAudioDraft({
+          uri,
+          durationMs: Math.max(durationMs, elapsedMs),
+          mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
+        });
+        updateFeedbackAudioElapsedMs(Math.max(durationMs, elapsedMs));
+        setFeedbackAudioState('preview');
+      } catch (error) {
+        // The recorder's own error message is an English diagnostic, not reader copy.
+        if (contextGeneration === feedbackAudioContextGenerationRef.current) {
+          setFeedbackAudioState('error');
+          setFeedbackSubmitError(t('bible.chapterFeedbackAudioStopError'));
+        }
+        // Expo AV can reject E_AUDIO_NODATA only after it has unloaded the
+        // recorder. Check its post-stop state so that empty audio is discarded
+        // without leaving every later narration claim blocked on a dead ref.
+        const released = await isRecorderReleased(recording);
+        if (released && feedbackAudioRecordingRef.current === recording) {
+          feedbackAudioRecordingRef.current = null;
+          feedbackAudioRecordingCanDraftRef.current = false;
+        }
+        if (requireSuspension && !released) throw error;
+      } finally {
+        await restoreFeedbackAudioPlaybackMode();
       }
+    })().finally(() => {
+      if (feedbackAudioStopInFlightRef.current === stop)
+        feedbackAudioStopInFlightRef.current = null;
+    });
+    feedbackAudioStopInFlightRef.current = stop;
+    await stop;
+  };
 
-      const durationMs =
-        typeof status.durationMillis === 'number' ? status.durationMillis : feedbackAudioElapsedMs;
-      setFeedbackAudioDraft({
-        uri,
-        durationMs: Math.max(durationMs, feedbackAudioElapsedMs),
-        mimeType: CHAPTER_FEEDBACK_AUDIO_MIME_TYPE,
-      });
-      setFeedbackAudioElapsedMs(Math.max(durationMs, feedbackAudioElapsedMs));
-    } catch {
-      // The recorder's own error message is an English diagnostic, not reader copy.
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioStopError'));
-    } finally {
-      await restoreFeedbackAudioPlaybackMode();
-    }
+  const drainFeedbackAudio = (): Promise<void> => {
+    feedbackAudioRecordingRequestRef.current += 1;
+    clearFeedbackAudioTimer();
+    if (feedbackAudioSuspendRef.current) return feedbackAudioSuspendRef.current;
+    const release = feedbackAudioPreview.release();
+    void release.catch(() => undefined);
+    const pendingNativeStart = feedbackAudioNativeStartRef.current;
+    const pendingPreview = feedbackAudioPreviewOperationRef.current;
+    const drain = (async () => {
+      // Only native setup is awaited: a Record request waiting on a previous
+      // narration claim must not form a cycle with this takeover.
+      await Promise.allSettled([pendingNativeStart, pendingPreview].filter((pending) => pending));
+      // A preview may materialize only after its pending native create returns.
+      const finalRelease = feedbackAudioPreview.release();
+      const stopped =
+        feedbackAudioRecordingRef.current || feedbackAudioStopInFlightRef.current
+          ? stopFeedbackAudioRecording(true)
+          : Promise.resolve();
+      const results = await Promise.allSettled([release, finalRelease, stopped]);
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
+    })();
+    feedbackAudioSuspendRef.current = drain;
+    void drain
+      .finally(() => {
+        if (feedbackAudioSuspendRef.current === drain) feedbackAudioSuspendRef.current = null;
+      })
+      .catch(() => undefined);
+    return drain;
   };
 
   const startFeedbackAudioRecording = async () => {
@@ -130,10 +222,25 @@ export function useChapterFeedbackAudio({
     }
 
     feedbackAudioStartInFlightRef.current = true;
+    setIsFeedbackAudioStarting(true);
     const request = feedbackAudioRecordingRequestRef.current;
-    const isAbandoned = () => request !== feedbackAudioRecordingRequestRef.current;
+    const claim = claimNarration('feedback', feedbackAudioPreview, drainFeedbackAudio);
+    feedbackAudioClaimRef.current = claim;
+    const isAbandoned = () =>
+      request !== feedbackAudioRecordingRequestRef.current || !claim.isCurrent();
     try {
+      await claim.ready;
+      if (isAbandoned()) return;
+      // A previous stop still owns its draft and audio-mode completion. Drain it before
+      // asking Expo AV to create another recorder (only one may be prepared at a time).
+      await feedbackAudioStopInFlightRef.current;
+      if (isAbandoned()) return;
+      if (feedbackAudioRecordingRef.current) {
+        await stopFeedbackAudioRecording(true);
+        if (isAbandoned()) return;
+      }
       await stopFeedbackAudioPreview();
+      if (isAbandoned()) return;
       setFeedbackSubmitError(null);
       setFeedbackAudioPermissionDenied(false);
 
@@ -151,8 +258,6 @@ export function useChapterFeedbackAudio({
           return;
         }
 
-        setFeedbackAudioDraft(null);
-        setFeedbackAudioElapsedMs(0);
         const isAppActive = await waitForFeedbackAudioActiveAppState();
         if (isAbandoned()) {
           return;
@@ -168,33 +273,74 @@ export function useChapterFeedbackAudio({
         if (isAbandoned()) {
           return;
         }
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-        });
-        if (isAbandoned()) {
-          await restoreFeedbackAudioPlaybackMode();
-          return;
+        const nativeStart = (async () => {
+          let recording: Audio.Recording | null = null;
+          let prepared = false;
+          try {
+            await Audio.setAudioModeAsync({
+              allowsRecordingIOS: true,
+              playsInSilentModeIOS: true,
+            });
+            if (isAbandoned()) {
+              await restoreFeedbackAudioPlaybackMode();
+              return;
+            }
+            recording = new Audio.Recording();
+            feedbackAudioRecordingRef.current = recording;
+            feedbackAudioRecordingContextRef.current = feedbackAudioContextGenerationRef.current;
+            feedbackAudioRecordingCanDraftRef.current = false;
+            // Expo's createAsync does not await cleanup when startAsync rejects.
+            // Keep the instance here so takeover and a retry can drain it first.
+            await recording.prepareToRecordAsync({
+              ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+              keepAudioActiveHint: true,
+            });
+            prepared = true;
+            if (isAbandoned()) return;
+            await recording.startAsync();
+          } catch (error) {
+            if (recording) {
+              const status = await recording.getStatusAsync().catch(() => null);
+              if (prepared || status?.canRecord === true) {
+                try {
+                  await recording.stopAndUnloadAsync();
+                } catch {
+                  // Android E_AUDIO_NODATA may reject after native unload.
+                }
+              }
+              if (
+                feedbackAudioRecordingRef.current === recording &&
+                (status?.canRecord === false || (await isRecorderReleased(recording)))
+              ) {
+                feedbackAudioRecordingRef.current = null;
+                feedbackAudioRecordingCanDraftRef.current = false;
+              }
+            }
+            await restoreFeedbackAudioPlaybackMode();
+            throw error;
+          }
+        })();
+        feedbackAudioNativeStartRef.current = nativeStart;
+        try {
+          await nativeStart;
+        } finally {
+          if (feedbackAudioNativeStartRef.current === nativeStart) {
+            feedbackAudioNativeStartRef.current = null;
+          }
         }
+        if (isAbandoned()) return;
 
-        const { recording } = await Audio.Recording.createAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-        if (isAbandoned()) {
-          // The reader closed while the recorder started: release the microphone.
-          await recording.stopAndUnloadAsync().catch(() => undefined);
-          await restoreFeedbackAudioPlaybackMode();
-          return;
-        }
-
-        feedbackAudioRecordingRef.current = recording;
+        feedbackAudioRecordingCanDraftRef.current = true;
+        setFeedbackAudioDraft(null);
+        updateFeedbackAudioElapsedMs(0);
         feedbackAudioStartedAtRef.current = Date.now();
         setFeedbackAudioState('recording');
         feedbackAudioTimerRef.current = setInterval(() => {
+          if (isAbandoned()) return;
           const elapsedMs = feedbackAudioStartedAtRef.current
             ? Date.now() - feedbackAudioStartedAtRef.current
             : 0;
-          setFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
+          updateFeedbackAudioElapsedMs(Math.min(elapsedMs, CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS));
 
           if (elapsedMs >= CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS) {
             void stopFeedbackAudioRecording();
@@ -202,15 +348,20 @@ export function useChapterFeedbackAudio({
         }, CHAPTER_FEEDBACK_AUDIO_TIMER_MS);
       } catch {
         clearFeedbackAudioTimer();
-        await restoreFeedbackAudioPlaybackMode();
         if (isAbandoned()) {
           return;
         }
         setFeedbackAudioState('error');
         setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
       }
+    } catch {
+      if (!isAbandoned()) {
+        setFeedbackAudioState('error');
+        setFeedbackSubmitError(t('bible.chapterFeedbackAudioStartError'));
+      }
     } finally {
       feedbackAudioStartInFlightRef.current = false;
+      setIsFeedbackAudioStarting(false);
     }
   };
 
@@ -219,61 +370,105 @@ export function useChapterFeedbackAudio({
       return;
     }
 
-    // Every tap replays from the start: release the previous preview, then load anew.
-    feedbackAudioPreview.release();
-    const { uri } = feedbackAudioDraft;
-    const played = await feedbackAudioPreview.play(async () => {
-      await restoreFeedbackAudioPlaybackMode();
-      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
-      return sound;
-    });
-    const sound = feedbackAudioPreview.getSound();
-    if (!played || !sound) {
-      return;
-    }
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded || !status.didJustFinish) {
+    const claim = claimNarration('feedback', feedbackAudioPreview, drainFeedbackAudio);
+    feedbackAudioClaimRef.current = claim;
+    try {
+      await claim.ready;
+      if (!claim.isCurrent()) return;
+      // Every tap replays from the start: release the previous preview, then load anew.
+      await stopFeedbackAudioPreview();
+      if (!claim.isCurrent()) return;
+      const { uri } = feedbackAudioDraft;
+      const operation = feedbackAudioPreview.play(async () => {
+        await restoreFeedbackAudioPlaybackMode();
+        const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+        return sound;
+      });
+      feedbackAudioPreviewOperationRef.current = operation;
+      let played: boolean;
+      try {
+        played = await operation;
+      } finally {
+        if (feedbackAudioPreviewOperationRef.current === operation) {
+          feedbackAudioPreviewOperationRef.current = null;
+        }
+      }
+      const sound = feedbackAudioPreview.getSound();
+      if (!played || !sound || !claim.isCurrent()) {
         return;
       }
-      // Only the current preview is released here; an older one was released when a
-      // newer tap replaced it, and must not take the playing one down with it.
-      if (feedbackAudioPreview.getSound() === sound) {
-        feedbackAudioPreview.release();
-      }
-    });
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded || !status.didJustFinish) return;
+        // An older preview finishing must not take the current one down.
+        if (feedbackAudioPreview.getSound() === sound) {
+          void feedbackAudioPreview.release().catch(() => undefined);
+        }
+      });
+    } catch {
+      // Keep the draft and Preview control available for a retry.
+    }
   };
 
   const discardFeedbackAudioDraft = () => {
-    void stopFeedbackAudioPreview();
+    void stopFeedbackAudioPreview().catch(() => undefined);
     setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
+    updateFeedbackAudioElapsedMs(0);
     setFeedbackAudioState('idle');
     setFeedbackAudioPermissionDenied(false);
     setFeedbackSubmitError(null);
   };
 
+  /** Closing or leaving the composer keeps its draft, but releases native audio. */
+  const suspendFeedbackAudio = useLatestCallback(async () => {
+    feedbackAudioClaimRef.current?.cancel();
+    // Closing the composer has no caller to receive teardown failures. The
+    // ownership coordinator retains a failed native drain for the next claim.
+    await drainFeedbackAudio().catch(() => undefined);
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        void suspendFeedbackAudio();
+      };
+    }, [suspendFeedbackAudio])
+  );
+
   /** The voice-note half of clearing the composer after a submit. */
-  const resetFeedbackAudio = () => {
-    if (feedbackAudioState === 'recording') {
-      void stopFeedbackAudioRecording();
-    }
-    void stopFeedbackAudioPreview();
+  const resetFeedbackAudio = useLatestCallback(() => {
+    // Reset cancels preparation as well as active audio. Its native teardown may
+    // finish later, but cannot turn an obsolete recording into a fresh draft.
+    feedbackAudioRecordingCanDraftRef.current = false;
+    void suspendFeedbackAudio();
     setFeedbackAudioDraft(null);
-    setFeedbackAudioElapsedMs(0);
+    updateFeedbackAudioElapsedMs(0);
     setFeedbackAudioState('idle');
     setFeedbackAudioPermissionDenied(false);
-  };
+  });
 
+  useLayoutEffect(() => {
+    if (feedbackAudioContextRef.current === contextKey) return;
+    feedbackAudioContextRef.current = contextKey;
+    feedbackAudioContextGenerationRef.current += 1;
+    resetFeedbackAudio();
+    setIsFeedbackAudioStarting(false);
+  }, [contextKey, resetFeedbackAudio]);
+
+  // Hide the old voice note in the first render of a replacement chapter or
+  // account; native teardown begins at commit and may finish asynchronously.
+  const isCurrentContext = feedbackAudioContextRef.current === contextKey;
   return {
-    feedbackAudioState,
+    feedbackAudioState: isCurrentContext ? feedbackAudioState : 'idle',
     setFeedbackAudioState,
-    feedbackAudioDraft,
-    feedbackAudioElapsedMs,
-    feedbackAudioPermissionDenied,
+    feedbackAudioDraft: isCurrentContext ? feedbackAudioDraft : null,
+    feedbackAudioElapsedMs: isCurrentContext ? feedbackAudioElapsedMs : 0,
+    feedbackAudioPermissionDenied: isCurrentContext && feedbackAudioPermissionDenied,
+    isFeedbackAudioStarting: isCurrentContext && isFeedbackAudioStarting,
     startFeedbackAudioRecording,
     stopFeedbackAudioRecording,
     playFeedbackAudioPreview,
     discardFeedbackAudioDraft,
+    suspendFeedbackAudio,
     resetFeedbackAudio,
   };
 }

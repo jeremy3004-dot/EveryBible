@@ -48,10 +48,11 @@ const TAB_ROW_STYLE: ViewStyle = {
 export function ReaderAwareTabBar(props: BottomTabBarProps) {
   const progress = useReaderChromeProgress();
   const { colors } = useTheme();
-  const activeRoute = props.state.routes[props.state.index];
+  // React Navigation supplies a current route and its matching descriptor for every tab state.
+  const activeRoute = props.state.routes[props.state.index]!;
   const nestedRoute = resolveTabNestedRoute(activeRoute as TabRoute);
   const { nestedRouteName, nestedRouteParams } = nestedRoute;
-  const descriptor = props.descriptors[activeRoute.key];
+  const descriptor = props.descriptors[activeRoute.key]!;
   const tabBarStyle = StyleSheet.flatten(descriptor.options.tabBarStyle) as ViewStyle | undefined;
   // setOptions still owns explicit hidden/modal states. Its transform must not
   // receive a second scroll collapse from the bar.
@@ -99,7 +100,7 @@ export function ReaderAwareTabBar(props: BottomTabBarProps) {
   // actions.
   const frameStyle = useMemo(
     (): ViewStyle => ({
-      transform: tabBarStyle?.transform,
+      transform: tabBarStyle?.transform ?? [],
       display: forcedHidden ? 'none' : tabBarStyle?.display,
     }),
     [forcedHidden, tabBarStyle?.display, tabBarStyle?.transform]

@@ -20,6 +20,7 @@ The existing `proverbs-31-days` bundled plan now behaves as a calendar-anchored 
 - Catalog metadata lives in `src/data/readingPlans.generated.ts`.
 - Recurring cadence is flagged with `scheduleMode`, with `calendar-day-of-month` for Proverbs and `calendar-day-of-week` for weekly rhythms like Kathisma.
 - Completion keys for this plan are stored by local date key (`YYYY-MM-DD`) instead of by plan day number.
+- Plan and rhythm reader launches carry the displayed occurrence date through chapter navigation, resume, and player return. Finishing after midnight or a time-zone change completes that captured date. Legacy launches without an occurrence keep the existing early-morning rollover heuristic; sequential plans continue to use day numbers.
 - Plan detail and reader summaries still use the normal plan entry model, but day resolution comes from the calendar for this specific plan.
 
 ## Guardrails

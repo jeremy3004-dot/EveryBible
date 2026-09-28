@@ -40,8 +40,9 @@ const CLIENT_SUPABASE_PUBLIC_KEY = HAS_SUPABASE_CONFIG
   : UNCONFIGURED_SUPABASE_PUBLIC_KEY;
 
 // Supabase auth storage: localStorage on web, the OS keychain elsewhere. The keychain
-// adapter never throws (see authSessionStorage.ts); its first failure is reported
-// through the crash queue, loaded only when there is one.
+// adapter keeps Supabase background calls nonthrowing; app sign-out additionally
+// requires a durable removal intent (see authSessionStorage.ts). Its first failure
+// is reported through the crash queue, loaded only when there is one.
 const reportKeychainFailure = (error: unknown): void => {
   void import('../diagnostics/crashReportQueue')
     .then(({ reportHandledError }) => reportHandledError('auth.keychain', error))
@@ -50,9 +51,26 @@ const reportKeychainFailure = (error: unknown): void => {
 
 // Readable after the first unlock, so a token refresh while background audio plays on a
 // locked phone can still read the session (see authSessionStorage.ts).
-const keychainAuthStorage = createAuthSessionStorage(SecureStore, reportKeychainFailure, {
-  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
-});
+const keychainAuthStorage = createAuthSessionStorage(
+  SecureStore,
+  reportKeychainFailure,
+  { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
+  {
+    // Loaded only on storage access, preserving the lightweight startup graph.
+    // Raw MMKV calls must expose failures: a swallowed write cannot prove sign-out.
+    has: (key) =>
+      require('../../stores/mmkvStorage').mmkvInstance.getString(
+        `auth-session-removal-intent:${key}`
+      ) !== undefined,
+    mark: (key) =>
+      require('../../stores/mmkvStorage').mmkvInstance.set(
+        `auth-session-removal-intent:${key}`,
+        '1'
+      ),
+    clear: (key) =>
+      require('../../stores/mmkvStorage').mmkvInstance.delete(`auth-session-removal-intent:${key}`),
+  }
+);
 
 const ExpoSecureStoreAdapter: AuthSessionStorage =
   Platform.OS === 'web'
@@ -60,6 +78,12 @@ const ExpoSecureStoreAdapter: AuthSessionStorage =
         getItem: async (key) => localStorage.getItem(key),
         setItem: async (key, value) => localStorage.setItem(key, value),
         removeItem: async (key) => localStorage.removeItem(key),
+        updateItemIfCurrent: async (key, update) => {
+          const value = update(localStorage.getItem(key));
+          if (value === undefined) return false;
+          localStorage.setItem(key, value);
+          return true;
+        },
       }
     : keychainAuthStorage;
 

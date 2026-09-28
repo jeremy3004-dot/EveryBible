@@ -229,6 +229,14 @@ export const sanitizePersistedBibleState = (
   return {
     currentBook,
     currentChapter,
+    readingPositionUpdatedAt:
+      persistedCurrentBook !== null &&
+      persistedCurrentChapter !== null &&
+      typeof persisted.readingPositionUpdatedAt === 'number' &&
+      Number.isSafeInteger(persisted.readingPositionUpdatedAt) &&
+      persisted.readingPositionUpdatedAt > 0
+        ? persisted.readingPositionUpdatedAt
+        : null,
     hasReaderHistory: persistedCurrentBook != null && persistedCurrentChapter != null,
     preferredChapterLaunchMode,
     preferredTranslationLanguage,

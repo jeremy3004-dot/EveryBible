@@ -93,6 +93,30 @@ function roundTrip(
   return sanitizePersistedBibleState(persisted, readRuntimeCatalogSnapshot(storage)).translations;
 }
 
+test('selected audio collection scope survives the translation persistence round trip', () => {
+  const storage = createMemoryStorage();
+  const restored = roundTrip(
+    [
+      createRuntimeTranslation({
+        activeDownloadJob: {
+          id: 'audio-download:tglulb:translation:all',
+          kind: 'translation-audio',
+          state: 'running',
+          progress: 30,
+          startedAt: 1,
+          updatedAt: 2,
+          requestedBookIds: ['PHM'],
+        },
+      }),
+    ],
+    storage
+  );
+  assert.deepEqual(
+    restored.find((row) => row.id === 'tglulb')?.activeDownloadJob?.requestedBookIds,
+    ['PHM']
+  );
+});
+
 test('persisted deltas plus the runtime catalog snapshot round-trip a runtime translation intact', () => {
   const storage = createMemoryStorage();
   const installed = createRuntimeTranslation({

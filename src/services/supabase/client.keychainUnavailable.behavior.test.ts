@@ -2,6 +2,7 @@ import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { TranslationCatalogEntry } from './types';
 import {
+  mockMmkvStorage,
   mockModule,
   mockReactNative,
   mockSecureStore,
@@ -26,6 +27,7 @@ const keychainFailure = Object.assign(new Error('Keychain unavailable'), {
 keychain.state.failure = keychainFailure;
 
 mockReactNative(mock, { os: 'ios' });
+mockMmkvStorage(mock);
 mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   publicRuntimeConfig: {
     EXPO_PUBLIC_SUPABASE_URL: `https://${PROJECT_REF}.supabase.co`,

@@ -1,5 +1,8 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 import { createElement, Fragment, type ReactNode } from 'react';
 import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
@@ -43,6 +46,7 @@ type Descriptor = { route: FakeRoute; options: TabOptions };
 const TAB_NAMES = ['Home', 'Bible', 'Learn', 'Plans', 'More'];
 let tabState: { index: number; routes: FakeRoute[] };
 const tabBarPresses: string[] = [];
+let focusedTabBarStyle: unknown;
 
 function focusTab(name: string, nested: Pick<FakeRoute, 'state' | 'params'> = {}) {
   tabState = {
@@ -67,7 +71,18 @@ function FakeTabNavigator({
   tabBar: (props: Record<string, unknown>) => ReactNode;
 }) {
   const descriptors = Object.fromEntries(
-    tabState.routes.map((route) => [route.key, { route, options: screenOptions({ route }) }])
+    tabState.routes.map((route) => [
+      route.key,
+      {
+        route,
+        options: {
+          ...screenOptions({ route }),
+          ...(focusedTabBarStyle && route === tabState.routes[tabState.index]
+            ? { tabBarStyle: focusedTabBarStyle }
+            : {}),
+        },
+      },
+    ])
   );
   return createElement(
     'TabNavigatorHost',
@@ -205,6 +220,7 @@ beforeEach(async () => {
   audioStore.setState(audioStore.getInitialState(), true);
   theme.isDark = false;
   focusTab('Home');
+  focusedTabBarStyle = undefined;
   tabBarPresses.length = 0;
   readerProgress.value = 0;
   glass.available = true;
@@ -325,6 +341,7 @@ test('pressing Bible from the book list reopens the last chapter read', async ()
           preferredMode: 'listen',
           planId: undefined,
           planDayNumber: undefined,
+          planOccurrenceKey: undefined,
           returnToPlanOnComplete: undefined,
           sessionContext: undefined,
         },
@@ -346,7 +363,13 @@ test('pressing Bible from a plan-session reader drops the plan session and resum
           { name: 'BibleBrowser' },
           {
             name: 'BibleReader',
-            params: { bookId: 'PSA', chapter: 1, planId: 'plan-1', planDayNumber: 4 },
+            params: {
+              bookId: 'PSA',
+              chapter: 1,
+              planId: 'proverbs-31-days',
+              planDayNumber: 4,
+              planOccurrenceKey: '2026-09-04',
+            },
           },
         ],
       },
@@ -355,7 +378,10 @@ test('pressing Bible from a plan-session reader drops the plan session and resum
     {
       key: 'Bible-key',
       name: 'Bible',
-      params: { screen: 'BibleReader', params: { planId: 'plan-1', planDayNumber: 4 } },
+      params: {
+        screen: 'BibleReader',
+        params: { planId: 'proverbs-31-days', planDayNumber: 4, planOccurrenceKey: '2026-09-04' },
+      },
     },
   ]) {
     const { tabPress, navigation } = tabListeners(screen('Bible'), route);
@@ -370,6 +396,7 @@ test('pressing Bible from a plan-session reader drops the plan session and resum
       preferredMode: 'listen',
       planId: undefined,
       planDayNumber: undefined,
+      planOccurrenceKey: undefined,
       returnToPlanOnComplete: undefined,
       sessionContext: undefined,
     });
@@ -889,4 +916,72 @@ test('on the reader the row is the reader’s transport, and on its listen scree
   });
   assert.equal(view.queryByTestId('player-bar-row'), null);
   assert.equal(view.getAllByRole('tab').length, 5);
+});
+
+// Use the installed native renderer and transform processor: host doubles alone
+// cannot catch the renderer converting an explicit undefined transform to null.
+function nativeTransformUpdate(previous: unknown, next: unknown) {
+  const require = createRequire(import.meta.url);
+  const { transformSync } = require('@babel/core');
+  const processSource = readFileSync(
+    require.resolve('react-native/Libraries/StyleSheet/processTransform'),
+    'utf8'
+  );
+  const compiled = transformSync(processSource, {
+    babelrc: false,
+    configFile: false,
+    plugins: [
+      require.resolve('@babel/plugin-transform-flow-strip-types'),
+      require.resolve('@babel/plugin-transform-modules-commonjs'),
+    ],
+  }).code;
+  const module = { exports: {} };
+  runInNewContext(compiled, {
+    module,
+    exports: module.exports,
+    __DEV__: true,
+    require: (name: string) => (name === 'invariant' ? require(name) : { default: JSON.stringify }),
+  });
+  const renderer = readFileSync(
+    require.resolve('react-native/Libraries/Renderer/implementations/ReactNativeRenderer-dev'),
+    'utf8'
+  );
+  const start = renderer.indexOf('    function diffProperties(');
+  const end = renderer.indexOf('    function mountSafeCallback_NOT_REALLY_SAFE', start);
+  assert.ok(start >= 0 && end > start);
+  const diff = runInNewContext(
+    `var removedKeys = null, removedKeyCount = 0; ${renderer.slice(start, end)}; diffProperties`
+  );
+  return diff(
+    null,
+    { transform: previous },
+    { transform: next },
+    {
+      transform: { diff: () => true, process: (module.exports as { default: unknown }).default },
+    }
+  );
+}
+
+test('a plan-session display-only hide clears the capsule transform through the native renderer', async () => {
+  focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleReader' }] } });
+  focusedTabBarStyle = { transform: [{ translateY: 0 }] };
+  const { view, frame } = await renderTabs();
+  const previous = styleOf(frame.props.style).transform;
+  focusedTabBarStyle = { display: 'none' };
+  focusTab('Bible', {
+    state: { index: 0, routes: [{ name: 'BibleReader', params: { planId: 'plan-1' } }] },
+  });
+  const { TabNavigator } = await import('./TabNavigator');
+  await view.rerender(<TabNavigator />);
+  const nextFrame = hostAncestors(view.getByTestId('player-bar'))[0];
+  const next = styleOf(nextFrame.props.style);
+  assert.equal(next.display, 'none');
+  assert.doesNotThrow(() => nativeTransformUpdate(previous, next.transform));
+  assert.deepEqual(next.transform, []);
+  focusedTabBarStyle = { transform: [{ translateY: 12 }] };
+  focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleReader' }] } });
+  await view.rerender(<TabNavigator />);
+  const restored = styleOf(hostAncestors(view.getByTestId('player-bar'))[0].props.style);
+  assert.doesNotThrow(() => nativeTransformUpdate(next.transform, restored.transform));
+  assert.deepEqual(restored.transform, [{ translateY: 12 }]);
 });

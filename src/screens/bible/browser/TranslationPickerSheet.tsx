@@ -102,7 +102,7 @@ export function TranslationPickerSheet({
             titleStyle={styles.title}
           />
           {TranslationPickerComponent ? (
-            <TranslationPickerComponent onRequestClose={onClose} />
+            <TranslationPickerComponent isActive={visible} onRequestClose={onClose} />
           ) : loadFailed ? (
             <View style={styles.loading}>
               <Text

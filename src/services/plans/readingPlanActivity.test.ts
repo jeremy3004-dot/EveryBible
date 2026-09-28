@@ -84,6 +84,7 @@ test('combined rhythms use the current calendar assignment for recurring plans',
       today: new Date(2026, 8, 12, 12),
     });
     assert.deepEqual(session.startEntry, { bookId: expectedBook, chapter: expectedChapter });
+    assert.equal(session.startSegment?.occurrenceKey, '2026-09-12');
   }
 });
 
@@ -1239,5 +1240,167 @@ test('getPlanChapterListenStatus gives no plan credit for a chapter outside the 
       dateKey: '2026-04-07',
     }),
     { currentChapterListenCountedAt: null, alreadyCountedForPlan: false }
+  );
+});
+
+for (const replayProgress of [0, 0.1]) {
+  test(`completed-listen ledger retains today's plan credit during a ${replayProgress} replay`, () => {
+    const now = new Date(2026, 8, 12, 12);
+    const completedAt = new Date(2026, 8, 12, 9).getTime();
+    const input = {
+      chaptersRead: {},
+      chaptersListened: { PRO_12: completedAt },
+      listeningHistory: [
+        makeListeningHistoryEntry({
+          id: 'PRO:12',
+          bookId: 'PRO',
+          chapter: 12,
+          listenedAt: now.getTime(),
+          progress: replayProgress,
+        }),
+      ],
+      now,
+    };
+    const summary = buildPlanDayCompletionSummary(
+      assertDefined(readingPlanEntriesByPlanId['proverbs-31-days'], 'Proverbs entries'),
+      12,
+      input
+    );
+    assert.equal(summary.isComplete, true);
+    assert.equal(summary.completedChapters, 1);
+    assert.equal(summary.completedActivity[0]?.timestamp, completedAt);
+    const status = getPlanChapterListenStatus({
+      chapterKey: 'PRO_12',
+      bookId: 'PRO',
+      chapter: 12,
+      targetChapterKeys: summary.targetChapterKeys,
+      completedChapterKeys: summary.completedChapterKeys,
+      ...input,
+      dateKey: '2026-09-12',
+    });
+    assert.equal(status.currentChapterListenCountedAt, completedAt);
+    assert.equal(status.alreadyCountedForPlan, true);
+  });
+}
+
+test('completed-listen credit follows its completion day and ignores invalid timestamps', () => {
+  const now = new Date(2026, 8, 13, 12);
+  const yesterday = new Date(2026, 8, 12, 9).getTime();
+  const entries = [makeEntry({ id: 'single', day_number: 1, book: 'PRO', chapter_start: 12 })];
+  for (const timestamp of [yesterday, NaN, Infinity]) {
+    const input = {
+      chaptersRead: {},
+      chaptersListened: { PRO_12: timestamp },
+      listeningHistory: [
+        makeListeningHistoryEntry({
+          id: 'PRO:12',
+          bookId: 'PRO',
+          chapter: 12,
+          listenedAt: now.getTime(),
+          progress: 0.1,
+        }),
+      ],
+      now,
+    };
+    assert.equal(buildPlanDayCompletionSummary(entries, 1, input).isComplete, false);
+    assert.equal(
+      getPlanChapterListenStatus({
+        ...input,
+        chapterKey: 'PRO_12',
+        bookId: 'PRO',
+        chapter: 12,
+        targetChapterKeys: ['PRO_12'],
+        completedChapterKeys: [],
+        dateKey: '2026-09-13',
+      }).currentChapterListenCountedAt,
+      null
+    );
+  }
+  const completedAt = new Date(2026, 8, 13, 10).getTime();
+  const input = {
+    chaptersRead: {},
+    chaptersListened: { PRO_12: completedAt },
+    listeningHistory: [],
+    now,
+  };
+  const summary = buildPlanDayCompletionSummary(entries, 1, input);
+  assert.equal(summary.completedChapters, 1);
+  assert.equal(summary.isComplete, true);
+});
+
+test('completed-listen ledger feeds each session without satisfying partial verse assignments', () => {
+  const today = new Date(2026, 3, 7, 12);
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({ format: 'multi-session', sessionOrder: ['morning', 'evening'] }),
+    progress: makeProgress('plan-1'),
+    entries: [
+      makeEntry({
+        id: 'morning',
+        day_number: 1,
+        book: 'GEN',
+        chapter_start: 1,
+        session_key: 'morning',
+      }),
+      makeEntry({
+        id: 'evening',
+        day_number: 1,
+        book: 'GEN',
+        chapter_start: 2,
+        session_key: 'evening',
+        verse_start: 1,
+        verse_end: 3,
+      }),
+    ],
+    chaptersRead: {},
+    chaptersListened: { GEN_1: today.getTime(), GEN_2: today.getTime() },
+    listeningHistory: [],
+    today,
+  });
+  assert.equal(summary.completedChapterCount, 1);
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(summary.nextIncompleteSessionKey, 'evening');
+  assert.deepEqual(
+    summary.sessionSummaries.map((session) => session.isComplete),
+    [true, false]
+  );
+});
+
+test('legacy near-complete history still counts without a completion ledger and never double-counts it', () => {
+  const now = new Date(2026, 8, 12, 12);
+  const listenedAt = now.getTime() - 60_000;
+  const entries = [makeEntry({ id: 'single', day_number: 1, book: 'PRO', chapter_start: 12 })];
+  const input = {
+    chaptersRead: {},
+    listeningHistory: [
+      makeListeningHistoryEntry({
+        id: 'PRO:12',
+        bookId: 'PRO',
+        chapter: 12,
+        listenedAt,
+        progress: 0.98,
+      }),
+    ],
+    now,
+  };
+  assert.equal(buildPlanDayCompletionSummary(entries, 1, input).isComplete, true);
+  assert.equal(
+    getPlanChapterListenStatus({
+      ...input,
+      chapterKey: 'PRO_12',
+      bookId: 'PRO',
+      chapter: 12,
+      targetChapterKeys: ['PRO_12'],
+      completedChapterKeys: [],
+      dateKey: '2026-09-12',
+    }).currentChapterListenCountedAt,
+    listenedAt
+  );
+  assert.equal(
+    buildPlanDayCompletionSummary(entries, 1, {
+      ...input,
+      chaptersRead: { PRO_12: listenedAt },
+      chaptersListened: { PRO_12: listenedAt },
+    }).completedChapters,
+    1
   );
 });

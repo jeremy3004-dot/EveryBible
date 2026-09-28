@@ -80,7 +80,7 @@ test('at AX5 the verse image sheet scrolls its header, preview, backgrounds and 
       selectedVerseImageBackgroundIndex={0}
       selectedVerseReferenceLabel="John 3:16"
       selectedVerseText="For God so loved the world"
-      setShowVerseImageSheet={noop}
+      handleCloseVerseImageSheet={noop}
       showVerseImageSheet
       verseImageBackgroundCount={3}
       verseImageSharePreviewRef={previewRef}

@@ -202,6 +202,56 @@ test('a blank declared file extension falls back to the inferred one', () => {
   assert.equal(mod.getRemoteAudioFileExtension('tpl'), 'mp3');
 });
 
+test('malformed catalog extensions keep chapter destinations inside their book directory', async () => {
+  const { getChapterAudioFileUri } = await import('./download/audioFileLocations');
+  const directory = 'file:///audio-root/tpl/PHM/';
+  for (const fileExtension of [
+    'mp3/../../../../translations/neighbor.db',
+    'mp3\\neighbor',
+    'mp3?query',
+    'mp3#fragment',
+    'mp3%2fneighbor',
+    '..mp3',
+    'm p3',
+  ]) {
+    mod.syncRemoteAudioMetadataResolverWithTranslations([
+      withCatalogAudio('tpl', {
+        strategy: 'stream-template',
+        fileExtension,
+        baseUrl: 'https://cdn.example.test/tpl',
+        chapterPathTemplate: '{bookId}/{chapter}.m4a',
+      }),
+    ]);
+    const destination = getChapterAudioFileUri('tpl', 'PHM', 1, 'file:///audio-root/');
+    assert.equal(destination, `${directory}1.m4a`, fileExtension);
+    assert.equal(new URL('.', destination).href, directory, fileExtension);
+  }
+});
+
+test('the final extension boundary normalizes resolver metadata and defaults malformed values', () => {
+  for (const [fileExtension, expected] of [
+    ['  .MP3 ', 'mp3'],
+    ['m4a', 'm4a'],
+    ['OGG', 'ogg'],
+    ['../neighbor', 'mp3'],
+    ['mp3?query', 'mp3'],
+    ['mp3#fragment', 'mp3'],
+    ['mp3%2fneighbor', 'mp3'],
+  ]) {
+    mod.setRemoteAudioMetadataResolver(() => ({ id: 'tpl', hasAudio: true, fileExtension }));
+    assert.equal(mod.getRemoteAudioFileExtension('tpl'), expected, fileExtension);
+  }
+  useTranslations(
+    withCatalogAudio('tpl', {
+      strategy: 'stream-template',
+      fileExtension: '../neighbor',
+      baseUrl: 'https://cdn.example.test/tpl',
+      chapterPathTemplate: 'chapters/{bookId}-{chapter}',
+    })
+  );
+  assert.equal(mod.getRemoteAudioFileExtension('tpl'), 'mp3');
+});
+
 test('an extensionless chapter template leaves the file extension at the mp3 default', () => {
   useTranslations(
     withCatalogAudio('tpl', {

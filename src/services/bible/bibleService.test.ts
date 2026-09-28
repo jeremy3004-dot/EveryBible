@@ -11,6 +11,7 @@ import test, { after, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import type { Verse } from '../../types';
+import { setBibleDatabaseSourceResolver } from './bibleDatabaseSources';
 
 interface ChapterRead {
   translationId: string;
@@ -40,6 +41,7 @@ const db = {
   verseCount: 0,
   inspectError: null as Error | null,
   initCalls: 0,
+  readinessImpl: null as (() => Promise<void>) | null,
   initResult: null as (() => Promise<{ verseCount: number }>) | null,
   chapterReads: [] as ChapterRead[],
   chapterRows: new Map<string, Verse[]>(),
@@ -84,7 +86,9 @@ mockModule(mock, sourcePath('services/bible/bibleDatabase.ts'), {
   },
   getChapterSourceKey: (translationId: string) =>
     `source:${translationId}:${db.sourceKeyGeneration}`,
-  ensureTranslationReady: async () => {},
+  ensureTranslationReady: async () => {
+    await db.readinessImpl?.();
+  },
   getChapter: async (translationId: string, bookId: string, chapter: number) => {
     const read = { translationId, bookId, chapter };
     db.chapterReads.push(read);
@@ -121,6 +125,8 @@ beforeEach(() => {
   db.verseCount = 0;
   db.inspectError = null;
   db.initCalls = 0;
+  db.readinessImpl = null;
+  setBibleDatabaseSourceResolver(null);
   db.initResult = null;
   db.chapterReads.length = 0;
   db.chapterRows.clear();
@@ -192,6 +198,42 @@ test('prefetching does nothing until the bundled data has been initialised', asy
 
   assert.deepEqual(db.chapterReads, [], 'a speculative read must not race the startup import');
 });
+
+for (const operation of ['chapter', 'search'] as const) {
+  test(`an installed ${operation} waits for source recovery without requiring bundled readiness`, async () => {
+    db.initResult = async () => {
+      throw new Error('bundled asset copy failed');
+    };
+    const expected = [makeVerse('GEN', 1, 1, 'Retained offline Bible')];
+    seedChapter({ translationId: 'offline', bookId: 'GEN', chapter: 1 }, expected);
+    db.searchResults = expected;
+    // A pending journal may register the installed source only when readiness settles.
+    db.readinessImpl = async () => {
+      setBibleDatabaseSourceResolver((id) =>
+        id === 'offline'
+          ? {
+              kind: 'installed',
+              translationId: id,
+              directory: '/packs',
+              databaseName: 'offline.db',
+            }
+          : null
+      );
+    };
+    const actual =
+      operation === 'chapter'
+        ? await service.getChapter('offline', 'GEN', 1)
+        : await service.searchBible('offline', 'retained');
+    assert.deepEqual(actual, expected);
+    assert.equal(db.initCalls, 0);
+    await assert.rejects(service.initBibleData(), /bundled asset copy failed/);
+    assert.equal(
+      db.initCalls,
+      1,
+      'explicit bundled initialization still enforces its own readiness'
+    );
+  });
+}
 
 test('concurrent initialisation requests share a single database initialisation', async () => {
   const gate = defer<{ verseCount: number }>();

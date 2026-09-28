@@ -17,7 +17,7 @@ export interface LessonSoundOwner<S extends OwnedLessonSound> {
    */
   play: (create: (isCurrent: () => boolean) => Promise<S>) => Promise<boolean>;
   /** Unloads the owned sound and disowns one still loading (source change, unmount). */
-  release: () => void;
+  release: () => Promise<void>;
 }
 
 /**
@@ -31,17 +31,58 @@ export function createLessonSoundOwner<S extends OwnedLessonSound>(): LessonSoun
   let sound: S | null = null;
   let loading: Promise<S | null> | null = null;
   let generation = 0;
+  const plays = new Map<S, Set<Promise<unknown>>>();
+  const retired = new Set<S>();
+  const releases = new Map<S, Promise<void>>();
+
+  const start = async (playing: S) => {
+    const operation = playing.playAsync();
+    const pending = plays.get(playing) ?? new Set<Promise<unknown>>();
+    pending.add(operation);
+    plays.set(playing, pending);
+    const clear = () => {
+      pending.delete(operation);
+      if (pending.size === 0) plays.delete(playing);
+    };
+    void operation.then(clear, clear);
+    await operation;
+  };
+
+  const releaseRetired = (): Promise<void> => {
+    for (const released of retired) {
+      if (releases.has(released)) continue;
+      const pending = [...(plays.get(released) ?? [])];
+      const release =
+        pending.length > 0
+          ? Promise.allSettled(pending)
+              .then(() => released.unloadAsync())
+              .then(() => undefined)
+          : released.unloadAsync().then(() => undefined);
+      releases.set(released, release);
+      void release.then(
+        () => {
+          retired.delete(released);
+          releases.delete(released);
+        },
+        () => releases.delete(released)
+      );
+    }
+    const release = Promise.all([...releases.values()]).then(() => undefined);
+    void release.catch(() => undefined);
+    return release;
+  };
 
   const load = (create: (isCurrent: () => boolean) => Promise<S>): Promise<S | null> => {
     const loadGeneration = ++generation;
     // Native callbacks can arrive before creation returns, or after release.
     const attempt = create(() => loadGeneration === generation).then(async (created) => {
       if (loadGeneration !== generation) {
-        await created.unloadAsync().catch(() => undefined);
+        retired.add(created);
+        await releaseRetired().catch(() => undefined);
         return null;
       }
       sound = created;
-      await created.playAsync();
+      await start(created);
       return loadGeneration === generation && sound === created ? created : null;
     });
     loading = attempt;
@@ -58,10 +99,13 @@ export function createLessonSoundOwner<S extends OwnedLessonSound>(): LessonSoun
     },
 
     play: async (create) => {
+      // A failed unload leaves a retired native sound that may still be audible.
+      // Retry its release before a fresh lesson recording can be created.
+      if (retired.size > 0) await releaseRetired();
       if (sound) {
         const playing = sound;
         const playGeneration = generation;
-        await playing.playAsync();
+        await start(playing);
         return playGeneration === generation && sound === playing;
       }
       return (await (loading ?? load(create))) !== null;
@@ -72,7 +116,8 @@ export function createLessonSoundOwner<S extends OwnedLessonSound>(): LessonSoun
       loading = null;
       const released = sound;
       sound = null;
-      void released?.unloadAsync().catch(() => undefined);
+      if (released) retired.add(released);
+      return releaseRetired();
     },
   };
 }

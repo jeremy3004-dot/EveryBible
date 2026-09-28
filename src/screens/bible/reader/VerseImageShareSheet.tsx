@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import type { ImageSourcePropType } from 'react-native';
-import { useCallback, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useCallback, useState, type RefObject } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -48,7 +48,7 @@ export interface VerseImageShareSheetProps {
   selectedVerseImageBackgroundIndex: number;
   selectedVerseReferenceLabel: string;
   selectedVerseText: string;
-  setShowVerseImageSheet: Dispatch<SetStateAction<boolean>>;
+  handleCloseVerseImageSheet: () => void;
   showVerseImageSheet: boolean;
   verseImageBackgroundCount: number;
   verseImageSharePreviewRef: RefObject<View | null>;
@@ -69,7 +69,7 @@ export function VerseImageShareSheet({
   selectedVerseImageBackgroundIndex,
   selectedVerseReferenceLabel,
   selectedVerseText,
-  setShowVerseImageSheet,
+  handleCloseVerseImageSheet,
   showVerseImageSheet,
   verseImageBackgroundCount,
   verseImageSharePreviewRef,
@@ -297,20 +297,20 @@ export function VerseImageShareSheet({
       statusBarTranslucent
       navigationBarTranslucent
       animationType="fade"
-      onRequestClose={() => setShowVerseImageSheet(false)}
+      onRequestClose={handleCloseVerseImageSheet}
       onDismiss={handleVerseImageSheetDismissed}
     >
       <View
         style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}
         // VoiceOver's escape gesture closes it, as Android back does.
-        onAccessibilityEscape={() => setShowVerseImageSheet(false)}
+        onAccessibilityEscape={handleCloseVerseImageSheet}
       >
         <TouchableOpacity
           style={styles.verseImageSheetBackdrop}
           activeOpacity={1}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
-          onPress={() => setShowVerseImageSheet(false)}
+          onPress={handleCloseVerseImageSheet}
         />
         <View
           style={[
@@ -354,7 +354,7 @@ export function VerseImageShareSheet({
                 activeOpacity={0.88}
                 accessibilityRole="button"
                 accessibilityLabel={t('interface.close')}
-                onPress={() => setShowVerseImageSheet(false)}
+                onPress={handleCloseVerseImageSheet}
               >
                 <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
               </TouchableOpacity>
@@ -399,7 +399,7 @@ export function VerseImageShareSheet({
                   },
                 ]}
                 activeOpacity={0.88}
-                onPress={() => setShowVerseImageSheet(false)}
+                onPress={handleCloseVerseImageSheet}
                 accessibilityRole="button"
               >
                 <Text

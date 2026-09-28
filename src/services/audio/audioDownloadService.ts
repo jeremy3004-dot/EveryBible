@@ -31,11 +31,11 @@ export {
 } from './download/fileVerification';
 export { AUDIO_DOWNLOAD_ESTIMATED_CHAPTER_BYTES } from './download/freeSpace';
 export {
+  AUDIO_DOWNLOAD_JOB_ID_PREFIX,
   cancelAudioDownloadsForTranslation,
   requestAudioDownloadCancellation,
 } from './download/activeDownloads';
 export {
-  AUDIO_DOWNLOAD_JOB_ID_PREFIX,
   audioDownloadTaskIdMatchesJob,
   completeAudioDownloadJob,
   createAudioDownloadJobId,

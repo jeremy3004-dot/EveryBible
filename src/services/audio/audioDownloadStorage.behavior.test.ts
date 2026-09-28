@@ -245,6 +245,7 @@ const makeTask = (id: string): FakeTask => {
       if (resumeErrors.has(id)) {
         throw new Error(`cannot resume ${id}`);
       }
+      return resumeHook?.(id);
     },
   };
   return task;
@@ -252,6 +253,8 @@ const makeTask = (id: string): FakeTask => {
 
 /** Task ids whose resume() throws, to prove one bad task does not stop the rest. */
 const resumeErrors = new Set<string>();
+let listingHook: (() => Promise<void>) | null = null;
+let resumeHook: ((id: string) => Promise<void>) | null = null;
 /** Set to make the native task listing itself fail (no native module in Expo Go). */
 let existingTasksError: unknown = null;
 
@@ -268,6 +271,7 @@ mockModule(mock, '@kesha-antonov/react-native-background-downloader', {
     if (existingTasksError) {
       throw existingTasksError;
     }
+    await listingHook?.();
     return existingTasks;
   },
 });
@@ -313,6 +317,8 @@ beforeEach(() => {
   lastTaskHandlers = {};
   resumeErrors.clear();
   existingTasksError = null;
+  listingHook = null;
+  resumeHook = null;
   deleteError = null;
   moveError = null;
   lastOnProgress = undefined;
@@ -978,6 +984,27 @@ test('cancelling a job stops the exact task and its per-chapter children', async
   );
 });
 
+test('selected collection cancellation stops only requested book tasks in one enumeration', async () => {
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+  const collection = 'audio-download:bsb:translation:all';
+  existingTasks = [
+    makeTask('audio-download:bsb:book:PHM:PHM:1'),
+    makeTask('audio-download:bsb:book:2JN:2JN:1'),
+    makeTask('audio-download:web:book:PHM:PHM:1'),
+  ];
+
+  await transport.cancelJob?.(collection, { bookIds: ['PHM'] });
+
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'stop'),
+    [{ method: 'stop', args: ['audio-download:bsb:book:PHM:PHM:1'] }]
+  );
+  assert.equal(
+    backgroundCalls.filter((call) => call.method === 'getExistingDownloadTasks').length,
+    1
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Resuming background downloads on launch
 // ---------------------------------------------------------------------------
@@ -1398,4 +1425,64 @@ test('native callbacks after the caller aborts a finished background download ar
     ['createDownloadTask', 'start', 'completeHandler']
   );
   assert.deepEqual(downloadCalls, []);
+});
+function nativeDeferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((yes) => {
+    resolve = yes;
+  });
+  return { promise, resolve };
+}
+test('scoped native reattachment aborts during task enumeration without resuming', async () => {
+  const jobId = 'audio-download:bsb:book:PHM';
+  existingTasks = [makeTask(`${jobId}:PHM:1`)];
+  const entered = nativeDeferred();
+  const release = nativeDeferred();
+  listingHook = async () => {
+    entered.resolve();
+    await release.promise;
+  };
+  const controller = new AbortController();
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+  const reattach = transport.reattachJob!(jobId, controller.signal);
+  await entered.promise;
+  controller.abort();
+  release.resolve();
+  await reattach;
+  listingHook = null;
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    []
+  );
+});
+test('scoped native reattachment awaits resume and skips later tasks after abort', async () => {
+  const jobId = 'audio-download:bsb:book:PHM';
+  const first = `${jobId}:PHM:1`;
+  existingTasks = [makeTask(first), makeTask(`${jobId}:PHM:2`)];
+  const entered = nativeDeferred();
+  const release = nativeDeferred();
+  resumeHook = async (id) => {
+    if (id === first) {
+      entered.resolve();
+      await release.promise;
+    }
+  };
+  const controller = new AbortController();
+  const transport = await mod.createBackgroundAudioDownloadTransport();
+  let settled = false;
+  const reattach = transport.reattachJob!(jobId, controller.signal).then(() => {
+    settled = true;
+  });
+  await entered.promise;
+  await flush();
+  const settledBeforeResume = settled;
+  controller.abort();
+  release.resolve();
+  await reattach;
+  resumeHook = null;
+  assert.equal(settledBeforeResume, false);
+  assert.deepEqual(
+    backgroundCalls.filter((call) => call.method === 'resume'),
+    [{ method: 'resume', args: [first] }]
+  );
 });

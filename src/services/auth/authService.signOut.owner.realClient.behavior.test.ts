@@ -1,6 +1,12 @@
 import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { mockExpoCrypto, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
+import {
+  mockExpoCrypto,
+  mockMmkvStorage,
+  mockModule,
+  mockReactNative,
+  sourcePath,
+} from '../../testing/mockModules';
 import { makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 
 const ref = 'accountswapabcdefghij';
@@ -33,6 +39,7 @@ mockModule(mock, 'expo-secure-store', {
   },
 });
 mockReactNative(mock, { os: 'ios' });
+const mmkv = mockMmkvStorage(mock);
 mockExpoCrypto(mock);
 mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   publicRuntimeConfig: {
@@ -104,6 +111,7 @@ test('guarded sign-out preserves a new login during deferred native session remo
   delayRemoval = true;
   const signingOut = signOut(() => owner === 'user-a');
   await sessionRemovalStarted;
+  assert.equal(mmkv.store.get(`auth-session-removal-intent:${storageKey}`), '1');
   assert.equal(privateAuth.suppressGetSessionWarning, false, 'matches installed local removal');
   const signingIn = client.supabase.auth.signInWithPassword({
     email: 'next@example.test',
@@ -113,6 +121,7 @@ test('guarded sign-out preserves a new login during deferred native session remo
   releaseSession();
   const signedIn = await signingIn;
   assert.equal(signedIn.error, null);
+  assert.equal(mmkv.store.has(`auth-session-removal-intent:${storageKey}`), false);
   assert.equal(owner, 'user-b');
   await signingOut;
   const { data } = await client.supabase.auth.getSession();

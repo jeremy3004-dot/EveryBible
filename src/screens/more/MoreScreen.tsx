@@ -246,7 +246,8 @@ export function MoreScreen() {
           try {
             await signOut();
           } catch {
-            // Sign-out failure is non-fatal; the user stays signed in
+            // Keep native errors private while making a failed local sign-out visible.
+            Alert.alert(t('common.error'), t('common.unexpectedError'));
           } finally {
             setIsSigningOut(false);
           }

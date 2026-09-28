@@ -82,6 +82,32 @@ test('interface-language strings become the channel name and notification action
   });
 });
 
+test('full and compact capability filtering preserves order and defaults unknown availability to enabled', () => {
+  const options = buildAndroidMediaControlOptions(spanish, { canSkipNext: false });
+  assert.deepEqual(options.capabilities, [
+    'previousTrack',
+    'play',
+    'pause',
+    'seek',
+    'skipBackward',
+    'skipForward',
+  ]);
+  assert.deepEqual(options.compactCapabilities, ['previousTrack', 'play']);
+  assert.equal(options.android.actionLabels?.nextTrack, spanish.next);
+  const singleton = buildAndroidMediaControlOptions(undefined, {
+    canSkipNext: false,
+    canSkipPrevious: false,
+  });
+  assert.deepEqual(singleton.compactCapabilities, ['play']);
+  assert.deepEqual(singleton.capabilities, [
+    'play',
+    'pause',
+    'seek',
+    'skipBackward',
+    'skipForward',
+  ]);
+});
+
 // ---------------------------------------------------------------------------
 // Metadata
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import type { BibleTranslation } from '../../types';
 import { syncRemoteAudioMetadataResolverWithTranslations } from '../../services/audio/audioRemote';
+import { cancelAudioDownloadsForTranslation } from '../../services/audio/download/activeDownloads';
 import { readTextPackInstallJournal } from '../../services/bible/textPackInstallJournal';
 import {
   removeTextPackDeletion,
@@ -51,31 +52,43 @@ export const createTextPackMaintenanceSlice: BibleSliceCreator<TextPackMaintenan
         return;
       }
 
-      const missingTranslationIds = new Set<string>();
+      const missingTranslationPaths = new Map<string, string>();
 
       await Promise.all(
         runtimeTranslations.map(async (translation) => {
+          const checkedPath = translation.textPackLocalPath ?? '';
           try {
-            if (!(await fileSystemPathIsUsableDatabase(translation.textPackLocalPath ?? ''))) {
-              missingTranslationIds.add(translation.id);
+            if (!(await fileSystemPathIsUsableDatabase(checkedPath))) {
+              missingTranslationPaths.set(translation.id, checkedPath);
             }
           } catch {
-            missingTranslationIds.add(translation.id);
+            missingTranslationPaths.set(translation.id, checkedPath);
           }
         })
       );
 
-      if (missingTranslationIds.size === 0) {
+      if (missingTranslationPaths.size === 0) {
         return;
       }
 
-      set((state) =>
-        reconcileMissingRuntimeTranslationPacks(
+      set((state) => {
+        // A file check can finish after deletion and a reinstall at a new candidate path.
+        // Only reset the pack whose path was actually checked.
+        const missingTranslationIds = new Set(
+          state.translations
+            .filter(
+              (translation) =>
+                missingTranslationPaths.has(translation.id) &&
+                missingTranslationPaths.get(translation.id) === translation.textPackLocalPath
+            )
+            .map((translation) => translation.id)
+        );
+        return reconcileMissingRuntimeTranslationPacks(
           state.translations,
           state.currentTranslation,
           missingTranslationIds
-        )
-      );
+        );
+      });
     },
 
     // Self-heal a corrupt or vanished installed text pack detected mid-session (e.g. a
@@ -117,13 +130,19 @@ export const createTextPackMaintenanceSlice: BibleSliceCreator<TextPackMaintenan
         }
       }
 
-      set((state) =>
-        reconcileMissingRuntimeTranslationPacks(
+      set((state) => {
+        if (
+          !state.translations.some(
+            (item) => item.id === translationId && item.textPackLocalPath === localPath
+          )
+        )
+          return state;
+        return reconcileMissingRuntimeTranslationPacks(
           state.translations,
           state.currentTranslation,
           new Set([translationId])
-        )
-      );
+        );
+      });
 
       const nextTranslations = get().translations;
       syncRemoteAudioMetadataResolverWithTranslations(nextTranslations);
@@ -131,6 +150,9 @@ export const createTextPackMaintenanceSlice: BibleSliceCreator<TextPackMaintenan
     },
 
     deleteTranslation: async (translationId) => {
+      // Pending audio requests own cancellation before their lazy setup or preflight begins.
+      // Wait for those owners before the early data check or any file deletion.
+      await cancelAudioDownloadsForTranslation(translationId);
       const activeTextDownloadAtDeleteStart = activeTextDownloadPromises.get(translationId);
       if (activeTextDownloadAtDeleteStart) {
         try {

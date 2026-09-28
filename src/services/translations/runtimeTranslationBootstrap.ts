@@ -75,8 +75,19 @@ export async function ensureRuntimeCatalogLoaded(): Promise<boolean> {
  * reader switched on another device since) replaces the local one.
  */
 export async function reconcilePrimaryTranslationPreference(): Promise<void> {
+  // Capture before the first account request; the device's Bible cache is shared,
+  // but a saved account choice must not be adopted by a later session.
+  const { useAuthStore } =
+    require('../../stores/authStore') as typeof import('../../stores/authStore');
+  const authAtStart = useAuthStore.getState();
+  const userId = authAtStart.user?.uid ?? null;
+  const generation = authAtStart.authGeneration;
+  const isCurrent = () => {
+    const current = useAuthStore.getState();
+    return (current.user?.uid ?? null) === userId && current.authGeneration === generation;
+  };
   const preferenceResult = await getUserTranslationPreferences();
-  if (!preferenceResult.success) {
+  if (!isCurrent() || !preferenceResult.success) {
     return;
   }
 
@@ -85,11 +96,11 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
   const state = useBibleStore.getState();
   const localChosenAt = state.currentTranslationChosenAt;
   if (localChosenAt && (!savedPrimary || isStampLater(localChosenAt, remote?.synced_at))) {
-    if (savedPrimary !== state.currentTranslation) {
-      await setUserTranslationPreferences({
-        primary: state.currentTranslation,
-        chosenAt: localChosenAt,
-      });
+    if (userId && savedPrimary !== state.currentTranslation) {
+      await setUserTranslationPreferences(
+        { primary: state.currentTranslation, chosenAt: localChosenAt },
+        { userId, isCurrent }
+      );
     }
     return;
   }
@@ -110,21 +121,29 @@ export async function reconcilePrimaryTranslationPreference(): Promise<void> {
       // The download can take a while. A Bible the reader picks meanwhile is their
       // choice, so the result only applies while the reader is still on this one.
       const currentAtStart = state.currentTranslation;
-      const readerChoseMeanwhile = () =>
-        useBibleStore.getState().currentTranslation !== currentAtStart;
+      const chosenAtStart = state.currentTranslationChosenAt;
+      const readerChoseMeanwhile = () => {
+        const current = useBibleStore.getState();
+        // Returning to the starting Bible is still a newer choice.
+        return (
+          current.currentTranslation !== currentAtStart ||
+          current.currentTranslationChosenAt !== chosenAtStart
+        );
+      };
       try {
         const downloadResult = await state.downloadTranslation(preferredId);
-        if (downloadResult === 'cancelled' || readerChoseMeanwhile()) {
+        if (downloadResult === 'cancelled' || !isCurrent() || readerChoseMeanwhile()) {
           return;
         }
         useBibleStore.getState().setCurrentTranslation(preferredId, adopted);
       } catch (error) {
-        const fallbackTranslation = readerChoseMeanwhile()
-          ? null
-          : resolveRegionalFallbackTranslation(
-              useBibleStore.getState().translations,
-              preferredTranslation
-            );
+        const fallbackTranslation =
+          !isCurrent() || readerChoseMeanwhile()
+            ? null
+            : resolveRegionalFallbackTranslation(
+                useBibleStore.getState().translations,
+                preferredTranslation
+              );
         if (fallbackTranslation) {
           useBibleStore.getState().setCurrentTranslation(fallbackTranslation.id);
           return;

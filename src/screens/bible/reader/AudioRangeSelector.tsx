@@ -1,7 +1,8 @@
 import { StyleSheet, PanResponder, View } from 'react-native';
 import { radius, spacing } from '../../../design/system';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AccessibilityActionEvent, LayoutChangeEvent } from 'react-native';
+import { useLatestCallback } from '../../../components/audio/playbackControlsParts/useLatestCallback';
 import { formatClockTime } from '../ReaderAudioPositionParts';
 import { AUDIO_PORTION_HANDLE_WIDTH, AUDIO_PORTION_A11Y_STEP_MS } from './readerConstants';
 
@@ -43,6 +44,8 @@ export function AudioRangeSelector({
   endLabel,
 }: AudioRangeSelectorProps) {
   const [trackWidth, setTrackWidth] = useState(0);
+  const startDragOrigin = useRef(0);
+  const endDragOrigin = useRef(0);
   const waveformSamples = useMemo(
     () =>
       Array.from({ length: 44 }, (_, index) => {
@@ -81,18 +84,34 @@ export function AudioRangeSelector({
     setTrackWidth(event.nativeEvent.layout.width);
   };
 
+  // PanResponder's dx is cumulative from grant. Parent range updates and
+  // playback ticks must keep that origin and the responder's gesture state.
+  const grantStartDrag = useLatestCallback(() => {
+    startDragOrigin.current = startPx;
+  });
+  const moveStartDrag = useLatestCallback((dx: number) => {
+    const maxStartPx = Math.max(endPx - minGapPx, 0);
+    const nextStartPx = Math.max(0, Math.min(maxStartPx, startDragOrigin.current + dx));
+    onStartChange(pxToMs(nextStartPx));
+  });
+  const grantEndDrag = useLatestCallback(() => {
+    endDragOrigin.current = endPx;
+  });
+  const moveEndDrag = useLatestCallback((dx: number) => {
+    const minEndPx = Math.min(startPx + minGapPx, trackWidth);
+    const nextEndPx = Math.max(minEndPx, Math.min(trackWidth, endDragOrigin.current + dx));
+    onEndChange(pxToMs(nextEndPx));
+  });
+
   const startHandleResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_event, gestureState) => {
-          const maxStartPx = Math.max(endPx - minGapPx, 0);
-          const nextStartPx = Math.max(0, Math.min(maxStartPx, startPx + gestureState.dx));
-          onStartChange(pxToMs(nextStartPx));
-        },
+        onPanResponderGrant: grantStartDrag,
+        onPanResponderMove: (_event, gestureState) => moveStartDrag(gestureState.dx),
       }),
-    [endPx, minGapPx, onStartChange, pxToMs, startPx]
+    [grantStartDrag, moveStartDrag]
   );
 
   const endHandleResponder = useMemo(
@@ -100,13 +119,10 @@ export function AudioRangeSelector({
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_event, gestureState) => {
-          const minEndPx = Math.min(startPx + minGapPx, trackWidth);
-          const nextEndPx = Math.max(minEndPx, Math.min(trackWidth, endPx + gestureState.dx));
-          onEndChange(pxToMs(nextEndPx));
-        },
+        onPanResponderGrant: grantEndDrag,
+        onPanResponderMove: (_event, gestureState) => moveEndDrag(gestureState.dx),
       }),
-    [endPx, minGapPx, onEndChange, pxToMs, startPx, trackWidth]
+    [grantEndDrag, moveEndDrag]
   );
 
   const isPreviewWithinSelection =

@@ -45,3 +45,14 @@ Each fix started with a failing test.
 
 - **Low.** If the silent midnight refresh throws, yesterday's verse stays under today's date. The error is only logged.
 - **Unconfirmed:** I did not query the live `translation_catalog` for New Testament-only text packs, because this task allowed no live Supabase access. Gather's comments and tests treat them as real.
+
+## Share preparation ownership (2026-09-28)
+
+Home invalidates pending share preparation on navigation blur or unmount, including while
+its retained tab is frozen. Late availability/capture results and errors cannot open an
+image or text fallback sheet over another screen. Refocusing permits a fresh request;
+completion of the old one cannot clear its busy state. Only abandoned captures never
+handed to native sharing are released best effort. Installed view-shot creates distinct
+files through Android `File.createTempFile` and iOS `RCTTempFilePath` (UUID filenames), so
+an abandoned capture's cleanup does not remove a fresh capture. Files handed to native
+sharing remain available for recipients; captures are also temporary until app close.

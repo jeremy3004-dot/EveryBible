@@ -110,7 +110,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     try {
       this.props.onError?.(error);
     } catch (handlerError) {
@@ -140,7 +140,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // `!== undefined`, not truthiness: `fallback={null}` deliberately renders
       // nothing (used around non-visual hosts such as AppRuntimeEffects).

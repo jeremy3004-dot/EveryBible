@@ -1,0 +1,43 @@
+diff --git a/node_modules/expo-av/src/Audio/Sound.ts b/node_modules/expo-av/src/Audio/Sound.ts
+--- a/node_modules/expo-av/src/Audio/Sound.ts
++++ b/node_modules/expo-av/src/Audio/Sound.ts
+@@ -386,10 +386,13 @@
+       this._loaded = false;
+       const key = this._key;
+       this._key = null;
+-      const status = await ExponentAV.unloadForSound(key);
+-      this._callOnPlaybackStatusUpdateForNewStatus(status);
+-      this._clearSubscriptions();
+-      return status;
++      try {
++        const status = await ExponentAV.unloadForSound(key);
++        this._callOnPlaybackStatusUpdateForNewStatus(status);
++        return status;
++      } finally {
++        this._clearSubscriptions();
++      }
+     } else {
+       return this.getStatusAsync(); // Automatically calls onPlaybackStatusUpdate.
+     }
+diff --git a/node_modules/expo-av/build/Audio/Sound.js b/node_modules/expo-av/build/Audio/Sound.js
+--- a/node_modules/expo-av/build/Audio/Sound.js
++++ b/node_modules/expo-av/build/Audio/Sound.js
+@@ -249,10 +249,14 @@
+             this._loaded = false;
+             const key = this._key;
+             this._key = null;
+-            const status = await ExponentAV.unloadForSound(key);
+-            this._callOnPlaybackStatusUpdateForNewStatus(status);
+-            this._clearSubscriptions();
+-            return status;
++            try {
++                const status = await ExponentAV.unloadForSound(key);
++                this._callOnPlaybackStatusUpdateForNewStatus(status);
++                return status;
++            }
++            finally {
++                this._clearSubscriptions();
++            }
+         }
+         else {
+             return this.getStatusAsync(); // Automatically calls onPlaybackStatusUpdate.

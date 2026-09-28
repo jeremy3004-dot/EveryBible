@@ -37,6 +37,7 @@ export interface UsePlanDayCompletionInput {
   isLastPlanChapter: boolean;
   markChapterRead: (bookId: string, chapter: number) => void;
   planDayNumber: number | undefined;
+  planOccurrenceKey?: string;
   returnToPlanOnComplete: boolean;
   setAudioTrack: (
     translationId: string | null,
@@ -67,6 +68,7 @@ export function usePlanDayCompletion({
   isLastPlanChapter,
   markChapterRead,
   planDayNumber,
+  planOccurrenceKey,
   returnToPlanOnComplete,
   setAudioTrack,
   setListenCountedNotice,
@@ -115,8 +117,13 @@ export function usePlanDayCompletion({
       // immediately without gating navigation on an un-timed network round-trip.
       const completionResult =
         activePlanIsMultiSession && activePlanSessionKey
-          ? await markPlanSessionComplete(activePlanId, planDayNumber, activePlanSessionKey)
-          : await markDayComplete(activePlanId, planDayNumber);
+          ? await markPlanSessionComplete(
+              activePlanId,
+              planDayNumber,
+              activePlanSessionKey,
+              planOccurrenceKey
+            )
+          : await markDayComplete(activePlanId, planDayNumber, planOccurrenceKey);
 
       if (!completionResult.success) {
         return;
@@ -163,6 +170,7 @@ export function usePlanDayCompletion({
     isLastPlanChapter,
     markChapterRead,
     planDayNumber,
+    planOccurrenceKey,
     returnToPlanOnComplete,
     setAudioTrack,
     stop,
@@ -212,6 +220,7 @@ export function usePlanDayCompletion({
     chapterSessionMode,
     currentChapterListenStatus,
     planDayNumber,
+    planOccurrenceKey,
     listenCountedBaselineRef,
     setListenCountedNotice,
   ]);
@@ -262,6 +271,7 @@ export function usePlanDayCompletion({
     chapterSessionMode,
     currentChapterListenStatus,
     planDayNumber,
+    planOccurrenceKey,
     t,
     listenCountedBaselineRef,
     setListenCountedNotice,

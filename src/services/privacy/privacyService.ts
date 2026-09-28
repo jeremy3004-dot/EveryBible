@@ -6,6 +6,60 @@ import { withPrivacyLockGrace } from './privacyLockGrace';
 
 const privacySettingsKey = 'everybible.privacy.settings';
 
+// Verification rewrites the whole record, including the credential. Keep its
+// read/hash/write together with configuration changes and deletion so an older
+// snapshot cannot replace a newly saved code or resurrect a deleted record.
+let privacyTransactionTail: Promise<void> = Promise.resolve();
+const runPrivacyTransaction = <T>(operation: () => Promise<T>): Promise<T> => {
+  const request = privacyTransactionTail.then(operation);
+  privacyTransactionTail = request.then(
+    () => undefined,
+    () => undefined
+  );
+  return request;
+};
+
+// An icon getter may never answer, so ordinary icon work must not hold the
+// credential queue. Started setters still finish in order before clear restores
+// the standard icon and deletes the code.
+let iconTransactionTail: Promise<void> = Promise.resolve();
+const runIconTransaction = (operation: () => Promise<void>): Promise<void> => {
+  const request = iconTransactionTail.then(operation);
+  iconTransactionTail = request.catch(() => undefined);
+  return request;
+};
+
+let iconConfiguration = { controller: new AbortController(), pending: false };
+const runPrivacyConfiguration = <T>(operation: () => Promise<T>): Promise<T> => {
+  const previous = iconConfiguration;
+  const configuration = { controller: new AbortController(), pending: true };
+  iconConfiguration = configuration;
+  // Configuration admission invalidates reads immediately, before waiting for
+  // the credential queue. No cancellation can undo a setter already in flight.
+  previous.controller.abort();
+  return runPrivacyTransaction(async () => {
+    try {
+      return await operation();
+    } finally {
+      if (iconConfiguration === configuration) configuration.pending = false;
+    }
+  });
+};
+
+const readIconWhileOwned = async (signal: AbortSignal): Promise<PrivacyAppIconMode | null> => {
+  if (signal.aborted) return null;
+  let onAbort!: () => void;
+  const aborted = new Promise<null>((resolve) => {
+    onAbort = () => resolve(null);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([getCurrentPrivacyAppIcon(), aborted]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+};
+
 // The secure code protects a decoy-icon install on THIS handset. Keeping the
 // record device-only means it is never carried into an iCloud/Keychain backup
 // and never restores onto a new device — intentional: a restored install should
@@ -111,7 +165,7 @@ export const loadPrivacySettings = async (): Promise<PrivacySettingsRecord> => {
   return sanitizeStoredPrivacySettings(storedValue);
 };
 
-export const savePrivacySettings = async (settings: PrivacySettingsRecord): Promise<void> => {
+const writePrivacySettings = async (settings: PrivacySettingsRecord): Promise<void> => {
   // A `legacyPin` is carried through unchanged: it can only be replaced by a
   // hash once the user types the code correctly, and dropping it on any earlier
   // write (a failed attempt, say) would lock an existing install out for good.
@@ -131,6 +185,9 @@ export const savePrivacySettings = async (settings: PrivacySettingsRecord): Prom
   // after navigation completes to avoid an OOM crash from concurrent Zustand + AppState churn.
 };
 
+export const savePrivacySettings = (settings: PrivacySettingsRecord): Promise<void> =>
+  runPrivacyConfiguration(() => writePrivacySettings(settings));
+
 /**
  * Brings the home-screen icon in line with `mode`. The icon the system shows is read
  * first and a change is only requested when it differs, because iOS shows the reader an
@@ -138,33 +195,43 @@ export const savePrivacySettings = async (settings: PrivacySettingsRecord): Prom
  * change (iOS does while the app is not in the foreground), so the caller can report it
  * and try again later. The change runs under the lock grace, so the alert iOS raises for
  * it does not lock discreet mode; reading the icon does not.
+ * An owner predicate lets a store drop work whose mode changed while the native read
+ * was pending. Configuration changes invalidate older reads independently of unlock.
  */
-export const applyPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
-  if (!supportsDynamicAppIcon()) {
-    return;
-  }
-  if ((await getCurrentPrivacyAppIcon()) === mode) {
-    return;
-  }
-  if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode), { untilNextActive: true }))) {
-    throw new Error(`Failed to apply the ${mode} privacy app icon`);
-  }
+export const applyPrivacyAppIcon = (
+  mode: PrivacyAppIconMode,
+  shouldApply: () => boolean = () => true
+): Promise<void> => {
+  const configuration = iconConfiguration;
+  const isCurrent = () =>
+    iconConfiguration === configuration && !configuration.pending && shouldApply();
+  return runIconTransaction(async () => {
+    if (!isCurrent() || !supportsDynamicAppIcon()) return;
+    const currentIcon = await readIconWhileOwned(configuration.controller.signal);
+    if (!isCurrent() || currentIcon === mode) return;
+    if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode), { untilNextActive: true }))) {
+      throw new Error(`Failed to apply the ${mode} privacy app icon`);
+    }
+  });
 };
 
-export const clearPrivacySettings = async (): Promise<void> => {
-  // Restore the icon before deleting the record: the stored code is the only
-  // thing that can unlock a discreet install, so it must survive a refused icon
-  // restore or the handset is left wearing the decoy icon with privacy silently
-  // switched off. The mode is still discreet while iOS shows its icon alert, so the
-  // change runs under the lock grace.
-  const didApplyStandardIcon = await withPrivacyLockGrace(() => setPrivacyAppIcon('standard'), {
-    untilNextActive: true,
+export const clearPrivacySettings = (): Promise<void> =>
+  runPrivacyConfiguration(async () => {
+    // Restore the icon before deleting the record: the stored code is the only
+    // thing that can unlock a discreet install, so it must survive a refused icon
+    // restore or the handset is left wearing the decoy icon with privacy silently
+    // switched off. The mode is still discreet while iOS shows its icon alert, so the
+    // change runs under the lock grace.
+    await runIconTransaction(async () => {
+      const didApplyStandardIcon = await withPrivacyLockGrace(() => setPrivacyAppIcon('standard'), {
+        untilNextActive: true,
+      });
+      if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
+        throw new Error('Failed to apply the standard privacy app icon');
+      }
+    });
+    await SecureStore.deleteItemAsync(privacySettingsKey, secureStoreOptions);
   });
-  if (!didApplyStandardIcon && supportsDynamicAppIcon()) {
-    throw new Error('Failed to apply the standard privacy app icon');
-  }
-  await SecureStore.deleteItemAsync(privacySettingsKey, secureStoreOptions);
-};
 
 const toHex = (bytes: Uint8Array): string => {
   let hex = '';
@@ -228,58 +295,59 @@ const matchesStoredPin = async (
  * whole batch counts as ONE attempt — otherwise a single wrong tap would burn
  * three attempts and trip the backoff almost immediately.
  */
-export const verifyPrivacyPinCandidates = async (
+export const verifyPrivacyPinCandidates = (
   candidates: string[],
   options: VerifyPrivacyPinOptions = {}
-): Promise<PrivacyPinVerification> => {
-  const now = options.now ?? Date.now();
-  const settings = await loadPrivacySettings();
+): Promise<PrivacyPinVerification> =>
+  runPrivacyTransaction(async () => {
+    const now = options.now ?? Date.now();
+    const settings = await loadPrivacySettings();
 
-  if (settings.pinLockedUntil !== null && now < settings.pinLockedUntil) {
+    if (settings.pinLockedUntil !== null && now < settings.pinLockedUntil) {
+      return {
+        success: false,
+        lockedUntil: settings.pinLockedUntil,
+        remainingLockoutMs: settings.pinLockedUntil - now,
+      };
+    }
+
+    if (!hasPrivacyPin(settings)) {
+      return { success: false, lockedUntil: null, remainingLockoutMs: 0 };
+    }
+
+    let matched = false;
+    for (const candidate of candidates) {
+      if (await matchesStoredPin(settings, candidate)) {
+        matched = true;
+        // Upgrade a legacy cleartext record in place, now that we know the code.
+        if (!settings.pinCredential) {
+          settings.pinCredential = await createPrivacyPinCredential(candidate);
+          settings.legacyPin = null;
+        }
+        break;
+      }
+    }
+
+    if (matched) {
+      if (settings.failedPinAttempts !== 0 || settings.pinLockedUntil !== null) {
+        settings.failedPinAttempts = 0;
+        settings.pinLockedUntil = null;
+      }
+      await writePrivacySettings(settings);
+      return { success: true, lockedUntil: null, remainingLockoutMs: 0 };
+    }
+
+    settings.failedPinAttempts += 1;
+    const lockoutMs = getPrivacyPinLockoutMs(settings.failedPinAttempts);
+    settings.pinLockedUntil = lockoutMs > 0 ? now + lockoutMs : null;
+    await writePrivacySettings(settings);
+
     return {
       success: false,
       lockedUntil: settings.pinLockedUntil,
-      remainingLockoutMs: settings.pinLockedUntil - now,
+      remainingLockoutMs: lockoutMs,
     };
-  }
-
-  if (!hasPrivacyPin(settings)) {
-    return { success: false, lockedUntil: null, remainingLockoutMs: 0 };
-  }
-
-  let matched = false;
-  for (const candidate of candidates) {
-    if (await matchesStoredPin(settings, candidate)) {
-      matched = true;
-      // Upgrade a legacy cleartext record in place, now that we know the code.
-      if (!settings.pinCredential) {
-        settings.pinCredential = await createPrivacyPinCredential(candidate);
-        settings.legacyPin = null;
-      }
-      break;
-    }
-  }
-
-  if (matched) {
-    if (settings.failedPinAttempts !== 0 || settings.pinLockedUntil !== null) {
-      settings.failedPinAttempts = 0;
-      settings.pinLockedUntil = null;
-    }
-    await savePrivacySettings(settings);
-    return { success: true, lockedUntil: null, remainingLockoutMs: 0 };
-  }
-
-  settings.failedPinAttempts += 1;
-  const lockoutMs = getPrivacyPinLockoutMs(settings.failedPinAttempts);
-  settings.pinLockedUntil = lockoutMs > 0 ? now + lockoutMs : null;
-  await savePrivacySettings(settings);
-
-  return {
-    success: false,
-    lockedUntil: settings.pinLockedUntil,
-    remainingLockoutMs: lockoutMs,
-  };
-};
+  });
 
 export const verifyPrivacyPin = async (
   pin: string,
@@ -288,20 +356,21 @@ export const verifyPrivacyPin = async (
   return verifyPrivacyPinCandidates([pin], options);
 };
 
-export const updatePrivacyMode = async (
+export const updatePrivacyMode = (
   mode: PrivacyAppIconMode,
   pin: string | null
-): Promise<PrivacySettingsRecord> => {
-  const pinCredential = mode === 'discreet' && pin ? await createPrivacyPinCredential(pin) : null;
+): Promise<PrivacySettingsRecord> =>
+  runPrivacyConfiguration(async () => {
+    const pinCredential = mode === 'discreet' && pin ? await createPrivacyPinCredential(pin) : null;
 
-  const nextSettings: PrivacySettingsRecord = {
-    mode,
-    pinCredential,
-    legacyPin: null,
-    failedPinAttempts: 0,
-    pinLockedUntil: null,
-  };
+    const nextSettings: PrivacySettingsRecord = {
+      mode,
+      pinCredential,
+      legacyPin: null,
+      failedPinAttempts: 0,
+      pinLockedUntil: null,
+    };
 
-  await savePrivacySettings(nextSettings);
-  return nextSettings;
-};
+    await writePrivacySettings(nextSettings);
+    return nextSettings;
+  });

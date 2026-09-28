@@ -29,6 +29,7 @@ const ReadAlongProgressLine = memo(function ReadAlongProgressLine({
 
   return (
     <AudioProgressScrubber
+      mediaKey={JSON.stringify([track.translationId, track.bookId, track.chapter])}
       position={isCurrentAudioChapter ? currentPosition : 0}
       duration={isCurrentAudioChapter ? duration : 0}
       onSeek={onSeek}

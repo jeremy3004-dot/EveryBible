@@ -197,15 +197,28 @@ export const getUserTranslationPreferences = async (): Promise<
  * Persist the user's translation preferences to Supabase, creating or
  * updating the row as needed. Only the fields supplied in `prefs` are
  * changed; omitting a field leaves it unchanged in the database.
+ * Startup reconciliation supplies its captured owner so asynchronous lookup
+ * and row merging cannot retarget a previous account's choice.
  */
 export const setUserTranslationPreferences = async (
-  prefs: TranslationPreferencesInput
+  prefs: TranslationPreferencesInput,
+  owner?: { userId: string; isCurrent: () => boolean }
 ): Promise<TranslationServiceResult> => {
+  const accountChanged = () => ({
+    success: false,
+    error: 'Account changed before translation preferences could be saved.',
+  });
+  if (owner && !owner.isCurrent()) {
+    return accountChanged();
+  }
   if (!isSupabaseConfigured()) {
     return { success: true };
   }
 
   const userId = await getCurrentUserId();
+  if (owner && (!owner.isCurrent() || userId !== owner.userId)) {
+    return accountChanged();
+  }
   if (!userId) {
     return { success: false, error: 'Not signed in' };
   }
@@ -218,6 +231,9 @@ export const setUserTranslationPreferences = async (
       .eq('user_id', userId)
       .single();
 
+    if (owner && !owner.isCurrent()) {
+      return accountChanged();
+    }
     if (fetchError && fetchError.code !== 'PGRST116') {
       return { success: false, error: fetchError.message };
     }

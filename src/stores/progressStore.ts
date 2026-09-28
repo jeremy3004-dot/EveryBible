@@ -163,6 +163,38 @@ const countChapterToday = (
   return { ...state.chaptersByDate, [today]: (state.chaptersByDate[today] ?? 0) + 1 };
 };
 
+const getStreakUpdate = (
+  state: typeof initialProgressState,
+  now: Date
+): Pick<ProgressState, 'streakDays' | 'lastReadDate'> | undefined => {
+  const today = formatLocalDateKey(now);
+  const { lastReadDate, streakDays } = state;
+
+  // Today is already counted. So is a date one day ahead: a reader who
+  // logged a chapter and then flew west over the date line is back on the
+  // previous calendar day without having missed one.
+  if (lastReadDate === today || lastReadDate === shiftLocalDateKey(now, 1)) {
+    return;
+  }
+
+  const yesterdayStr = shiftLocalDateKey(now, -1);
+
+  // Builds before the local-day fix stored the UTC date, which can trail
+  // the local one by a day. The chapter ledger keeps exact timestamps, so
+  // a read on the local yesterday still proves the streak is unbroken; a
+  // bare two-day-old date does not, or skipping a day would never count.
+  // Listening counts the same as reading, so a day heard proves it too.
+  const continuesStreak =
+    lastReadDate === yesterdayStr ||
+    [state.chaptersRead, state.chaptersListened].some((ledger) =>
+      Object.values(ledger).some((timestamp) => isOnLocalDay(timestamp, yesterdayStr))
+    ) ||
+    (state.chaptersByDate[yesterdayStr] ?? 0) > 0 ||
+    (state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;
+
+  return { streakDays: continuesStreak ? streakDays + 1 : 1, lastReadDate: today };
+};
+
 const getStartOfDay = (date: Date): number => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -253,16 +285,6 @@ const progressStorage: PersistStorage<PersistedProgressState> = {
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => {
-      // Reading and listening are one activity: time heard keeps the streak as a
-      // read does. Only a streak that actually moved is worth a sync.
-      const countTodayForStreak = () => {
-        const before = get().lastReadDate;
-        get().updateStreak();
-        if (get().lastReadDate !== before) {
-          debouncedSyncProgress();
-        }
-      };
-
       return {
         ...initialProgressState,
 
@@ -292,45 +314,55 @@ export const useProgressStore = create<ProgressState>()(
 
         markChapterRead: (bookId, chapter) => {
           const key = `${bookId}_${chapter}`;
-          const now = Date.now();
-          set((state) => ({
-            chaptersByDate: countChapterToday(state, key, new Date(now)),
-            chaptersRead: {
-              ...state.chaptersRead,
-              [key]: now,
-            },
-          }));
-          get().updateStreak();
+          const now = new Date();
+          set((state) => {
+            const activity = {
+              chaptersByDate: countChapterToday(state, key, now),
+              chaptersRead: { ...state.chaptersRead, [key]: now.getTime() },
+            };
+            // Persist the activity and its streak together, so interruption
+            // cannot retain the chapter while losing the counted day.
+            return { ...activity, ...getStreakUpdate({ ...state, ...activity }, now) };
+          });
           // Trigger debounced background sync to avoid flooding during rapid navigation
           debouncedSyncProgress();
         },
 
         markChapterListened: (bookId, chapter) => {
           const key = `${bookId}_${chapter}`;
-          const now = Date.now();
-          set((state) => ({
-            chaptersByDate: countChapterToday(state, key, new Date(now)),
-            chaptersListened: {
-              ...state.chaptersListened,
-              [key]: now,
-            },
-          }));
-          countTodayForStreak();
+          const now = new Date();
+          const before = get().lastReadDate;
+          set((state) => {
+            const activity = {
+              chaptersByDate: countChapterToday(state, key, now),
+              chaptersListened: { ...state.chaptersListened, [key]: now.getTime() },
+            };
+            return { ...activity, ...getStreakUpdate({ ...state, ...activity }, now) };
+          });
+          // Listening only needs a sync when it first counts a day for the streak.
+          if (get().lastReadDate !== before) debouncedSyncProgress();
         },
 
         recordListeningTime: (durationMs) => {
           if (!Number.isFinite(durationMs) || durationMs <= 0) return;
           const listenedMs = Math.round(durationMs);
-          const dateKey = formatLocalDateKey(new Date());
-          set((state) => ({
-            listeningMsByDate: {
+          const now = new Date();
+          const dateKey = formatLocalDateKey(now);
+          const before = get().lastReadDate;
+          set((state) => {
+            const totalListeningMs = (state.listeningMsByDate[dateKey] ?? 0) + listenedMs;
+            const listeningMsByDate = {
               ...state.listeningMsByDate,
-              [dateKey]: (state.listeningMsByDate[dateKey] ?? 0) + listenedMs,
-            },
-          }));
-          if ((get().listeningMsByDate[dateKey] ?? 0) >= MIN_LISTENING_MS) {
-            countTodayForStreak();
-          }
+              [dateKey]: totalListeningMs,
+            };
+            return {
+              listeningMsByDate,
+              ...(totalListeningMs >= MIN_LISTENING_MS
+                ? getStreakUpdate({ ...state, listeningMsByDate }, now)
+                : undefined),
+            };
+          });
+          if (get().lastReadDate !== before) debouncedSyncProgress();
         },
 
         isChapterRead: (bookId, chapter) => {
@@ -340,34 +372,8 @@ export const useProgressStore = create<ProgressState>()(
         },
 
         updateStreak: () => {
-          const now = new Date();
-          const today = formatLocalDateKey(now);
-          const state = get();
-          const { lastReadDate, streakDays } = state;
-
-          // Today is already counted. So is a date one day ahead: a reader who
-          // logged a chapter and then flew west over the date line is back on the
-          // previous calendar day without having missed one.
-          if (lastReadDate === today || lastReadDate === shiftLocalDateKey(now, 1)) {
-            return;
-          }
-
-          const yesterdayStr = shiftLocalDateKey(now, -1);
-
-          // Builds before the local-day fix stored the UTC date, which can trail
-          // the local one by a day. The chapter ledger keeps exact timestamps, so
-          // a read on the local yesterday still proves the streak is unbroken; a
-          // bare two-day-old date does not, or skipping a day would never count.
-          // Listening counts the same as reading, so a day heard proves it too.
-          const continuesStreak =
-            lastReadDate === yesterdayStr ||
-            [state.chaptersRead, state.chaptersListened].some((ledger) =>
-              Object.values(ledger).some((timestamp) => isOnLocalDay(timestamp, yesterdayStr))
-            ) ||
-            (state.chaptersByDate[yesterdayStr] ?? 0) > 0 ||
-            (state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;
-
-          set({ streakDays: continuesStreak ? streakDays + 1 : 1, lastReadDate: today });
+          const update = getStreakUpdate(get(), new Date());
+          if (update) set(update);
         },
 
         applySyncedProgress: (progress) => {

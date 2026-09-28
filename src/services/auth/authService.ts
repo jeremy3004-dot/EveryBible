@@ -1,4 +1,6 @@
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { createRequestTimeoutFetch } from '../supabase/requestTimeoutFetch';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import {
@@ -326,7 +328,7 @@ export const AUTH_SIGN_OUT_TIMEOUT_MS = 3_000;
  */
 export const signOut = async (
   isCurrent?: () => boolean
-): Promise<{ success: boolean; error?: string }> => {
+): Promise<{ success: boolean; error?: string; localRemovalFailed?: boolean }> => {
   if (!isSupabaseConfigured()) {
     return { success: true }; // No session to sign out from
   }
@@ -334,10 +336,17 @@ export const signOut = async (
   if (isCurrent && !isCurrent()) return { success: false, error: 'Account changed' };
   const stored = await readStoredSession();
   if (isCurrent && !isCurrent()) return { success: false, error: 'Account changed' };
-  if (stored) {
-    fenceRefreshToken(stored.refresh_token);
+  const releaseFence = stored ? fenceRefreshToken(stored.refresh_token) : undefined;
+  try {
+    await endSessionOnThisDevice(isCurrent);
+  } catch {
+    releaseFence?.();
+    return {
+      success: false,
+      localRemovalFailed: true,
+      error: 'Could not safely end the session on this device',
+    };
   }
-  await endSessionOnThisDevice(isCurrent);
 
   // No later stage can touch a newly stored session: revocation uses only this token.
   if (!stored || isAccessTokenExpired(stored) || (await isDeviceOffline())) {
@@ -380,37 +389,47 @@ const revokeSessionOnServer = async (
 // A guarded removal checks ownership after every keychain await so its late event
 // cannot reset a session saved meanwhile. The installed-client test pins this private API.
 const endSessionOnThisDevice = async (isCurrent?: () => boolean): Promise<void> => {
-  try {
-    const auth = supabase.auth as unknown as {
-      _removeSession?: () => Promise<void>;
-      storage: { removeItem: (key: string) => Promise<void> };
-      storageKey: string;
-      suppressGetSessionWarning: boolean;
-      userStorage?: { removeItem: (key: string) => Promise<void> };
-      _notifyAllSubscribers: (event: 'SIGNED_OUT', session: null) => Promise<void>;
+  const auth = supabase.auth as unknown as {
+    storage: {
+      removeItem: (key: string) => Promise<void>;
+      removeItemDurably?: (key: string) => Promise<void>;
     };
-    if (!isCurrent) {
-      await auth._removeSession?.();
-      return;
-    }
-    if (!isCurrent()) return;
-    auth.suppressGetSessionWarning = false;
-    for (const key of [
-      auth.storageKey,
-      auth.storageKey + '-code-verifier',
-      auth.storageKey + '-user',
-    ]) {
-      if (!isCurrent()) return;
+    storageKey: string;
+    suppressGetSessionWarning: boolean;
+    userStorage?: { removeItem: (key: string) => Promise<void> };
+    _notifyAllSubscribers: (event: 'SIGNED_OUT', session: null) => Promise<void>;
+  };
+  if (isCurrent && !isCurrent()) return;
+  auth.suppressGetSessionWarning = false;
+  // Primary admission is authoritative: if it fails, keep this account signed in.
+  // The optional capability leaves web storage and lightweight test clients valid.
+  if (auth.storage.removeItemDurably) {
+    await auth.storage.removeItemDurably(auth.storageKey);
+  } else {
+    await auth.storage.removeItem(auth.storageKey);
+  }
+  if (isCurrent && !isCurrent()) return;
+  for (const key of [auth.storageKey + '-code-verifier', auth.storageKey + '-user']) {
+    if (isCurrent && !isCurrent()) return;
+    try {
       await auth.storage.removeItem(key);
-      if (!isCurrent()) return;
+    } catch {
+      // Auxiliary cleanup cannot restore the durably masked primary session.
     }
-    if (auth.userStorage) {
+  }
+  if (auth.userStorage && (!isCurrent || isCurrent())) {
+    try {
       await auth.userStorage.removeItem(auth.storageKey + '-user');
-      if (!isCurrent()) return;
+    } catch {
+      // The primary credential is already removed from this device's session view.
     }
-    if (isCurrent()) await auth._notifyAllSubscribers('SIGNED_OUT', null);
-  } catch {
-    // Best effort: the caller already reports the sign-out failure.
+  }
+  if (!isCurrent || isCurrent()) {
+    try {
+      await auth._notifyAllSubscribers('SIGNED_OUT', null);
+    } catch {
+      // Local removal already succeeded; the app store completes its own reset.
+    }
   }
 };
 
@@ -441,51 +460,101 @@ export const resetPassword = async (
 
 // Update the current user's password — used at the end of the password-reset deep link flow,
 // after ResetPasswordScreen has exchanged the link's PKCE code for a recovery session.
-export const updatePassword = async (newPassword: string): Promise<AuthResult> => {
-  if (!isSupabaseConfigured()) {
-    return configurationAuthError();
-  }
+const authUserFetch = createRequestTimeoutFetch((input, init) => globalThis.fetch(input, init));
 
+// Password-only PUT returns a User, not replacement tokens. Binding its JWT here
+// avoids updateUser choosing a newer account after waiting for the SDK auth lock.
+export const updatePassword = async (
+  newPassword: string,
+  owner: { session: Session; isCurrent: () => boolean }
+): Promise<AuthResult> => {
+  if (!isSupabaseConfigured()) return configurationAuthError();
+  const staleSession = () =>
+    mapSupabaseAuthError({ message: 'Auth session missing!', status: 401 });
   try {
-    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      return mapSupabaseAuthError(error);
+    if (!owner.isCurrent()) return staleSession();
+    const response = await authUserFetch(
+      `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')}/auth/v1/user`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${owner.session.access_token}`,
+          apikey:
+            publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+            publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+            '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: newPassword }),
+      }
+    );
+    const body = await response.json();
+    if (!owner.isCurrent()) return staleSession();
+    if (!response.ok) {
+      return mapSupabaseAuthError({
+        ...body,
+        status: response.status,
+        message: body.msg || body.message || body.error_description || body.error,
+      });
     }
-
-    if (data.user) {
-      return { success: true, user: mapSupabaseUser(data.user) };
-    }
-
-    return unknownAuthError('Failed to update password');
+    if (body.id !== owner.session.user.id) return unknownAuthError('Failed to update password');
+    return { success: true, user: mapSupabaseUser(body as SupabaseUser) };
   } catch (e) {
     return unknownAuthError(e);
   }
 };
 
-// Update arbitrary fields on the current user's auth profile (email, password, or
-// user_metadata via `data`). Wraps supabase.auth.updateUser so callers (e.g. the
-// avatar update in ProfileScreen) go through mapSupabaseAuthError instead of
-// surfacing raw, untranslated Supabase errors.
+// Update profile metadata for a captured session. Email/password updates have
+// separate flows: this deliberately does not promise SDK PKCE email-change semantics.
 export const updateUserProfile = async (
-  attributes: Parameters<typeof supabase.auth.updateUser>[0]
+  attributes: { data: SupabaseUser['user_metadata'] },
+  owner: { session: Session; isCurrent: () => boolean }
 ): Promise<AuthResult> => {
-  if (!isSupabaseConfigured()) {
-    return configurationAuthError();
-  }
-
+  if (!isSupabaseConfigured()) return configurationAuthError();
+  const staleSession = () =>
+    mapSupabaseAuthError({ message: 'Auth session missing!', status: 401 });
   try {
-    const { data, error } = await supabase.auth.updateUser(attributes);
-
-    if (error) {
-      return mapSupabaseAuthError(error);
+    const auth = supabase.auth as unknown as {
+      storage: import('../supabase/authSessionStorage').AuthSessionStorage;
+      storageKey: string;
+    };
+    if (!owner.isCurrent()) return staleSession();
+    if (!auth.storage.updateItemIfCurrent) return unknownAuthError('Failed to update profile');
+    const response = await authUserFetch(
+      `${publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')}/auth/v1/user`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${owner.session.access_token}`,
+          apikey:
+            publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+            publicRuntimeConfig.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+            '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attributes),
+      }
+    );
+    const body = await response.json();
+    if (!owner.isCurrent()) return staleSession();
+    if (!response.ok) {
+      return mapSupabaseAuthError({
+        ...body,
+        status: response.status,
+        message: body.msg || body.message || body.error_description || body.error,
+      });
     }
-
-    if (data.user) {
-      return { success: true, user: mapSupabaseUser(data.user) };
-    }
-
-    return unknownAuthError('Failed to update profile');
+    if (body.id !== owner.session.user.id) return unknownAuthError('Failed to update profile');
+    // The adapter serializes this transform with sign-in/refresh/removal. Read the
+    // latest stored session there, never copy the request's older credentials back.
+    const patched = await auth.storage.updateItemIfCurrent(auth.storageKey, (current) => {
+      if (!owner.isCurrent() || !current) return undefined;
+      const session = JSON.parse(current) as Session;
+      if (session.user?.id !== owner.session.user.id) return undefined;
+      return JSON.stringify({ ...session, user: body });
+    });
+    if (!patched || !owner.isCurrent()) return staleSession();
+    return { success: true, user: mapSupabaseUser(body as SupabaseUser) };
   } catch (e) {
     return unknownAuthError(e);
   }

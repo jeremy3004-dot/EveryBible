@@ -15,7 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
-import { updateUserProfile } from '../../services/auth';
+import { getCurrentSession, updateUserProfile } from '../../services/auth';
+import { isAccessTokenExpired } from '../../services/auth/authSession';
 import { uploadAvatar } from '../../services/storage/storageService';
 import { withPrivacyLockGrace } from '../../services/privacy/privacyLockGrace';
 import { totalListeningMinutes } from '../../services/progress/listeningTime';
@@ -163,7 +164,32 @@ export function ProfileScreen() {
 
       // Persist the new URL through the auth service so the update goes through
       // the shared error-mapping layer instead of a raw Supabase call (L17).
-      const updateResult = await updateUserProfile({ data: { avatar_url: publicUrl } });
+      let session = useAuthStore.getState().session;
+      if (session && isAccessTokenExpired(session)) {
+        // A long-open profile may legitimately need a refreshed token. Only an
+        // owned session can proceed after the SDK's refresh work finishes.
+        const restored = await getCurrentSession();
+        if (!isCurrent()) return;
+        session = useAuthStore.getState().session;
+        if (
+          session &&
+          isAccessTokenExpired(session) &&
+          !restored.restoreFailed &&
+          !restored.awaitingTokenRefresh &&
+          restored.session?.user.id === userId
+        ) {
+          session = restored.session;
+        }
+      }
+      if (!session || session.user.id !== userId || isAccessTokenExpired(session)) {
+        setAvatarUri(user?.photoURL ?? null);
+        Alert.alert(t('common.error'), t('profile.avatarUpdateFailed'));
+        return;
+      }
+      const updateResult = await updateUserProfile(
+        { data: { avatar_url: publicUrl } },
+        { session, isCurrent }
+      );
       if (!isCurrent()) return;
 
       if (!updateResult.success) {

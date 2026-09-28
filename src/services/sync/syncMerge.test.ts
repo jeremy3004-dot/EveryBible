@@ -817,3 +817,174 @@ test('the stamp columns the client knows match the ones the server trigger track
 
   assert.deepEqual(serverColumns, [...Object.values(PREFERENCE_COLUMNS)].sort());
 });
+
+test('mixed same-position stamp adoption preserves the winning legacy read recency for later merges', () => {
+  const base = Date.parse('2026-09-28T00:00:00Z');
+  const now = new Date(base + 1000);
+  const local: LocalReadingSnapshot = {
+    currentBook: 'JHN',
+    currentChapter: 10,
+    chaptersRead: { JHN_10: base + 200 },
+    streakDays: 1,
+    lastReadDate: '2026-09-28',
+    readingPositionUpdatedAt: null,
+  };
+  const remote: RemoteUserProgress = {
+    id: 'row',
+    user_id: 'user-1',
+    current_book: 'JHN',
+    current_chapter: 10,
+    chapters_read: { JHN_10: base + 100 },
+    streak_days: 1,
+    last_read_date: '2026-09-28',
+    position_updated_at: base + 100,
+    position_updated_for: 'JHN_10',
+    synced_at: new Date(base + 900).toISOString(),
+  };
+  const first = mergeReadingSnapshot(local, remote, now);
+  assert.equal(first.readingPositionUpdatedAt, base + 200);
+  const second = mergeReadingSnapshot(
+    { ...local, ...first.progress, readingPositionUpdatedAt: first.readingPositionUpdatedAt },
+    {
+      ...remote,
+      current_chapter: 3,
+      chapters_read: { JHN_3: base + 150 },
+      position_updated_at: base + 150,
+      position_updated_for: 'JHN_3',
+    },
+    now
+  );
+  assert.equal(second.readingPosition.chapter, 10);
+});
+
+test('explicit unread position stamps govern both local and remote choices, including Genesis 1', () => {
+  const now = new Date('2026-09-28T12:00:00.000Z');
+  const at = now.getTime();
+  const local: LocalReadingSnapshot = {
+    currentBook: 'GEN',
+    currentChapter: 1,
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    readingPositionUpdatedAt: at,
+  };
+  const remote: RemoteUserProgress = {
+    id: 'row',
+    user_id: 'user-1',
+    current_book: 'JHN',
+    current_chapter: 3,
+    chapters_read: {},
+    streak_days: 0,
+    last_read_date: null,
+    synced_at: now.toISOString(),
+    position_updated_at: at - 100,
+    position_updated_for: 'JHN_3',
+  };
+  assert.deepEqual(mergeReadingSnapshot(local, remote, now).readingPosition, {
+    bookId: 'GEN',
+    chapter: 1,
+  });
+  const latest = mergeReadingSnapshot(local, { ...remote, position_updated_at: at + 100 }, now);
+  assert.deepEqual(latest.readingPosition, { bookId: 'JHN', chapter: 3 });
+  assert.equal(latest.readingPositionUpdatedAt, at + 100);
+  assert.equal(
+    mergeReadingSnapshot({ ...local, readingPositionUpdatedAt: null }, remote, now).positionSource,
+    'remote'
+  );
+});
+
+test('explicit position timestamp ties converge and future or invalid stamps are bounded safely', () => {
+  const now = new Date('2026-09-28T12:00:00.000Z');
+  const at = now.getTime();
+  const local: LocalReadingSnapshot = {
+    currentBook: 'GEN',
+    currentChapter: 1,
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    readingPositionUpdatedAt: at,
+  };
+  const remote: RemoteUserProgress = {
+    id: 'row',
+    user_id: 'user-1',
+    current_book: 'REV',
+    current_chapter: 1,
+    chapters_read: {},
+    streak_days: 0,
+    last_read_date: null,
+    synced_at: now.toISOString(),
+    position_updated_at: at,
+    position_updated_for: 'REV_1',
+  };
+  assert.equal(mergeReadingSnapshot(local, remote, now).readingPosition.bookId, 'REV');
+  assert.equal(
+    mergeReadingSnapshot({ ...local, currentBook: 'REV' }, { ...remote, current_book: 'GEN' }, now)
+      .readingPosition.bookId,
+    'REV'
+  );
+  const future = mergeReadingSnapshot(
+    { ...local, readingPositionUpdatedAt: at + 400 * 86400000 },
+    null,
+    now
+  );
+  assert.equal(future.readingPositionUpdatedAt, at);
+  assert.equal(
+    buildRemoteProgressPayload('user-1', future, now.toISOString()).position_updated_at,
+    at
+  );
+  for (const invalid of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    const merged = mergeReadingSnapshot({ ...local, readingPositionUpdatedAt: invalid }, null, now);
+    assert.equal(merged.readingPositionUpdatedAt, null);
+    assert.equal(
+      'position_updated_at' in buildRemoteProgressPayload('user-1', merged, now.toISOString()),
+      false
+    );
+  }
+});
+
+test('remote position stamps require a matching tuple anchor and uploads bind both fields', () => {
+  const now = new Date('2026-09-28T12:00:00.000Z');
+  const at = now.getTime();
+  const local: LocalReadingSnapshot = {
+    currentBook: 'JHN',
+    currentChapter: 10,
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    readingPositionUpdatedAt: at - 100,
+  };
+  const remote: RemoteUserProgress = {
+    id: 'row',
+    user_id: 'user-1',
+    current_book: 'JHN',
+    current_chapter: 3,
+    chapters_read: {},
+    streak_days: 0,
+    last_read_date: null,
+    synced_at: now.toISOString(),
+    position_updated_at: at,
+  };
+  for (const anchor of [undefined, null, 'JHN_10', 'JHN_03']) {
+    const merged = mergeReadingSnapshot(local, { ...remote, position_updated_for: anchor }, now);
+    assert.equal(merged.readingPosition.chapter, 10);
+  }
+  const remoteWinner = mergeReadingSnapshot(
+    local,
+    { ...remote, position_updated_for: 'JHN_3' },
+    now
+  );
+  assert.equal(remoteWinner.readingPosition.chapter, 3);
+  assert.equal(
+    readingMatchesRemote(remoteWinner, { ...remote, position_updated_for: 'JHN_3' }),
+    true
+  );
+  assert.equal(readingMatchesRemote(remoteWinner, remote), false);
+  assert.equal(
+    readingMatchesRemote(remoteWinner, { ...remote, position_updated_for: 'JHN_10' }),
+    false
+  );
+  assert.equal(
+    buildRemoteProgressPayload('user-1', remoteWinner, now.toISOString()).position_updated_for,
+    'JHN_3'
+  );
+});

@@ -131,6 +131,7 @@ If time is short, do these 10 first. Each one also appears in its section below.
 | Finish today's reading, then look at "Next up" on Home.                                                                                  | It moves on to what you have not read today.                                                             | Both    |
 | From a plan reading, swipe back (or press Android Back).                                                                                 | You return to the plan.                                                                                  | Both    |
 | Open a plan reading before you have ever opened the Bible tab.                                                                           | The plan strip shows at the bottom and the tab bar is hidden.                                            | Both    |
+| While locked, tap a reminder then a Bible link; repeat in reverse order, then unlock.                                                    | Only the latest valid request opens. An unrelated or malformed link does not replace it.                 | Both    |
 
 ## 7. Setup and languages, including Arabic and Urdu
 

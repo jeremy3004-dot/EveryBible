@@ -86,24 +86,27 @@ export function handlePlaybackStatusUpdate(
   anchorPositionInterpolation(session, nextPosition);
 
   // A listener pause (Pause, Selah's hold, the sleep timer) sets the paused status before
-  // the native player has stopped, and a report already on its way can still say playing.
+  // the native player has stopped, and a report already on its way can still say playing or buffering.
   // Taking it at its word flipped the player back to playing, and so ended Selah as if the
   // reading had been restarted. Every way of playing again clears pausedByListener first.
-  if (snapshot.isPlaying && pausedByListener.current) {
+  const isActiveSnapshot = !snapshot.didJustFinish && (snapshot.isPlaying || snapshot.isBuffering);
+  if (isActiveSnapshot && pausedByListener.current) {
     return;
   }
 
-  if (snapshot.isPlaying) {
+  if (isActiveSnapshot) {
     // The reader's sleep-timer interval only runs while it is mounted. Native
-    // progress keeps arriving about once a second while audio plays, mounted or
-    // not, so it also enforces the expiry.
+    // progress also enforces expiry while playing or buffering, including the
+    // first snapshot delivered after JS resumes from suspension.
     const { sleepTimerEndTime } = useAudioStore.getState();
     if (hasSleepTimerExpired(sleepTimerEndTime, Date.now()) && session.pause) {
       useAudioStore.getState().clearSleepTimer();
       void session.pause();
       return;
     }
+  }
 
+  if (snapshot.isPlaying) {
     store.setStatus('playing');
     startAudioProgressTelemetry(fallbackTranslationId);
     startPositionInterpolation(session);

@@ -25,6 +25,11 @@ mockModule(mock, sourcePath('services/notifications/notificationBootstrap.ts'), 
   getLastNotificationResponseAsync: async () => launchResponse,
 });
 
+mockModule(mock, 'expo-linking', {
+  createURL: () => 'exp://127.0.0.1/--/',
+  getInitialURL: async () => null,
+});
+
 const navigation = { ready: true, calls: [] as unknown[][] };
 mockModule(mock, '@react-navigation/native', {
   createNavigationContainerRef: () => ({
@@ -96,6 +101,20 @@ function mountApp() {
   view.flushEffects();
   return view;
 }
+
+test('no initial URL leaves a valid cached launch reminder parked until navigation is ready', async () => {
+  navigation.ready = false;
+  launchResponse = reminderTap();
+  const { linkingConfig } = await import('../navigation/linkingConfig');
+  const initialUrl = linkingConfig.getInitialURL!();
+  mountApp();
+  assert.equal(await initialUrl, null);
+  await settle();
+  assert.deepEqual(navigation.calls, []);
+  navigation.ready = true;
+  notifyNavigationReady();
+  assert.deepEqual(navigation.calls, [['Plans', { screen: 'PlansHome' }]]);
+});
 
 test('tapping the reminder while the app runs opens the Plans tab', async () => {
   mountApp();

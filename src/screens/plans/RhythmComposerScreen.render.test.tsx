@@ -1,5 +1,6 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import type { Mutate } from 'zustand/vanilla';
 import { mockMmkvStorage } from '../../testing/mockModules';
 import { installRenderHarness, renderedText, within } from '../../testing/render';
@@ -224,6 +225,50 @@ test('in edit mode, Delete Rhythm asks first and only the destructive choice del
   assert.equal(store.getState().rhythmsById[rhythmId], undefined);
   assert.deepEqual(callsTo('popToTop'), [[]]);
 });
+
+for (const transition of ['unmount', 'route', 'uid', 'generation'] as const) {
+  test(`an old rhythm delete confirmation is discarded after ${transition}`, async () => {
+    const store = await loadStore();
+    harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
+    const created = store.getState().createRhythm({
+      title: 'My evening',
+      items: [
+        { id: '', type: 'passage', title: 'Psalm 4', bookId: 'PSA', startChapter: 4, endChapter: 4 },
+      ],
+    });
+    const rhythmId = created.rhythm!.id;
+    const view = await renderComposer(rhythmId);
+    await view.press(view.getByRole('button', { name: t('readingPlans.deleteRhythm') }));
+    const buttons = harness.rn.__recorded.alerts.at(-1)!.buttons as AlertButton[];
+    const remove = buttons.find((button) => button.style === 'destructive')!.onPress!;
+
+    if (transition === 'unmount') {
+      await view.unmount();
+    } else if (transition === 'route') {
+      const second = store.getState().createRhythm({
+        title: 'Another rhythm',
+        items: [
+          { id: '', type: 'passage', title: 'John 1', bookId: 'JHN', startChapter: 1, endChapter: 1 },
+        ],
+      });
+      const { RhythmComposerScreen } = await import('./RhythmComposerScreen');
+      const props = {
+        navigation: harness.navigation.navigation,
+        route: { key: 'composer', name: 'RhythmComposer', params: { rhythmId: second.rhythm!.id } },
+      } as unknown as RhythmComposerScreenProps;
+      await view.rerender(<RhythmComposerScreen {...props} />);
+    } else {
+      harness.authStore.setState({
+        user: { uid: transition === 'uid' ? 'account-b' : 'account-a' },
+        authGeneration: transition === 'generation' ? 1 : 0,
+      });
+    }
+
+    await act(async () => remove());
+    assert.ok(store.getState().rhythmsById[rhythmId], 'stale confirmation must not delete the rhythm');
+    assert.deepEqual(callsTo('popToTop'), []);
+  });
+}
 
 test('a new rhythm has no delete action or current-rhythm card', async () => {
   const view = await renderComposer();

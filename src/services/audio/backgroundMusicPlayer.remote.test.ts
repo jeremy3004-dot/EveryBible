@@ -61,12 +61,17 @@ let nextCreateFailure: unknown = null;
 mockModule(mock, 'expo-av', {
   Audio: {
     Sound: class {
-      static createAsync = async (source: unknown): Promise<{ sound: FakeSound }> => {
+      static createAsync = async (
+        source: unknown,
+        _initialStatus: unknown,
+        onPlaybackStatusUpdate?: ((status: FakeStatus) => void) | null
+      ): Promise<{ sound: FakeSound }> => {
         createSources.push(source);
         const failure = nextCreateFailure;
         nextCreateFailure = null;
         if (failure) throw failure;
         const sound = new FakeSound();
+        sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate ?? null);
         sounds.push(sound);
         return { sound };
       };

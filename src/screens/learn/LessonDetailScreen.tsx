@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { claimNarration, type NarrationClaim } from '../../services/audio/narrationOwnership';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -117,22 +118,28 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // the preference applies here instead of always starting at 1.0 (L23).
   const { scale: globalFontScale } = useFontSize();
 
-  const translatedFellowshipQuestions = [
-    t('gather.fellowshipQ1'),
-    t('gather.fellowshipQ2'),
-    t('gather.fellowshipQ3'),
-    t('gather.fellowshipQ4'),
-  ];
+  const translatedFellowshipQuestions = useMemo(
+    () => [
+      t('gather.fellowshipQ1'),
+      t('gather.fellowshipQ2'),
+      t('gather.fellowshipQ3'),
+      t('gather.fellowshipQ4'),
+    ],
+    [t]
+  );
 
-  const translatedApplicationQuestions = [
-    t('gather.applicationQ1'),
-    t('gather.applicationQ2'),
-    t('gather.applicationQ3'),
-    t('gather.applicationQ4'),
-    t('gather.applicationQ5'),
-    t('gather.applicationQ6'),
-    t('gather.applicationQ7'),
-  ];
+  const translatedApplicationQuestions = useMemo(
+    () => [
+      t('gather.applicationQ1'),
+      t('gather.applicationQ2'),
+      t('gather.applicationQ3'),
+      t('gather.applicationQ4'),
+      t('gather.applicationQ5'),
+      t('gather.applicationQ6'),
+      t('gather.applicationQ7'),
+    ],
+    [t]
+  );
   const resolveBookName = useCallback((bookId: string) => getTranslatedBookName(bookId, t), [t]);
 
   // -------------------------------------------------------------------------
@@ -201,6 +208,8 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Owns the one lesson sound, including one still loading, so a source change or
   // unmount can never leave a sound playing that nothing controls.
   const [soundOwner] = useState(() => createLessonSoundOwner<Audio.Sound>());
+  const narrationClaimRef = useRef<NarrationClaim | null>(null);
+  const audioControlId = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
   // Following the story audio: each verse's top within the story section, and the
   // scroll position and viewport it is kept in view against.
@@ -215,6 +224,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     application: 0,
   });
   const resetAudioPlaybackState = useCallback(() => {
+    audioControlId.current += 1;
     setAudioSource(null);
     setAudioPosition(0);
     setAudioDuration(0);
@@ -276,7 +286,8 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     resetAudioPlaybackState();
-    soundOwner.release();
+    narrationClaimRef.current?.cancel();
+    void soundOwner.release().catch(() => undefined);
 
     void resolveLessonAudio(lesson.references, audioCandidateKey.split('|'), getChapterAudioUrl)
       .then((source) => {
@@ -296,7 +307,8 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
-      soundOwner.release();
+      narrationClaimRef.current?.cancel();
+      void soundOwner.release().catch(() => undefined);
     };
   }, [soundOwner]);
 
@@ -328,7 +340,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
       if (update.rewind) {
         void soundOwner
           .getSound()
-          ?.setPositionAsync(0)
+          ?.stopAsync()
           .catch(() => undefined);
       }
     },
@@ -338,7 +350,16 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
   const playAudio = useCallback(async () => {
     if (!audioUrl) return;
 
+    const controlId = ++audioControlId.current;
+    const narration = claimNarration('lesson', soundOwner, async () => {
+      audioControlId.current += 1;
+      setIsAudioPlaying(false);
+      await soundOwner.release();
+    });
+    narrationClaimRef.current = narration;
     try {
+      await narration.ready;
+      if (!narration.isCurrent()) return;
       const isPlaying = await soundOwner.play(async (isCurrent) => {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
         // Loaded paused: the owner starts it only if it is still wanted once loaded.
@@ -351,26 +372,31 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
         );
         return sound;
       });
-      if (isPlaying) {
+      if (isPlaying && narration.isCurrent() && controlId === audioControlId.current) {
         setIsAudioPlaying(true);
       }
     } catch {
       // A chapter that is not downloaded streams, which fails offline; tell the
       // reader why nothing plays. Other playback errors stay silent (retry).
-      if (await isDeviceOffline()) {
+      if (!narration.isCurrent() || controlId !== audioControlId.current) return;
+      const offline = await isDeviceOffline();
+      if (narration.isCurrent() && controlId === audioControlId.current && offline) {
         Alert.alert(t('common.error'), t('common.offlineTryAgain'));
       }
     }
   }, [audioUrl, handlePlaybackStatusUpdate, playbackSpeed, soundOwner, t]);
 
   const pauseAudio = useCallback(async () => {
+    const controlId = ++audioControlId.current;
     const paused = soundOwner.getSound();
     try {
       await paused?.pauseAsync();
     } catch {
       // Ignore
     }
-    if (soundOwner.getSound() === paused) setIsAudioPlaying(false);
+    if (soundOwner.getSound() === paused && controlId === audioControlId.current) {
+      setIsAudioPlaying(false);
+    }
   }, [soundOwner]);
 
   const togglePlayPause = useCallback(async () => {
@@ -518,6 +544,35 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
     [currentTranslation, passageBlocks, translations]
   );
   const verseCount = storyView?.verseCount ?? 0;
+  const applicationActionForIndex = useCallback(
+    (idx: number) => {
+      if (idx === 0) {
+        return {
+          label: t('learn.listenToStoryAgain'),
+          onPress: () => {
+            scrollToSection('story');
+            void playAudio();
+          },
+        };
+      }
+      if (idx === 5) {
+        return {
+          label: t('learn.shareApp'),
+          onPress: () => {
+            Share.share({
+              message: `${t('common.shareMessage')}\n${EVERYBIBLE_SITE_URL}`,
+            }).catch(() => undefined);
+          },
+        };
+      }
+      return undefined;
+    },
+    [t, playAudio, scrollToSection]
+  );
+  const retryPassage = useCallback(() => setPassageLoadAttempt((attempt) => attempt + 1), []);
+  const recordStoryVerseTops = useCallback((tops: Record<string, number>) => {
+    storyVerseTopsRef.current = tops;
+  }, []);
 
   // -------------------------------------------------------------------------
   // Lesson not found
@@ -724,12 +779,10 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               loadFailed: passageLoadFailed,
               view: storyView,
             })}
-            onRetry={() => setPassageLoadAttempt((attempt) => attempt + 1)}
+            onRetry={retryPassage}
             view={storyView}
             followAlongVerse={followAlongVerse}
-            onVerseTops={(tops) => {
-              storyVerseTopsRef.current = tops;
-            }}
+            onVerseTops={recordStoryVerseTops}
             colors={colors}
             fontSizeMultiplier={fontSizeMultiplier}
             readingFontFamily={readingFontFamily}
@@ -763,28 +816,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
           <QuestionList
             questions={translatedApplicationQuestions}
             colors={colors}
-            actionForIndex={(idx) => {
-              if (idx === 0) {
-                return {
-                  label: t('learn.listenToStoryAgain'),
-                  onPress: () => {
-                    scrollToSection('story');
-                    void playAudio();
-                  },
-                };
-              }
-              if (idx === 5) {
-                return {
-                  label: t('learn.shareApp'),
-                  onPress: () => {
-                    Share.share({
-                      message: `${t('common.shareMessage')}\n${EVERYBIBLE_SITE_URL}`,
-                    }).catch(() => undefined);
-                  },
-                };
-              }
-              return undefined;
-            }}
+            actionForIndex={applicationActionForIndex}
           />
         </View>
       </ScrollView>
@@ -946,7 +978,11 @@ interface QuestionListProps {
 // One paper panel holding every question as a hairline-divided row: a mono
 // ordinal in the accent and the question beside it. Fellowship and Application
 // share the recipe exactly.
-function QuestionList({ questions, colors, actionForIndex }: QuestionListProps) {
+const QuestionList = memo(function QuestionList({
+  questions,
+  colors,
+  actionForIndex,
+}: QuestionListProps) {
   return (
     <AppCard padding={0} style={styles.questionCard}>
       {questions.map((question, idx) => {
@@ -982,7 +1018,7 @@ function QuestionList({ questions, colors, actionForIndex }: QuestionListProps) 
       })}
     </AppCard>
   );
-}
+});
 
 interface CompleteToggleProps {
   isComplete: boolean;
@@ -1038,7 +1074,7 @@ interface StorySectionProps {
   displayFont: DisplayFont;
 }
 
-function StorySection({
+const StorySection = memo(function StorySection({
   status,
   onRetry,
   view,
@@ -1190,10 +1226,11 @@ function StorySection({
                   )}
                   {!isFirst && !hasHeading && ' '}
                   <Text
-                    style={[
-                      { lineHeight: scaledLineHeight },
-                      isFollowed && { backgroundColor: colors.bibleFollowHighlight },
-                    ]}
+                    style={{
+                      lineHeight: scaledLineHeight,
+                      // Android virtual Text retains a previous color when it is removed.
+                      backgroundColor: isFollowed ? colors.bibleFollowHighlight : 'transparent',
+                    }}
                   >
                     <Text
                       style={[
@@ -1223,7 +1260,7 @@ function StorySection({
       ))}
     </View>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Styles

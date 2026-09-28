@@ -1,4 +1,4 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { before, beforeEach, mock, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
@@ -974,7 +974,9 @@ test('signOut with an expired access token ends the session on this device witho
 
   assert.equal(supabaseFake.auth.session, null);
   assert.deepEqual(
-    authMethods().filter((method) => method !== '_removeSession'),
+    authMethods().filter(
+      (method) => !['storage.removeItem', '_notifyAllSubscribers'].includes(method)
+    ),
     [],
     'an expired token cannot revoke anything without a refresh, which is what hangs'
   );
@@ -1129,120 +1131,295 @@ test('resetPassword reports a generic message when something non-Error is thrown
 // updatePassword / updateUserProfile
 // ---------------------------------------------------------------------------
 
+const passwordSession = () => makeFakeSession({ user: signedInUser() });
+const passwordOwner = () => ({ session: passwordSession(), isCurrent: () => true });
+
 test('updatePassword refuses to run when the backend is not configured', async () => {
   supabaseConfigured = false;
-
-  assert.equal((await authService.updatePassword('new-password')).code, 'configuration');
+  assert.equal(
+    (await authService.updatePassword('new-password', passwordOwner())).code,
+    'configuration'
+  );
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
-test('updatePassword sends only the new password to Supabase', async () => {
-  supabaseFake.auth.setSession(makeFakeSession({ user: signedInUser() }));
-
-  const result = await authService.updatePassword('new-password');
-
+test('updatePassword binds only the new password to the owned session JWT', async (t) => {
+  runtimeEnv.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+  runtimeEnv.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'public-test-key';
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify(signedInUser()), { status: 200 })
+  );
+  const owner = passwordOwner();
+  const result = await authService.updatePassword('new-password', owner);
   assert.equal(result.success, true);
-  assert.deepEqual(supabaseFake.authCalls, [
-    { method: 'updateUser', args: [{ password: 'new-password' }] },
-  ]);
+  assert.deepEqual(supabaseFake.authCalls, []);
+  const call = fetch.mock.calls[0];
+  assert.ok(call);
+  const [url, init] = call.arguments as [string, RequestInit];
+  assert.equal(url, 'https://example.supabase.co/auth/v1/user');
+  assert.equal(init.method, 'PUT');
+  assert.deepEqual(JSON.parse(String(init.body)), { password: 'new-password' });
+  const headers = new Headers(init.headers);
+  assert.equal(headers.get('authorization'), `Bearer ${owner.session.access_token}`);
+  assert.equal(headers.get('apikey'), 'public-test-key');
 });
 
-test('updatePassword maps an expired recovery session to an invalid-credentials failure', async () => {
-  authHandlers.updateUser = async () => ({
-    data: { user: null },
-    error: { message: 'Auth session missing!', status: 401 },
-  });
+test('updatePassword rejects a stale owner before sending any request', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  assert.equal(
+    (
+      await authService.updatePassword('new-password', {
+        session: passwordSession(),
+        isCurrent: () => false,
+      })
+    ).success,
+    false
+  );
+  assert.equal(fetch.mock.callCount(), 0);
+  assert.deepEqual(supabaseFake.authCalls, []);
+});
 
-  assert.deepEqual(await authService.updatePassword('new-password'), {
+test('updatePassword maps an expired recovery session to an invalid-credentials failure', async (t) => {
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify({ msg: 'Auth session missing!' }), { status: 401 })
+  );
+  assert.deepEqual(await authService.updatePassword('new-password', passwordOwner()), {
     success: false,
     code: 'invalid_credentials',
     error: 'Auth session missing!',
   });
 });
 
-test('updatePassword reports an unknown failure when Supabase returns no user', async () => {
-  authHandlers.updateUser = async () => ({ data: { user: null }, error: null });
-
-  assert.deepEqual(await authService.updatePassword('new-password'), {
+test('updatePassword reports an unknown failure when Supabase returns no user', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  assert.deepEqual(await authService.updatePassword('new-password', passwordOwner()), {
     success: false,
     code: 'unknown',
     error: 'Failed to update password',
   });
 });
 
-test('updatePassword turns a thrown transport error into an unknown failure', async () => {
-  authHandlers.updateUser = async () => {
-    throw new Error('offline');
-  };
+test('updatePassword rejects a response for another user', async (t) => {
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify(signedInUser({ id: 'other-user' })))
+  );
+  assert.equal((await authService.updatePassword('new-password', passwordOwner())).success, false);
+});
 
-  assert.deepEqual(await authService.updatePassword('new-password'), {
+test('updatePassword cannot publish a response after ownership changes', async (t) => {
+  let current = true;
+  t.mock.method(globalThis, 'fetch', async () => {
+    current = false;
+    return new Response(JSON.stringify(signedInUser()));
+  });
+  assert.equal(
+    (
+      await authService.updatePassword('new-password', {
+        session: passwordSession(),
+        isCurrent: () => current,
+      })
+    ).success,
+    false
+  );
+});
+
+test('updatePassword turns a thrown transport error into an unknown failure', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => {
+    throw new Error('offline');
+  });
+  assert.deepEqual(await authService.updatePassword('new-password', passwordOwner()), {
     success: false,
     code: 'unknown',
     error: 'offline',
   });
 });
 
+type ProfilePatchStorage = {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  updateItemIfCurrent?: (
+    key: string,
+    update: (current: string | null) => string | undefined
+  ) => Promise<boolean>;
+};
+const profileStorage = (supabaseFake.client.auth as unknown as { storage: ProfilePatchStorage })
+  .storage;
+function allowProfilePatch(t: TestContext) {
+  profileStorage.updateItemIfCurrent = async (key, update) => {
+    const value = update(await profileStorage.getItem(key));
+    if (value === undefined) return false;
+    await profileStorage.setItem(key, value);
+    return true;
+  };
+  t.after(() => {
+    delete profileStorage.updateItemIfCurrent;
+  });
+}
+
 test('updateUserProfile refuses to run when the backend is not configured', async () => {
   supabaseConfigured = false;
-
   assert.equal(
-    (await authService.updateUserProfile({ data: { avatar_url: 'https://cdn/a.png' } })).code,
+    (
+      await authService.updateUserProfile(
+        { data: { avatar_url: 'https://cdn/a.png' } },
+        passwordOwner()
+      )
+    ).code,
     'configuration'
   );
   assert.deepEqual(supabaseFake.authCalls, []);
 });
 
-test('updateUserProfile forwards the attributes verbatim and returns the updated user', async (t) => {
-  t.mock.timers.enable({ apis: ['Date'], now: 1_800_000_000_000 });
-  supabaseFake.auth.setSession(
-    makeFakeSession({
-      user: signedInUser({ user_metadata: { avatar_url: 'https://cdn/new.png' } }),
-    })
+test('updateUserProfile sends metadata with the captured JWT and atomically persists only its user', async (t) => {
+  allowProfilePatch(t);
+  runtimeEnv.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+  runtimeEnv.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'public-test-key';
+  const owner = passwordOwner();
+  supabaseFake.auth.setSession(owner.session);
+  const fetch = t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify(signedInUser({ user_metadata: { avatar_url: 'https://cdn/new.png' } }))
+      )
   );
-
-  const result = await authService.updateUserProfile({
-    email: 'new@example.com',
-    data: { avatar_url: 'https://cdn/new.png' },
-  });
-
+  const result = await authService.updateUserProfile(
+    { data: { avatar_url: 'https://cdn/new.png' } },
+    owner
+  );
   assert.equal(result.user?.photoURL, 'https://cdn/new.png');
-  assert.deepEqual(supabaseFake.authCalls, [
-    {
-      method: 'updateUser',
-      args: [{ email: 'new@example.com', data: { avatar_url: 'https://cdn/new.png' } }],
-    },
-  ]);
+  assert.deepEqual(supabaseFake.authCalls, [], 'no global SDK updateUser or session events');
+  const call = fetch.mock.calls[0];
+  assert.ok(call);
+  const [url, init] = call.arguments as [string, RequestInit];
+  assert.equal(url, 'https://example.supabase.co/auth/v1/user');
+  assert.deepEqual(JSON.parse(String(init.body)), { data: { avatar_url: 'https://cdn/new.png' } });
+  assert.equal(
+    new Headers(init.headers).get('authorization'),
+    `Bearer ${owner.session.access_token}`
+  );
+  assert.equal(new Headers(init.headers).get('apikey'), 'public-test-key');
+  assert.equal(supabaseFake.auth.session?.access_token, owner.session.access_token);
+  assert.equal(supabaseFake.auth.session?.user.user_metadata.avatar_url, 'https://cdn/new.png');
 });
 
-test('updateUserProfile maps a Supabase error instead of leaking the raw message shape', async () => {
-  authHandlers.updateUser = async () => ({
-    data: { user: null },
-    error: { message: 'Network error while updating', status: 500 },
-  });
-
-  assert.deepEqual(await authService.updateUserProfile({ data: {} }), {
+test('updateUserProfile maps a response error through the existing auth error mapper', async (t) => {
+  allowProfilePatch(t);
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(JSON.stringify({ message: 'Network error while updating' }), { status: 500 })
+  );
+  assert.deepEqual(await authService.updateUserProfile({ data: {} }, passwordOwner()), {
     success: false,
     code: 'service_unavailable',
     error: 'EveryBible could not reach the backend right now. Please try again in a moment.',
   });
 });
 
-test('updateUserProfile reports an unknown failure when Supabase returns no user', async () => {
-  authHandlers.updateUser = async () => ({ data: { user: null }, error: null });
-
-  assert.deepEqual(await authService.updateUserProfile({ data: {} }), {
+test('updateUserProfile reports an unknown failure when the response has no user', async (t) => {
+  allowProfilePatch(t);
+  t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  assert.deepEqual(await authService.updateUserProfile({ data: {} }, passwordOwner()), {
     success: false,
     code: 'unknown',
     error: 'Failed to update profile',
   });
 });
 
-test('updateUserProfile turns a thrown transport error into an unknown failure', async () => {
-  authHandlers.updateUser = async () => {
+test('updateUserProfile turns a thrown transport error into an unknown failure', async (t) => {
+  allowProfilePatch(t);
+  t.mock.method(globalThis, 'fetch', async () => {
     throw new Error('offline');
-  };
+  });
+  assert.equal(
+    (await authService.updateUserProfile({ data: {} }, passwordOwner())).code,
+    'unknown'
+  );
+});
 
-  assert.equal((await authService.updateUserProfile({ data: {} })).code, 'unknown');
+test('updateUserProfile has no unsafe fallback when atomic storage is unavailable', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  assert.equal((await authService.updateUserProfile({ data: {} }, passwordOwner())).success, false);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('updateUserProfile refuses a stale owner before sending any request', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('{}'));
+  assert.equal(
+    (
+      await authService.updateUserProfile(
+        { data: {} },
+        { session: passwordSession(), isCurrent: () => false }
+      )
+    ).success,
+    false
+  );
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('updateUserProfile cannot patch a B session already stored while the app owner still says A', async (t) => {
+  allowProfilePatch(t);
+  const b = makeFakeSession({
+    user: signedInUser({ id: 'b' }),
+    access_token: 'b-access',
+    refresh_token: 'b-refresh',
+  });
+  supabaseFake.auth.setSession(b);
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        JSON.stringify(signedInUser({ user_metadata: { avatar_url: 'https://cdn/a.png' } }))
+      )
+  );
+  assert.equal(
+    (
+      await authService.updateUserProfile(
+        { data: { avatar_url: 'https://cdn/a.png' } },
+        passwordOwner()
+      )
+    ).success,
+    false
+  );
+  assert.deepEqual(supabaseFake.auth.session, b);
+});
+
+test('updateUserProfile rejects an in-flight response after ownership changes', async (t) => {
+  allowProfilePatch(t);
+  let current = true;
+  t.mock.method(globalThis, 'fetch', async () => {
+    current = false;
+    return new Response(JSON.stringify(signedInUser()));
+  });
+  assert.equal(
+    (
+      await authService.updateUserProfile(
+        { data: {} },
+        { session: passwordSession(), isCurrent: () => current }
+      )
+    ).success,
+    false
+  );
+});
+
+test('updateUserProfile rejects a response identifying another user', async (t) => {
+  allowProfilePatch(t);
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () => new Response(JSON.stringify(signedInUser({ id: 'b' })))
+  );
+  assert.equal((await authService.updateUserProfile({ data: {} }, passwordOwner())).success, false);
 });
 
 // ---------------------------------------------------------------------------

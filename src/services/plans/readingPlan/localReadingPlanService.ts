@@ -18,12 +18,14 @@ export interface ReadingPlanService {
   enrollInPlan(planId: string): Promise<PlanServiceResult<UserReadingPlanProgress>>;
   markDayComplete(
     planId: string,
-    dayNumber: number
+    dayNumber: number,
+    occurrenceKey?: string
   ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
   markPlanSessionComplete(
     planId: string,
     dayNumber: number,
-    sessionKey: PlanSessionKey
+    sessionKey: PlanSessionKey,
+    occurrenceKey?: string
   ): Promise<PlanServiceResult<UserReadingPlanProgress>>;
   getUserPlanProgress(
     planId?: string,
@@ -69,9 +71,9 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
       };
     },
 
-    markDayComplete: async (planId: string, dayNumber: number) => {
+    markDayComplete: async (planId: string, dayNumber: number, occurrenceKey?: string) => {
       const plan = getPlan(planId);
-      const updated = plan ? completePlanDayInStore(store, plan, dayNumber) : null;
+      const updated = plan ? completePlanDayInStore(store, plan, dayNumber, occurrenceKey) : null;
 
       if (!updated) {
         return { success: false, error: 'Not enrolled in this plan' };
@@ -83,14 +85,15 @@ export function createReadingPlanService(store: ReadingPlansStoreApi): ReadingPl
     markPlanSessionComplete: async (
       planId: string,
       dayNumber: number,
-      sessionKey: PlanSessionKey
+      sessionKey: PlanSessionKey,
+      occurrenceKey?: string
     ) => {
       const plan = getPlan(planId);
       if (!plan) {
         return { success: false, error: 'Plan not found' };
       }
 
-      const outcome = completePlanSessionInStore(store, plan, dayNumber, sessionKey);
+      const outcome = completePlanSessionInStore(store, plan, dayNumber, sessionKey, occurrenceKey);
       if (!outcome.found) {
         return { success: false, error: 'Plan session not found' };
       }

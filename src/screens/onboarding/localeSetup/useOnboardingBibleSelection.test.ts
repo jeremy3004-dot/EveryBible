@@ -54,11 +54,16 @@ const useBibleStore = fakeStore({
 });
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
 
-const interfaceLanguage = { changes: [] as string[], fail: false };
+const interfaceLanguage = {
+  changes: [] as string[],
+  fail: false,
+  impl: async (): Promise<boolean> => true,
+};
 mockModule(mock, sourcePath('i18n/index.ts'), {
   changeLanguage: async (code: string) => {
     interfaceLanguage.changes.push(code);
     if (interfaceLanguage.fail) throw new Error('locale bundle failed to load');
+    return interfaceLanguage.impl();
   },
 });
 
@@ -101,13 +106,15 @@ const finished = { count: 0 };
 
 async function mountSelection() {
   const { useOnboardingBibleSelection } = await import('./useOnboardingBibleSelection');
-  return runtime.mount(useOnboardingBibleSelection, {
+  const view = runtime.mount(useOnboardingBibleSelection, {
     deviceCountryCode: 'NP',
     selectedInterfaceLanguageCode: 'ne',
     onFinished: () => {
       finished.count += 1;
     },
   });
+  await view.commit();
+  return view;
 }
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -131,6 +138,7 @@ beforeEach(() => {
   reportedFailures.length = 0;
   interfaceLanguage.changes.length = 0;
   interfaceLanguage.fail = false;
+  interfaceLanguage.impl = async () => true;
   regional.fallback = null;
   selectionReason.clear();
   finished.count = 0;
@@ -269,4 +277,35 @@ test('an unavailable Bible uses the regional fallback, or says it is coming soon
   await settle();
   assert.equal(finished.count, 1);
   assert.equal(useBibleStore.getState().currentTranslation, 'npibundled');
+});
+
+test('a locale load failure after unmount cannot prompt or save setup', async () => {
+  let rejectLocale: (error: Error) => void = () => {};
+  interfaceLanguage.impl = () =>
+    new Promise<boolean>((_resolve, reject) => {
+      rejectLocale = reject;
+    });
+  const view = await mountSelection();
+  view.result.handleTranslationSelect(bible('npiulb', 'Nepali'));
+  await settle();
+  view.unmount();
+  rejectLocale(new Error('locale chunk missing'));
+  await settle();
+  assert.equal(finished.count, 0);
+  assert.deepEqual(useAuthStore.getState().preferences, {});
+  assert.deepEqual(rn.__recorded.alerts, []);
+});
+
+test('a download settling after unmount cannot activate or finish setup', async () => {
+  selectionReason.set('npiulb', 'download-required');
+  const view = await mountSelection();
+  view.result.handleTranslationSelect(bible('npiulb', 'Nepali'));
+  await settle();
+  view.unmount();
+  downloads[0]?.resolve();
+  await settle();
+  assert.equal(finished.count, 0);
+  assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+  assert.deepEqual(useAuthStore.getState().preferences, {});
+  assert.deepEqual(interfaceLanguage.changes, []);
 });

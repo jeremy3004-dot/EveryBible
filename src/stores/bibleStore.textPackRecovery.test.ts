@@ -197,10 +197,16 @@ test('a deletion interrupted before its files were removed is finished on the ne
 });
 
 test('finishing an interrupted deletion also retires the install it interrupted', async () => {
+  const entry = installEntry('del1');
   seedJournal({
-    installs: [installEntry('del1')],
+    installs: [entry],
     deletions: [
-      { operationId: 'del1:del', translationId: 'del1', paths: ['file:///a.db'], updatedAt: 1 },
+      {
+        operationId: 'del1:del',
+        translationId: 'del1',
+        paths: [entry.finalPath, entry.stagingPath, entry.rollbackPath],
+        updatedAt: 1,
+      },
     ],
   });
 
@@ -249,6 +255,92 @@ test('a deletion whose files still cannot be removed stays journaled and is retr
     ]
   );
 });
+
+test('failed old deletion cleanup and its retry preserve a newer installed pack', async () => {
+  const oldPath = 'file:///translations/del1.old.db';
+  const newPath = 'file:///translations/del1.new.db';
+  const replacement = makeRuntimeTranslation({
+    id: 'del1',
+    isDownloaded: true,
+    installState: 'installed',
+    textPackLocalPath: newPath,
+    activeTextPackVersion: '5',
+    downloadedAudioBooks: ['JUD'],
+  });
+  withTranslations([replacement]);
+  useBibleStore.setState({ currentTranslation: 'del1' });
+  doubles.fileSystem.setFile(newPath, { exists: true, size: 4096 });
+  const deletion = {
+    operationId: 'del1:old-delete',
+    translationId: 'del1',
+    paths: [oldPath],
+    updatedAt: 1,
+  };
+  seedJournal({ deletions: [deletion] });
+  doubles.cloud.deleteArtifacts = async (path) => {
+    await deleteAllButStuck(path);
+    if (path === oldPath) throw new Error('old file is still locked');
+  };
+
+  await reconcile();
+  assert.deepEqual(findTranslation('del1'), replacement);
+  assert.deepEqual(readJournal().deletions.del1, deletion);
+  assert.equal(useBibleStore.getState().currentTranslation, 'del1');
+
+  doubles.cloud.deleteArtifacts = deleteAllButStuck;
+  await reconcile();
+  assert.deepEqual(findTranslation('del1'), replacement);
+  assert.equal(readJournal().deletions.del1, undefined);
+  assert.equal(doubles.cloud.deletedArtifacts.includes(newPath), false);
+});
+
+for (const { fails, deletionFails } of [
+  { fails: false, deletionFails: false },
+  { fails: true, deletionFails: false },
+  { fails: false, deletionFails: true },
+  { fails: true, deletionFails: true },
+]) {
+  test(`old deletion (${deletionFails ? 'pending' : 'finished'}) does not discard a newer independent install when recovery ${fails ? 'fails' : 'succeeds'}`, async () => {
+    const entry = installEntry('del1', { operationId: 'del1:new-install' });
+    withTranslations([makeRuntimeTranslation({ id: 'del1' })]);
+    seedJournal({
+      installs: [entry],
+      deletions: [
+        {
+          operationId: 'del1:old-delete',
+          translationId: 'del1',
+          paths: ['file:///translations/del1.old.db'],
+          updatedAt: 1,
+        },
+      ],
+    });
+    doubles.cloud.deleteArtifacts = async (path) => {
+      await deleteAllButStuck(path);
+      if (deletionFails && path === 'file:///translations/del1.old.db') {
+        throw new Error('old file is still locked');
+      }
+    };
+    doubles.cloud.recover = async () => 'current';
+    doubles.cloud.validateError = (path) =>
+      fails && path === entry.finalPath
+        ? new Error('candidate read temporarily unavailable')
+        : null;
+
+    await reconcile();
+
+    assert.equal(doubles.cloud.recoverCalls.length, 1);
+    assert.equal(doubles.cloud.recoverCalls[0]?.finalPath, entry.finalPath);
+    assert.equal(Boolean(readJournal().deletions.del1), deletionFails);
+    if (fails) {
+      assert.deepEqual(readJournal().installs.del1, entry);
+      assert.equal(findTranslation('del1')?.isDownloaded, false);
+    } else {
+      assert.equal(readJournal().installs.del1, undefined);
+      assert.equal(findTranslation('del1')?.textPackLocalPath, entry.finalPath);
+      assert.equal(findTranslation('del1')?.isDownloaded, true);
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // interrupted installs

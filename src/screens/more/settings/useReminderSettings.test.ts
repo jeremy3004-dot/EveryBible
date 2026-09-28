@@ -30,12 +30,16 @@ interface FakePreferences {
 }
 // Only what the hook reads. (zustand would bind to the real React, not the test runtime.)
 const auth = {
+  user: null as { uid: string } | null,
+  authGeneration: 0,
   preferences: { notificationsEnabled: false, reminderTime: '07:30' } as FakePreferences,
   setPreferences: (next: Partial<FakePreferences>) => {
     auth.preferences = { ...auth.preferences, ...next };
   },
 };
-const authStore = <T>(selector: (state: typeof auth) => T): T => selector(auth);
+const authStore = Object.assign(<T>(selector: (state: typeof auth) => T): T => selector(auth), {
+  getState: () => auth,
+});
 mockModule(mock, sourcePath('stores/authStore.ts'), { useAuthStore: authStore });
 mockModule(mock, sourcePath('services/sync/index.ts'), { syncPreferences: async () => {} });
 mockModule(mock, sourcePath('utils/index.ts'), { lightHaptic: () => undefined });
@@ -53,6 +57,7 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
     scheduled.push(`${hour}:${minute}`);
   },
   cancelDailyReminder: async () => {},
+  reconcileDailyReminder: async () => {},
 });
 
 const mmkv = new Map<string, string>();

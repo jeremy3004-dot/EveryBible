@@ -53,6 +53,7 @@ export function ReaderTranslationSheet({
             titleStyle={styles.modalTitle}
           />
           <TranslationPickerList
+            isActive={showTranslationSheet}
             onRequestClose={handleCloseTranslationSheet}
             onTranslationActivated={handleTranslationActivated}
           />

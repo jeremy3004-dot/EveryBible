@@ -1,5 +1,5 @@
 import type { AudioAvailability } from '../../../services/audio/audioAvailability';
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useLayoutEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { Alert, Platform, Share } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
@@ -15,6 +15,7 @@ import {
   shouldReplayActiveAudioForTranslationChange,
 } from '../bibleReaderModel';
 import { rootNavigationRef } from '../../../navigation/rootNavigation';
+import { useBibleStore } from '../../../stores/bibleStore';
 import type { AudioPortionShareDraft } from './audioShareDependencies';
 import { useChapterAudioShare } from './useChapterAudioShare';
 import type { NavigationProp } from './readerConstants';
@@ -98,6 +99,15 @@ export function useReaderChapterActions({
   toggleFavorite,
 }: UseReaderChapterActionsInput) {
   const { t } = useTranslation();
+  const downloadRequestRef = useRef(0);
+  const downloadOwnerMountedRef = useRef(false);
+  useLayoutEffect(() => {
+    downloadOwnerMountedRef.current = true;
+    return () => {
+      downloadOwnerMountedRef.current = false;
+      downloadRequestRef.current += 1;
+    };
+  }, [currentTranslation, bookId, chapter]);
   const handleCloseFontSizeSheet = () => {
     setShowFontSizeSheet(false);
   };
@@ -240,6 +250,9 @@ export function useReaderChapterActions({
 
   const handleDownloadCurrentBookAudio = async () => {
     setShowChapterActionsSheet(false);
+    const request = ++downloadRequestRef.current;
+    const isCurrentRequest = () =>
+      downloadOwnerMountedRef.current && request === downloadRequestRef.current;
 
     if (!currentTranslationInfo?.hasAudio || !audioEnabled) {
       Alert.alert(t('common.error'), t('bible.audioDownloadFailed'));
@@ -248,6 +261,14 @@ export function useReaderChapterActions({
 
     try {
       await downloadAudioForBook(currentTranslation, bookId);
+      if (!isCurrentRequest()) return;
+      // Cancellation resolves without throwing. Confirm the captured book is actually
+      // present before claiming it was saved or recording a successful download.
+      const saved = useBibleStore.getState().translations.some(
+        (translation) =>
+          translation.id === currentTranslation && translation.downloadedAudioBooks.includes(bookId)
+      );
+      if (!saved) return;
       trackBibleExperienceEvent({
         name: 'library_action',
         bookId,
@@ -257,7 +278,9 @@ export function useReaderChapterActions({
       });
       Alert.alert(t('common.ok'), t('bible.audioSavedOffline'));
     } catch (downloadError) {
-      Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
+      if (isCurrentRequest()) {
+        Alert.alert(t('common.error'), describeAudioDownloadError(downloadError, t));
+      }
     }
   };
 

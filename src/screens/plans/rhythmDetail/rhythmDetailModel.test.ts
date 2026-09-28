@@ -254,3 +254,12 @@ test('sequence cards take a plan’s translated title and a passage’s localize
     ]
   );
 });
+
+test('a recurring rhythm launch carries its captured segment occurrence to the reader', () => {
+  const params = buildRhythmReaderParams(
+    session({ ...planSegment, occurrenceKey: '2026-09-30' }),
+    'read',
+    'idle'
+  )!;
+  assert.equal(params.planOccurrenceKey, '2026-09-30');
+});

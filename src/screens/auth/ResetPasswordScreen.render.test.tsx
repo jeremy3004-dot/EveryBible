@@ -1,3 +1,4 @@
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import test, { mock } from 'node:test';
 import { act } from 'react';
 import assert from 'node:assert/strict';
@@ -5,6 +6,17 @@ import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
+const authListeners = new Set<(event: AuthChangeEvent, session: Session | null) => void>();
+mockModule(mock, sourcePath('services/supabase/index.ts'), {
+  supabase: {
+    auth: {
+      onAuthStateChange: (listener: (event: AuthChangeEvent, session: Session | null) => void) => {
+        authListeners.add(listener);
+        return { data: { subscription: { unsubscribe: () => authListeners.delete(listener) } } };
+      },
+    },
+  },
+});
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 
 type Activation =
@@ -55,9 +67,18 @@ mockBarrel(mock, 'services/auth/index.ts', {
 });
 mockModule(mock, sourcePath('services/auth/authDeepLink.ts'), {
   getPendingPasswordRecovery: () => recovery.pending,
-  activatePendingPasswordRecovery: async (options: { signedInUserId: string | null }) => {
+  activatePendingPasswordRecovery: async (options: {
+    signedInUserId: string | null;
+    onActivated?: (session: Session) => void;
+  }) => {
     recovery.activations.push(options.signedInUserId);
     if (recovery.gate) await recovery.gate;
+    if (recovery.activation.status === 'activated') {
+      const session = recovery.session ?? { user: { id: 'recovery-uid' } };
+      harness.authStore.setState({ session, user: { uid: session.user.id } });
+      for (const listener of authListeners) listener('SIGNED_IN', session as Session);
+      options.onActivated?.(session as Session);
+    }
     return recovery.activation;
   },
   clearPendingPasswordRecovery: () => {},
@@ -404,7 +425,7 @@ test('after a new password is saved, OK closes and leaving keeps the session', a
   assert.equal(recovery.signOuts, 0);
 });
 
-test('a saved password with no live session still succeeds, without a cloud restore', async () => {
+test('a saved password without a restored session does not replace the owned cached session', async () => {
   recovery.session = null;
   const view = await renderReset();
   await continueToForm(view);
@@ -412,7 +433,7 @@ test('a saved password with no live session still succeeds, without a cloud rest
 
   assert.equal(lastAlert()?.title, t('auth.resetPasswordSuccess'));
   assert.deepEqual(pulls, []);
-  assert.equal(harness.authStore.getState().session, null);
+  assert.deepEqual(harness.authStore.getState().session, { user: { id: 'recovery-uid' } });
 });
 
 test('the new-password key moves to the confirm field, whose key submits', async () => {

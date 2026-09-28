@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Share, Platform } from 'react-native';
 import {
   Bookmark,
@@ -73,6 +73,23 @@ export function LessonBottomSheet({
   const translations = useBibleStore((state) => state.translations);
   const translationName = (translationId: string) =>
     translations.find((item) => item.id === translationId)?.name ?? translationId;
+  const shareContext = useMemo(
+    () => ({ translationId: currentTranslation, lessonId: lesson.id, visible }),
+    [currentTranslation, lesson.id, visible]
+  );
+  const shareOwner = useRef({ context: shareContext, active: true });
+  useEffect(() => {
+    shareOwner.current = { context: shareContext, active: true };
+    return () => {
+      shareOwner.current.active = false;
+    };
+  }, [shareContext]);
+  const isCurrentShare = () =>
+    visible && shareOwner.current.context === shareContext && shareOwner.current.active;
+  const closeSheet = () => {
+    shareOwner.current.active = false;
+    onClose();
+  };
 
   // The passage (with the same BSB fallback the lesson screen uses) decides both
   // what "Share text" sends and which translation's recording "Share audio" can
@@ -109,6 +126,7 @@ export function LessonBottomSheet({
   }, [currentTranslation, lesson.references, loadPassage, visible]);
 
   const shareMessage = async (payload: LessonSharePayload) => {
+    if (!isCurrentShare()) return;
     await Share.share(payload);
   };
 
@@ -116,11 +134,15 @@ export function LessonBottomSheet({
     if (!audioSource) return;
     try {
       const deps = await loadLessonAudioShareDeps(Platform.OS, shareMessage, t('groups.share'));
-      await shareLessonAudio(audioSource, `${lessonTitle} · ${referenceLabel}`, deps);
+      if (!isCurrentShare()) return;
+      await shareLessonAudio(audioSource, `${lessonTitle} · ${referenceLabel}`, {
+        ...deps,
+        isCurrent: isCurrentShare,
+      });
     } catch {
       // Ignore share errors
     }
-    onClose();
+    if (isCurrentShare()) closeSheet();
   };
 
   const handleShareText = async () => {
@@ -137,7 +159,7 @@ export function LessonBottomSheet({
     } catch {
       // Ignore share errors
     }
-    onClose();
+    if (isCurrentShare()) closeSheet();
   };
 
   const handleShareLink = async () => {
@@ -151,18 +173,18 @@ export function LessonBottomSheet({
     } catch {
       // Ignore share errors
     }
-    onClose();
+    if (isCurrentShare()) closeSheet();
   };
 
   const handleToggle = () => {
     onToggleComplete();
-    onClose();
+    closeSheet();
   };
 
   const completeLabel = isComplete ? t('gather.markIncomplete') : t('gather.markComplete');
 
   return (
-    <Sheet visible={visible} onClose={onClose} closeLabel={t('interface.close')}>
+    <Sheet visible={visible} onClose={closeSheet} closeLabel={t('interface.close')}>
       {/* Header: the lesson names itself, the reference is its metadata line. */}
       <View style={styles.headerRow}>
         <BookOpen
@@ -260,7 +282,7 @@ export function LessonBottomSheet({
       <AppButton
         label={t('common.done')}
         variant="ghost"
-        onPress={onClose}
+        onPress={closeSheet}
         style={styles.doneButton}
       />
     </Sheet>

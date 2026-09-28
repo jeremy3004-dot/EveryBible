@@ -32,6 +32,7 @@ export function MyPlansSection({
 }: MyPlansSectionProps) {
   const { t } = useTranslation();
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningHistory = useLibraryStore((state) => state.history);
   const { dailyReadings, dailyRhythms } = useMemo(
     () => splitActivePlanRows(activePlans),
@@ -67,6 +68,7 @@ export function MyPlansSection({
             plan={row.plan}
             progress={row.progress}
             chaptersRead={chaptersRead}
+            chaptersListened={chaptersListened}
             listeningHistory={listeningHistory}
             today={today}
             onPlanPress={onPlanPress}

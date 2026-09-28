@@ -552,3 +552,98 @@ test('Read Along cannot seek the recording of another chapter', async () => {
   const slider = view.getByRole('adjustable', { name: t('readingPlans.progress') });
   assert.equal(slider.props.onStartShouldSetResponder(), false);
 });
+
+test('a programmatic follow scroll ending does not suppress a forward seek to the final verse', async (t) => {
+  harness.rn.Platform.OS = 'android';
+  t.after(() => {
+    harness.rn.Platform.OS = 'ios';
+  });
+  t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  chapterTimings['bsb:JHN:3'] = JOHN_3_TIMINGS;
+  await playJohn3At(1_000);
+  const { view } = await renderReadAlong();
+  const scroll = await layOut(view);
+  harness.refCalls.length = 0;
+  await playJohn3At(6_000);
+  assert.deepEqual(scrollCalls(), [{ y: 720, animated: true }]);
+  await view.fire(scroll, 'onMomentumScrollEnd', {});
+  harness.refCalls.length = 0;
+
+  t.mock.timers.setTime(1_000_500);
+  await playJohn3At(59_000);
+  assert.equal(isCurrent(verseText(view, 3)), true);
+  assert.deepEqual(scrollCalls(), [{ y: 1620, animated: true }]);
+});
+
+test('a real manual fling pauses following throughout its motion and after it stops', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  chapterTimings['bsb:JHN:3'] = JOHN_3_TIMINGS;
+  await playJohn3At(1_000);
+  const { view } = await renderReadAlong();
+  const scroll = await layOut(view);
+  harness.refCalls.length = 0;
+  await view.fire(scroll, 'onScrollBeginDrag', {});
+  await view.fire(scroll, 'onScrollEndDrag', {});
+  await act(async () => scroll.props.onMomentumScrollBegin?.({}));
+
+  t.mock.timers.setTime(1_005_000);
+  await playJohn3At(6_000);
+  assert.deepEqual(scrollCalls(), [], 'a long fling is still the listener scrolling');
+  await view.fire(scroll, 'onMomentumScrollEnd', {});
+  t.mock.timers.setTime(1_005_500);
+  await playJohn3At(12_500);
+  assert.deepEqual(scrollCalls(), [], 'the pause starts when the fling stops');
+
+  t.mock.timers.setTime(1_010_000);
+  await playJohn3At(6_000);
+  assert.deepEqual(scrollCalls(), [{ y: 720, animated: true }]);
+});
+
+test('a drag without a fling cannot claim a later automatic scroll completion', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  chapterTimings['bsb:JHN:3'] = JOHN_3_TIMINGS;
+  await playJohn3At(1_000);
+  const { view } = await renderReadAlong();
+  const scroll = await layOut(view);
+  harness.refCalls.length = 0;
+  await view.fire(scroll, 'onScrollBeginDrag', {});
+  await view.fire(scroll, 'onScrollEndDrag', {});
+
+  t.mock.timers.setTime(1_005_000);
+  await playJohn3At(6_000);
+  assert.deepEqual(scrollCalls(), [{ y: 720, animated: true }]);
+  await act(async () => scroll.props.onMomentumScrollBegin?.({}));
+  await view.fire(scroll, 'onMomentumScrollEnd', {});
+  harness.refCalls.length = 0;
+  t.mock.timers.setTime(1_005_500);
+  await playJohn3At(12_500);
+  assert.deepEqual(scrollCalls(), [{ y: 1620, animated: true }]);
+});
+
+test('changing chapters clears the previous chapter manual drag and fling ownership', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  chapterTimings['bsb:JHN:3'] = JOHN_3_TIMINGS;
+  chapterTimings['bsb:JHN:4'] = JOHN_3_TIMINGS;
+  await playJohn3At(1_000);
+  const { view, props } = await renderReadAlong();
+  const scroll = await layOut(view);
+  await view.fire(scroll, 'onScrollBeginDrag', {});
+  await view.fire(scroll, 'onScrollEndDrag', {});
+  await act(async () => scroll.props.onMomentumScrollBegin?.({}));
+
+  const { FollowAlongTextSheet } = await import('./FollowAlongTextSheet');
+  await act(async () => audioStore.setState({ currentChapter: 4, currentPosition: 1_000 }));
+  await view.rerender(
+    <FollowAlongTextSheet
+      {...props}
+      track={{ translationId: 'bsb', bookId: 'JHN', chapter: 4 }}
+      readerVerses={JOHN_3.map((item) => ({ ...item, chapter: 4 }))}
+    />
+  );
+  await view.flush();
+  await layOut(view);
+  await view.fire(view.queryAllByType('ScrollView')[0]!, 'onMomentumScrollEnd', {});
+  harness.refCalls.length = 0;
+  await act(async () => audioStore.setState({ currentPosition: 6_000 }));
+  assert.deepEqual(scrollCalls(), [{ y: 720, animated: true }]);
+});

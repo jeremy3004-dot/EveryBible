@@ -219,7 +219,9 @@ test('on the last chapter of a plan day the dock completes the day and ends play
   await view.press(view.getByRole('button', { name: t('readingPlans.completeDayCta') }));
   await view.flush();
 
-  assert.deepEqual(callsNamed('markDayComplete'), [['markDayComplete', 'gospels-60-days', 1]]);
+  assert.deepEqual(callsNamed('markDayComplete'), [
+    ['markDayComplete', 'gospels-60-days', 1, undefined],
+  ]);
   assert.deepEqual(reader.audioCalls, [['stop']]);
   assert.deepEqual(resumeCleared, [['gospels-60-days', 1]]);
 });

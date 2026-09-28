@@ -359,7 +359,7 @@ test('a voice note that plays to the end is marked listened and returns to Liste
   );
 
   assert.deepEqual(fixture.listened, ['c1']);
-  assert.deepEqual(fixture.soundCalls, ['unload']);
+  assert.deepEqual(fixture.soundCalls, ['play', 'unload']);
   assert.ok(listenButton(view, 'bible.translatorReviewListen'));
 });
 
@@ -370,7 +370,7 @@ test('leaving the screen unloads the voice note that is playing', async () => {
 
   await view.unmount();
 
-  assert.deepEqual(fixture.soundCalls, ['unload']);
+  assert.deepEqual(fixture.soundCalls, ['play', 'unload']);
 });
 
 test('changing a filter stops the voice note that is playing', async () => {
@@ -381,7 +381,7 @@ test('changing a filter stops the voice note that is playing', async () => {
   await view.press(view.getByRole('tab', { name: t('feedback.doneTab') }));
   await view.flush();
 
-  assert.deepEqual(fixture.soundCalls, ['unload']);
+  assert.deepEqual(fixture.soundCalls, ['play', 'unload']);
   assert.ok(listenButton(view, 'bible.translatorReviewListen'));
 });
 
@@ -429,5 +429,5 @@ test('starting a voice note redraws only the card that is playing', async () => 
   // The redrawn cards still act on the latest state: Pause pauses the clip now playing.
   await view.press(listenButton(view, 'bible.translatorReviewPause'));
   await view.flush();
-  assert.deepEqual(fixture.soundCalls, ['pause']);
+  assert.deepEqual(fixture.soundCalls, ['play', 'pause']);
 });

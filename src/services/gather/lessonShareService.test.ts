@@ -182,3 +182,65 @@ test('share audio falls back to the recording URL when the share sheet refuses t
     `message:${JSON.stringify({ message: `Creation\n${source.url}` })}`,
   ]);
 });
+
+for (const preparationFails of [false, true]) {
+  test(`a dismissed lesson does not present audio after file preparation ${preparationFails ? 'fails' : 'finishes'}`, async () => {
+    let current = true;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls, deps } = recordingDeps({
+      prepareAsset: async () => {
+        await pending;
+        if (preparationFails) throw new Error('disk full');
+        return { uri: 'file:///cache/lesson.mp3', mimeType: 'audio/mpeg' };
+      },
+      isCurrent: () => current,
+    });
+    const share = shareLessonAudio(source, 'Creation', deps);
+    current = false;
+    release();
+
+    assert.equal(await share, 'cancelled');
+    assert.deepEqual(calls, []);
+  });
+}
+
+test('a file share rejection cannot open a fallback after the lesson was dismissed', async () => {
+  let current = true;
+  let rejectFile!: (error: Error) => void;
+  let markPresented!: () => void;
+  const presented = new Promise<void>((resolve) => {
+    markPresented = resolve;
+  });
+  const pending = new Promise<void>((_, reject) => {
+    rejectFile = reject;
+  });
+  const { calls, deps } = recordingDeps({
+    shareFile: () => {
+      markPresented();
+      return pending;
+    },
+    isCurrent: () => current,
+  });
+  const share = shareLessonAudio(source, 'Creation', deps);
+  await presented;
+  current = false;
+  rejectFile(new Error('No activity found'));
+
+  assert.equal(await share, 'cancelled');
+  assert.deepEqual(calls, ['prepare:bsb:GEN:1']);
+});
+
+test('a current lesson preserves a native message-share error', async () => {
+  const error = new Error('native share unavailable');
+  const { deps } = recordingDeps({
+    shareFile: null,
+    shareMessage: async () => {
+      throw error;
+    },
+    isCurrent: () => true,
+  });
+  await assert.rejects(shareLessonAudio(source, 'Creation', deps), error);
+});

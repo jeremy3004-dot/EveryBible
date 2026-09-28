@@ -19,6 +19,7 @@ import {
   isAudioDownloadCancellation,
   startAudioDownloadJob,
   getChapterAudioFileUri,
+  getBookAudioDirectoryUri,
   getDownloadedChapterAudioUri,
   AudioDownloadStopError,
   type AudioDownloadJobRecord,
@@ -713,21 +714,31 @@ test('an existing chapter matching the published byte count is kept', async () =
   assert.deepEqual(disk.downloads, []);
 });
 
-test('an existing chapter is kept when its published size cannot be looked up', async (t) => {
-  t.mock.method(console, 'warn', () => {});
+test('an unverified cached chapter remains on disk when offline without completing the job', async () => {
   const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
-  const disk = createSizedFileSystemDouble([[fileUri, 3000]]);
-
-  const result = await downloadAudioBook({
-    translationId: 'bsb',
-    book: getBookById('PHM')!,
-    fileSystem: disk.fileSystem,
-    resolveRemoteAudio: async () => {
-      throw new Error('offline');
-    },
-  });
-
-  assert.equal(result.chapterCount, 1);
+  const disk = createSizedFileSystemDouble([[fileUri, 1369]]);
+  const { jobs, jobStore } = createMapJobStore();
+  const events: string[] = [];
+  const offline = new Error('offline');
+  await assert.rejects(
+    downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem: disk.fileSystem,
+      jobStore,
+      resolveRemoteAudio: async () => {
+        throw offline;
+      },
+      hooks: {
+        onComplete: () => events.push('complete'),
+        onProgress: () => events.push('progress'),
+      },
+    }),
+    offline
+  );
+  assert.deepEqual(events, []);
+  assert.equal([...jobs.values()][0]?.status, 'failed');
+  assert.equal(disk.fileSizes.get(fileUri), 1369);
   assert.deepEqual(disk.deletedFiles, []);
   assert.deepEqual(disk.downloads, []);
 });
@@ -755,6 +766,91 @@ const countingResolver = (bytes: number | undefined) => {
   };
   return { lookups, resolve };
 };
+
+test('unknown-size cached partials and old-format false receipts are replaced before completion', async () => {
+  for (const legacyReceipt of [false, true]) {
+    const disk = createResumableDiskDouble();
+    const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+    const receiptUri = `${getBookAudioDirectoryUri('bsb', 'PHM')}verified-sizes.json`;
+    disk.fileSizes.set(fileUri, 1369);
+    if (legacyReceipt) disk.textFiles.set(receiptUri, JSON.stringify({ 1: 1369 }));
+    const resolver = countingResolver(undefined);
+    await downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem: disk.fileSystem,
+      resolveRemoteAudio: resolver.resolve,
+    });
+    assert.deepEqual(resolver.lookups, ['PHM 1']);
+    assert.equal(
+      disk.downloads.length,
+      1,
+      'unknown completeness must require a completed transfer'
+    );
+    assert.equal(disk.fileSizes.get(fileUri), 5000);
+    assert.deepEqual(JSON.parse(disk.textFiles.get(receiptUri)!), {
+      version: 2,
+      sizes: { 1: 5000 },
+    });
+    await downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem: disk.fileSystem,
+      resolveRemoteAudio: async () => {
+        throw new Error('offline');
+      },
+    });
+    assert.equal(disk.downloads.length, 1, 'a new completed-transfer receipt works offline');
+  }
+});
+
+test('unverified cached audio with no source or failed transfer never gains a receipt', async () => {
+  for (const outcome of ['missing', 'offline', 'transfer-failure'] as const) {
+    const disk = createResumableDiskDouble();
+    const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
+    const receiptUri = `${getBookAudioDirectoryUri('bsb', 'PHM')}verified-sizes.json`;
+    disk.fileSizes.set(fileUri, 6845);
+    disk.textFiles.set(receiptUri, JSON.stringify({ 1: 6845 }));
+    const events: string[] = [];
+    const { jobs, jobStore } = createMapJobStore();
+    await assert.rejects(
+      downloadAudioBook({
+        translationId: 'bsb',
+        book: getBookById('PHM')!,
+        fileSystem: disk.fileSystem,
+        jobStore,
+        transport: {
+          downloadFile: async () => {
+            throw new Error('transfer failed');
+          },
+        },
+        resolveRemoteAudio: async () => {
+          if (outcome === 'offline') throw new Error('offline');
+          return outcome === 'missing'
+            ? null
+            : { url: 'https://audio.test/PHM/1.mp3', duration: 1 };
+        },
+        hooks: {
+          onComplete: () => events.push('complete'),
+          onProgress: () => events.push('progress'),
+        },
+      }),
+      outcome === 'missing'
+        ? /Audio is not available/
+        : outcome === 'offline'
+          ? /offline/
+          : /transfer failed/
+    );
+    assert.equal([...jobs.values()][0]?.status, 'failed');
+    assert.deepEqual(events, []);
+    assert.equal(disk.fileSizes.get(fileUri), 6845);
+    assert.equal(
+      disk.textFiles.get(receiptUri),
+      JSON.stringify({ 1: 6845 }),
+      'legacy trust remains ignored, bytes preserved'
+    );
+  }
+});
 
 test('resuming a book skips the lookup for chapters whose size was already verified', async () => {
   const disk = createResumableDiskDouble();
@@ -831,20 +927,27 @@ test('a chapter whose size no longer matches its verified size is looked up and 
   assert.equal(disk.fileSizes.get(fileUri), 5000);
 });
 
-test('a chapter kept only because its size lookup failed is checked again on the next resume', async (t) => {
+test('a chapter preserved after offline failure is repaired on the next resume', async (t) => {
   t.mock.method(console, 'warn', () => {});
   const fileUri = getChapterAudioFileUri('bsb', 'PHM', 1);
   const disk = createResumableDiskDouble();
   disk.fileSizes.set(fileUri, 3000);
 
-  await downloadAudioBook({
-    translationId: 'bsb',
-    book: getBookById('PHM')!,
-    fileSystem: disk.fileSystem,
-    resolveRemoteAudio: async () => {
-      throw new Error('offline');
-    },
-  });
+  await assert.rejects(
+    downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem: disk.fileSystem,
+      resolveRemoteAudio: async () => {
+        throw new Error('offline');
+      },
+    }),
+    /offline/
+  );
+  assert.equal(
+    disk.textFiles.has(`${getBookAudioDirectoryUri('bsb', 'PHM')}verified-sizes.json`),
+    false
+  );
   const resumed = countingResolver(5000);
   await downloadAudioBook({
     translationId: 'bsb',
@@ -1291,4 +1394,38 @@ test('a transport that cannot be stopped ends the book download without another 
   await rejected;
   assert.equal(attempts, 1);
   assert.equal(runtime.completed(), 0);
+});
+
+test('an active recovered parent retains run identity while same-millisecond book admissions have fresh ownership', async (t) => {
+  t.mock.method(Date, 'now', () => 1);
+  const { jobStore } = createMapJobStore();
+  const parent = await startAudioDownloadJob({
+    translationId: 'bsb',
+    scope: 'translation',
+    requestedBookIds: ['PHM'],
+    jobStore,
+  });
+  const child = await startAudioDownloadJob({
+    translationId: 'bsb',
+    scope: 'book',
+    bookId: 'PHM',
+    parentRunId: parent.runId,
+    jobStore,
+  });
+  const recovered = await startAudioDownloadJob({
+    translationId: 'bsb',
+    scope: 'translation',
+    requestedBookIds: ['PHM'],
+    jobStore,
+  });
+  assert.equal(recovered.runId, parent.runId);
+  assert.equal(child.parentRunId, recovered.runId);
+  const standalone = await startAudioDownloadJob({
+    translationId: 'bsb',
+    scope: 'book',
+    bookId: 'PHM',
+    jobStore,
+  });
+  assert.notEqual(standalone.runId, child.runId);
+  assert.equal(standalone.parentRunId, undefined);
 });

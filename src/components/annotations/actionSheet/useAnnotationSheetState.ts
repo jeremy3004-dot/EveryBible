@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useLatestCallback } from '../../audio/playbackControlsParts/useLatestCallback';
 import { selectionHaptic, softHaptic } from '../../../utils/haptics';
@@ -33,6 +33,15 @@ export function useAnnotationSheetState({
   const [noteText, setNoteText] = useState(existingNote ?? '');
   const [mode, setMode] = useState<'actions' | 'note'>('actions');
   const [isSaving, setIsSaving] = useState(false);
+  const mountedRef = useRef(true);
+  const noteSaveRequestRef = useRef<object | null>(null);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      noteSaveRequestRef.current = null;
+    };
+  }, []);
   // Keep a draft attached to the verses it was opened for. The Bible stays
   // tappable while composing, so newer selection props must not retarget its save.
   const [noteTarget, setNoteTarget] = useState({
@@ -55,6 +64,8 @@ export function useAnnotationSheetState({
   }
 
   const close = () => {
+    noteSaveRequestRef.current = null;
+    setIsSaving(false);
     setMode('actions');
     setNoteText(existingNote ?? '');
     onClose();
@@ -96,24 +107,31 @@ export function useAnnotationSheetState({
   };
 
   const saveNote = async () => {
-    if (!canAnnotate || isSaving) {
+    if (!mountedRef.current || !canAnnotate || isSaving || noteSaveRequestRef.current) {
       return;
     }
+
+    const request = {};
+    noteSaveRequestRef.current = request;
+    const isCurrentRequest = () => mountedRef.current && noteSaveRequestRef.current === request;
 
     // A cleared field over a saved note removes it (an empty save); a blank new note is
     // dropped, and an unchanged one is not saved again (that would mark it edited now).
     const savedNote = getNoteToSave(noteTarget.existingNote ?? '');
     const note = getNoteToSave(noteText) ?? (savedNote ? '' : null);
-    if (note !== null && note !== savedNote) {
-      setIsSaving(true);
-      try {
+    try {
+      if (note !== null && note !== savedNote) {
+        setIsSaving(true);
         if ((await noteTarget.onNote(note)) === false) return;
-      } finally {
+      }
+      // The original write may finish after this sheet was closed and reopened.
+      if (isCurrentRequest()) close();
+    } finally {
+      if (isCurrentRequest()) {
+        noteSaveRequestRef.current = null;
         setIsSaving(false);
       }
     }
-
-    close();
   };
 
   return {

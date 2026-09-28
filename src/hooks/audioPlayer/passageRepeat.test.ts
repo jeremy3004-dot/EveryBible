@@ -39,9 +39,11 @@ mockModule(mock, sourcePath('services/audio/index.ts'), {
 const JOHN_3 = { 1: 4.92, 2: 10.04, 3: 22.04, 4: 29.3, 5: 37.64, 6: 46.42 };
 const JOHN_4 = { 1: 3.1, 2: 9.5, 3: 15.2, 4: 21.8 };
 const timingRequests: string[] = [];
+let timingsGate: Promise<void> | null = null;
 mockModule(mock, sourcePath('services/bible/verseTimestamps.ts'), {
   getChapterTimestamps: async (translationId: string, bookId: string, chapter: number) => {
     timingRequests.push(`${translationId}/${bookId}/${chapter}`);
+    if (timingsGate) await timingsGate;
     if (translationId !== 'bsb' || bookId !== 'JHN') return null;
     return chapter === 3 ? JOHN_3 : chapter === 4 ? JOHN_4 : null;
   },
@@ -160,6 +162,7 @@ beforeEach(() => {
   plays.length = 0;
   followed.length = 0;
   timingRequests.length = 0;
+  timingsGate = null;
   coverage = undefined;
   session.playRequestId = 0;
 });
@@ -584,6 +587,23 @@ test('a command while the passage decision waits wins', async () => {
     plays.map(({ bookId, chapter }) => `${bookId} ${chapter}`),
     ['MRK 2']
   );
+});
+
+test('a manual seek wins while passage engagement waits for verse timings', async () => {
+  loaded('JHN', 3, 5_000);
+  following();
+  let releaseTimings!: () => void;
+  timingsGate = new Promise<void>((resolve) => {
+    releaseTimings = resolve;
+  });
+  useAudioStore.getState().setRepeatPassage(passage('JHN', [3, 3], [3, 4]));
+  await Promise.resolve();
+  await seekPlayback(session, 100_000);
+  releaseTimings();
+  await passageRepeat.passageRepeatSettled();
+
+  assert.deepEqual(player.seeks, [100_000]);
+  assert.equal(track().positionMs, 100_000);
 });
 
 test('with nothing loaded, setting a passage waits for Play, which starts at the passage', async () => {

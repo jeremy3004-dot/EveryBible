@@ -1,8 +1,8 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { StackRouter, TabRouter } from '@react-navigation/routers';
 import { mockModule, sourcePath } from '../../testing/mockModules';
-import { createSupabaseFake } from '../../testing/supabaseFake';
+import { createSupabaseFake, makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 
 /**
  * Link arrival must NEVER establish a session. The PKCE code is parked and only
@@ -77,7 +77,7 @@ const fakeAuthInternals = supabaseFake.client.auth as unknown as {
   };
 };
 const VERIFIER_KEY = `${fakeAuthInternals.storageKey}-code-verifier`;
-const STORED_VERIFIER = 'stored-verifier/PASSWORD_RECOVERY';
+const STORED_VERIFIER = JSON.stringify('stored-verifier/PASSWORD_RECOVERY');
 const storedVerifiers = new Map<string, string>();
 const fakeGetItem = fakeAuthInternals.storage.getItem;
 const fakeSetItem = fakeAuthInternals.storage.setItem;
@@ -87,6 +87,20 @@ fakeAuthInternals.storage.setItem = async (key, value) => {
   if (key === VERIFIER_KEY) storedVerifiers.set(key, value);
   else await fakeSetItem(key, value);
 };
+
+let cleanupGate: Promise<void> | null = null;
+let cleanupStarted: () => void = () => {};
+let cleanupCalls = 0;
+mockModule(mock, sourcePath('services/auth/authService.ts'), {
+  signOut: async (isCurrent: () => boolean) => {
+    cleanupCalls++;
+    cleanupStarted();
+    if (cleanupGate) await cleanupGate;
+    if (!isCurrent()) return { success: false };
+    await supabaseFake.client.auth.signOut();
+    return { success: true };
+  },
+});
 
 const defaultAuthHandlers = { ...supabaseFake.auth.handlers };
 const authHandlers = supabaseFake.auth.handlers as unknown as Record<
@@ -101,6 +115,9 @@ before(async () => {
 });
 
 beforeEach(() => {
+  cleanupGate = null;
+  cleanupStarted = () => {};
+  cleanupCalls = 0;
   supabaseConfigured = true;
   supabaseFake.reset();
   supabaseFake.auth.setSession(null);
@@ -190,11 +207,14 @@ test('activation exchanges the parked code for a recovery session, and only once
 
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'activated' });
 
-  assert.deepEqual(supabaseFake.authCalls, [{ method: 'exchangeCodeForSession', args: [CODE] }]);
+  assert.deepEqual(supabaseFake.authCalls, [
+    { method: 'onAuthStateChange', args: [] },
+    { method: 'exchangeCodeForSession', args: [CODE] },
+  ]);
   assert.ok(supabaseFake.auth.session);
   assert.equal(authDeepLink.getPendingPasswordRecovery(), null);
   assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), { status: 'missing' });
-  assert.equal(supabaseFake.authCalls.length, 1);
+  assert.equal(supabaseFake.authCalls.length, 2);
 });
 
 // A PKCE code does not say whose account it opens, and redeeming it replaces whatever
@@ -321,6 +341,7 @@ test('a code whose verifier came from a non-recovery request is refused and its 
   authHandlers.exchangeCodeForSession = async () => {
     const next = { access_token: 'signup-session', user: { id: 'user-1' } };
     supabaseFake.auth.setSession(next as never);
+    supabaseFake.auth.emit('SIGNED_IN', next as never);
     return { data: { session: next as never, user: next.user as never, redirectType: null } };
   };
   await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
@@ -331,7 +352,7 @@ test('a code whose verifier came from a non-recovery request is refused and its 
   });
   assert.deepEqual(
     supabaseFake.authCalls.map((call) => call.method),
-    ['exchangeCodeForSession', 'signOut']
+    ['onAuthStateChange', 'exchangeCodeForSession', 'signOut']
   );
   assert.equal(supabaseFake.auth.session, null);
 });
@@ -469,4 +490,116 @@ test('a duplicate delivered when navigation becomes ready consumes its earlier d
   authDeepLink.flushPendingResetPasswordNavigation();
 
   assert.deepEqual(navigator.navigations, [[...RESET_PASSWORD_ROUTE]]);
+});
+
+afterEach(() =>
+  assert.equal(supabaseFake.auth.listenerCount, 0, 'transient exchange observer is disposed')
+);
+
+for (const verifier of [
+  null,
+  'not-json',
+  JSON.stringify('signup-verifier'),
+  JSON.stringify('/PASSWORD_RECOVERY'),
+  JSON.stringify({}),
+]) {
+  test(`preflight refuses ${verifier === null ? 'absent' : 'non-recovery or malformed'} verifier before signing out`, async () => {
+    const current = makeFakeSession();
+    supabaseFake.auth.setSession(current);
+    if (verifier === null) storedVerifiers.delete(VERIFIER_KEY);
+    else storedVerifiers.set(VERIFIER_KEY, verifier);
+    await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+    let signOuts = 0;
+    const result = await authDeepLink.activatePendingPasswordRecovery({
+      signedInUserId: current.user.id,
+      signOutCurrentAccount: async () => {
+        signOuts++;
+      },
+    });
+    assert.deepEqual(result, {
+      status: 'failed',
+      problem: verifier === null ? 'wrong-device' : 'expired',
+    });
+    assert.equal(signOuts, 0);
+    assert.deepEqual(supabaseFake.authCalls, []);
+    assert.equal(supabaseFake.auth.session, current);
+  });
+}
+
+test('an unexpected redirect cannot clean up a newer login before exchange returns', async () => {
+  const exchanged = makeFakeSession({
+    access_token: 'exchange-access',
+    refresh_token: 'exchange-refresh',
+  });
+  const next = makeFakeSession({
+    access_token: 'next-access',
+    refresh_token: 'next-refresh',
+    user: makeFakeUser({ id: 'next-user' }),
+  });
+  authHandlers.exchangeCodeForSession = async () => {
+    supabaseFake.auth.setSession(exchanged);
+    supabaseFake.auth.emit('SIGNED_IN', exchanged);
+    supabaseFake.auth.setSession(next);
+    supabaseFake.auth.emit('SIGNED_IN', next);
+    return { data: { session: exchanged, user: exchanged.user, redirectType: null }, error: null };
+  };
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+  assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
+    status: 'failed',
+    problem: 'expired',
+  });
+  assert.equal(supabaseFake.auth.session, next);
+  assert.equal(cleanupCalls, 0);
+});
+
+for (const refresh of [false, true]) {
+  test(`unexpected redirect cleans up its owned session${refresh ? ' after refresh and duplicate SIGNED_IN' : ''}`, async () => {
+    const exchanged = makeFakeSession({
+      access_token: 'exchange-access',
+      refresh_token: 'exchange-refresh',
+    });
+    authHandlers.exchangeCodeForSession = async () => {
+      supabaseFake.auth.setSession(exchanged);
+      supabaseFake.auth.emit('SIGNED_IN', exchanged);
+      if (refresh) {
+        const next = { ...exchanged, access_token: 'refreshed', refresh_token: 'refreshed-r' };
+        supabaseFake.auth.setSession(next);
+        supabaseFake.auth.emit('TOKEN_REFRESHED', next);
+        supabaseFake.auth.emit('SIGNED_IN', next);
+      } else supabaseFake.auth.emit('SIGNED_IN', exchanged);
+      return {
+        data: { session: exchanged, user: exchanged.user, redirectType: null },
+        error: null,
+      };
+    };
+    await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+    assert.deepEqual(await authDeepLink.activatePendingPasswordRecovery(), {
+      status: 'failed',
+      problem: 'expired',
+    });
+    assert.equal(supabaseFake.auth.session, null);
+    assert.equal(cleanupCalls, 1);
+  });
+}
+
+test('unexpected redirect cleanup cannot delete a login made while native removal waits', async () => {
+  const exchanged = makeFakeSession();
+  const next = makeFakeSession({ access_token: 'next', user: makeFakeUser({ id: 'next-user' }) });
+  authHandlers.exchangeCodeForSession = async () => {
+    supabaseFake.auth.setSession(exchanged);
+    supabaseFake.auth.emit('SIGNED_IN', exchanged);
+    return { data: { session: exchanged, user: exchanged.user, redirectType: null }, error: null };
+  };
+  let release!: () => void;
+  cleanupGate = new Promise<void>((r) => (release = r));
+  const ready = new Promise<void>((r) => (cleanupStarted = r));
+  await authDeepLink.handleAuthDeepLinkUrl(RECOVERY_URL);
+  const pending = authDeepLink.activatePendingPasswordRecovery();
+  await ready;
+  assert.equal(supabaseFake.auth.listenerCount, 1);
+  supabaseFake.auth.setSession(next);
+  supabaseFake.auth.emit('SIGNED_IN', next);
+  release();
+  await pending;
+  assert.equal(supabaseFake.auth.session, next);
 });

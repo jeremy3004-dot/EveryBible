@@ -727,3 +727,88 @@ test('the list reserves the pinned footer, the keyboard and breathing room, and 
   assert.equal(flattenStyle(footer().props.style)?.bottom, keyboardOverlap);
   assert.ok(textContent(footer()).includes(t('onboarding.searchAboveHint')));
 });
+
+test('a pending Bible finish preserves the newer interface language selection', async () => {
+  const finishSpanish: Array<() => void> = [];
+  fakes.changeLanguage.impl = (code) =>
+    code === 'es'
+      ? new Promise<void>((resolve) => {
+          finishSpanish.push(resolve);
+        })
+      : Promise.resolve();
+  let completed = 0;
+  const view = await fakes.renderFlow({ onComplete: () => completed++ });
+  try {
+    await view.press(view.getByRole('button', { name: 'App language, English' }));
+    const picker = view.getByTestId('onboarding-interface-language-inline-picker');
+    await view.press(within(picker).getByRole('button', { name: 'Español, Spanish' }));
+    await view.press(view.getByRole('button', { name: /^English, Berean Standard Bible/ }));
+    assert.equal(finishSpanish.length, 2, 'language choice and Bible finish are both pending');
+    await view.press(within(picker).getByRole('button', { name: 'English' }));
+    await view.flush();
+    assert.equal(harness.authStore.getState().preferences.language, 'en');
+    await act(async () => {
+      finishSpanish.forEach((finish) => finish());
+    });
+    await view.flush();
+    assert.equal(
+      harness.authStore.getState().preferences.language,
+      'en',
+      'a superseded Bible finish cannot restore the old app language'
+    );
+    assert.equal(completed, 1);
+  } finally {
+    finishSpanish.forEach((finish) => finish());
+    await view.unmount();
+  }
+});
+
+test('a Bible finish superseded by an overlapping same-language choice retries before completing', async () => {
+  let finishFirst: () => void = () => {};
+  let requests = 0;
+  fakes.changeLanguage.impl = () =>
+    ++requests === 1
+      ? new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        })
+      : Promise.resolve();
+  let completed = 0;
+  const view = await fakes.renderFlow({ onComplete: () => completed++ });
+  try {
+    await view.press(view.getByRole('button', { name: /^English, Berean Standard Bible/ }));
+    await view.press(view.getByRole('button', { name: 'App language, English' }));
+    const picker = view.getByTestId('onboarding-interface-language-inline-picker');
+    await view.press(within(picker).getByRole('button', { name: 'English' }));
+    await act(async () => finishFirst());
+    await view.flush();
+    assert.deepEqual(
+      fakes.changeLanguage.calls,
+      ['en', 'en', 'en'],
+      'false does not authorize completion, even for the same language'
+    );
+    assert.equal(completed, 1);
+    assert.equal(harness.authStore.getState().preferences.language, 'en');
+  } finally {
+    finishFirst();
+    await view.unmount();
+  }
+});
+
+test('a Bible finish completed after the onboarding flow unmounts cannot save or navigate', async () => {
+  let finish: () => void = () => {};
+  fakes.changeLanguage.impl = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  harness.authStore.getState().setPreferences({ onboardingCompleted: false });
+  let completed = 0;
+  const view = await fakes.renderFlow({ onComplete: () => completed++ });
+  await view.press(view.getByRole('button', { name: /^English, Berean Standard Bible/ }));
+  await view.unmount();
+  await act(async () => finish());
+  await view.flush();
+  assert.equal(completed, 0);
+  assert.equal(harness.authStore.getState().preferences.onboardingCompleted, false);
+  assert.deepEqual(fakes.bibleCalls, []);
+  assert.equal(fakes.sync.calls, 0);
+});

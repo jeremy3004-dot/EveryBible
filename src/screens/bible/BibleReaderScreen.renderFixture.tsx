@@ -15,6 +15,10 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { BibleTranslation, Verse } from '../../types';
+import type {
+  ChapterFeedbackAudioDraft,
+  ChapterFeedbackAudioUploadResult,
+} from '../../services/feedback/chapterFeedbackAudio';
 import type { UserAnnotation } from '../../services/supabase/types';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { createReanimatedFake, type ReanimatedFakeState } from '../../testing/nativePackageFakes';
@@ -75,8 +79,12 @@ type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 
 export interface FakeRecording {
   id: number;
-  getStatusAsync: () => Promise<{ durationMillis: number }>;
-  stopAndUnloadAsync: () => Promise<void>;
+  getStatusAsync: () => Promise<{
+    durationMillis: number;
+    canRecord?: boolean;
+    isDoneRecording?: boolean;
+  }>;
+  stopAndUnloadAsync: () => Promise<{ durationMillis: number }>;
   getURI: () => string;
 }
 
@@ -147,11 +155,10 @@ export function installReaderRenderFixture(
   const bibleStore = create(() => ({
     currentTranslation: 'bsb',
     translations: [BSB] as BibleTranslation[],
-    setCurrentBook: () => {},
-    setCurrentChapter: () => {},
+    setReadingPosition: () => {},
     setPreferredChapterLaunchMode: () => {},
     downloadAudioForBook: async () => {},
-    recoverMissingInstalledPack: async () => {},
+    recoverMissingInstalledPack: async (_translationId: string) => {},
   }));
   // The picture editor's extra faces load through expo-font's native module, which
   // Node cannot run; here they are ready at once.
@@ -287,11 +294,16 @@ export function installReaderRenderFixture(
   /** Writes the reader made through services and native packages, in order. */
   const serviceCalls: Array<[string, ...unknown[]]> = [];
   const chapters = new Map<string, Verse[]>();
+  const chapterResponses = new Map<string, Promise<Verse[]>>();
   const chapterRequests: string[] = [];
   mockModule(mocker, sourcePath('services/bible/bibleService.ts'), {
     getChapter: async (translationId: string, bookId: string, chapter: number) => {
       chapterRequests.push(`${translationId}:${bookId}:${chapter}`);
-      return chapters.get(`${bookId}:${chapter}`) ?? [];
+      return (
+        chapterResponses.get(`${translationId}:${bookId}:${chapter}`) ??
+        chapters.get(`${bookId}:${chapter}`) ??
+        []
+      );
     },
     prefetchNextChapter: async () => {},
   });
@@ -366,8 +378,11 @@ export function installReaderRenderFixture(
       flushAnonymousUsageEvents: async () => {},
     },
   });
+  const bibleExperienceEvents: Array<Record<string, unknown>> = [];
   mockModule(mocker, sourcePath('services/analytics/bibleExperienceAnalytics.ts'), {
-    trackBibleExperienceEvent: () => {},
+    trackBibleExperienceEvent: (event: Record<string, unknown>) => {
+      bibleExperienceEvents.push(event);
+    },
   });
   mockModule(mocker, sourcePath('services/audio/audioRemote.ts'), {
     isRemoteAudioAvailable: () => true,
@@ -385,10 +400,17 @@ export function installReaderRenderFixture(
       submitChapterFeedbackOrQueue: recordFeedback,
     },
   });
+  const feedbackAudioUploads: ChapterFeedbackAudioDraft[] = [];
+  const feedbackAudioUploadOutcome: { result: ChapterFeedbackAudioUploadResult } = {
+    result: { success: true },
+  };
   mockModule(mocker, sourcePath('services/feedback/chapterFeedbackAudio.ts'), {
     CHAPTER_FEEDBACK_AUDIO_MAX_DURATION_MS: 60_000,
     CHAPTER_FEEDBACK_AUDIO_MIME_TYPE: 'audio/m4a',
-    uploadChapterFeedbackAudio: async () => ({ success: true }),
+    uploadChapterFeedbackAudio: async (draft: ChapterFeedbackAudioDraft) => {
+      feedbackAudioUploads.push(draft);
+      return feedbackAudioUploadOutcome.result;
+    },
   });
   mockModule(mocker, sourcePath('services/plans/readingPlanService.ts'), {
     markDayComplete: async (...args: unknown[]) => {
@@ -442,23 +464,42 @@ export function installReaderRenderFixture(
       await new Promise<void>((release) => av.pending.push({ name, release }));
     }
   };
+  class FakeAvRecording implements FakeRecording {
+    id = 0;
+    private done = false;
+
+    async prepareToRecordAsync() {
+      // Retain the fixture's existing native-creation gate name while the hook
+      // uses Expo's individually awaitable prepare/start operations.
+      await avStep('Recording.createAsync');
+      this.id = av.recordings.length + 1;
+      av.recordings.push(this);
+      return { canRecord: true, isDoneRecording: false, durationMillis: 0 };
+    }
+
+    async startAsync() {
+      await avStep('Recording.startAsync');
+      return { canRecord: true, isDoneRecording: false, durationMillis: 0 };
+    }
+
+    async getStatusAsync() {
+      return { canRecord: !this.done, isDoneRecording: this.done, durationMillis: 4_000 };
+    }
+
+    async stopAndUnloadAsync() {
+      av.log.push(`recording${this.id}.stopAndUnload`);
+      this.done = true;
+      return { durationMillis: 4_000 };
+    }
+
+    getURI() {
+      return `file:///feedback-${this.id}.m4a`;
+    }
+  }
   mockPackage(mocker, 'expo-av', {
     Audio: {
       RecordingOptionsPresets: { HIGH_QUALITY: { preset: 'high' } },
-      Recording: {
-        createAsync: async () => {
-          await avStep('Recording.createAsync');
-          const id = av.recordings.length + 1;
-          const recording: FakeRecording = {
-            id,
-            getStatusAsync: async () => ({ durationMillis: 4_000 }),
-            stopAndUnloadAsync: async () => void av.log.push(`recording${id}.stopAndUnload`),
-            getURI: () => `file:///feedback-${id}.m4a`,
-          };
-          av.recordings.push(recording);
-          return { recording };
-        },
-      },
+      Recording: FakeAvRecording,
       Sound: {
         createAsync: async () => {
           await avStep('Sound.createAsync');
@@ -513,6 +554,7 @@ export function installReaderRenderFixture(
 
   beforeEach(() => {
     chapters.clear();
+    chapterResponses.clear();
     chapters.set('JHN:3', JOHN_3);
   });
 
@@ -524,12 +566,15 @@ export function installReaderRenderFixture(
     chapterRequests.length = 0;
     rootTabCalls.length = 0;
     feedbackSubmissions.length = 0;
+    feedbackAudioUploads.length = 0;
+    feedbackAudioUploadOutcome.result = { success: true };
     feedbackOutcome.result = { success: true };
     annotationLoads.length = 0;
     annotationRows.length = 0;
     annotationWriteOutcome.succeeds = true;
     annotationChangeListeners.clear();
     serviceCalls.length = 0;
+    bibleExperienceEvents.length = 0;
     av.log.length = 0;
     av.held.clear();
     av.pending.length = 0;
@@ -690,10 +735,12 @@ export function installReaderRenderFixture(
     progressStore,
     readingPlansStore,
     audioCalls,
+    bibleExperienceEvents,
     playerSteps,
     renders,
     contentSummary,
     chapters,
+    chapterResponses,
     chapterRequests,
     annotationLoads,
     annotationRows,
@@ -715,6 +762,8 @@ export function installReaderRenderFixture(
       timestamps = value;
     },
     feedbackSubmissions,
+    feedbackAudioUploads,
+    feedbackAudioUploadOutcome,
     feedbackAv,
     serviceCalls,
     feedbackOutcome,

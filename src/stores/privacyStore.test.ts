@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 import type { PrivacyAppIconMode } from '../types';
-import { createStartupCoordinator } from '../services/startup/startupService';
+import {
+  createPrivacyRetryInitializer,
+  createStartupCoordinator,
+} from '../services/startup/startupService';
 
 /**
  * The whole privacy dependency graph is real here (privacyService,
@@ -29,6 +32,10 @@ type Deferred = {
 };
 let pendingRead: Deferred | null = null;
 let readFailure: Error | null = null;
+let writeFailure: Error | null = null;
+let pauseSecureWrite: (() => Promise<void>) | null = null;
+let pauseSecureDelete: (() => Promise<void>) | null = null;
+let afterSecureDelete: (() => void) | null = null;
 
 const createDeferred = (): Deferred => {
   let resolve!: (value: string | null) => void;
@@ -62,11 +69,15 @@ mockModule(mock, 'expo-secure-store', {
   },
   setItemAsync: async (key: string, value: string, options?: unknown) => {
     secureStoreOptions.push(options);
+    if (writeFailure) throw writeFailure;
+    await pauseSecureWrite?.();
     secureStore.set(key, value);
   },
   deleteItemAsync: async (key: string, options?: unknown) => {
     secureStoreOptions.push(options);
+    await pauseSecureDelete?.();
     secureStore.delete(key);
+    afterSecureDelete?.();
   },
 });
 
@@ -77,6 +88,8 @@ let setAppIconResult = true;
 let currentIcon: PrivacyAppIconMode = 'standard';
 // A native icon read that never answers.
 let iconReadHangs = false;
+let pendingIconRead: Deferred | null = null;
+let pendingIconSet: Deferred | null = null;
 mockModule(
   mock,
   'react-native',
@@ -85,13 +98,22 @@ mockModule(
       EveryBiblePrivacyModule: {
         setAppIcon: async (mode: PrivacyAppIconMode) => {
           iconCalls.push(mode);
+          if (pendingIconSet) {
+            pendingIconSet.markStarted();
+            await pendingIconSet.promise;
+          }
           if (setAppIconResult) {
             currentIcon = mode;
           }
           return setAppIconResult;
         },
-        getCurrentAppIcon: () =>
-          iconReadHangs ? new Promise<never>(() => {}) : Promise.resolve(currentIcon),
+        getCurrentAppIcon: () => {
+          if (pendingIconRead) {
+            pendingIconRead.markStarted();
+            return pendingIconRead.promise;
+          }
+          return iconReadHangs ? new Promise<never>(() => {}) : Promise.resolve(currentIcon);
+        },
       },
     },
   })
@@ -132,6 +154,9 @@ mockModule(mock, sourcePath('stores/mmkvStorage.ts'), {
 mockModule(mock, '@react-native-async-storage/async-storage', {
   default: { getItem: async () => null, setItem: async () => {} },
 });
+mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
+  publicRuntimeConfig: { EXPO_PUBLIC_SUPABASE_URL: 'https://reinstalltest.supabase.co' },
+});
 mockModule(mock, sourcePath('stores/migrateFromAsyncStorage.ts'), {
   migrateFromAsyncStorage: async () => {},
 });
@@ -164,6 +189,8 @@ beforeEach(() => {
   iconCalls.length = 0;
   currentIcon = 'standard';
   iconReadHangs = false;
+  pendingIconRead = null;
+  pendingIconSet = null;
   reportedErrors.length = 0;
   reportWaiters = [];
   mmkv.clear();
@@ -172,6 +199,10 @@ beforeEach(() => {
   mmkv.set(PRIVACY_INSTALLATION_MARKER_KEY, '1');
   pendingRead = null;
   readFailure = null;
+  writeFailure = null;
+  pauseSecureWrite = null;
+  pauseSecureDelete = null;
+  afterSecureDelete = null;
   setAppIconResult = true;
 });
 
@@ -824,6 +855,194 @@ test('reconciling does nothing before the saved mode is known', async () => {
   assert.deepEqual(iconCalls, []);
 });
 
+test('deferred icon callbacks reconcile the latest saved mode', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  await store().saveConfiguration({ mode: 'standard' });
+
+  t.mock.timers.tick(400);
+  await settleIconChange();
+
+  assert.equal(currentIcon, 'standard');
+  assert.deepEqual(iconCalls, [], 'an obsolete timer must not show a discreet icon alert');
+});
+
+test('a superseded native icon read releases its owner without waiting for the getter', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  const adds = t.mock.method(AbortSignal.prototype, 'addEventListener');
+  const removes = t.mock.method(AbortSignal.prototype, 'removeEventListener');
+  const read = createDeferred();
+  pendingIconRead = read;
+  let settled = false;
+  const reconciliation = store()
+    .reconcileAppIcon()
+    .then(() => {
+      settled = true;
+    });
+  await read.started;
+  await store().saveConfiguration({ mode: 'standard' });
+  await settleIconChange();
+  const settledBeforeGetter = settled;
+  const listenerAdds = adds.mock.callCount();
+  const listenerRemoves = removes.mock.callCount();
+  pendingIconRead = null;
+  read.resolve('standard');
+  await reconciliation;
+  await settleIconChange();
+
+  assert.equal(settledBeforeGetter, true);
+  assert.equal(listenerAdds, 1);
+  assert.equal(listenerRemoves, 1, 'the superseded read releases its abort listener');
+  assert.deepEqual(iconCalls, []);
+  assert.equal(currentIcon, 'standard');
+});
+
+test('PIN verification stays independent of an unsettled native icon getter', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  const read = createDeferred();
+  pendingIconRead = read;
+  const reconciliation = store().reconcileAppIcon();
+  await read.started;
+  store().lock();
+  let verified = false;
+  const unlock = store()
+    .unlock('1234')
+    .then((success) => {
+      verified = true;
+      return success;
+    });
+  await settleIconChange();
+  const verifiedBeforeGetter = verified;
+  pendingIconRead = null;
+  read.resolve('standard');
+  const success = await unlock;
+  await reconciliation;
+
+  assert.equal(verifiedBeforeGetter, true);
+  assert.equal(success, true);
+  assert.equal(store().isLocked, false);
+});
+
+test('privacy deletion waits for a started icon setter before restoring the standard icon', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  const setter = createDeferred();
+  pendingIconSet = setter;
+  const reconciliation = store().reconcileAppIcon();
+  await setter.started;
+  pendingIconSet = null;
+  const deletion = store().disablePrivacy();
+  await settleIconChange();
+  const deletedBeforeSetter = !secureStore.has(PRIVACY_SETTINGS_KEY);
+  setter.resolve(null);
+  await Promise.all([reconciliation, deletion]);
+
+  assert.equal(deletedBeforeSetter, false);
+  assert.deepEqual(iconCalls, ['discreet', 'standard']);
+  assert.equal(currentIcon, 'standard');
+  assert.equal(store().mode, 'standard');
+  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), false);
+});
+
+test('icon reconciliation during native deletion cannot apply the old store mode before clear commits', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  currentIcon = 'discreet';
+  const deletion = createDeferred();
+  pauseSecureDelete = () => {
+    deletion.markStarted();
+    return deletion.promise.then(() => {});
+  };
+  let lateReconciliation: Promise<void> | undefined;
+  afterSecureDelete = () => {
+    lateReconciliation = store().reconcileAppIcon();
+  };
+  const clearing = store().disablePrivacy();
+  await deletion.started;
+  assert.equal(store().mode, 'discreet', 'the store commits only after deletion settles');
+  const duringDeletion = store().reconcileAppIcon();
+  await settleIconChange();
+  deletion.resolve(null);
+  await clearing;
+  await Promise.all([duringDeletion, lateReconciliation]);
+  await store().reconcileAppIcon();
+
+  assert.deepEqual(iconCalls, ['standard']);
+  assert.equal(currentIcon, 'standard');
+  assert.equal(store().mode, 'standard');
+});
+
+test('only the latest overlapping configuration releases pending icon ownership', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const firstWrite = createDeferred();
+  const lastWrite = createDeferred();
+  pauseSecureWrite = () => {
+    firstWrite.markStarted();
+    return firstWrite.promise.then(() => {});
+  };
+  const earlier = store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  await firstWrite.started;
+  pauseSecureWrite = () => {
+    lastWrite.markStarted();
+    return lastWrite.promise.then(() => {});
+  };
+  const latest = store().saveConfiguration({ mode: 'standard' });
+  firstWrite.resolve(null);
+  await earlier;
+  await lastWrite.started;
+  t.mock.timers.tick(400);
+  await settleIconChange();
+  const callsBeforeLatest = [...iconCalls];
+  lastWrite.resolve(null);
+  await latest;
+  t.mock.timers.tick(400);
+  await settleIconChange();
+
+  assert.deepEqual(callsBeforeLatest, []);
+  assert.deepEqual(iconCalls, []);
+  assert.equal(currentIcon, 'standard');
+});
+
+test('a failed configuration releases icon ownership for foreground reconciliation and retry', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  writeFailure = new Error('keychain write refused');
+  await assert.rejects(store().saveConfiguration({ mode: 'standard' }), /keychain write refused/);
+  writeFailure = null;
+  await store().reconcileAppIcon();
+  assert.equal(currentIcon, 'discreet');
+  store().lock();
+  assert.equal(await store().unlock('1234'), true);
+
+  await store().saveConfiguration({ mode: 'standard' });
+  t.mock.timers.tick(400);
+  await settleIconChange();
+  assert.equal(currentIcon, 'standard');
+  assert.equal(store().mode, 'standard');
+});
+
+test('a refused clear releases icon ownership while retaining the PIN for a fresh retry', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  await store().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  setAppIconResult = false;
+  await assert.rejects(store().disablePrivacy(), /Failed to apply the standard privacy app icon/);
+  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), true);
+  assert.equal(store().mode, 'discreet');
+
+  setAppIconResult = true;
+  await store().reconcileAppIcon();
+  assert.equal(currentIcon, 'discreet');
+  store().lock();
+  assert.equal(await store().unlock('1234'), true);
+  await store().disablePrivacy();
+
+  assert.deepEqual(iconCalls, ['standard', 'discreet', 'standard']);
+  assert.equal(currentIcon, 'standard');
+  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), false);
+});
+
 test('a refused retry is reported', async () => {
   secureStore.set(PRIVACY_SETTINGS_KEY, JSON.stringify({ mode: 'discreet', pin: '1234' }));
   await store().initialize();
@@ -932,17 +1151,17 @@ test('a keychain that fails late still leaves startup time to sign in', async ()
   });
 });
 
-test('a fresh install whose keychain cannot be read starts open in standard mode', async () => {
+test('a fresh install with unconfirmed credential cleanup keeps the retry gate', async () => {
   mmkv.delete(PRIVACY_INSTALLATION_MARKER_KEY);
 
   await relaunchWithUnreadableKeychain();
 
   assert.deepEqual(lockState(), {
-    isInitialized: true,
-    initializationError: null,
+    isInitialized: false,
+    initializationError: 'unavailable',
     mode: 'standard',
     hasPin: false,
-    isLocked: false,
+    isLocked: true,
   });
 });
 
@@ -1016,3 +1235,51 @@ test('a lock assumed from the icon alone opens once the keychain shows privacy i
   assert.equal(await store().unlock('1234'), true);
   assert.deepEqual([store().mode, store().hasPin, store().isLocked], ['standard', false, false]);
 });
+
+for (const resolved of [false, true]) {
+  test(`fresh-install ${resolved ? 'unconfirmed' : 'rejected'} native deletion gates actual startup auth despite a discreet icon`, async (t) => {
+    const sessionKey = 'sb-reinstalltest-auth-token';
+    mmkv.clear();
+    currentIcon = 'discreet';
+    secureStore.set(sessionKey, 'old-install-session');
+    secureStore.set('unrelated-key', 'kept');
+    if (resolved)
+      afterSecureDelete = () => {
+        secureStore.set(sessionKey, 'old-install-session');
+      };
+    else
+      pauseSecureDelete = async () => {
+        throw new Error('native deletion unavailable');
+      };
+    t.mock.method(console, 'error', () => {});
+    let authLoads = 0;
+    const initializeAuth = async () => {
+      authLoads += 1;
+    };
+    const coordinator = createStartupCoordinator({
+      initializePrivacy: () => store().initialize(),
+      isPrivacyInitialized: () => store().isInitialized,
+      initializeAuth,
+      preloadBibleData: async () => {},
+    });
+    await coordinator.initializeCritical();
+    assert.equal(authLoads, 0, 'obsolete credentials must never reach auth restore');
+    assert.equal(store().isInitialized, false);
+    assert.equal(store().initializationError, 'unavailable');
+    assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
+    assert.equal(secureStore.get(sessionKey), 'old-install-session');
+    pauseSecureDelete = null;
+    afterSecureDelete = null;
+    const retry = createPrivacyRetryInitializer({
+      retryPrivacy: () => store().retryInitialize(),
+      isPrivacyInitialized: () => store().isInitialized,
+      initializeAuth,
+    });
+    await retry();
+    assert.equal(authLoads, 1);
+    assert.equal(store().isInitialized, true);
+    assert.equal(secureStore.has(sessionKey), false);
+    assert.equal(secureStore.get('unrelated-key'), 'kept');
+    assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+  });
+}

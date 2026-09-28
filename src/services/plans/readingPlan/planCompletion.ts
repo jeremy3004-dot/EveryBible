@@ -11,12 +11,17 @@ import { resolvePlanSessionCompletion } from './planSessionModel';
 export function completePlanDayInStore(
   store: ReadingPlansStoreApi,
   plan: ReadingPlan,
-  dayNumber: number
+  dayNumber: number,
+  occurrenceKey?: string
 ): UserReadingPlanProgress | null {
   return isRecurringPlan(plan)
     ? store
         .getState()
-        .markRecurringDayComplete(plan.id, getPlanCompletionEntryKey(plan, dayNumber), dayNumber)
+        .markRecurringDayComplete(
+          plan.id,
+          getPlanCompletionEntryKey(plan, dayNumber, undefined, occurrenceKey),
+          dayNumber
+        )
     : store.getState().markDayComplete(plan.id, dayNumber, plan.duration_days);
 }
 
@@ -33,14 +38,17 @@ export function completePlanSessionInStore(
   store: ReadingPlansStoreApi,
   plan: ReadingPlan,
   dayNumber: number,
-  sessionKey: PlanSessionKey
+  sessionKey: PlanSessionKey,
+  occurrenceKey?: string
 ): PlanSessionOutcome {
   const completion = resolvePlanSessionCompletion(
     plan,
     getBundledPlanEntries(plan.id),
     dayNumber,
     sessionKey,
-    store.getState().getProgress(plan.id)?.completed_sessions ?? {}
+    store.getState().getProgress(plan.id)?.completed_sessions ?? {},
+    undefined,
+    occurrenceKey
   );
   if (!completion) {
     return { found: false };

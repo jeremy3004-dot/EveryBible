@@ -16,7 +16,7 @@ import type { FetchLike } from './requestTimeoutFetch';
  *
  * Fenced tokens are kept in memory only, for the rest of this launch.
  */
-const fencedRefreshTokens = new Set<string>();
+const fencedRefreshTokens = new Map<string, Set<object>>();
 const inFlightRefreshes = new Set<{ refreshToken: string; fence: () => void }>();
 
 const signedOutError = (): TypeError =>
@@ -41,11 +41,22 @@ function refreshTokenOf(input: string | URL | Request, init?: RequestInit): stri
   }
 }
 
-export function fenceRefreshToken(refreshToken: string): void {
-  fencedRefreshTokens.add(refreshToken);
+export function fenceRefreshToken(refreshToken: string): () => void {
+  const owner = {};
+  const owners = fencedRefreshTokens.get(refreshToken) ?? new Set<object>();
+  owners.add(owner);
+  fencedRefreshTokens.set(refreshToken, owners);
   for (const request of inFlightRefreshes) {
     if (request.refreshToken === refreshToken) request.fence();
   }
+  // Only failed local admission releases its own fence. Other sign-out attempts
+  // retain ownership, including a successful sign-out that happened earlier.
+  return () => {
+    owners.delete(owner);
+    if (owners.size === 0 && fencedRefreshTokens.get(refreshToken) === owners) {
+      fencedRefreshTokens.delete(refreshToken);
+    }
+  };
 }
 
 export function createRefreshTokenFencedFetch(baseFetch: FetchLike): FetchLike {

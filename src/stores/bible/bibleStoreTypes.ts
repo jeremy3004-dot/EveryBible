@@ -4,6 +4,8 @@ import type { Verse, BibleTranslation, TranslationDownloadProgress } from '../..
 export interface BibleState {
   currentBook: string;
   currentChapter: number;
+  /** Epoch milliseconds when this position was chosen, independent of read completion. */
+  readingPositionUpdatedAt: number | null;
   hasReaderHistory: boolean;
   preferredChapterLaunchMode: 'listen' | 'read';
   verses: Verse[];
@@ -25,8 +27,13 @@ export interface BibleState {
   // Basic actions
   setCurrentBook: (bookId: string) => void;
   setCurrentChapter: (chapter: number) => void;
+  setReadingPosition: (position: { bookId: string; chapter: number }) => void;
   setPreferredChapterLaunchMode: (mode: 'listen' | 'read') => void;
-  applySyncedReadingPosition: (readingPosition: { bookId: string; chapter: number }) => void;
+  applySyncedReadingPosition: (readingPosition: {
+    bookId: string;
+    chapter: number;
+    updatedAt: number | null;
+  }) => void;
   setVerses: (verses: Verse[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;

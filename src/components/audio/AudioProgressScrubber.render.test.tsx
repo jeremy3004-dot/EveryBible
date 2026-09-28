@@ -32,6 +32,7 @@ const livePosition = { currentPosition: 30_000, duration: 120_000 };
 mockModule(mock, sourcePath('hooks/useAudioPosition.ts'), {
   useAudioPosition: () => livePosition,
 });
+mockModule(mock, sourcePath('components/audio/SelahButton.tsx'), { SelahButton: () => null });
 
 const touch = (locationX: number) => ({ nativeEvent: { locationX, locationY: 0 } });
 
@@ -40,6 +41,7 @@ async function renderScrubber(position = 30_000, duration = 120_000) {
   const seeks: number[] = [];
   const view = await harness.render(
     <AudioProgressScrubber
+      mediaKey="bsb:JHN:3"
       position={position}
       duration={duration}
       onSeek={(ms) => seeks.push(ms)}
@@ -109,6 +111,11 @@ test('an interrupted drag discards the preview without seeking', async () => {
 test('screen-reader increment and decrement step ten seconds', async () => {
   const { view, seeks, slider } = await renderScrubber(30_000, 120_000);
 
+  assert.equal(slider().props.accessible, true, 'the native view is exposed to screen readers');
+  assert.deepEqual(slider().props.accessibilityActions, [
+    { name: 'increment' },
+    { name: 'decrement' },
+  ]);
   await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
   await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
   assert.deepEqual(seeks, [40_000, 20_000]);
@@ -123,6 +130,7 @@ test('drag handlers stay stable through preview and playback updates', async () 
   assert.equal(slider().props.onResponderMove, move);
   await view.rerender(
     <AudioProgressScrubber
+      mediaKey="bsb:JHN:3"
       position={35_000}
       duration={120_000}
       onSeek={(ms) => latestSeeks.push(ms)}
@@ -142,8 +150,25 @@ test('drag handlers stay stable through preview and playback updates', async () 
 test('an unloaded chapter does not capture touches or seek to zero', async () => {
   const { view, seeks, slider } = await renderScrubber(0, 0);
   assert.equal(slider().props.onStartShouldSetResponder(), false);
+  assert.deepEqual(slider().props.accessibilityState, { disabled: true });
   await view.fire(slider(), 'onResponderRelease', touch(100));
+  await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'increment' } });
+  await view.fire(slider(), 'onAccessibilityAction', { nativeEvent: { actionName: 'decrement' } });
   assert.deepEqual(seeks, []);
+});
+
+test('screen-reader actions clamp seeking to either end of the chapter', async () => {
+  const start = await renderScrubber(5_000, 120_000);
+  await start.view.fire(start.slider(), 'onAccessibilityAction', {
+    nativeEvent: { actionName: 'decrement' },
+  });
+  assert.deepEqual(start.seeks, [0]);
+
+  const end = await renderScrubber(115_000, 120_000);
+  await end.view.fire(end.slider(), 'onAccessibilityAction', {
+    nativeEvent: { actionName: 'increment' },
+  });
+  assert.deepEqual(end.seeks, [120_000]);
 });
 
 test('the Bible reader listen progress drags through the same scrubber to seek', async () => {
@@ -208,3 +233,72 @@ test('a scrubber that shows its dot only while dragging has none at rest', async
   await view.fire(slider(), 'onResponderRelease', touch(50));
   assert.equal(thumbOf(view), undefined, 'gone again once released');
 });
+
+for (const surface of ['listen', 'read along'] as const) {
+  for (const replacement of ['chapter', 'translation', 'chapter then return'] as const) {
+    test(`a held ${surface} drag is discarded after replacement ${replacement}`, async () => {
+      const { ReaderListenProgress } = await import('../../screens/bible/ReaderAudioPositionParts');
+      const { ReadAlongControls } =
+        await import('../../screens/bible/reader/readAlong/ReadAlongControls');
+      const original = { translationId: 'bsb', bookId: 'JHN', chapter: 3 };
+      const next = {
+        ...original,
+        ...(replacement === 'translation' ? { translationId: 'web' } : { chapter: 4 }),
+      };
+      const seeks: { track: typeof original; positionMs: number }[] = [];
+      const render = (track: typeof original) =>
+        surface === 'listen' ? (
+          <ReaderListenProgress
+            track={track}
+            isCurrentAudioChapter
+            onSeek={(positionMs) => seeks.push({ track, positionMs })}
+            trackColor="#111111"
+            fillColor="#222222"
+            timeTextColor="#333333"
+          />
+        ) : (
+          <ReadAlongControls
+            track={track}
+            isCurrentAudioChapter
+            isPlaying
+            hasPreviousChapter
+            hasNextChapter
+            onPreviousChapter={() => {}}
+            onNextChapter={() => {}}
+            onPlayPause={() => {}}
+            onSeek={(positionMs) => seeks.push({ track, positionMs })}
+            bottomInset={0}
+          />
+        );
+      livePosition.currentPosition = 30_000;
+      livePosition.duration = 120_000;
+      const view = await harness.render(render(original));
+      const slider = () =>
+        view.getByRole('adjustable', { name: harness.i18n.t('readingPlans.progress') });
+      await view.fire(slider(), 'onLayout', {
+        nativeEvent: { layout: { width: 200, height: 32 } },
+      });
+      await view.fire(slider(), 'onResponderGrant', touch(100));
+      assert.equal(slider().props.accessibilityValue.now, 60);
+      livePosition.currentPosition = 0;
+      await view.rerender(render(next));
+      assert.equal(
+        slider().props.accessibilityValue.now,
+        0,
+        'obsolete drag preview clears immediately'
+      );
+      if (replacement === 'chapter then return') await view.rerender(render(original));
+      await view.fire(slider(), 'onResponderMove', touch(150));
+      assert.equal(slider().props.accessibilityValue.now, 0, 'old movement cannot revive the drag');
+      await view.fire(slider(), 'onResponderRelease', touch(150));
+      assert.deepEqual(seeks, [], 'the previous media gesture cannot dispatch a seek');
+      await view.fire(slider(), 'onResponderGrant', touch(50));
+      await view.fire(slider(), 'onResponderRelease', touch(50));
+      assert.deepEqual(
+        seeks,
+        [{ track: replacement === 'chapter then return' ? original : next, positionMs: 30_000 }],
+        'a new gesture can seek the current media'
+      );
+    });
+  }
+}

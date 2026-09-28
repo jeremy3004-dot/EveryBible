@@ -37,6 +37,8 @@ const FALLBACK_PACKAGE_NAME = 'com.everybible.app';
 
 export interface AndroidMediaControlNativeModule {
   enableMediaControls(options: Record<string, unknown>): Promise<void>;
+  /** Available in rebuilt Android binaries; older binaries still accept initial options. */
+  updateMediaControlOptions?(options: Record<string, unknown>): Promise<void>;
   disableMediaControls(): Promise<void>;
   updateMetadata(metadata: Record<string, unknown>): Promise<void>;
   updatePlaybackState(state: number, position?: number, playbackRate?: number): Promise<void>;
@@ -72,6 +74,7 @@ export function createAndroidMediaSession(
   let enabled = false;
   let disabledAtMs: number | null = null;
   let lastMetadataSignature: string | null = null;
+  let lastControlOptionsSignature: string | null = null;
   let lastPlayback: SentAndroidPlaybackSnapshot | null = null;
   let artworkUri: string | null | undefined;
 
@@ -113,20 +116,33 @@ export function createAndroidMediaSession(
     input: BibleNowPlayingInput,
     payload: BibleNowPlayingPayload
   ): Promise<void> => {
+    const controlOptions = buildAndroidMediaControlOptions(input.localized, payload);
+    const controlOptionsSignature = JSON.stringify(controlOptions);
     if (!enabled) {
       if (disabledAtMs !== null) {
         const waitMs = ANDROID_REENABLE_GAP_MS - (env.now() - disabledAtMs);
         if (waitMs > 0) await env.sleep(waitMs);
       }
       try {
-        await nativeModule.enableMediaControls(buildAndroidMediaControlOptions(input.localized));
+        await nativeModule.enableMediaControls(controlOptions);
       } catch (error) {
         env.reportError('enableMediaControls', error);
         return;
       }
       enabled = true;
+      lastControlOptionsSignature = controlOptionsSignature;
       lastMetadataSignature = null;
       lastPlayback = null;
+    } else if (
+      controlOptionsSignature !== lastControlOptionsSignature &&
+      nativeModule.updateMediaControlOptions
+    ) {
+      try {
+        await nativeModule.updateMediaControlOptions(controlOptions);
+        lastControlOptionsSignature = controlOptionsSignature;
+      } catch (error) {
+        env.reportError('updateMediaControlOptions', error);
+      }
     }
 
     const discreet = isDiscreet();
@@ -183,6 +199,7 @@ export function createAndroidMediaSession(
     return enqueue(async () => {
       if (!enabled) return;
       enabled = false;
+      lastControlOptionsSignature = null;
       lastMetadataSignature = null;
       lastPlayback = null;
       disabledAtMs = env.now();

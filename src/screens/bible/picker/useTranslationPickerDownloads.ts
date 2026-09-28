@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../../hooks/useI18n';
 import { useBibleStore } from '../../../stores/bibleStore';
 import type { BibleTranslation } from '../../../types';
@@ -13,8 +13,11 @@ import {
   type TranslationPickerDownloadQueue,
   type TranslationPickerDownloadState,
 } from '../translationPickerDownloadQueue';
+import { useLatestRef } from './useLatestRef';
 
 export interface TranslationPickerCallbacks {
+  /** Modal hosts keep the list mounted while hidden; hidden selections cannot activate. */
+  isActive?: boolean;
   onRequestClose?: () => void;
   onTranslationActivated?: (translation: BibleTranslation) => void;
 }
@@ -25,10 +28,17 @@ export interface TranslationPickerCallbacks {
  * failure is reported and offers a retry. Closing the picker drops the waiting choice.
  */
 export function useTranslationPickerDownloads({
+  isActive = true,
   onRequestClose,
   onTranslationActivated,
 }: TranslationPickerCallbacks) {
   const { t } = useI18n();
+  const activeRef = useLatestRef(isActive);
+  const mountedRef = useRef(false);
+  const retryGenerationRef = useRef(0);
+  const invalidateDownloadRetry = useCallback(() => {
+    retryGenerationRef.current += 1;
+  }, []);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setPreferredTranslationLanguage = useBibleStore(
     (state) => state.setPreferredTranslationLanguage
@@ -56,11 +66,18 @@ export function useTranslationPickerDownloads({
   }, []);
   const downloadQueue = useMemo<TranslationPickerDownloadQueue<BibleTranslation>>(
     () => ({
-      request: (translation) => getQueue().request(translation),
+      request: (translation) => {
+        if (!mountedRef.current || !activeRef.current) return Promise.resolve();
+        retryGenerationRef.current += 1;
+        return getQueue().request(translation);
+      },
       cancelQueued: (translationId) => getQueue().cancelQueued(translationId),
-      supersede: () => getQueue().supersede(),
+      supersede: () => {
+        retryGenerationRef.current += 1;
+        getQueue().supersede();
+      },
     }),
-    [getQueue]
+    [activeRef, getQueue]
   );
 
   useLayoutEffect(() => {
@@ -78,13 +95,21 @@ export function useTranslationPickerDownloads({
       },
       onDownloadFailed: (translation, error) => {
         reportTranslationDownloadFailure(error);
+        const generation = retryGenerationRef.current;
         showTranslationDownloadFailedAlert(t, () => {
+          if (
+            !mountedRef.current ||
+            !activeRef.current ||
+            retryGenerationRef.current !== generation
+          )
+            return;
           void downloadQueue.request(translation);
         });
       },
       onStateChange: setDownloadQueueState,
     };
   }, [
+    activeRef,
     downloadTranslation,
     setPreferredTranslationLanguage,
     setCurrentTranslation,
@@ -95,17 +120,31 @@ export function useTranslationPickerDownloads({
   ]);
 
   // Closing the picker drops the waiting choice; a running download finishes but opens nothing.
-  useEffect(() => () => downloadQueue.supersede(), [downloadQueue]);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      downloadQueue.supersede();
+    };
+  }, [downloadQueue]);
+  useLayoutEffect(() => {
+    if (!isActive) downloadQueue.supersede();
+  }, [downloadQueue, isActive]);
 
   const handleDownloadTextTranslation = useCallback(
     async (translation: BibleTranslation) => {
-      if (!translation.catalog?.text?.downloadUrl) {
+      if (!activeRef.current || !translation.catalog?.text?.downloadUrl) {
         return;
       }
       await downloadQueue.request(translation);
     },
-    [downloadQueue]
+    [activeRef, downloadQueue]
   );
 
-  return { downloadQueue, downloadQueueState, handleDownloadTextTranslation };
+  return {
+    downloadQueue,
+    downloadQueueState,
+    handleDownloadTextTranslation,
+    invalidateDownloadRetry,
+  };
 }

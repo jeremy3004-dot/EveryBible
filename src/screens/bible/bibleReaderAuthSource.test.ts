@@ -1,23 +1,35 @@
-// UI-only source check: asserts on component render code, which the suite cannot render (no component renderer); not a behaviour test.
+// Static auth wiring contract; anonymous reader behavior is covered by render tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readBibleReaderSource } from './bibleReaderSourceFiles';
+import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
+import { listBibleReaderSourceFiles, readBibleReaderSource } from './bibleReaderSourceFiles';
 
 test('BibleReaderScreen keeps reader actions local-first instead of restoring an auth session', () => {
   const source = readBibleReaderSource();
-  const authSelectors = Array.from(
-    source.matchAll(/useAuthStore\(\s*\(state\) => state\.([^)]+?)\s*\)/gs),
-    (match) => match[1].replace(/\s+/g, '')
-  );
+  const authSelectors = listBibleReaderSourceFiles().flatMap((file) => {
+    const fileSource = readFileSync(new URL(file, import.meta.url), 'utf8');
+    return Array.from(
+      fileSource.matchAll(/useAuthStore\(\s*\(state\) => state\.([^)]+?)\s*\)/gs),
+      (match) => ({ file, selector: match[1].replace(/\s+/g, '') })
+    );
+  });
 
   assert.ok(
-    authSelectors.length > 0,
+    authSelectors.some(({ selector }) => selector.startsWith('preferences.')),
     'BibleReaderScreen should still read saved reader preferences from authStore'
   );
   assert.equal(
-    authSelectors.every((selector) => selector.startsWith('preferences.')),
+    authSelectors.every(
+      ({ file, selector }) =>
+        selector.startsWith('preferences.') ||
+        (file === './reader/useChapterFeedback.ts' &&
+          (selector === 'user?.uid??null' || selector === 'authGeneration'))
+    ),
     true,
-    `BibleReaderScreen should only read preferences from authStore, got: ${authSelectors.join(', ')}`
+    `Reader auth selectors must be preferences, except feedback submission ownership: ${authSelectors
+      .map(({ file, selector }) => `${file}: ${selector}`)
+      .join(', ')}`
   );
 
   assert.doesNotMatch(

@@ -1,3 +1,5 @@
+import { bibleNarrationOwner, claimNarration } from '../../services/audio/narrationOwnership';
+import { captureActivePlaybackPause } from './transportRegistry';
 import {
   audioPlayer,
   clearBibleNowPlaying,
@@ -6,6 +8,10 @@ import {
   prefetchChapterAudio,
 } from '../../services/audio';
 import { expoAudioFileSystemAdapter } from '../../services/audio/audioDownloadStorage';
+import {
+  captureIdleAudioBookWriter,
+  runAudioBookCleanupIfUnchanged,
+} from '../../services/audio/download/activeDownloads';
 import { fetchRemoteChapterAudio } from '../../services/audio/audioRemote';
 import {
   AudioLoadTimeoutError,
@@ -172,6 +178,14 @@ export async function loadChapterForTranslation(
   }
 
   const playRequestId = ++session.playRequestId;
+  const narration = claimNarration('bible', bibleNarrationOwner, captureActivePlaybackPause());
+  try {
+    await narration.ready;
+  } catch {
+    if (playRequestId === session.playRequestId) store.setError(t('interface.audioPlayFailed'));
+    return;
+  }
+  if (playRequestId !== session.playRequestId || !narration.isCurrent()) return;
   pausedByListener.current = false;
 
   // Read at call time: auto-advance and lock-screen commands reach this after the
@@ -241,6 +255,9 @@ export async function loadChapterForTranslation(
       return;
     }
 
+    const localWriterSnapshot = isDownloadedAudioUrl(audioData.url)
+      ? captureIdleAudioBookWriter(audioData.url.slice(0, audioData.url.lastIndexOf('/') + 1))
+      : null;
     session.loadingPlayRequestId = playRequestId;
     try {
       await loadChapterAudio(
@@ -282,8 +299,11 @@ export async function loadChapterForTranslation(
       // If a downloaded chapter file can no longer be decoded, remove it so
       // future playback prefers the healthy remote asset instead of looping
       // on the same broken local file forever.
-      if (initialAudioUrl && expoAudioFileSystemAdapter.deleteFile) {
-        await expoAudioFileSystemAdapter.deleteFile(initialAudioUrl).catch(() => {});
+      const deleteFile = expoAudioFileSystemAdapter.deleteFile;
+      if (initialAudioUrl && localWriterSnapshot && deleteFile) {
+        await runAudioBookCleanupIfUnchanged(localWriterSnapshot, () =>
+          deleteFile(initialAudioUrl)
+        ).catch(() => {});
       }
     } finally {
       if (session.loadingPlayRequestId === playRequestId) session.loadingPlayRequestId = null;

@@ -689,3 +689,43 @@ test('audio job ticks reuse the search and language indexes; a catalog change re
   );
   assert.ok(view.getByRole('button', { name: /^Berean Study Bible,/ }), 'the rename is searchable');
 });
+
+test('language rows ignore audio ticks but still follow catalog and selection changes', async () => {
+  const view = await renderPicker();
+  await view.press(view.getByTestId('translation-picker-language-pill'));
+  const mark = harness.renders.mark();
+  for (let progress = 10; progress < 20; progress++) {
+    await audioJobTick(progress);
+  }
+  assert.equal(
+    harness.renders.count(
+      mark,
+      'TouchableOpacity',
+      (props) =>
+        (props.accessibilityState as { selected?: boolean } | undefined)?.selected !== undefined
+    ),
+    0,
+    'audio progress does not redraw unchanged language rows'
+  );
+
+  await inAct(() => useBibleStore.setState({ preferredTranslationLanguage: 'Spanish' }));
+  assert.equal(
+    view.getByRole('button', { name: /^Spanish \/ Español/ }).props.accessibilityState.selected,
+    true
+  );
+  assert.equal(
+    view.getByRole('button', { name: /^English/ }).props.accessibilityState.selected,
+    false
+  );
+  await inAct(() =>
+    useBibleStore.setState((state) => ({
+      translations: state.translations.map((translation) =>
+        translation.id === 'bsb' ? { ...translation, language: 'French' } : translation
+      ),
+    }))
+  );
+  assert.ok(view.getByRole('button', { name: /^French/ }));
+  await view.press(view.getByRole('button', { name: /^French/ }));
+  await view.changeText(view.getByTestId('translation-picker-search'), 'Berean');
+  assert.ok(view.getByRole('button', { name: /^Berean Standard Bible,/ }));
+});

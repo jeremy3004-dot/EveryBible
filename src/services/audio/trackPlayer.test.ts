@@ -29,6 +29,7 @@ interface FakeStatus {
 }
 
 class FakeSound {
+  shouldPlay = false;
   readonly calls: RecordedCall[] = [];
   readonly rejections = new Map<string, unknown>();
   readonly gates = new Map<string, Promise<void>>();
@@ -50,15 +51,45 @@ class FakeSound {
     didJustFinish: false,
   };
 
-  playAsync = (): Promise<void> => this.record('playAsync', []);
-  pauseAsync = (): Promise<void> => this.record('pauseAsync', []);
+  playAsync = async (): Promise<FakeStatus> => {
+    const status = this.statusOn.get('playAsync') ?? this.status;
+    if (!this.rejections.has('playAsync')) this.shouldPlay = true;
+    await this.record('playAsync', []);
+    return status;
+  };
+  pauseAsync = async (): Promise<void> => {
+    if (!this.rejections.has('pauseAsync')) this.shouldPlay = false;
+    await this.record('pauseAsync', []);
+  };
   stopAsync = (): Promise<void> => this.record('stopAsync', []);
   unloadAsync = (): Promise<void> => this.record('unloadAsync', []);
   setRateAsync = (rate: number, correctPitch: boolean): Promise<void> =>
     this.record('setRateAsync', [rate, correctPitch]);
   setVolumeAsync = (volume: number): Promise<void> => this.record('setVolumeAsync', [volume]);
-  setPositionAsync = (positionMillis: number): Promise<void> =>
-    this.record('setPositionAsync', [positionMillis]);
+  setPositionAsync = async (positionMillis: number): Promise<FakeStatus> => {
+    const status = this.statusOn.get('setPositionAsync') ?? {
+      ...this.status,
+      positionMillis,
+      isPlaying: this.shouldPlay,
+      didJustFinish: false,
+    };
+    await this.record('setPositionAsync', [positionMillis]);
+    return status;
+  };
+  setStatusAsync = async (update: {
+    positionMillis: number;
+    shouldPlay: boolean;
+  }): Promise<FakeStatus> => {
+    const status = this.statusOn.get('setStatusAsync') ?? {
+      ...this.status,
+      positionMillis: update.positionMillis,
+      isPlaying: update.shouldPlay,
+      didJustFinish: false,
+    };
+    if (!this.rejections.has('setStatusAsync')) this.shouldPlay = update.shouldPlay;
+    await this.record('setStatusAsync', [update]);
+    return status;
+  };
   setOnPlaybackStatusUpdate = (listener: ((status: FakeStatus) => void) | null): void => {
     this.calls.push({ method: 'setOnPlaybackStatusUpdate', args: [listener] });
     this.statusListener = listener;
@@ -280,11 +311,11 @@ test('add unloads the previously loaded sound before loading the replacement', a
   await mod.default.add(track('second'));
 
   assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
-  assert.equal(soundInstances[0].calls[0].args[0], null);
+  assert.equal(soundInstances[0].calls.at(-1)?.args[0], null);
   assert.deepEqual(soundInstances[1].methods(), []);
   assert.deepEqual(await mod.default.getActiveTrack(), track('second'));
 });
@@ -317,14 +348,37 @@ test('a stale load that finishes after a newer one is unloaded instead of becomi
   await stalePending;
 
   const [staleSound, freshSound] = soundInstances;
-  assert.deepEqual(staleSound.methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
-  assert.equal(staleSound.calls[0].args[0], null);
+  assert.deepEqual(staleSound.methods(), ['stopAsync', 'unloadAsync', 'setOnPlaybackStatusUpdate']);
+  assert.equal(staleSound.calls.at(-1)?.args[0], null);
   assert.deepEqual(freshSound.methods(), []);
   assert.deepEqual(await mod.default.getActiveTrack(), track('fresh'));
   assert.deepEqual(
     events.filter((entry) => entry.event === mod.Event.PlaybackActiveTrackChanged),
     [{ event: mod.Event.PlaybackActiveTrackChanged, data: { track: track('fresh') } }]
   );
+});
+
+test('a superseded load still releases its sound when stop rejects, preserving the newer sound', async () => {
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const stale = mod.default.add(track('stale'));
+  await flush();
+  const staleSound = soundInstances[0];
+  staleSound.rejections.set('stopAsync', new Error('E_AV_SETSTATUS: status command rejected'));
+  nextCreateGate = null;
+  await mod.default.loadAndPlay('https://audio.test/current.mp3');
+  const currentSound = soundInstances[1];
+  const currentCalls = [...currentSound.calls];
+  const currentTrack = await mod.default.getActiveTrack();
+  const events = recordEvents();
+  gate.resolve();
+  await stale;
+  assert.equal(staleSound.statusListener, null);
+  assert.deepEqual(staleSound.methods(), ['stopAsync', 'unloadAsync', 'setOnPlaybackStatusUpdate']);
+  assert.deepEqual(currentSound.calls, currentCalls);
+  assert.deepEqual(await mod.default.getActiveTrack(), currentTrack);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+  assert.deepEqual(events, []);
 });
 
 test('a stale load being discarded cannot report progress over the track that replaced it', async () => {
@@ -339,8 +393,8 @@ test('a stale load being discarded cannot report progress over the track that re
 
   const [staleSound] = soundInstances;
   // expo-av reports one last loaded status while a sound is torn down. The
-  // discarded load must be detached first, or the live track's scrubber jumps
-  // back to zero and the transport flips to paused.
+  // discarded load must lose callback ownership first, or the live track's
+  // scrubber jumps back to zero and the transport flips to paused.
   staleSound.statusOn.set('stopAsync', {
     isLoaded: true,
     positionMillis: 0,
@@ -393,9 +447,9 @@ test('a load still in flight when stop is called never becomes the active track'
 
   assert.equal(await mod.default.getActiveTrack(), null);
   assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
   assert.deepEqual(events, []);
 });
@@ -552,6 +606,205 @@ test('the queue-ended handler has the last word on what follows a finished chapt
   assert.deepEqual(afterFinish, []);
 });
 
+const finishSound = async () => {
+  await mod.default.loadAndPlay('https://audio.test/rev22.mp3');
+  const ref = soundInstances[0];
+  ref.emitStatus({
+    isLoaded: true,
+    positionMillis: 60000,
+    durationMillis: 60000,
+    isPlaying: false,
+    didJustFinish: true,
+  });
+  return ref;
+};
+
+const endedStatus: FakeStatus = {
+  isLoaded: true,
+  positionMillis: 60000,
+  durationMillis: 60000,
+  isPlaying: false,
+  didJustFinish: false,
+};
+
+test('a completed sound ignores later loaded statuses and duplicate finish callbacks', async () => {
+  const ref = await finishSound();
+  const events = recordEvents();
+  ref.emitStatus(endedStatus);
+  ref.emitStatus({ ...endedStatus, didJustFinish: true });
+  assert.deepEqual(events, []);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Ended });
+});
+
+test('explicit pause leaves a completed sound terminal', async () => {
+  const ref = await finishSound();
+  ref.statusOn.set('pauseAsync', endedStatus);
+  const events = recordEvents();
+  await mod.default.pause();
+  ref.emitStatus(endedStatus);
+  assert.deepEqual(events, []);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Ended });
+});
+
+test('successful play re-arms progress for a completed sound', async () => {
+  const ref = await finishSound();
+  const events = recordEvents();
+  await mod.default.play();
+  ref.emitStatus({ ...endedStatus, positionMillis: 1000, isPlaying: true });
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+  assert.ok(
+    events.some(
+      ({ event, data }) =>
+        event === mod.Event.PlaybackProgressUpdated && (data as { position: number }).position === 1
+    )
+  );
+});
+
+test('terminal seek clears the native play intent retained after natural completion', async () => {
+  const ref = await finishSound();
+  assert.equal(ref.shouldPlay, true, 'Android retains play intent at EOF');
+  await mod.default.seekTo(20);
+  assert.equal(ref.shouldPlay, false, 'seeking alone must not restart the sound');
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Paused });
+  assert.deepEqual(ref.calls.at(-1), {
+    method: 'setStatusAsync',
+    args: [{ positionMillis: 20000, shouldPlay: false }],
+  });
+});
+
+for (const playing of [true, false]) {
+  test(`ordinary seek preserves ${playing ? 'playing' : 'paused'} native intent`, async () => {
+    await mod.default.loadAndPlay('https://audio.test/gen1.mp3');
+    const ref = soundInstances[0];
+    if (!playing) await mod.default.pause();
+    await mod.default.seekTo(20);
+    assert.equal(ref.shouldPlay, playing);
+    assert.equal(ref.calls.at(-1)?.method, 'setPositionAsync');
+    assert.deepEqual(await mod.default.getPlaybackState(), {
+      state: playing ? mod.State.Playing : mod.State.Paused,
+    });
+  });
+}
+
+test('successful seek from the end publishes the paused seek position and re-arms statuses', async () => {
+  const ref = await finishSound();
+  ref.statusOn.set('setStatusAsync', { ...endedStatus, positionMillis: 20000 });
+  const events = recordEvents();
+  await mod.default.seekTo(20);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Paused });
+  assert.ok(
+    events.some(
+      ({ event, data }) =>
+        event === mod.Event.PlaybackProgressUpdated &&
+        (data as { position: number }).position === 20
+    )
+  );
+  ref.emitStatus({ ...endedStatus, positionMillis: 21000 });
+  assert.ok(
+    events.some(
+      ({ event, data }) =>
+        event === mod.Event.PlaybackProgressUpdated &&
+        (data as { position: number }).position === 21
+    )
+  );
+});
+
+for (const command of ['playAsync', 'setStatusAsync'] as const) {
+  test(`a failed ${command} leaves completed progress terminal`, async () => {
+    const ref = await finishSound();
+    ref.statusOn.set(command, endedStatus);
+    ref.rejections.set(command, new Error('session busy'));
+    const events = recordEvents();
+    if (command === 'playAsync') await mod.default.play();
+    else await mod.default.seekTo(20);
+    ref.emitStatus(endedStatus);
+    assert.deepEqual(
+      events.map(({ event }) => event),
+      [mod.Event.PlaybackError]
+    );
+    assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Ended });
+  });
+}
+
+test('a new chapter re-arms after completion without accepting the previous sound', async () => {
+  const old = await finishSound();
+  await mod.default.loadAndPlay('https://audio.test/gen1.mp3');
+  const events = recordEvents();
+  old.emitStatus(endedStatus);
+  soundInstances[1].emitStatus({ ...endedStatus, positionMillis: 1000, isPlaying: true });
+  assert.equal(events.filter(({ event }) => event === mod.Event.PlaybackProgressUpdated).length, 1);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+});
+
+for (const newerCommand of ['play', 'seek', 'load', 'pause'] as const) {
+  test(`a pending terminal seek cannot publish after a newer ${newerCommand}`, async () => {
+    const ref = await finishSound();
+    const gate = createDeferred();
+    ref.gates.set('setStatusAsync', gate.promise);
+    ref.statusOn.set('setStatusAsync', { ...endedStatus, positionMillis: 20000 });
+    const pending = mod.default.seekTo(20);
+    ref.gates.delete('setStatusAsync');
+    if (newerCommand === 'play') await mod.default.play();
+    if (newerCommand === 'pause') await mod.default.pause();
+    if (newerCommand === 'seek') {
+      ref.statusOn.set('setStatusAsync', { ...endedStatus, positionMillis: 30000 });
+      await mod.default.seekTo(30);
+    }
+    if (newerCommand === 'load') await mod.default.loadAndPlay('https://audio.test/new.mp3');
+    const events = recordEvents();
+    gate.resolve();
+    await pending;
+    assert.deepEqual(events, []);
+    if (newerCommand !== 'load') assert.equal(ref.shouldPlay, newerCommand === 'play');
+    assert.deepEqual(await mod.default.getPlaybackState(), {
+      state:
+        newerCommand === 'pause'
+          ? mod.State.Ended
+          : newerCommand === 'seek'
+            ? mod.State.Paused
+            : mod.State.Playing,
+    });
+  });
+}
+
+test('a pending terminal play cannot replay its status over a newer seek', async () => {
+  const ref = await finishSound();
+  const gate = createDeferred();
+  ref.gates.set('playAsync', gate.promise);
+  ref.statusOn.set('playAsync', { ...endedStatus, positionMillis: 1000, isPlaying: true });
+  const pending = mod.default.play();
+  ref.statusOn.set('setStatusAsync', { ...endedStatus, positionMillis: 30000 });
+  await mod.default.seekTo(30);
+  const events = recordEvents();
+  gate.resolve();
+  await pending;
+  assert.deepEqual(events, []);
+  assert.equal(ref.shouldPlay, false);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Paused });
+});
+
+test('a chapter that ends during a pending play remains terminal when play resolves', async () => {
+  await mod.default.add(track('rev22'));
+  const ref = soundInstances[0];
+  const gate = createDeferred();
+  ref.gates.set('playAsync', gate.promise);
+  const pending = mod.default.play();
+  ref.emitStatus({ ...endedStatus, didJustFinish: true });
+  const events = recordEvents();
+  gate.resolve();
+  await pending;
+  assert.deepEqual(events, []);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Ended });
+});
+
+test('an unloaded error still reports a released completed sound', async () => {
+  const ref = await finishSound();
+  const events = recordEvents();
+  ref.emitStatus({ isLoaded: false, error: 'native sound released' });
+  assert.ok(events.some(({ event }) => event === mod.Event.PlaybackError));
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Error });
+});
+
 test('an unloaded status carrying an error surfaces a PlaybackError', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();
@@ -575,6 +828,7 @@ test('a sound that failed mid-stream is dropped instead of being driven again', 
   await mod.default.add(track('gen1'));
   await mod.default.play();
   soundInstances[0].emitStatus({ isLoaded: false, error: 'The network connection was lost.' });
+  await flush(); // Drain the dropped sound's owned native teardown before checking future commands.
   soundInstances[0].calls.length = 0;
 
   await mod.default.play();
@@ -660,6 +914,28 @@ test('verifyActiveTrack leaves a live sound alone', async () => {
   assert.notEqual(await mod.default.getActiveTrack(), null);
 });
 
+test('a dropped sound cannot publish its final rewind status while releasing', async () => {
+  await mod.default.add(track('gen1'));
+  const ref = soundInstances[0];
+  ref.status = { isLoaded: false };
+  ref.statusOn.set('stopAsync', {
+    isLoaded: true,
+    isPlaying: false,
+    positionMillis: 0,
+  });
+  const events = recordEvents();
+
+  assert.equal(await mod.default.verifyActiveTrack(), false);
+  await flush();
+
+  assert.deepEqual(
+    events.map((event) => event.event),
+    [mod.Event.PlaybackState, mod.Event.PlaybackError]
+  );
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Error });
+  assert.equal(ref.statusListener, null);
+});
+
 test('an unloaded status without an error is ignored', async () => {
   await mod.default.add(track('gen1'));
   const events = recordEvents();
@@ -735,6 +1011,58 @@ test('a failed seek surfaces SEEK_ERROR without throwing', async () => {
   ]);
 });
 
+test('an older rejected ordinary seek does not fail a newer successful seek', async () => {
+  await mod.default.loadAndPlay('https://audio.test/gen1.mp3');
+  const ref = soundInstances[0];
+  let rejectSeek!: (error: Error) => void;
+  ref.gates.set(
+    'setPositionAsync',
+    new Promise((_resolve, reject) => {
+      rejectSeek = reject;
+    })
+  );
+  const events = recordEvents();
+  const earlier = mod.default.seekTo(20);
+  ref.gates.delete('setPositionAsync');
+  await mod.default.seekTo(45);
+  rejectSeek(new Error('older native seek rejected'));
+  await earlier;
+  assert.deepEqual(
+    events.filter(({ event }) => event === mod.Event.PlaybackError),
+    []
+  );
+});
+
+test('a superseded seek status check cannot release the sound owned by a newer seek', async () => {
+  await mod.default.loadAndPlay('https://audio.test/gen1.mp3');
+  const ref = soundInstances[0];
+  let statusStarted!: () => void;
+  const checking = new Promise<void>((resolve) => {
+    statusStarted = resolve;
+  });
+  let finishStatus!: (status: FakeStatus) => void;
+  const status = new Promise<FakeStatus>((resolve) => {
+    finishStatus = resolve;
+  });
+  ref.getStatusAsync = async () => {
+    statusStarted();
+    return status;
+  };
+  ref.rejections.set('setPositionAsync', new Error('older native seek rejected'));
+  const events = recordEvents();
+  const earlier = mod.default.seekTo(20);
+  await checking;
+  ref.rejections.delete('setPositionAsync');
+  await mod.default.seekTo(45);
+  finishStatus({ isLoaded: false });
+  await earlier;
+  assert.ok(await mod.default.getActiveTrack(), 'the newer seek still owns the loaded sound');
+  assert.deepEqual(
+    events.filter(({ event }) => event === mod.Event.PlaybackError),
+    []
+  );
+});
+
 test('setRate applies pitch correction to the loaded sound', async () => {
   await mod.default.add(track('gen1'));
 
@@ -754,6 +1082,35 @@ test('a failed rate change surfaces RATE_ERROR without throwing', async () => {
     { event: mod.Event.PlaybackError, data: { code: 'RATE_ERROR', message: 'rate unsupported' } },
   ]);
 });
+
+for (const newer of ['load', 'rate', 'rate-return'] as const) {
+  test(`a pending rate failure is discarded after newer ${newer}`, async () => {
+    await mod.default.add(track('gen1'));
+    const oldSound = soundInstances[0];
+    let rejectRate!: (error: Error) => void;
+    oldSound.gates.set(
+      'setRateAsync',
+      new Promise((_resolve, reject) => {
+        rejectRate = reject;
+      })
+    );
+    const events = recordEvents();
+    const changing = mod.default.setRate(1.5);
+    if (newer === 'load') {
+      await mod.default.loadAndPlay('https://audio.test/gen2.mp3', 1.25);
+    } else {
+      oldSound.gates.delete('setRateAsync');
+      await mod.default.setRate(1.25);
+      if (newer === 'rate-return') await mod.default.setRate(1.5);
+    }
+    rejectRate(new Error('old native rate request rejected'));
+    await changing;
+    assert.deepEqual(
+      events.filter(({ event }) => event === mod.Event.PlaybackError),
+      []
+    );
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Narration volume
@@ -879,15 +1236,62 @@ test('stop unloads the sound, clears the active track and announces the change',
   await mod.default.stop();
 
   assert.deepEqual(soundInstances[0].methods(), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
   assert.deepEqual(events, [
     { event: mod.Event.PlaybackState, data: { state: mod.State.Stopped } },
     { event: mod.Event.PlaybackActiveTrackChanged, data: { track: null } },
   ]);
   assert.equal(await mod.default.getActiveTrack(), null);
+});
+
+test('stop still releases a retained sound when its rewind is rejected', async () => {
+  await mod.default.loadAndPlay('https://audio.test/gen1.mp3');
+  const ref = soundInstances[0];
+  // A native stop can pause, then reject its rewind without releasing the sound.
+  ref.status = { isLoaded: true, isPlaying: false, positionMillis: 30000 };
+  ref.rejections.set('stopAsync', new Error('E_AV_SEEKING: Seeking interrupted.'));
+  await mod.default.stop();
+  assert.equal(ref.statusListener, null);
+  assert.deepEqual(ref.methods().slice(-3), [
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
+  assert.equal(await mod.default.getActiveTrack(), null);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Stopped });
+});
+
+test('a replacement waits for native unload even when the outgoing stop rejects', async () => {
+  await mod.default.loadAndPlay('https://audio.test/outgoing.mp3');
+  const outgoing = soundInstances[0];
+  const gate = createDeferred();
+  outgoing.rejections.set('stopAsync', new Error('rewind interrupted'));
+  outgoing.gates.set('unloadAsync', gate.promise);
+  const replacing = mod.default.loadAndPlay('https://audio.test/replacement.mp3');
+  await flush();
+  try {
+    assert.equal(createCalls.length, 1, 'replacement waits for the retained sound to release');
+  } finally {
+    gate.resolve();
+    await replacing;
+  }
+  assert.equal(createCalls.length, 2);
+  assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
+});
+
+test('a callback detach failure does not skip native stop and unload', async () => {
+  await mod.default.add(track('gen1'));
+  const ref = soundInstances[0];
+  const detach = ref.setOnPlaybackStatusUpdate;
+  ref.setOnPlaybackStatusUpdate = (listener) => {
+    detach(listener);
+    throw new Error('callback detach failed');
+  };
+  await assert.doesNotReject(() => mod.default.stop());
+  assert.deepEqual(ref.methods(), ['stopAsync', 'unloadAsync', 'setOnPlaybackStatusUpdate']);
 });
 
 test('stop tolerates a sound that is already gone', async () => {
@@ -1116,16 +1520,20 @@ test('a superseded loading sound cannot publish stale progress or errors', async
   assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
 });
 
-test('a delayed stop cannot clear a newer loaded track', async () => {
+test('a delayed stop drains before a newer load and cannot clear that replacement', async () => {
   await mod.default.loadAndPlay('https://audio.test/old.mp3');
   const gate = createDeferred();
   soundInstances[0].gates.set('stopAsync', gate.promise);
   const stopping = mod.default.stop();
   await flush();
-  await mod.default.loadAndPlay('https://audio.test/new.mp3');
-
-  gate.resolve();
-  await stopping;
+  const replacement = mod.default.loadAndPlay('https://audio.test/new.mp3');
+  await flush();
+  try {
+    assert.equal(createCalls.length, 1, 'replacement waits for the outgoing native cleanup');
+  } finally {
+    gate.resolve();
+    await Promise.all([stopping, replacement]);
+  }
 
   assert.equal((await mod.default.getActiveTrack())?.url, 'https://audio.test/new.mp3');
   assert.deepEqual(await mod.default.getPlaybackState(), { state: mod.State.Playing });
@@ -1180,4 +1588,56 @@ test('a stale pause failure cannot report an error for the newer chapter', async
   await pending;
 
   assert.deepEqual(events, []);
+});
+
+test('strict handoff pause drains an earlier native Play before suspending that sound', async () => {
+  await mod.default.loadAndPlay('https://audio.test/chapter.mp3');
+  const ref = soundInstances[0];
+  const gate = createDeferred();
+  ref.playAsync = async () => {
+    await gate.promise;
+    ref.shouldPlay = true;
+    return { ...ref.status, isPlaying: true };
+  };
+  const playing = mod.default.play();
+  const pausing = mod.default.pause({ requireSuspension: true });
+  gate.resolve();
+  await Promise.all([playing, pausing]);
+  assert.equal(ref.shouldPlay, false, 'late native Play must not undo handoff pause');
+});
+
+test('strict handoff pause rejects the actual native failure and reports it once', async () => {
+  await mod.default.loadAndPlay('https://audio.test/chapter.mp3');
+  const errors: unknown[] = [];
+  const subscription = mod.addEventListener(mod.Event.PlaybackError, (event) => errors.push(event));
+  soundInstances[0].rejections.set('pauseAsync', new Error('pause failed'));
+  try {
+    await assert.rejects(mod.default.pause({ requireSuspension: true }), /pause failed/);
+    assert.equal(errors.length, 1);
+  } finally {
+    subscription.remove();
+  }
+});
+
+test('strict handoff still suspends a late native Play after an ordinary Pause overtakes it', async () => {
+  await mod.default.loadAndPlay('https://audio.test/chapter.mp3');
+  const ref = soundInstances[0];
+  const gate = createDeferred();
+  ref.playAsync = async () => {
+    await gate.promise;
+    ref.shouldPlay = true;
+    return { ...ref.status, isPlaying: true };
+  };
+  const pendingPlay = mod.default.play();
+  const strictPause = mod.default.pause({ requireSuspension: true });
+  await mod.default.pause();
+  assert.equal(ref.shouldPlay, false);
+  gate.resolve();
+  await Promise.all([pendingPlay, strictPause]);
+  assert.equal(
+    ref.shouldPlay,
+    false,
+    'strict owner must pause late native Play before Lesson starts'
+  );
+  assert.equal(ref.calls.filter((call) => call.method === 'pauseAsync').length, 2);
 });

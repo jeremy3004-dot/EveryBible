@@ -17,6 +17,7 @@ import type {
   AudioDownloadCollectionProgress,
   AudioDownloadJobRecord,
 } from '../../services/audio/audioDownloadService';
+import * as activeDownloads from '../../services/audio/download/activeDownloads';
 
 /** Thrown by scripted audio downloads to exercise the cancellation branches. */
 export class FakeAudioCancellation extends Error {
@@ -478,6 +479,7 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
       doubles.audio.listJobsCalls += 1;
       return doubles.audio.jobs.slice();
     },
+    getJob: async (jobId: string) => doubles.audio.jobs.find((job) => job.id === jobId) ?? null,
     removeJob: async (jobId: string) => {
       doubles.audio.removedJobIds.push(jobId);
       if (doubles.audio.removeJobError) {
@@ -488,7 +490,17 @@ export function installBibleStoreDoubles(mocker: MockTracker): BibleStoreDoubles
 
   const fileSystemAdapter = { __adapter: 'audio-file-system' };
 
+  mockModule(mocker, sourcePath('services/audio/download/activeDownloads.ts'), {
+    ...activeDownloads,
+    requestAudioDownloadCancellation: (jobId: string) => {
+      doubles.audio.cancellationRequests.push(jobId);
+      activeDownloads.requestAudioDownloadCancellation(jobId);
+    },
+  });
+
   mockModule(mocker, sourcePath('services/audio/audioDownloadService.ts'), {
+    getBookAudioDirectoryUri: (translationId: string, bookId: string, rootUri = AUDIO_ROOT_URI) =>
+      `${rootUri}${translationId}/${bookId}/`,
     createAudioDownloadJobStore: async (options: unknown) => {
       doubles.audio.jobStoreOptions.push(options);
       return jobStore;

@@ -1,5 +1,6 @@
 import * as bibleDb from './bibleDatabase';
 import { chapterCache } from './chapterCache';
+import { resolveRegisteredBibleDatabaseSource } from './bibleDatabaseSources';
 import { DEFAULT_MINIMUM_READY_VERSE_COUNT } from './bibleDatabase';
 import { bibleBooks, getBookById } from '../../constants';
 import type { BibleTranslation, DailyScripture, DailyScriptureReference, Verse } from '../../types';
@@ -64,6 +65,14 @@ export async function initBibleData(): Promise<void> {
   return initPromise;
 }
 
+/** Recover the selected pack before deciding whether bundled initialization is needed. */
+async function ensureSelectedTextSourceReady(translationId: string): Promise<void> {
+  await bibleDb.ensureTranslationReady(translationId);
+  if (resolveRegisteredBibleDatabaseSource(translationId)?.kind !== 'installed') {
+    await initBibleData();
+  }
+}
+
 let foregroundChapterReads = 0;
 let prefetchInProgress = false;
 
@@ -85,8 +94,7 @@ export async function getChapter(
 ): Promise<Verse[]> {
   foregroundChapterReads++;
   try {
-    await initBibleData();
-    await bibleDb.ensureTranslationReady(translationId);
+    await ensureSelectedTextSourceReady(translationId);
     return await readCachedChapter(translationId, bookId, chapter);
   } finally {
     foregroundChapterReads--;
@@ -116,8 +124,7 @@ export async function prefetchNextChapter(
 }
 
 export async function searchBible(translationId: string, query: string): Promise<Verse[]> {
-  await initBibleData();
-  await bibleDb.ensureTranslationReady(translationId);
+  await ensureSelectedTextSourceReady(translationId);
   return bibleDb.searchVerses(translationId, query);
 }
 

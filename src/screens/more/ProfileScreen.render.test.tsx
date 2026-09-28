@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 
@@ -84,8 +85,21 @@ const backend = {
   engagement: { success: false } as { success: boolean; data?: UserEngagementSummary },
   refreshes: 0,
 };
+let profileRefresh:
+  | (() => Promise<import('../../services/auth/authSession').RestoredAuthSession>)
+  | null = null;
+const dispatchedProfileTokens: string[] = [];
+mockModule(mock, sourcePath('services/auth/authSession.ts'), {
+  isAccessTokenExpired: (session: { expires_at?: number }) =>
+    (session.expires_at ?? 0) * 1000 - Date.now() < 90_000,
+});
 mockModule(mock, sourcePath('services/auth/index.ts'), {
-  updateUserProfile: async (attributes: unknown) => {
+  getCurrentSession: async () =>
+    profileRefresh
+      ? profileRefresh()
+      : { session: harness.authStore.getState().session, user: harness.authStore.getState().user },
+  updateUserProfile: async (attributes: unknown, owner?: { session: { access_token: string } }) => {
+    if (owner) dispatchedProfileTokens.push(owner.session.access_token);
     backend.profileUpdates.push(attributes);
     if (backend.update) return backend.update.promise;
     return backend.updateResult;
@@ -129,6 +143,8 @@ beforeEach(() => {
   backend.updateResult = { success: true, user: undefined };
   backend.update = null;
   backend.profileUpdates = [];
+  dispatchedProfileTokens.length = 0;
+  profileRefresh = null;
   backend.engagement = { success: false };
   backend.refreshes = 0;
   harness.authStore.setState({ user: null, isAuthenticated: false, authGeneration: 0 });
@@ -137,6 +153,7 @@ beforeEach(() => {
 function signIn() {
   harness.authStore.setState({
     user: { ...signedInUser },
+    session: makeFakeSession({ user: makeFakeUser({ id: signedInUser.uid }) }),
     isAuthenticated: true,
     authGeneration: 1,
   });
@@ -592,3 +609,89 @@ test("the notes and highlights count is this device's, which the cloud summary n
   assert.ok(view.getByText('7'), 'seven live notes and highlights');
   assert.equal(view.queryByText('23'), null);
 });
+
+test('a long-open profile refreshes an expired token before binding its avatar update', async () => {
+  signIn();
+  const expired = makeFakeSession({ user: makeFakeUser({ id: signedInUser.uid }), expires_at: 1 });
+  harness.authStore.setState({ session: expired });
+  const refreshed = {
+    ...expired,
+    access_token: 'refreshed-profile-token',
+    refresh_token: 'refreshed-profile-refresh',
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+  };
+  // The restore result itself is valid even if the store observer has not delivered yet.
+  profileRefresh = async () => ({ session: refreshed, user: null });
+  picker.result = { canceled: false, assets: [{ uri: 'file:///picked.jpg' }] };
+  const view = await renderScreen();
+  await act(async () => {
+    await (
+      view.getByRole('button', { name: t('profile.changeAvatar') }).props
+        .onPress as () => Promise<void>
+    )();
+  });
+  assert.deepEqual(dispatchedProfileTokens, ['refreshed-profile-token']);
+});
+
+for (const failure of ['offline', 'failed'] as const) {
+  test(`a ${failure} refresh never dispatches expired profile credentials`, async () => {
+    signIn();
+    const expired = makeFakeSession({
+      user: makeFakeUser({ id: signedInUser.uid }),
+      expires_at: 1,
+    });
+    harness.authStore.setState({ session: expired });
+    profileRefresh = async () =>
+      failure === 'offline'
+        ? { session: expired, user: null, awaitingTokenRefresh: true, restoreFailed: true }
+        : { session: null, user: null, restoreFailed: true };
+    picker.result = { canceled: false, assets: [{ uri: 'file:///picked.jpg' }] };
+    const view = await renderScreen();
+    await act(async () => {
+      await (
+        view.getByRole('button', { name: t('profile.changeAvatar') }).props
+          .onPress as () => Promise<void>
+      )();
+    });
+    assert.deepEqual(backend.profileUpdates, []);
+    assert.ok(
+      harness.rn.__recorded.alerts.some(
+        (alert) => alert.message === t('profile.avatarUpdateFailed')
+      )
+    );
+  });
+}
+
+for (const sameUid of [false, true]) {
+  test(`a pending expired-token restore cannot update a ${sameUid ? 'new generation of the same' : 'different'} account`, async () => {
+    signIn();
+    harness.authStore.setState({
+      session: makeFakeSession({ user: makeFakeUser({ id: signedInUser.uid }), expires_at: 1 }),
+    });
+    const pending = deferred<import('../../services/auth/authSession').RestoredAuthSession>();
+    profileRefresh = () => pending.promise;
+    picker.result = { canceled: false, assets: [{ uri: 'file:///picked.jpg' }] };
+    const view = await renderScreen();
+    let pressing!: Promise<void>;
+    await act(async () => {
+      pressing = (
+        view.getByRole('button', { name: t('profile.changeAvatar') }).props
+          .onPress as () => Promise<void>
+      )();
+    });
+    const nextSession = makeFakeSession({
+      user: makeFakeUser({ id: sameUid ? signedInUser.uid : 'b' }),
+    });
+    await act(async () => {
+      harness.authStore.setState({
+        user: { ...signedInUser, uid: nextSession.user.id },
+        session: nextSession,
+        authGeneration: 2,
+      });
+      pending.resolve({ session: nextSession, user: null });
+      await pressing;
+    });
+    assert.deepEqual(backend.profileUpdates, []);
+    assert.deepEqual(harness.rn.__recorded.alerts, []);
+  });
+}

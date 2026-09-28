@@ -14,6 +14,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { StateStorage } from 'zustand/middleware';
+import { BUILD_448_BLOB } from './readingPlansStore.persistenceFixture';
 
 const STORAGE_KEY = 'reading-plans-storage';
 const START = Date.parse('2026-09-01T12:00:00.000Z');
@@ -34,9 +35,6 @@ function createMemoryStorage(seed: Record<string, string> = {}) {
 
 mock.timers.enable({ apis: ['Date'], now: START });
 
-// What build 448 writes for the representative state (before serverLeftAtByPlanId).
-const BUILD_448_BLOB =
-  '{"state":{"enrolledPlanIds":["psalms-30-days","bible-in-1-year","sermon-on-the-mount-7-days","kathisma-weekly"],"savedPlanIds":["proverbs-31-days","gospels-30-days"],"completedPlanIds":["sermon-on-the-mount-7-days"],"progressByPlanId":{"psalms-30-days":{"id":"reading-plan-progress-psalms-30-days","plan_id":"psalms-30-days","started_at":"2026-09-01T12:00:00.000Z","completed_entries":{"1":"2026-09-01T12:00:01.000Z"},"completed_sessions":{},"current_day":2,"current_session":null,"is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:01.000Z"},"bible-in-1-year":{"id":"reading-plan-progress-bible-in-1-year","plan_id":"bible-in-1-year","started_at":"2026-09-01T12:00:02.000Z","completed_entries":{},"completed_sessions":{"1:morning":"2026-09-01T12:00:03.000Z"},"current_day":1,"current_session":"evening","is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:03.000Z"},"sermon-on-the-mount-7-days":{"id":"reading-plan-progress-sermon-on-the-mount-7-days","plan_id":"sermon-on-the-mount-7-days","started_at":"2026-09-01T12:00:04.000Z","completed_entries":{"1":"2026-09-01T12:00:05.000Z","2":"2026-09-01T12:00:06.000Z","3":"2026-09-01T12:00:07.000Z","4":"2026-09-01T12:00:08.000Z","5":"2026-09-01T12:00:09.000Z","6":"2026-09-01T12:00:10.000Z","7":"2026-09-01T12:00:11.000Z"},"completed_sessions":{},"current_day":8,"current_session":null,"is_completed":true,"completed_at":"2026-09-01T12:00:11.000Z","synced_at":"2026-09-01T12:00:11.000Z"},"kathisma-weekly":{"id":"reading-plan-progress-kathisma-weekly","plan_id":"kathisma-weekly","started_at":"2026-09-01T12:00:12.000Z","completed_entries":{"2026-09-01":"2026-09-01T12:00:13.000Z"},"completed_sessions":{},"current_day":3,"current_session":null,"is_completed":false,"completed_at":null,"synced_at":"2026-09-01T12:00:13.000Z"}},"planDayResumeByKey":{"psalms-30-days:2":{"bookId":"PSA","chapter":2}},"groupPlansByGroupId":{"group-1":[{"id":"group-plan-group-1-psalms-30-days-1788264014000","group_id":"group-1","plan_id":"psalms-30-days","assigned_by":"user-a","started_at":"2026-09-01T12:00:14.000Z"}]},"rhythmsById":{"reading-plan-rhythm-1788264015000-1":{"id":"reading-plan-rhythm-1788264015000-1","title":"Dawn","slot":"morning","items":[{"id":"item-plan","type":"plan","planId":"psalms-30-days"},{"id":"item-passage","type":"passage","title":"JHN 1-3","bookId":"JHN","startChapter":1,"endChapter":3}],"createdAt":"2026-09-01T12:00:15.000Z","updatedAt":"2026-09-01T12:00:19.000Z"},"reading-plan-rhythm-1788264016000-2":{"id":"reading-plan-rhythm-1788264016000-2","title":"Evening Rhythm","slot":"evening","items":[{"id":"reading-plan-rhythm-item-1788264016000-1","type":"plan","planId":"bible-in-1-year"}],"createdAt":"2026-09-01T12:00:16.000Z","updatedAt":"2026-09-01T12:00:16.000Z"}},"rhythmOrder":["reading-plan-rhythm-1788264016000-2","reading-plan-rhythm-1788264015000-1"],"pendingUnenrollPlanIds":["acts-28-days","nt-in-30-days"],"pendingUnenrollAtByPlanId":{"acts-28-days":"2026-09-01T12:00:19.000Z","nt-in-30-days":"2026-09-01T12:00:20.000Z"}},"version":0}';
 const PERSISTED_BLOB = BUILD_448_BLOB.replace(
   '},"version":0}',
   ',"serverLeftAtByPlanId":{"romans-16-days":"2026-09-01T12:10:21.000Z"}},"version":0}'
@@ -86,6 +84,52 @@ const REHYDRATED_LEGACY_BLOB =
   '{"state":{"enrolledPlanIds":["psalms-30-days"],"savedPlanIds":[],"completedPlanIds":[],"progressByPlanId":{"psalms-30-days":{"id":"legacy-row","plan_id":"psalms-30-days","started_at":"2026-01-01T00:00:00.000Z","completed_entries":{"1":"2026-01-02T00:00:00.000Z"},"current_day":2,"is_completed":false,"completed_at":null,"synced_at":"2026-01-02T00:00:00.000Z","completed_sessions":{},"current_session":null}},"planDayResumeByKey":{"psalms-30-days:2":{"bookId":"PSA","chapter":2}},"groupPlansByGroupId":{"group-1":[]},"rhythmsById":{"legacy-rhythm":{"id":"legacy-rhythm","title":"Old","planIds":["psalms-30-days"," psalms-30-days ",""],"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z","items":[{"id":"reading-plan-rhythm-item-1788264021000-2","type":"plan","planId":"psalms-30-days"}]}},"rhythmOrder":["legacy-rhythm"],"pendingUnenrollPlanIds":["acts-28-days"],"pendingUnenrollAtByPlanId":{},"serverLeftAtByPlanId":{}},"version":0}';
 
 const tickSecond = () => mock.timers.tick(1_000);
+
+test('an injected asynchronous storage still hydrates and persists plan progress', async () => {
+  const { createReadingPlansStore } = await import('./readingPlansStore');
+  let saved = BUILD_448_BLOB;
+  const store = createReadingPlansStore({
+    getItem: async () => saved,
+    setItem: async (_name, value) => {
+      saved = value;
+    },
+    removeItem: async () => {},
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    store.getState().progressByPlanId,
+    JSON.parse(BUILD_448_BLOB).state.progressByPlanId
+  );
+  store.getState().markDayComplete('psalms-30-days', 2, 30);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(JSON.parse(saved).state.progressByPlanId, store.getState().progressByPlanId);
+  assert.equal(store.getState().getProgress('psalms-30-days')?.current_day, 3);
+});
+
+test('dated resume ownership survives storage without changing legacy sequential records', async () => {
+  const { createReadingPlansStore } = await import('./readingPlansStore');
+  const memory = createMemoryStorage();
+  const store = createReadingPlansStore(memory.storage);
+  store.getState().setPlanDayResume('kathisma-weekly', 2, 'PSA', 37, '2026-09-21');
+  store.getState().setPlanDayResume('psalms-30-days', 2, 'PSA', 6);
+  const blob = memory.entries.get(STORAGE_KEY);
+  assert.ok(blob);
+  assert.deepEqual(JSON.parse(blob).state.planDayResumeByKey, {
+    'kathisma-weekly:2': { bookId: 'PSA', chapter: 37, occurrenceKey: '2026-09-21' },
+    'psalms-30-days:2': { bookId: 'PSA', chapter: 6 },
+  });
+  const restored = createReadingPlansStore(createMemoryStorage({ [STORAGE_KEY]: blob }).storage);
+  assert.deepEqual(restored.getState().getPlanDayResume('kathisma-weekly', 2, '2026-09-21'), {
+    bookId: 'PSA',
+    chapter: 37,
+    occurrenceKey: '2026-09-21',
+  });
+  assert.equal(restored.getState().getPlanDayResume('kathisma-weekly', 2, '2026-09-28'), null);
+  assert.deepEqual(restored.getState().getPlanDayResume('psalms-30-days', 2), {
+    bookId: 'PSA',
+    chapter: 6,
+  });
+});
 
 test('the persisted blob for a representative state is byte-identical to the pre-split store', async () => {
   const { createReadingPlansStore } = await import('./readingPlansStore');

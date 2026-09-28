@@ -16,6 +16,7 @@ export interface AudioReturnTarget {
   preferredMode: 'listen' | 'read';
   planId?: string;
   planDayNumber?: number;
+  planOccurrenceKey?: string;
   planSessionKey?: PlanSessionKey;
   returnToPlanOnComplete?: boolean;
   sessionContext?: RhythmSessionContext;

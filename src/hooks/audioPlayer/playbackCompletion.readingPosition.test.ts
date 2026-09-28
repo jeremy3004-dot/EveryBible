@@ -220,6 +220,23 @@ test('a plan session that auto-advances with the reader closed moves the plan da
   assert.deepEqual(savedPosition(), { bookId: 'PSA', chapter: 6 });
 });
 
+test('background auto-advance retains the resume occurrence that owned the session', async () => {
+  readingPlansStore.getState().setPlanDayResume(PLAN_ID, PLAN_DAY, 'PSA', 4, '2026-09-21');
+  await planSessionPlaying('PSA', 4);
+
+  await finishPlaying();
+
+  assert.deepEqual(readingPlansStore.getState().getPlanDayResume(PLAN_ID, PLAN_DAY), {
+    bookId: 'PSA',
+    chapter: 5,
+    occurrenceKey: '2026-09-21',
+  });
+  assert.equal(
+    readingPlansStore.getState().getPlanDayResume(PLAN_ID, PLAN_DAY, '2026-09-28'),
+    null
+  );
+});
+
 test('a plan day resume point the listener moved away from stays put', async () => {
   readerLeftOn('PSA', 6);
   readingPlansStore.getState().setPlanDayResume(PLAN_ID, PLAN_DAY, 'PSA', 6);

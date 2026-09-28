@@ -1,3 +1,4 @@
+import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -11,7 +12,9 @@ import {
   getPendingPasswordRecovery,
 } from '../../../services/auth/authDeepLink';
 import type { RecoveryProblem } from '../../../services/auth/authRecoveryLink';
+import { supabase } from '../../../services/supabase';
 import { pullFromCloud } from '../../../services/sync';
+import { isAccessTokenExpired } from '../../../services/auth/authSession';
 import { useAuthStore } from '../../../stores/authStore';
 import { announceLiveRegionText } from '../../../utils/a11y';
 import { hasFormErrors } from '../authScreenParts/authFormModel';
@@ -54,11 +57,15 @@ export interface ResetPasswordFlow {
   submitNewPassword: () => Promise<void>;
 }
 
+const sameSession = (left: Session | null, right: Session | null): boolean =>
+  left?.user.id === right?.user.id &&
+  left?.access_token === right?.access_token &&
+  left?.refresh_token === right?.refresh_token;
+
 /** The reset link's confirm, new-password and "send a new link" flows. */
 export function useResetPasswordFlow(): ResetPasswordFlow {
   const navigation = useNavigation<NavigationProp>();
   const { t } = useTranslation();
-  const setSession = useAuthStore((state) => state.setSession);
 
   // Captured once: the link as it was when the screen opened.
   const [pendingRecovery] = useState(() => getPendingPasswordRecovery());
@@ -82,20 +89,34 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
   const didActivateRef = useRef(false);
   const didUpdatePasswordRef = useRef(false);
   const isMountedRef = useRef(true);
+  const activationPendingRef = useRef(false);
+  const releaseObserverRef = useRef<(() => void) | null>(null);
+  const recoveryOwnerRef = useRef<{ isCurrent: () => boolean; release: () => void } | null>(null);
 
-  // Leaving the screen must never strand a live recovery session. Any account that
-  // was signed in was signed out before the exchange, so the recovery session is
-  // the only one here and ends with the screen unless the password was set.
+  const endOwnedRecovery = useCallback(async () => {
+    const owner = recoveryOwnerRef.current;
+    recoveryOwnerRef.current = null;
+    if (!owner) return;
+    try {
+      if (owner.isCurrent()) await signOut(owner.isCurrent);
+    } finally {
+      owner.release();
+    }
+  }, []);
+
+  // Leaving an unsaved recovery ends only the session this exchange still owns.
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       clearPendingPasswordRecovery(pendingRecovery);
       if (didActivateRef.current && !didUpdatePasswordRef.current) {
-        void signOut();
+        void endOwnedRecovery().catch(() => undefined);
+      } else if (!activationPendingRef.current) {
+        releaseObserverRef.current?.();
       }
     };
-  }, [pendingRecovery]);
+  }, [endOwnedRecovery, pendingRecovery]);
 
   const dismiss = () => {
     navigation.getParent()?.goBack();
@@ -109,7 +130,36 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
   }, [navigation, pendingRecovery]);
 
   const confirmAccount = useCallback(async () => {
+    if (activationPendingRef.current) return;
+    activationPendingRef.current = true;
     setIsActivating(true);
+    let observedSession: Session | null = null;
+    let revision = 0;
+    let observing = true;
+    // Explicit PKCE exchange emits SIGNED_IN; foreground reconciliation may
+    // repeat that event. Only new credentials invalidate ownership. Refresh
+    // rotates credentials while retaining the same recovery-session owner.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+        if (!sameSession(observedSession, session)) revision += 1;
+        observedSession = session;
+      } else if (event === 'TOKEN_REFRESHED') {
+        if (observedSession?.user.id !== session?.user.id) revision += 1;
+        observedSession = session;
+      } else if (event === 'SIGNED_OUT') {
+        revision += 1;
+        observedSession = null;
+      }
+    });
+    const release = () => {
+      if (!observing) return;
+      observing = false;
+      subscription.unsubscribe();
+      if (releaseObserverRef.current === release) releaseObserverRef.current = null;
+    };
+    releaseObserverRef.current = release;
     try {
       // Read now, not at render: the exchange replaces this device's session, so a
       // signed-in account goes through sign-out first. Its completed onboarding
@@ -118,14 +168,36 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
         signedInUserId: useAuthStore.getState().user?.uid ?? null,
         signOutCurrentAccount: () =>
           useAuthStore.getState().signOut({ reason: 'password-recovery' }),
+        onActivated: (session) => {
+          const current = useAuthStore.getState();
+          if (!sameSession(observedSession, session) || !sameSession(current.session, session))
+            return;
+          const generation = current.authGeneration;
+          const admittedRevision = revision;
+          recoveryOwnerRef.current = {
+            release,
+            isCurrent: () => {
+              const latest = useAuthStore.getState();
+              return (
+                observing &&
+                revision === admittedRevision &&
+                latest.user?.uid === session.user.id &&
+                latest.authGeneration === generation
+              );
+            },
+          };
+        },
       });
 
-      const nextProblem = activationProblem(result);
+      const nextProblem =
+        result.status === 'activated' && !recoveryOwnerRef.current
+          ? 'network'
+          : activationProblem(result);
       if (nextProblem === null) {
         // Closed while the code was exchanged: the cleanup above has already run,
         // so end the recovery session it could not see.
         if (!isMountedRef.current) {
-          void signOut();
+          await endOwnedRecovery();
           return;
         }
         didActivateRef.current = true;
@@ -136,9 +208,11 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
       setProblem(nextProblem);
       setPhase('problem');
     } finally {
+      activationPendingRef.current = false;
+      if (!recoveryOwnerRef.current) release();
       setIsActivating(false);
     }
-  }, []);
+  }, [endOwnedRecovery]);
 
   // The error texts are live regions, which only TalkBack reads; VoiceOver is
   // told directly, or a failed save or resend is silent.
@@ -206,30 +280,51 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
       return;
     }
 
+    const owner = recoveryOwnerRef.current;
+    const isCurrent = () =>
+      isMountedRef.current && recoveryOwnerRef.current === owner && Boolean(owner?.isCurrent());
+    if (!isCurrent()) {
+      setFormError(t(resetFailureMessageKey('invalid_credentials')));
+      return;
+    }
     setIsSaving(true);
     setFormError(null);
     try {
-      const result = await updatePassword(password);
+      let session = useAuthStore.getState().session;
+      if (session && isAccessTokenExpired(session)) {
+        await getCurrentSession();
+        if (!isCurrent()) return;
+        session = useAuthStore.getState().session;
+      }
+      if (!session || !isCurrent()) return;
+      const result = await updatePassword(password, { session, isCurrent });
+      if (!isCurrent()) return;
       if (!result.success) {
         setFormError(t(resetFailureMessageKey(result.code)));
         return;
       }
 
       didUpdatePasswordRef.current = true;
-
-      const { session } = await getCurrentSession();
-      if (session) {
-        setSession(session);
-        await pullFromCloud(session.user.id);
+      const { session: liveSession } = await getCurrentSession();
+      if (!isCurrent()) return;
+      if (liveSession && liveSession.user.id === session.user.id) {
+        await pullFromCloud(liveSession.user.id);
+        if (!isCurrent()) return;
       }
 
       Alert.alert(t('auth.resetPasswordSuccess'), undefined, [
-        { text: t('common.ok'), onPress: dismiss },
+        {
+          text: t('common.ok'),
+          onPress: () => {
+            if (isCurrent()) dismiss();
+          },
+        },
       ]);
     } catch {
+      if (!isCurrent()) return;
       setFormError(t('auth.resetPasswordError'));
     } finally {
-      setIsSaving(false);
+      if (isMountedRef.current) setIsSaving(false);
     }
   };
 

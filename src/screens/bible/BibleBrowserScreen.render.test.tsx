@@ -156,6 +156,33 @@ test('as a stack screen it has no close control and navigates to the reader in t
   ]);
 });
 
+test('a chapter receives the first tap with the empty search keyboard open', async () => {
+  const view = await renderBrowser('BibleBrowser', { focusSearch: true });
+  await wait(5);
+  assert.ok(harness.refCalls.some((call) => call.method === 'focus'));
+  await view.fire(view.getByLabelText(t('common.search')), 'onFocus');
+
+  const chapter = view.getByRole('button', { name: '8' });
+  const scroller = hostAncestors(chapter).find((node) => (node.type as string) === 'FlatList');
+  assert.ok(scroller);
+  // The render harness cannot arbitrate native keyboard touches. This forwarded
+  // ScrollView prop lets the chapter handle its first tap while the keyboard is up.
+  assert.equal(scroller.props.keyboardShouldPersistTaps, 'handled');
+  assert.notEqual(scroller.props.scrollEnabled, false);
+  assert.equal(scroller.props.keyboardDismissMode, undefined);
+
+  await view.press(chapter);
+  assert.deepEqual(harness.navigation.calls, [
+    {
+      method: 'navigate',
+      args: [
+        'BibleReader',
+        { bookId: 'JHN', chapter: 8, focusVerse: undefined, preferredMode: 'listen' },
+      ],
+    },
+  ]);
+});
+
 test('the focusSearch launch flag focuses the search field, and only then', async () => {
   const focused = async (params: Record<string, unknown>) => {
     const view = await renderBrowser('BibleBrowser', params);
@@ -248,6 +275,35 @@ test('full-text search waits for the debounce window, then lists and announces r
     {
       method: 'navigate',
       args: ['BibleReader', { bookId: '1JN', chapter: 4, focusVerse: 8, preferredMode: 'listen' }],
+    },
+  ]);
+});
+
+test('a search result receives the first tap with the search keyboard open', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  const input = view.getByLabelText(t('common.search'));
+  await view.fire(input, 'onFocus');
+  await view.changeText(input, 'living water');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
+  await act(async () =>
+    searches[0].resolve([verse('JHN', 7, 38, 'Rivers of living water will flow from within him.')])
+  );
+
+  const result = view.getByRole('button', { name: /John 7:38/ });
+  const scroller = hostAncestors(result).find((node) => (node.type as string) === 'FlatList');
+  assert.ok(scroller);
+  // FlashList forwards this to RN ScrollView. The render harness does not arbitrate native
+  // keyboard touches: omitted/never consumes the first tap before the row's onPress runs.
+  assert.equal(scroller.props.keyboardShouldPersistTaps, 'handled');
+  assert.notEqual(scroller.props.scrollEnabled, false);
+  assert.equal(scroller.props.keyboardDismissMode, undefined, 'keep the existing scroll default');
+  await view.press(result);
+  assert.deepEqual(harness.navigation.calls, [
+    {
+      method: 'navigate',
+      args: ['BibleReader', { bookId: 'JHN', chapter: 7, focusVerse: 38, preferredMode: 'listen' }],
     },
   ]);
 });

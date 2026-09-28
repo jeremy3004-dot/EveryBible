@@ -33,7 +33,8 @@ export function getSupabaseAuthStorageKeys(supabaseUrl: string | undefined): str
  * resurrected. Runs from the fresh-install branch of the privacy installation check, which
  * finishes before auth restores a session. Harmless on Android, where uninstall already
  * removes them. Rejects if the keychain refuses, so the marker stays unwritten and the next
- * launch retries.
+ * launch retries. iOS deletion can resolve without removing an item, so readback
+ * must confirm absence before startup can restore auth or mark this install ready.
  */
 export async function clearReinstalledCredentials(): Promise<void> {
   const keys = [
@@ -41,5 +42,16 @@ export async function clearReinstalledCredentials(): Promise<void> {
     TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY,
     COUNCIL_PASSCODE_SECURE_KEY,
   ];
-  await Promise.all(keys.map((key) => SecureStore.deleteItemAsync(key)));
+  const results = await Promise.allSettled(
+    keys.map(async (key) => {
+      await SecureStore.deleteItemAsync(key);
+      if ((await SecureStore.getItemAsync(key)) !== null) {
+        throw new Error('Credential removal was not confirmed');
+      }
+    })
+  );
+  // Drain every admitted native mutation before the retry gate releases its
+  // owner; a late delete must never run after a retry has restored auth.
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw failed.reason;
 }

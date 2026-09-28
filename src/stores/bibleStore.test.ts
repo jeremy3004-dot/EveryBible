@@ -73,6 +73,7 @@ test('a fresh install opens on Genesis 1 in the Berean text with no reader histo
     {
       currentBook: state.currentBook,
       currentChapter: state.currentChapter,
+      readingPositionUpdatedAt: state.readingPositionUpdatedAt,
       currentTranslation: state.currentTranslation,
       hasReaderHistory: state.hasReaderHistory,
       preferredChapterLaunchMode: state.preferredChapterLaunchMode,
@@ -87,6 +88,7 @@ test('a fresh install opens on Genesis 1 in the Berean text with no reader histo
       currentChapter: 1,
       currentTranslation: 'bsb',
       hasReaderHistory: false,
+      readingPositionUpdatedAt: null,
       preferredChapterLaunchMode: 'listen',
       preferredTranslationLanguage: 'English',
       verses: [],
@@ -99,14 +101,7 @@ test('a fresh install opens on Genesis 1 in the Berean text with no reader histo
 
 test('the bundled translation list is published to the audio resolver when the store loads', () => {
   assert.equal(importTimeAudioSyncs.length, 1);
-  assert.deepEqual(importTimeAudioSyncs[0], [
-    'bsb',
-    'web',
-    'asv',
-    'sparv1909',
-    'hincv',
-    'npiulb',
-  ]);
+  assert.deepEqual(importTimeAudioSyncs[0], ['bsb', 'web', 'asv', 'sparv1909', 'hincv', 'npiulb']);
 });
 
 test('the store registers itself as the installed-database source resolver on load', () => {
@@ -159,7 +154,9 @@ test('setPreferredChapterLaunchMode remembers whether chapters open to read or l
 });
 
 test('applySyncedReadingPosition adopts a reading position synced from another device', () => {
-  useBibleStore.getState().applySyncedReadingPosition({ bookId: 'PSA', chapter: 23 });
+  useBibleStore
+    .getState()
+    .applySyncedReadingPosition({ bookId: 'PSA', chapter: 23, updatedAt: null });
 
   const state = useBibleStore.getState();
   assert.deepEqual(
@@ -169,7 +166,9 @@ test('applySyncedReadingPosition adopts a reading position synced from another d
 });
 
 test('applySyncedReadingPosition ignores a synced position the reader is already on', () => {
-  useBibleStore.getState().applySyncedReadingPosition({ bookId: 'GEN', chapter: 1 });
+  useBibleStore
+    .getState()
+    .applySyncedReadingPosition({ bookId: 'GEN', chapter: 1, updatedAt: null });
 
   assert.equal(useBibleStore.getState().hasReaderHistory, false);
 });
@@ -670,6 +669,7 @@ test('resetForSignOut clears the reading position and in-flight download UI', ()
     {
       currentBook: state.currentBook,
       currentChapter: state.currentChapter,
+      readingPositionUpdatedAt: state.readingPositionUpdatedAt,
       hasReaderHistory: state.hasReaderHistory,
       preferredChapterLaunchMode: state.preferredChapterLaunchMode,
       verses: state.verses,
@@ -681,6 +681,7 @@ test('resetForSignOut clears the reading position and in-flight download UI', ()
       currentBook: 'GEN',
       currentChapter: 1,
       hasReaderHistory: false,
+      readingPositionUpdatedAt: null,
       preferredChapterLaunchMode: 'listen',
       verses: [],
       isLoading: false,

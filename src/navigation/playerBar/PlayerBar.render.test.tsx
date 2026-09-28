@@ -244,14 +244,24 @@ test('the play glyph is an outlined triangle or pair of bars on a soft tile, one
   assert.equal(view.queryByTestId('outlined-glyph-play'), null);
 });
 
-test('a loading chapter shows pause, busy and disabled, as the dock did', async () => {
-  await publishReader({ isLoading: true });
-  const { view } = await renderBar();
+for (const scope of ['reader', 'app'] as const) {
+  test(`a loading ${scope} chapter keeps its busy Pause action available`, async () => {
+    const { registerPlayerTransport } = await import('../../hooks/audioPlayer/transportRegistry');
+    registerPlayerTransport(fakeTransport);
+    await setAudio({ ...playingJohn3, status: 'loading' });
+    if (scope === 'reader') await publishReader({ isLoading: true });
+    const { view } = await renderBar({ scope });
 
-  const button = view.getByRole('button', { name: pauseName(), busy: true, disabled: true });
-  await view.press(button);
-  assert.deepEqual(readerCalls, []);
-});
+    const button = view.getByRole('button', { name: pauseName(), busy: true });
+    await view.press(button);
+    assert.deepEqual(scope === 'reader' ? readerCalls : transportCalls, [
+      scope === 'reader' ? 'playPause' : 'pause',
+    ]);
+    assert.notEqual(button.props.disabled, true);
+    assert.notEqual(button.props.accessibilityState?.disabled, true);
+    assert.deepEqual(harness.haptics, [{ kind: 'impact', style: 'medium' }]);
+  });
+}
 
 test('chevrons at the ends are announced as disabled, and the plan’s last chapter completes the day', async () => {
   await publishReader({

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Alert,
   View,
@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useShallow } from 'zustand/react/shallow';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
@@ -168,6 +169,33 @@ export function HomeScreen() {
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
   const [isSharingVerse, setIsSharingVerse] = useState(false);
+  const shareMountedRef = useRef(false);
+  const shareFocusedRef = useRef(false);
+  const verseShareRequestRef = useRef<object | null>(null);
+  useLayoutEffect(() => {
+    shareMountedRef.current = true;
+    shareFocusedRef.current = navigation.isFocused();
+    const invalidate = () => {
+      verseShareRequestRef.current = null;
+      setIsSharingVerse(false);
+    };
+    const unsubscribeBlur = navigation.addListener('blur', () => {
+      // Home freezes off-screen, so invalidate from the event without waiting for a render.
+      shareFocusedRef.current = false;
+      invalidate();
+    });
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      shareFocusedRef.current = true;
+      invalidate();
+    });
+    return () => {
+      shareMountedRef.current = false;
+      shareFocusedRef.current = false;
+      verseShareRequestRef.current = null;
+      unsubscribeBlur();
+      unsubscribeFocus();
+    };
+  }, [navigation]);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
   // Everything on Home that depends on the time of day reads this, not a fresh Date: it
   // advances at local midnight and on each return to the foreground, so a Home left open
@@ -217,21 +245,29 @@ export function HomeScreen() {
   const currentBook = useBibleStore((state) => state.currentBook);
   const currentChapter = useBibleStore((state) => state.currentChapter);
   const hasReaderHistory = useBibleStore((state) => state.hasReaderHistory);
-  // Only the current row: another translation's download progress or a catalog
-  // refresh replaces its own row in `translations`, which must not re-render Home.
-  const currentTranslationInfo = useBibleStore((state) =>
-    (Array.isArray(state.translations) ? state.translations : bibleTranslations).find(
-      (translation) => translation.id === state.currentTranslation
-    )
+  // Home needs content and availability changes, not the selected Bible's download
+  // job ticks. Keep all catalog/install fields live while omitting that transient job.
+  const currentTranslationInfo = useBibleStore(
+    useShallow((state) => {
+      const translation = (
+        Array.isArray(state.translations) ? state.translations : bibleTranslations
+      ).find((entry) => entry.id === state.currentTranslation);
+      return translation ? { ...translation, activeDownloadJob: null } : undefined;
+    })
   );
-  // Likewise only the row today's borrowed Scripture came from, when it is borrowed.
+  // Borrowed Scripture uses only its source label and reading font, not download state.
   const dailyFallbackTranslationId = dailyScripture?.fallbackTranslationId;
-  const dailyFallbackTranslationInfo = useBibleStore((state) =>
-    dailyFallbackTranslationId
-      ? (Array.isArray(state.translations) ? state.translations : bibleTranslations).find(
-          (translation) => translation.id === dailyFallbackTranslationId
-        )
-      : undefined
+  const dailyFallbackTranslationInfo = useBibleStore(
+    useShallow((state) => {
+      const translation = dailyFallbackTranslationId
+        ? (Array.isArray(state.translations) ? state.translations : bibleTranslations).find(
+            (entry) => entry.id === dailyFallbackTranslationId
+          )
+        : undefined;
+      return translation
+        ? { abbreviation: translation.abbreviation, language: translation.language }
+        : undefined;
+    })
   );
   // The verse load reads four fields, plus the text pack it reads them from.
   // Keying it on those rather than on the row object stops a rebuilt-but-equal
@@ -662,24 +698,40 @@ export function HomeScreen() {
   );
 
   const handleShareVerseOfTheDay = async () => {
-    if (isSharingVerse) {
+    if (!shareMountedRef.current || !shareFocusedRef.current || verseShareRequestRef.current) {
       return;
     }
+    const request = {};
+    verseShareRequestRef.current = request;
+    const isCurrent = () =>
+      shareMountedRef.current &&
+      shareFocusedRef.current &&
+      verseShareRequestRef.current === request;
 
     lightHaptic();
     setIsSharingVerse(true);
+    let releaseUnsharedImage: (() => void) | null = null;
 
     try {
       const Sharing = await import('expo-sharing');
+      if (!isCurrent()) return;
+      const available = await Sharing.isAvailableAsync();
+      if (!isCurrent()) return;
 
-      if ((await Sharing.isAvailableAsync()) && verseSharePreviewRef.current) {
-        const { captureRef } = await import('react-native-view-shot');
+      if (available && verseSharePreviewRef.current) {
+        const { captureRef, releaseCapture } = await import('react-native-view-shot');
+        if (!isCurrent()) return;
         const imageUri = await captureRef(verseSharePreviewRef, {
           format: 'png',
           quality: 1,
           result: 'tmpfile',
         });
+        releaseUnsharedImage = () => releaseCapture(imageUri);
+        if (!isCurrent()) return;
 
+        // A recipient may read the capture after sharing returns; only abandoned captures
+        // that never reached native sharing remain ours to release.
+        releaseUnsharedImage = null;
         await Sharing.shareAsync(imageUri, {
           dialogTitle: t('groups.share'),
           mimeType: 'image/png',
@@ -687,15 +739,27 @@ export function HomeScreen() {
         return;
       }
 
+      if (!isCurrent()) return;
       await Share.share({ message: verseShareMessage });
     } catch {
+      if (!isCurrent()) return;
       try {
         await Share.share({ message: verseShareMessage });
       } catch {
         // Ignore share errors.
       }
     } finally {
-      setIsSharingVerse(false);
+      if (!isCurrent() && releaseUnsharedImage) {
+        try {
+          releaseUnsharedImage();
+        } catch {
+          // Best effort: temporary captures are also cleared when the app closes.
+        }
+      }
+      if (isCurrent()) {
+        verseShareRequestRef.current = null;
+        setIsSharingVerse(false);
+      }
     }
   };
 

@@ -16,6 +16,7 @@ export interface LocalReadingSnapshot {
   lastReadDate: string | null;
   currentBook: string;
   currentChapter: number;
+  readingPositionUpdatedAt?: number | null;
 }
 
 export interface LocalPreferenceSnapshot {
@@ -46,6 +47,7 @@ export interface ReadingMergeResult {
   progress: Pick<LocalReadingSnapshot, 'chaptersRead' | 'streakDays' | 'lastReadDate'>;
   readingPosition: ReadingPosition;
   positionSource: PositionSource;
+  readingPositionUpdatedAt?: number | null;
   changed: boolean;
 }
 
@@ -109,8 +111,19 @@ const getChapterTimestamp = (
 const resolveReadingPosition = (
   localState: LocalReadingSnapshot,
   remoteData: RemoteUserProgress | null,
-  mergedChaptersRead: Record<string, number>
-): { readingPosition: ReadingPosition; positionSource: PositionSource } => {
+  mergedChaptersRead: Record<string, number>,
+  bound: ClockBound | null
+): {
+  readingPosition: ReadingPosition;
+  positionSource: PositionSource;
+  readingPositionUpdatedAt: number | null;
+} => {
+  const localStamp = normalizePositionStamp(localState.readingPositionUpdatedAt, bound);
+  const remoteStamp =
+    remoteData?.position_updated_for ===
+    `${remoteData?.current_book}_${remoteData?.current_chapter}`
+      ? normalizePositionStamp(remoteData?.position_updated_at, bound)
+      : null;
   const remoteBook = remoteData?.current_book ? getBookById(remoteData.current_book) : undefined;
   const remoteChapter = remoteData?.current_chapter;
   const isRemotePositionReal =
@@ -126,18 +139,34 @@ const resolveReadingPosition = (
         chapter: localState.currentChapter,
       },
       positionSource: 'local',
+      readingPositionUpdatedAt: localStamp,
     };
   }
 
   const remoteTimestamp =
-    getChapterTimestamp(mergedChaptersRead, remoteData.current_book, remoteData.current_chapter) ||
-    Date.parse(remoteData.synced_at || '') ||
-    0;
-  const localTimestamp = getChapterTimestamp(
-    mergedChaptersRead,
-    localState.currentBook,
-    localState.currentChapter
-  );
+    remoteStamp ??
+    (getChapterTimestamp(mergedChaptersRead, remoteData.current_book, remoteData.current_chapter) ||
+      // An upload is not a chapter choice. Legacy upload time remains the fallback
+      // only when neither side can prove an explicit local position choice.
+      (localStamp === null ? Date.parse(remoteData.synced_at || '') : 0) ||
+      0);
+  const localTimestamp =
+    localStamp ??
+    getChapterTimestamp(mergedChaptersRead, localState.currentBook, localState.currentChapter);
+  // Promoting a legacy position to an explicit stamp must retain its real read
+  // recency. Upload time alone never becomes a position-choice stamp.
+  const samePositionStamp =
+    localStamp !== null || remoteStamp !== null
+      ? Math.max(
+          localTimestamp,
+          remoteStamp ??
+            getChapterTimestamp(
+              mergedChaptersRead,
+              remoteData.current_book,
+              remoteData.current_chapter
+            )
+        ) || null
+      : null;
 
   // Two positions read at the same instant: pick by the position itself, so both
   // devices make the same choice and the server stops alternating between them.
@@ -148,6 +177,7 @@ const resolveReadingPosition = (
   const shouldUseRemote =
     (localState.currentBook === 'GEN' &&
       localState.currentChapter === 1 &&
+      localStamp === null &&
       Object.keys(localState.chaptersRead).length === 0) ||
     remoteTimestamp > localTimestamp ||
     remoteWinsTie;
@@ -159,6 +189,11 @@ const resolveReadingPosition = (
         chapter: remoteData.current_chapter,
       },
       positionSource: 'remote',
+      readingPositionUpdatedAt:
+        localState.currentBook === remoteData.current_book &&
+        localState.currentChapter === remoteData.current_chapter
+          ? samePositionStamp
+          : remoteStamp,
     };
   }
 
@@ -168,6 +203,11 @@ const resolveReadingPosition = (
       chapter: localState.currentChapter,
     },
     positionSource: 'local',
+    readingPositionUpdatedAt:
+      localState.currentBook === remoteData.current_book &&
+      localState.currentChapter === remoteData.current_chapter
+        ? samePositionStamp
+        : localStamp,
   };
 };
 
@@ -230,6 +270,11 @@ const clockBound = (now: Date): ClockBound | null => {
   };
 };
 
+const normalizePositionStamp = (value: unknown, bound: ClockBound | null): number | null => {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) return null;
+  return bound && value > bound.latestReadAt ? bound.nowMs : value;
+};
+
 const boundReadDate = <T>(date: T, bound: ClockBound | null): T | string =>
   bound && isCalendarDate(date) && date > bound.latestReadDate ? bound.today : date;
 
@@ -268,10 +313,11 @@ export const mergeReadingSnapshot = (
     boundChapterTimes(localState.chaptersRead, bound),
     remoteChapters
   );
-  const { readingPosition, positionSource } = resolveReadingPosition(
+  const { readingPosition, positionSource, readingPositionUpdatedAt } = resolveReadingPosition(
     localState,
     remoteData,
-    chaptersRead
+    chaptersRead,
+    bound
   );
 
   const remoteStreak = remoteData?.streak_days ?? 0;
@@ -303,9 +349,11 @@ export const mergeReadingSnapshot = (
     progress,
     readingPosition,
     positionSource,
+    readingPositionUpdatedAt,
     changed:
       readingPosition.bookId !== localState.currentBook ||
       readingPosition.chapter !== localState.currentChapter ||
+      readingPositionUpdatedAt !== (localState.readingPositionUpdatedAt ?? null) ||
       progress.streakDays !== localState.streakDays ||
       progress.lastReadDate !== localState.lastReadDate ||
       Object.keys(progress.chaptersRead).length !== Object.keys(localState.chaptersRead).length ||
@@ -328,6 +376,10 @@ export const readingMatchesRemote = (
     reading.progress.lastReadDate === remote.last_read_date &&
     reading.readingPosition.bookId === remote.current_book &&
     reading.readingPosition.chapter === remote.current_chapter &&
+    (reading.readingPositionUpdatedAt == null ||
+      (reading.readingPositionUpdatedAt === remote.position_updated_at &&
+        remote.position_updated_for ===
+          `${reading.readingPosition.bookId}_${reading.readingPosition.chapter}`)) &&
     Object.keys(reading.progress.chaptersRead).length === Object.keys(chapters).length &&
     Object.entries(reading.progress.chaptersRead).every(([key, value]) => chapters[key] === value)
   );
@@ -342,6 +394,8 @@ export interface RemoteProgressPayload {
   current_book: string | null;
   current_chapter: number | null;
   synced_at: string;
+  position_updated_at?: number;
+  position_updated_for?: string;
 }
 
 const MAX_UPLOADED_CHAPTERS = 5000;
@@ -376,6 +430,7 @@ export const buildRemoteProgressPayload = (
       codePointLength(key) <= 64
   );
   const { bookId, chapter } = reading.readingPosition;
+  const positionStamp = normalizePositionStamp(reading.readingPositionUpdatedAt, bound);
   const hasPosition =
     typeof bookId === 'string' &&
     codePointLength(bookId) >= 1 &&
@@ -394,6 +449,9 @@ export const buildRemoteProgressPayload = (
     last_read_date: isCalendarDate(lastReadDate) ? lastReadDate : null,
     current_book: hasPosition ? bookId : null,
     current_chapter: hasPosition ? chapter : null,
+    ...(hasPosition && positionStamp !== null
+      ? { position_updated_at: positionStamp, position_updated_for: `${bookId}_${chapter}` }
+      : {}),
     synced_at: syncedAt,
   };
 };

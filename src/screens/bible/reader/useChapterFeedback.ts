@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../../constants/config';
@@ -46,8 +46,16 @@ export function useChapterFeedback({
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackSentiment, setFeedbackSentiment] = useState<'up' | 'down' | null>(null);
   const [feedbackComment, setFeedbackComment] = useState('');
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [submittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const submitRequestRef = useRef(0);
+  const userId = useAuthStore((state) => state.user?.uid ?? null);
+  const authGeneration = useAuthStore((state) => state.authGeneration);
+  const contextKey = JSON.stringify([currentTranslation, bookId, chapter, userId, authGeneration]);
+  const [feedbackContext, setFeedbackContext] = useState(contextKey);
+  const isCurrentFeedbackContext = feedbackContext === contextKey;
+  const isSubmittingFeedback = isCurrentFeedbackContext && submittingFeedback;
   const legacyFeedbackEnabled = useAuthStore((state) => state.preferences.chapterFeedbackEnabled);
   const storedMode = useTranslatorReviewStore((state) => state.mode);
   const participationMode = getFeedbackParticipationMode(
@@ -61,7 +69,11 @@ export function useChapterFeedback({
   const chapterFeedbackRole = useAuthStore((state) => state.preferences.chapterFeedbackRole);
   const contentLanguageCode = useAuthStore((state) => state.preferences.contentLanguageCode);
   const contentLanguageName = useAuthStore((state) => state.preferences.contentLanguageName);
-  const audio = useChapterFeedbackAudio({ isSubmittingFeedback, setFeedbackSubmitError });
+  const audio = useChapterFeedbackAudio({
+    contextKey,
+    isSubmittingFeedback,
+    setFeedbackSubmitError,
+  });
 
   // Both composers render this error in a live region, which only TalkBack
   // reads; VoiceOver is told directly (offline, sign-in, microphone refused).
@@ -69,14 +81,32 @@ export function useChapterFeedback({
     if (feedbackSubmitError) announceLiveRegionText(feedbackSubmitError);
   }, [feedbackSubmitError]);
   const { feedbackAudioState, setFeedbackAudioState, feedbackAudioDraft } = audio;
+  // A contributor draft belongs to one chapter and authenticated owner. Reset
+  // during render so neither composer exposes it while effects await commit.
+  if (feedbackContext !== contextKey) {
+    setFeedbackContext(contextKey);
+    setIsSubmittingFeedback(false);
+    setFeedbackSentiment(null);
+    setFeedbackComment('');
+    setFeedbackSubmitError(null);
+    setShowFeedbackModal(false);
+  }
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      submitRequestRef.current += 1;
+    };
+  }, [currentTranslation, bookId, chapter, userId, authGeneration]);
   const savedChapterFeedbackIdentity = normalizeChapterFeedbackIdentity({
     name: chapterFeedbackName ?? '',
     role: chapterFeedbackRole ?? '',
   });
   const canSubmitFeedback =
     shouldEnableChapterFeedbackSubmit({
-      sentiment: feedbackSentiment,
-      isSubmitting: isSubmittingFeedback || feedbackAudioState === 'recording',
+      sentiment: isCurrentFeedbackContext ? feedbackSentiment : null,
+      isSubmitting:
+        isSubmittingFeedback || audio.isFeedbackAudioStarting || feedbackAudioState === 'recording',
     }) && savedChapterFeedbackIdentity != null;
 
   const resetFeedbackDraft = () => {
@@ -91,6 +121,7 @@ export function useChapterFeedback({
       return;
     }
 
+    void audio.suspendFeedbackAudio();
     setShowFeedbackModal(false);
   };
 
@@ -102,10 +133,30 @@ export function useChapterFeedback({
   };
 
   const handleSubmitChapterFeedback = async (sourceScreen: ChapterFeedbackSourceScreen) => {
-    if (!chapterFeedbackEnabled || !feedbackSentiment || isSubmittingFeedback) {
+    if (
+      !chapterFeedbackEnabled ||
+      !isCurrentFeedbackContext ||
+      !feedbackSentiment ||
+      isSubmittingFeedback ||
+      audio.isFeedbackAudioStarting ||
+      feedbackAudioState === 'recording'
+    ) {
       return;
     }
 
+    const requestId = ++submitRequestRef.current;
+    const owner = useAuthStore.getState();
+    const ownerUserId = owner.user?.uid ?? null;
+    const ownerGeneration = owner.authGeneration;
+    const isCurrent = () => {
+      const current = useAuthStore.getState();
+      return (
+        mountedRef.current &&
+        requestId === submitRequestRef.current &&
+        (current.user?.uid ?? null) === ownerUserId &&
+        current.authGeneration === ownerGeneration
+      );
+    };
     setIsSubmittingFeedback(true);
     if (feedbackAudioDraft) {
       setFeedbackAudioState('uploading');
@@ -120,6 +171,8 @@ export function useChapterFeedback({
         })
       : null;
 
+    // Local voice-file preparation happens before the outbox captures its account.
+    if (!isCurrent()) return;
     if (audioUploadResult && !audioUploadResult.success) {
       setIsSubmittingFeedback(false);
       setFeedbackAudioState('error');
@@ -149,6 +202,7 @@ export function useChapterFeedback({
       appVersion: config.version,
     });
 
+    if (!isCurrent()) return;
     setIsSubmittingFeedback(false);
 
     if (result.success) {
@@ -182,13 +236,13 @@ export function useChapterFeedback({
     chapterFeedbackEnabled,
     participationMode,
     savedChapterFeedbackIdentity,
-    showFeedbackModal,
-    feedbackSentiment,
+    showFeedbackModal: isCurrentFeedbackContext && showFeedbackModal,
+    feedbackSentiment: isCurrentFeedbackContext ? feedbackSentiment : null,
     setFeedbackSentiment,
-    feedbackComment,
+    feedbackComment: isCurrentFeedbackContext ? feedbackComment : '',
     setFeedbackComment,
     isSubmittingFeedback,
-    feedbackSubmitError,
+    feedbackSubmitError: isCurrentFeedbackContext ? feedbackSubmitError : null,
     setFeedbackSubmitError,
     canSubmitFeedback,
     handleCloseFeedbackModal,

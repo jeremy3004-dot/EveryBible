@@ -125,21 +125,31 @@ mockModule(mock, 'expo-status-bar', { StatusBar: hostComponent('ExpoStatusBar') 
 
 const sharing = {
   available: true,
+  availabilityImpl: null as (() => Promise<boolean>) | null,
+  captureImpl: null as (() => Promise<string>) | null,
+  releases: [] as string[],
+  releaseError: null as Error | null,
   captureError: null as Error | null,
+  shareError: null as Error | null,
   captures: [] as Array<{ ref: unknown; options: unknown }>,
   sheets: [] as Array<{ uri: string; options: unknown }>,
 };
 mockPackage(mock, 'expo-sharing', {
-  isAvailableAsync: async () => sharing.available,
+  isAvailableAsync: () => sharing.availabilityImpl?.() ?? Promise.resolve(sharing.available),
   shareAsync: async (uri: string, options: unknown) => {
     sharing.sheets.push({ uri, options });
+    if (sharing.shareError) throw sharing.shareError;
   },
 });
 mockPackage(mock, 'react-native-view-shot', {
+  releaseCapture: (uri: string) => {
+    sharing.releases.push(uri);
+    if (sharing.releaseError) throw sharing.releaseError;
+  },
   captureRef: async (ref: unknown, options: unknown) => {
     sharing.captures.push({ ref, options });
     if (sharing.captureError) throw sharing.captureError;
-    return 'file:///tmp/verse-of-the-day.png';
+    return sharing.captureImpl?.() ?? 'file:///tmp/verse-of-the-day.png';
   },
 });
 
@@ -163,6 +173,11 @@ beforeEach(() => {
   verseLoads.length = 0;
   sharing.available = true;
   sharing.captureError = null;
+  sharing.shareError = null;
+  sharing.availabilityImpl = null;
+  sharing.captureImpl = null;
+  sharing.releases.length = 0;
+  sharing.releaseError = null;
   sharing.captures.length = 0;
   sharing.sheets.length = 0;
   bibleStore.setState(bibleStore.getInitialState(), true);
@@ -185,6 +200,17 @@ async function renderHome() {
 }
 
 type HomeView = Awaited<ReturnType<typeof renderHome>>;
+
+/** Start the visible native callback without keeping an act scope open across native work. */
+async function beginHomeShare(view: HomeView) {
+  let operation!: Promise<void>;
+  await act(async () => {
+    const onPress = view.getByRole('button', { name: t('groups.share') }).props
+      .onPress as () => Promise<void>;
+    operation = onPress();
+  });
+  return { operation };
+}
 
 /** The on-screen hero lives in the ScrollView; the share capture is mounted beside it. */
 function heroes(view: HomeView) {
@@ -1009,3 +1035,338 @@ test('Home draws its glyphs with Lucide only', async () => {
   assert.equal(view.queryAllByType('Icon').length, 0);
   assert.ok(view.queryAllByType('LucideIcon').length > 0);
 });
+
+for (const boundary of ['availability', 'capture', 'capture failure'] as const) {
+  test(`navigating from Home during ${boundary} cannot present a stale share`, async () => {
+    let settle: () => void = () => {};
+    let entered: () => void = () => {};
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    if (boundary === 'availability')
+      sharing.availabilityImpl = () =>
+        new Promise<boolean>((resolve) => {
+          settle = () => resolve(true);
+          entered();
+        });
+    else
+      sharing.captureImpl = () =>
+        new Promise<string>((resolve, reject) => {
+          settle =
+            boundary === 'capture'
+              ? () => resolve('file:///tmp/abandoned-home.png')
+              : () => reject(new Error('snapshot failed'));
+          entered();
+        });
+    const view = await renderHome();
+    // The actual visible Share press starts before navigation, never after unmount.
+    const { operation: press } = await beginHomeShare(view);
+    try {
+      await started;
+      await view.press(
+        heroes(view).screen.getByRole('button', {
+          name: t('home.readPassage', { passage: 'John 3' }),
+        })
+      );
+      assert.equal(harness.navigation.calls.at(-1)?.method, 'navigate');
+      // Home stays mounted/frozen on tab changes; blur is delivered without a new render.
+      isFocused = false;
+      harness.navigation.emit('blur');
+      await act(async () => {
+        settle();
+        await press;
+      });
+      assert.deepEqual(sharing.sheets, [], 'an abandoned Home action cannot open an image sheet');
+      assert.deepEqual(
+        harness.rn.__recorded.shares,
+        [],
+        'an abandoned action cannot fall back to text'
+      );
+    } finally {
+      await act(async () => {
+        settle();
+        await press;
+      });
+      await view.unmount();
+      sharing.availabilityImpl = null;
+      sharing.captureImpl = null;
+    }
+  });
+}
+
+for (const releaseFails of [false, true]) {
+  test(`a fresh Home share keeps ownership when the abandoned capture settles${releaseFails ? ' and release fails' : ''}`, async () => {
+    let finishOld: () => void = () => {};
+    let finishFresh: () => void = () => {};
+    let oldStarted: () => void = () => {};
+    let freshStarted: () => void = () => {};
+    const oldEntry = new Promise<void>((resolve) => {
+      oldStarted = resolve;
+    });
+    const freshEntry = new Promise<void>((resolve) => {
+      freshStarted = resolve;
+    });
+    let captures = 0;
+    sharing.captureImpl = () =>
+      new Promise<string>((resolve) => {
+        if (++captures === 1) {
+          finishOld = () => resolve('file:///tmp/old-home.png');
+          oldStarted();
+        } else {
+          finishFresh = () => resolve('file:///tmp/fresh-home.png');
+          freshStarted();
+        }
+      });
+    sharing.releaseError = releaseFails ? new Error('release failed') : null;
+    const view = await renderHome();
+    const { operation: first } = await beginHomeShare(view);
+    let fresh: Promise<void> | undefined;
+    try {
+      await oldEntry;
+      await act(async () => {
+        harness.navigation.emit('blur');
+        harness.navigation.emit('focus');
+      });
+      await view.flush();
+      const button = view.getByRole('button', { name: t('groups.share') });
+      assert.notEqual(button.props.disabled, true, 'refocusing permits a fresh request');
+      fresh = (await beginHomeShare(view)).operation;
+      await freshEntry;
+      await act(async () => {
+        finishOld();
+        await first;
+      });
+      assert.equal(
+        view.getByRole('button', { name: t('groups.share') }).props.disabled,
+        true,
+        'stale finally cannot clear the fresh pending request'
+      );
+      assert.deepEqual(sharing.releases, ['file:///tmp/old-home.png']);
+      assert.deepEqual(sharing.sheets, []);
+      await act(async () => {
+        finishFresh();
+        await fresh;
+      });
+      assert.deepEqual(
+        sharing.sheets.map(({ uri }) => uri),
+        ['file:///tmp/fresh-home.png']
+      );
+      assert.deepEqual(
+        sharing.releases,
+        ['file:///tmp/old-home.png'],
+        'native-handed-off capture remains available'
+      );
+    } finally {
+      finishOld();
+      finishFresh();
+      await first;
+      await fresh;
+      await view.unmount();
+    }
+  });
+}
+
+test('two Home share taps before a render claim only one native preparation', async () => {
+  let finish: () => void = () => {};
+  let entered: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let checks = 0;
+  sharing.availabilityImpl = () => {
+    checks += 1;
+    entered();
+    return new Promise<boolean>((resolve) => {
+      finish = () => resolve(true);
+    });
+  };
+  const view = await renderHome();
+  const onPress = view.getByRole('button', { name: t('groups.share') }).props
+    .onPress as () => Promise<void>;
+  let first: Promise<void> | undefined;
+  let second: Promise<void> | undefined;
+  try {
+    // Both taps reach the real native control callback before React commits its disabled state.
+    await act(async () => {
+      first = onPress();
+      second = onPress();
+    });
+    await started;
+    assert.equal(checks, 1);
+    await act(async () => {
+      finish();
+      await first;
+      await second;
+    });
+    await view.flush();
+    assert.equal(sharing.sheets.length, 1);
+    assert.deepEqual(sharing.releases, []);
+  } finally {
+    await act(async () => {
+      finish();
+      await first;
+      await second;
+    });
+    await view.unmount();
+  }
+});
+
+test('a Home capture completed after unmount is released without presenting', async () => {
+  let finish: () => void = () => {};
+  let entered: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  sharing.captureImpl = () =>
+    new Promise<string>((resolve) => {
+      finish = () => resolve('file:///tmp/unmounted-home.png');
+      entered();
+    });
+  const view = await renderHome();
+  const { operation: press } = await beginHomeShare(view);
+  await started;
+  await view.unmount();
+  finish();
+  await press;
+  assert.deepEqual(sharing.sheets, []);
+  assert.deepEqual(harness.rn.__recorded.shares, []);
+  assert.deepEqual(sharing.releases, ['file:///tmp/unmounted-home.png']);
+});
+
+test('a current image sharing error retains the handed-off file and falls back to text', async () => {
+  sharing.shareError = new Error('native image share failed');
+  const view = await renderHome();
+  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  assert.equal(sharing.sheets.length, 1);
+  assert.deepEqual(harness.rn.__recorded.shares, [
+    {
+      message: `${t('home.verseOfTheDay')}\nJohn 3:16\n\n${JOHN_3_16}`,
+    },
+  ]);
+  assert.deepEqual(sharing.releases, [], 'the URI was already handed to native sharing');
+  assert.notEqual(view.getByRole('button', { name: t('groups.share') }).props.disabled, true);
+  await view.unmount();
+});
+
+test('a current text sharing failure leaves the Home share control ready for retry', async (context) => {
+  sharing.available = false;
+  context.mock.method(harness.rn.Share, 'share', async () => {
+    throw new Error('native text share failed');
+  });
+  const view = await renderHome();
+  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  assert.deepEqual(sharing.sheets, []);
+  assert.deepEqual(sharing.releases, []);
+  assert.notEqual(view.getByRole('button', { name: t('groups.share') }).props.disabled, true);
+  await view.unmount();
+});
+
+test('current translation audio job ticks do not redraw Home cards', async () => {
+  await renderHome();
+  const mark = harness.renders.mark();
+  for (let progress = 10; progress < 20; progress++) {
+    await replaceTranslations(['bsb'], {
+      activeDownloadJob: {
+        id: 'audio-job',
+        kind: 'translation-audio',
+        state: 'running',
+        progress,
+        startedAt: 0,
+        updatedAt: progress,
+      },
+    });
+  }
+  assert.equal(harness.renders.count(mark), 0);
+  assert.deepEqual(verseLoads, ['bsb']);
+});
+
+test('current translation audio completion and catalog availability still update Listen', async () => {
+  dailyScripture = await todaysVerse();
+  network.offline = true;
+  const view = await renderHome();
+  assert.equal(listenButton(view), null);
+  await replaceTranslations(['bsb'], { downloadedAudioBooks: [dailyScripture.bookId] });
+  await view.flush();
+  assert.ok(listenButton(view));
+  await replaceTranslations(['bsb'], { hasAudio: false });
+  await view.flush();
+  assert.equal(listenButton(view), null);
+  await replaceTranslations(['bsb'], { hasAudio: true });
+  await view.flush();
+  assert.ok(listenButton(view));
+});
+
+test('a current translation catalog rename updates the borrowed passage prompt', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  const view = await renderHome();
+  await replaceTranslations(['npiulb'], { name: 'Updated Nepali Bible' });
+  await view.press(
+    heroes(view).screen.getByRole('button', { name: t('home.readPassage', { passage: 'John 3' }) })
+  );
+  assert.equal(
+    harness.rn.__recorded.alerts.at(-1)?.title,
+    t('home.borrowedPassageTitle', { passage: 'John 3', translation: 'Updated Nepali Bible' })
+  );
+});
+
+test('borrowed Scripture ignores fallback translation audio job ticks', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  await renderHome();
+  const mark = harness.renders.mark();
+  for (let progress = 10; progress < 20; progress++) {
+    await replaceTranslations(['bsb'], {
+      activeDownloadJob: {
+        id: 'fallback-audio',
+        kind: 'translation-audio',
+        state: 'running',
+        progress,
+        startedAt: 0,
+        updatedAt: progress,
+      },
+    });
+  }
+  assert.equal(harness.renders.count(mark), 0);
+  assert.deepEqual(verseLoads, ['npiulb']);
+});
+
+test('borrowed Scripture follows fallback abbreviation and language changes', async () => {
+  bibleStore.setState({ currentTranslation: 'npiulb' });
+  dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
+  const view = await renderHome();
+  await replaceTranslations(['bsb'], { abbreviation: 'NEW', language: 'Nepali' });
+  const { screen, share } = heroes(view);
+  assert.ok(screen.getByText(screenEyebrow('John 3:16 · NEW')));
+  assert.ok(share.getByText(verseEyebrow('John 3:16 · NEW')));
+  const { getReadingFontFamily } = await import('../../design/fonts');
+  assert.equal(
+    flattenStyle(screen.getByText(JOHN_3_16).props.style)?.fontFamily,
+    getReadingFontFamily('Nepali')
+  );
+  sharing.available = false;
+  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
+    message: `${t('home.verseOfTheDay')}\nJohn 3:16 · NEW\n\n${JOHN_3_16}`,
+  });
+});
+
+for (const fallbackId of ['bsb', 'unknown-source']) {
+  test(`missing dynamic fallback ${fallbackId} retains its source attribution`, async () => {
+    bibleStore.setState({
+      currentTranslation: 'npiulb',
+      translations: bibleTranslations.filter((row) => row.id !== fallbackId),
+    });
+    dailyScripture = verseOf({ fallbackTranslationId: fallbackId });
+    const view = await renderHome();
+    const label = fallbackId === 'bsb' ? 'BSB' : 'UNKNOWN-SOURCE';
+    const { screen, share } = heroes(view);
+    assert.ok(screen.getByText(screenEyebrow(`John 3:16 · ${label}`)));
+    assert.ok(share.getByText(verseEyebrow(`John 3:16 · ${label}`)));
+    const { getReadingFontFamily } = await import('../../design/fonts');
+    assert.equal(
+      flattenStyle(screen.getByText(JOHN_3_16).props.style)?.fontFamily,
+      getReadingFontFamily(fallbackId === 'bsb' ? 'English' : undefined)
+    );
+  });
+}

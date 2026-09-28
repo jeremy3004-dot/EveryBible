@@ -68,6 +68,9 @@ export const useBibleStore = create<BibleState>()(
       partialize: (state) => ({
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
+        ...(state.readingPositionUpdatedAt !== null
+          ? { readingPositionUpdatedAt: state.readingPositionUpdatedAt }
+          : {}),
         hasReaderHistory: state.hasReaderHistory,
         preferredChapterLaunchMode: state.preferredChapterLaunchMode,
         currentTranslation: state.currentTranslation,

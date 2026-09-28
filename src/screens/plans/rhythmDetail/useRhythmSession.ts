@@ -5,7 +5,10 @@ import { buildRhythmReaderSession } from '../../../services/plans/readingPlanAct
 import { useLibraryStore } from '../../../stores/libraryStore';
 import { useProgressStore } from '../../../stores/progressStore';
 import { useReadingPlansStore } from '../../../stores/readingPlansStore';
-import { buildPlanDayResumeKey } from '../../../stores/readingPlans/planProgressModel';
+import {
+  buildPlanDayResumeKey,
+  resolvePlanDayResumeOccurrence,
+} from '../../../stores/readingPlans/planProgressModel';
 import {
   buildPlanTitleById,
   buildRhythmSegmentViewModels,
@@ -26,6 +29,7 @@ export function useRhythmSession(rhythmId: string) {
   const today = useLocalToday();
 
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningHistory = useLibraryStore((state) => state.history);
   const progressByPlanId = useReadingPlansStore((state) => state.progressByPlanId);
   const planDayResumeByKey = useReadingPlansStore((state) => state.planDayResumeByKey);
@@ -46,8 +50,11 @@ export function useRhythmSession(rhythmId: string) {
             planEntriesById,
             progressByPlanId,
             planTitlesById: planTitleById,
-            getPlanDayResume: (planId, dayNumber) =>
-              planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null,
+            getPlanDayResume: (planId, dayNumber, occurrenceKey) =>
+              resolvePlanDayResumeOccurrence(
+                planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null,
+                occurrenceKey
+              ),
             today,
           })
         : null,
@@ -64,6 +71,7 @@ export function useRhythmSession(rhythmId: string) {
             progressByPlanId,
             planTitleById,
             chaptersRead,
+            chaptersListened,
             listeningHistory,
             today,
             t,
@@ -72,6 +80,7 @@ export function useRhythmSession(rhythmId: string) {
     [
       allPlans,
       chaptersRead,
+      chaptersListened,
       listeningHistory,
       planEntriesById,
       planTitleById,

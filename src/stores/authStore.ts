@@ -469,7 +469,10 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (!isCurrent()) return;
-          await getAuthModule().signOut(isCurrent);
+          const result = await getAuthModule().signOut(isCurrent);
+          if (result.localRemovalFailed && isCurrent()) {
+            throw new Error('Could not safely end the session on this device');
+          }
           // auth-js may already have emitted SIGNED_OUT for this account. That single
           // original transition is ours to complete; a newer login is never ours to reset.
           const originalSignedOut =

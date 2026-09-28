@@ -80,6 +80,10 @@ with `expo-media-control@1.0.12`, driven from the existing now-playing API:
   - The notification channel name and action labels (read by TalkBack) are configurable
     from JS, with English fallbacks. The "Unknown"/"Unknown Artist" placeholders are now
     empty.
+  - `updateMediaControlOptions` updates the existing session's capabilities and localized
+    configuration on the Expo main queue. It retains the latest options while the service
+    is unbound; the existing connection callback applies them when binding completes.
+    It does not start or rebind the service.
   - `disableMediaControls` cancels the coroutine scope it ran on. Before, it cancelled
     whatever `moduleScope` pointed to when it finished, so a quick stop → play killed the
     new enable's service bind.
@@ -128,13 +132,15 @@ the JS does nothing, and old builds keep today's behaviour.
 - **Library maturity.** expo-media-control has one maintainer, is roughly a year old, and
   its release build logs through `println`. The patch covers the lifecycle bugs found in
   review; device QA is the real gate.
-- **Next/previous are always enabled on Android.** The library takes capabilities only at
-  enable time, and re-enabling mid-playback is unsafe from the background. At the last
-  chapter the button is a no-op because the hook finds no next chapter. iOS still greys
-  them out.
-- **Localized strings are read when the session starts.** Channel name and action labels
-  come from the interface language at that moment. Changing the language mid-playback
-  updates the title at the next metadata change, and the labels at the next play-from-stop.
+- **Capability updates need a rebuilt Android binary.** Initial full and compact controls
+  omit next/previous when the current playback sequence or audio coverage has no target.
+  Rebuilt binaries update those capabilities, channel name and action labels in place when
+  the options change. JS serializes/coalesces updates and retries a rejected setter on the
+  next sync; unchanged progress does not refresh the options. An older binary without the
+  optional setter still accepts filtered initial options and playback/metadata updates,
+  without rebinding. Its controls and labels cannot update dynamically until the next
+  session starts. Native compile and device action-mask verification remain required for
+  the new export; source assertions and mocked adapter tests do not prove either.
 - **Streaming with the screen off.** expo-av's ExoPlayer sets no wake/Wi-Fi lock. The
   foreground service keeps the process and its network access. Prefetch of the next 2
   chapters covers auto-advance, but a stall while buffering a remote chapter on weak

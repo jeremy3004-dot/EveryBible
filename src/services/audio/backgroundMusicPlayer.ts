@@ -47,8 +47,15 @@ class BackgroundMusicPlayer {
   private fadeTimers = new Map<Audio.Sound, ReturnType<typeof setInterval>>();
   /** The last volume set on each sound, so a fade-out can start from where it is. */
   private volumes = new Map<Audio.Sound, number>();
-  private retiringSounds = new Set<Audio.Sound>();
+  /** Retiring loops and the deadline of their already-owned fade/unload. */
+  private retiringSounds = new Map<Audio.Sound, number>();
   private shouldBePlaying = false;
+  /** Detached sounds still own their native cleanup until its response settles. */
+  private pendingCleanups = new Set<Promise<void>>();
+  /** Candidates loaded with native Play intent still belong to this player. */
+  private pendingCrossfades = new Set<Promise<void>>();
+  /** Suppress loop reentry while this sound's replacement is loading. */
+  private crossfadingSound: Audio.Sound | null = null;
 
   /** The volume the bed plays at: the current sound's catalog level scaled by the Sound level. */
   private get targetVolume(): number {
@@ -75,6 +82,14 @@ class BackgroundMusicPlayer {
     const next = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : DEFAULT_LEVEL;
     if (next === this.level) return;
     this.level = next;
+
+    // A crossfade may have several outgoing loops, even while its replacement
+    // is still loading. Sound level 0 silences all of them within the level ramp.
+    if (next === 0) {
+      for (const retiring of this.retiringSounds.keys()) {
+        this.retireSound(retiring, LEVEL_RAMP_MS);
+      }
+    }
 
     const sound = this.sound;
     if (!sound || !this.shouldBePlaying) return;
@@ -121,48 +136,58 @@ class BackgroundMusicPlayer {
     this.fadeTimers.clear();
   }
 
+  /** Register cleanup before native work starts, so a concurrent stop can drain it. */
+  private releaseSounds(sounds: Audio.Sound[]): void {
+    if (sounds.length === 0) return;
+    const cleanup = Promise.resolve().then(async () => {
+      for (const sound of sounds) {
+        try {
+          await sound.stopAsync();
+        } catch {
+          // A rejected stop seek does not release the native player.
+        }
+        try {
+          await sound.unloadAsync();
+        } catch {
+          // Preserve best-effort cleanup through rapid pause or preset switches.
+        } finally {
+          try {
+            // The SDK setter queries status even for null. Unload first so a
+            // native-released sound cannot create an unhandled status request.
+            sound.setOnPlaybackStatusUpdate(null);
+          } catch {
+            // Listener detachment must not prevent the remaining releases.
+          }
+        }
+      }
+    });
+    this.pendingCleanups.add(cleanup);
+    void cleanup.finally(() => this.pendingCleanups.delete(cleanup)).catch(() => {});
+  }
+
   private async unloadCurrentSound(): Promise<void> {
     this.clearFadeTimers();
-
-    const sounds = [...this.retiringSounds];
-    if (this.sound) {
-      sounds.push(this.sound);
-    }
-
-    if (sounds.length === 0) {
-      return;
-    }
-
+    const sounds = [...this.retiringSounds.keys()];
+    if (this.sound) sounds.push(this.sound);
     this.sound = null;
     this.currentSource = null;
     this.retiringSounds.clear();
     this.volumes.clear();
-
-    for (const sound of sounds) {
-      try {
-        sound.setOnPlaybackStatusUpdate(null);
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      } catch {
-        // Ignore unload races for rapid preset switches.
-      }
-    }
+    this.releaseSounds(sounds);
+    // Another pause/stop may already have detached sounds. Await their native
+    // release too, including when this call has no sounds left to detach.
+    // Only callers drain: registered cleanup batches never wait on themselves.
+    // A preparing crossfade has no returned Sound yet, but already carries
+    // native Play intent. Its stale path drains cleanup without awaiting itself.
+    await Promise.all([...this.pendingCleanups, ...this.pendingCrossfades]);
   }
 
   private async unloadRetiringSounds(): Promise<void> {
-    const sounds = [...this.retiringSounds];
+    const sounds = [...this.retiringSounds.keys()];
     this.retiringSounds.clear();
-
-    for (const sound of sounds) {
-      try {
-        this.clearFadeTimer(sound);
-        sound.setOnPlaybackStatusUpdate(null);
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      } catch {
-        // Ignore cleanup races for rapid pause or preset switches.
-      }
-    }
+    for (const sound of sounds) this.clearFadeTimer(sound);
+    this.releaseSounds(sounds);
+    await Promise.all(this.pendingCleanups);
   }
 
   private setVolume(sound: Audio.Sound, volume: number): void {
@@ -204,8 +229,12 @@ class BackgroundMusicPlayer {
 
   /** Fades a sound that is no longer the active loop to silence, then releases it. */
   private retireSound(sound: Audio.Sound, durationMs: number): void {
-    sound.setOnPlaybackStatusUpdate(null);
-    this.retiringSounds.add(sound);
+    // Match fadeVolume's timer steps. A mute can shorten retirement, but never
+    // replace a fade that will already release the sound sooner.
+    const deadline = Date.now() + Math.max(1, Math.round(durationMs / FADE_STEP_MS)) * FADE_STEP_MS;
+    const existingDeadline = this.retiringSounds.get(sound);
+    if (existingDeadline != null && existingDeadline <= deadline) return;
+    this.retiringSounds.set(sound, deadline);
     this.fadeVolume(
       sound,
       this.volumes.get(sound) ?? this.targetVolume,
@@ -213,8 +242,7 @@ class BackgroundMusicPlayer {
       () => {
         this.retiringSounds.delete(sound);
         this.volumes.delete(sound);
-        sound.stopAsync().catch(() => {});
-        sound.unloadAsync().catch(() => {});
+        this.releaseSounds([sound]);
       },
       durationMs
     );
@@ -234,23 +262,39 @@ class BackgroundMusicPlayer {
       this.sound &&
       this.shouldBePlaying
     ) {
-      void this.crossfadeRestart(durationMillis - positionMillis);
+      const crossfade = this.crossfadeRestart(durationMillis - positionMillis);
+      this.pendingCrossfades.add(crossfade);
+      const settled = () => this.pendingCrossfades.delete(crossfade);
+      void crossfade.then(settled, settled);
     }
   };
 
+  /** Install the callback before load; loaded SDK setters start an unawaited status query. */
+  private async createSound(
+    source: AVPlaybackSource,
+    initialStatus: Parameters<typeof Audio.Sound.createAsync>[1]
+  ): Promise<Audio.Sound> {
+    let sound: Audio.Sound | null = null;
+    const loaded = await Audio.Sound.createAsync(source, initialStatus, (status) => {
+      if (sound && this.sound === sound && this.crossfadingSound !== sound) {
+        this.handlePlaybackStatus(status);
+      }
+    });
+    sound = loaded.sound;
+    return sound;
+  }
+
   private async crossfadeRestart(remainingMillis: number): Promise<void> {
     const oldSound = this.sound;
-    if (!oldSound || !this.currentChoice) {
+    if (!oldSound || !this.currentChoice || this.crossfadingSound === oldSound) {
       return;
     }
-
-    // Prevent re-entrant crossfade
-    oldSound.setOnPlaybackStatusUpdate(null);
 
     const source = this.currentSource;
     if (!source) {
       return;
     }
+    this.crossfadingSound = oldSound;
 
     // Snapshot the request ID before the async gap so we can detect if
     // stop() or sync('off') was called while we were awaiting createAsync.
@@ -258,7 +302,7 @@ class BackgroundMusicPlayer {
 
     try {
       // Create the next sound instance starting at volume 0
-      const { sound: newSound } = await Audio.Sound.createAsync(source, {
+      const newSound = await this.createSound(source, {
         shouldPlay: true,
         isLooping: false,
         volume: 0,
@@ -268,12 +312,8 @@ class BackgroundMusicPlayer {
       // If stop() or sync('off') fired while we were loading, discard the new
       // sound immediately — do not assign it to this.sound.
       if (capturedRequestId !== this.loadRequestId) {
-        newSound.setOnPlaybackStatusUpdate(null);
-        newSound.stopAsync().catch(() => {});
-        newSound.unloadAsync().catch(() => {});
-        if (this.sound === oldSound) {
-          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
-        }
+        this.releaseSounds([newSound]);
+        await Promise.all(this.pendingCleanups);
         return;
       }
 
@@ -287,24 +327,21 @@ class BackgroundMusicPlayer {
       this.retireSound(oldSound, fadeOutMs);
 
       this.sound = newSound;
-      newSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
       this.fadeVolume(newSound, 0, this.targetVolume);
     } catch {
       if (capturedRequestId !== this.loadRequestId) {
-        if (this.sound === oldSound) {
-          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
-        }
         return;
       }
       // If crossfade fails, fall back to simple restart (only if still valid)
       if (capturedRequestId === this.loadRequestId) {
         try {
           await oldSound.setPositionAsync(0);
-          oldSound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
         } catch {
           // Ignore
         }
       }
+    } finally {
+      if (this.crossfadingSound === oldSound) this.crossfadingSound = null;
     }
   }
 
@@ -383,12 +420,12 @@ class BackgroundMusicPlayer {
 
     let sound: Audio.Sound;
     try {
-      ({ sound } = await Audio.Sound.createAsync(source, {
+      sound = await this.createSound(source, {
         shouldPlay: false,
         isLooping: false,
         volume: 0,
         progressUpdateIntervalMillis: PROGRESS_UPDATE_INTERVAL_MS,
-      }));
+      });
     } catch {
       // A downloaded file that will not decode is dropped, so the next play fetches it
       // again instead of failing on the same file for good.
@@ -399,11 +436,11 @@ class BackgroundMusicPlayer {
     }
 
     if (requestId !== this.loadRequestId) {
-      await sound.unloadAsync();
+      this.releaseSounds([sound]);
+      await Promise.all(this.pendingCleanups);
       return;
     }
 
-    sound.setOnPlaybackStatusUpdate(this.handlePlaybackStatus);
     this.sound = sound;
     this.currentSource = source;
     this.currentChoice = choice;

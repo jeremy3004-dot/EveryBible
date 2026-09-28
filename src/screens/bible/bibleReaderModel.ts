@@ -82,6 +82,7 @@ interface ReaderChapterRouteParamsInput {
   preferredMode: ChapterSessionMode;
   planId?: string;
   planDayNumber?: number;
+  planOccurrenceKey?: string;
   planSessionKey?: PlanSessionKey;
   returnToPlanOnComplete?: boolean;
   sessionContext?: RhythmSessionContext;
@@ -281,27 +282,32 @@ export const getPlanSessionBannerColors = ({
   completeIcon: accentPrimary,
 });
 
-export const buildReaderChapterRouteParams = ({
-  bookId,
-  chapter,
-  preferredMode,
-  planId,
-  planDayNumber,
-  planSessionKey,
-  returnToPlanOnComplete,
-  sessionContext,
-}: ReaderChapterRouteParamsInput) => ({
-  bookId,
-  chapter,
-  focusVerse: undefined,
-  preferredMode,
-  autoplayAudio: false,
-  ...(planId ? { planId } : {}),
-  ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
-  ...(planSessionKey ? { planSessionKey } : {}),
-  ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
-  ...(sessionContext ? { sessionContext } : {}),
-});
+export const buildReaderChapterRouteParams = (input: ReaderChapterRouteParamsInput) => {
+  const {
+    bookId,
+    chapter,
+    preferredMode,
+    planId,
+    planDayNumber,
+    planOccurrenceKey,
+    planSessionKey,
+    returnToPlanOnComplete,
+    sessionContext,
+  } = input;
+  return {
+    bookId,
+    chapter,
+    focusVerse: undefined,
+    preferredMode,
+    autoplayAudio: false,
+    ...(planId ? { planId } : {}),
+    ...(typeof planDayNumber === 'number' ? { planDayNumber } : {}),
+    ...(planSessionKey ? { planSessionKey } : {}),
+    ...('planOccurrenceKey' in input ? { planOccurrenceKey } : {}),
+    ...(returnToPlanOnComplete ? { returnToPlanOnComplete } : {}),
+    ...(sessionContext ? { sessionContext } : {}),
+  };
+};
 
 export const getReaderChromeAnimationProgress = (
   offsetY: number,
@@ -488,9 +494,10 @@ export const getEstimatedFollowAlongVerse = ({
     const verseNums = getSortedTimestampVerseNumbers(timestamps);
     if (verseNums.length > 0) {
       const currentPositionSeconds = (currentPosition + FOLLOW_ALONG_TIMESTAMP_LEAD_MS) / 1000;
-      let current = verseNums[0];
+      let current = verseNums[0]!;
       for (const vn of verseNums) {
-        if (timestamps[vn] <= currentPositionSeconds) {
+        // Verse numbers come from this timestamp map's sorted keys.
+        if (timestamps[vn]! <= currentPositionSeconds) {
           current = vn;
         } else {
           break;
@@ -645,14 +652,14 @@ export const getReaderVerseContentOffset = ({
 
   let paragraphOffset = contentTopOffset;
   for (let index = 0; index < paragraphIndex; index += 1) {
-    const measuredHeight = paragraphHeights[paragraphs[index].key];
+    const measuredHeight = paragraphHeights[paragraphs[index]!.key];
     if (measuredHeight == null) {
       return null;
     }
     paragraphOffset += measuredHeight;
   }
 
-  const paragraph = paragraphs[paragraphIndex];
+  const paragraph = paragraphs[paragraphIndex]!;
   const paragraphHeight = paragraphHeights[paragraph.key];
   if (paragraphHeight == null) {
     return null;

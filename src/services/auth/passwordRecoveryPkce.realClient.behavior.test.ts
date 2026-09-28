@@ -64,6 +64,9 @@ interface RecordedRequest {
   body: Record<string, unknown>;
 }
 const requests: RecordedRequest[] = [];
+const passwordAuthorizations: string[] = [];
+const logoutAuthorizations: string[] = [];
+let passwordResponseGate: Promise<void> | null = null;
 const nowInSeconds = () => Math.floor(Date.now() / 1000);
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -77,10 +80,38 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
   requests.push({ url, body });
 
+  if (url.includes('/auth/v1/user') && init?.method === 'PUT') {
+    passwordAuthorizations.push(new Headers(init.headers).get('authorization') ?? 'none');
+    if (passwordResponseGate) await passwordResponseGate;
+    return json({
+      id: 'user-a',
+      aud: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01',
+    });
+  }
   if (url.includes('/auth/v1/recover')) {
     return json({});
   }
+  if (url.includes('grant_type=password')) {
+    return json({
+      access_token: 'fresh-login-access',
+      refresh_token: 'fresh-login-refresh',
+      expires_in: 3600,
+      expires_at: nowInSeconds() + 3600,
+      token_type: 'bearer',
+      user: {
+        id: 'new-login-user',
+        aud: 'authenticated',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: '2026-01-01',
+      },
+    });
+  }
   if (url.includes('/auth/v1/logout')) {
+    logoutAuthorizations.push(new Headers(init?.headers).get('authorization') ?? 'none');
     return new Response(null, { status: 204 });
   }
   if (url.includes('/auth/v1/token?grant_type=pkce')) {
@@ -89,7 +120,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       refresh_token: 'recovery-refresh',
       expires_in: 3600,
       expires_at: nowInSeconds() + 3600,
-      token_type: 'bearer',
+      token_type: 'bearer' as const,
       user: {
         id: 'user-a',
         aud: 'authenticated',
@@ -225,4 +256,149 @@ test('a reset link this install never requested does not sign the current accoun
 test('the installed getRandomValues is the only crypto the app adds', () => {
   const installed = (globalThis as unknown as { crypto?: Record<string, unknown> }).crypto;
   assert.deepEqual(Object.keys(installed ?? {}), ['getRandomValues']);
+});
+
+test('password update remains bound to A while the installed auth lock and B write overlap', async () => {
+  const {
+    data: { session },
+  } = await client.supabase.auth.getSession();
+  assert.ok(session);
+  const auth = client.supabase.auth as unknown as {
+    _acquireLock: (timeout: number, fn: () => Promise<void>) => Promise<void>;
+    storage: { setItem: (key: string, value: string) => Promise<void> };
+  };
+  let release!: () => void;
+  let started!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const ready = new Promise<void>((r) => (started = r));
+  const lock = auth._acquireLock(-1, async () => {
+    started();
+    await gate;
+  });
+  await ready;
+  const count = passwordAuthorizations.length;
+  const pending = authService.updatePassword('new-secret', { session, isCurrent: () => true });
+  await auth.storage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      ...session,
+      access_token: 'next-access',
+      refresh_token: 'next-refresh',
+      user: { ...session.user, id: 'next-user' },
+    })
+  );
+  release();
+  await lock;
+  await pending;
+  assert.deepEqual(passwordAuthorizations.slice(count), [`Bearer ${session.access_token}`]);
+  assert.equal(JSON.parse(keychain.store.get(STORAGE_KEY) ?? 'null').user.id, 'next-user');
+});
+
+test('an in-flight A password response cannot save over B native credentials', async () => {
+  const session = {
+    access_token: 'owned-access',
+    refresh_token: 'owned-refresh',
+    expires_in: 3600,
+    expires_at: nowInSeconds() + 3600,
+    token_type: 'bearer' as const,
+    user: {
+      id: 'user-a',
+      aud: 'authenticated',
+      app_metadata: {},
+      user_metadata: {},
+      created_at: '2026-01-01',
+    },
+  };
+  let release!: () => void;
+  passwordResponseGate = new Promise<void>((r) => (release = r));
+  let current = true;
+  const count = passwordAuthorizations.length;
+  const pending = authService.updatePassword('new-secret', { session, isCurrent: () => current });
+  assert.deepEqual(passwordAuthorizations.slice(count), ['Bearer owned-access']);
+  const auth = client.supabase.auth as unknown as {
+    storage: { setItem: (key: string, value: string) => Promise<void> };
+  };
+  await auth.storage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      ...session,
+      access_token: 'b-access',
+      refresh_token: 'b-refresh',
+      user: { ...session.user, id: 'next-user' },
+    })
+  );
+  current = false;
+  release();
+  const result = await pending;
+  passwordResponseGate = null;
+  assert.equal(result.success, false);
+  assert.equal(JSON.parse(keychain.store.get(STORAGE_KEY) ?? 'null').access_token, 'b-access');
+  const { data } = await client.supabase.auth.getSession();
+  assert.equal(data.session?.user.id, 'next-user');
+});
+
+test('the installed SDK signup verifier is rejected before any exchange or account sign-out', async () => {
+  const auth = client.supabase.auth as unknown as {
+    storage: { setItem: (key: string, value: string) => Promise<void> };
+  };
+  const {
+    data: { session },
+  } = await client.supabase.auth.getSession();
+  assert.ok(session);
+  await auth.storage.setItem(VERIFIER_KEY, JSON.stringify('ordinary-signup-verifier'));
+  const count = requests.length;
+  let signOuts = 0;
+  await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
+  const result = await authDeepLink.activatePendingPasswordRecovery({
+    signedInUserId: session.user.id,
+    signOutCurrentAccount: async () => {
+      signOuts++;
+    },
+  });
+  assert.deepEqual(result, { status: 'failed', problem: 'expired' });
+  assert.equal(requests.length, count);
+  assert.equal(signOuts, 0);
+  assert.equal(JSON.parse(keychain.store.get(STORAGE_KEY) ?? 'null').user.id, session.user.id);
+});
+
+test('a verifier replaced after preflight cannot make invalid-redirect cleanup remove a newer real login', async () => {
+  const auth = client.supabase.auth as unknown as {
+    storage: {
+      getItem: (key: string) => Promise<string | null>;
+      setItem: (key: string, value: string) => Promise<void>;
+    };
+  };
+  await auth.storage.setItem(VERIFIER_KEY, JSON.stringify('recovery-verifier/PASSWORD_RECOVERY'));
+  const getItem = auth.storage.getItem;
+  let replaced = false;
+  auth.storage.getItem = async (key) => {
+    const value = await getItem(key);
+    if (key === VERIFIER_KEY && !replaced) {
+      replaced = true;
+      await auth.storage.setItem(VERIFIER_KEY, JSON.stringify('ordinary-signup-verifier'));
+    }
+    return value;
+  };
+  let newer: Promise<unknown> | null = null;
+  const {
+    data: { subscription },
+  } = client.supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session?.user.id === 'user-a' && !newer)
+      newer = client.supabase.auth.signInWithPassword({
+        email: 'next@example.com',
+        password: 'test-secret',
+      });
+  });
+  try {
+    await authDeepLink.handleAuthDeepLinkUrl(`com.everybible.app://reset-password?code=${CODE}`);
+    const result = await authDeepLink.activatePendingPasswordRecovery();
+    if (newer) await newer;
+    assert.deepEqual(result, { status: 'failed', problem: 'expired' });
+    const { data } = await client.supabase.auth.getSession();
+    assert.equal(data.session?.user.id, 'new-login-user');
+    assert.equal(JSON.parse(keychain.store.get(STORAGE_KEY) ?? 'null').user.id, 'new-login-user');
+  } finally {
+    auth.storage.getItem = getItem;
+    subscription.unsubscribe();
+  }
 });

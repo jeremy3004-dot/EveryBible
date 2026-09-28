@@ -75,20 +75,20 @@ const normalizePersistedRhythmsById = (
   );
 
 /**
- * MMKV loaded on first use, so importing the store does not pull the native storage module
- * into the startup graph.
+ * Resolve MMKV on first storage use. Its synchronous read hydrates the store before an
+ * auth boundary can clear guest tombstones or reset the previous account's plans.
  */
 export const lazyDefaultStorage: StateStorage = {
-  setItem: async (name, value) => {
-    const { zustandStorage } = await import('../mmkvStorage');
+  setItem: (name, value) => {
+    const { zustandStorage } = require('../mmkvStorage') as typeof import('../mmkvStorage');
     return zustandStorage.setItem(name, value);
   },
-  getItem: async (name) => {
-    const { zustandStorage } = await import('../mmkvStorage');
+  getItem: (name) => {
+    const { zustandStorage } = require('../mmkvStorage') as typeof import('../mmkvStorage');
     return zustandStorage.getItem(name);
   },
-  removeItem: async (name) => {
-    const { zustandStorage } = await import('../mmkvStorage');
+  removeItem: (name) => {
+    const { zustandStorage } = require('../mmkvStorage') as typeof import('../mmkvStorage');
     return zustandStorage.removeItem(name);
   },
 };

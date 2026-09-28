@@ -49,3 +49,11 @@ export async function seekActivePlayback(positionMs: number): Promise<void> {
 export function resetPlayerTransport(): void {
   activeControls = null;
 }
+
+/** Capture the current Bible controls so a delayed handoff never pauses a newer player. */
+export function captureActivePlaybackPause(): () => Promise<void> {
+  const controls = activeControls;
+  return async () => {
+    await controls?.pause({ requireSuspension: true });
+  };
+}

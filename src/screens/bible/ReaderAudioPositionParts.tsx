@@ -212,6 +212,7 @@ export const ReaderListenProgress = memo(function ReaderListenProgress({
   return (
     <>
       <AudioProgressScrubber
+        mediaKey={JSON.stringify([track.translationId, track.bookId, track.chapter])}
         position={listenPosition}
         duration={listenDuration}
         onSeek={onSeek}

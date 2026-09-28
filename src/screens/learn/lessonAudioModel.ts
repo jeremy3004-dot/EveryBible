@@ -6,7 +6,8 @@ export interface LessonPlaybackUpdate {
   durationMillis: number | null;
   isPlaying: boolean;
   /**
-   * The story just ended: seek the sound back to 0. expo-av leaves a finished
+   * The story just ended: stop and rewind the sound to 0. A position-only seek
+   * retains shouldPlay and can restart playback. expo-av leaves a finished
    * sound parked at its end on iOS and Android, where playAsync() does nothing,
    * so without the rewind Play and "Listen to the story again" go dead.
    */

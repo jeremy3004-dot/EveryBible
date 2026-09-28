@@ -58,7 +58,7 @@ test('HomeScreen keeps sharing, the Bible database and broad barrels off its sta
 
   assert.match(
     source,
-    /const \{ captureRef \} = await import\('react-native-view-shot'\);/,
+    /const \{ captureRef, releaseCapture \} = await import\('react-native-view-shot'\);/,
     'HomeScreen should lazy-load react-native-view-shot only when the share button is pressed'
   );
 });

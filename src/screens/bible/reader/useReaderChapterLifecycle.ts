@@ -10,7 +10,6 @@ export interface UseReaderChapterLifecycleInput {
   activeAudioBookId: string | null;
   activeAudioChapter: number | null;
   activeAudioTranslationId: string | null;
-  activePlanId: string | undefined;
   audioEnabled: boolean;
   autoplayAudio: boolean | undefined;
   bookId: string;
@@ -30,7 +29,6 @@ export interface UseReaderChapterLifecycleInput {
   loadChapter: () => Promise<void>;
   paragraphHeightsRef: RefObject<Record<string, number>>;
   pendingReaderAutoScrollVerseRef: RefObject<number | null>;
-  planDayNumber: number | undefined;
   playbackSequenceEntriesForAudio: AudioPlaybackSequenceEntry[];
   preferredMode: 'listen' | 'read' | undefined;
   readerFocusScrollRef: RefObject<{
@@ -40,12 +38,9 @@ export interface UseReaderChapterLifecycleInput {
   }>;
   readerListHeaderHeightRef: RefObject<number>;
   resetFollowAlongClamp: () => void;
-  returnToPlanOnComplete: boolean;
   scrollReaderToOffset: (offsetY: number, animated: boolean) => void;
   setChapterSessionMode: Dispatch<SetStateAction<'listen' | 'read'>>;
-  setCurrentBook: (bookId: string) => void;
-  setCurrentChapter: (chapter: number) => void;
-  setPlanDayResume: (planId: string, dayNumber: number, bookId: string, chapter: number) => void;
+  setReadingPosition: (position: { bookId: string; chapter: number }) => void;
   setPlaybackSequence: (entries: AudioPlaybackSequenceEntry[]) => void;
   setSelectedVerses: Dispatch<SetStateAction<number[]>>;
   setShowFontSizeSheet: Dispatch<SetStateAction<boolean>>;
@@ -58,7 +53,6 @@ export function useReaderChapterLifecycle({
   activeAudioBookId,
   activeAudioChapter,
   activeAudioTranslationId,
-  activePlanId,
   audioEnabled,
   autoplayAudio,
   bookId,
@@ -73,18 +67,14 @@ export function useReaderChapterLifecycle({
   loadChapter,
   paragraphHeightsRef,
   pendingReaderAutoScrollVerseRef,
-  planDayNumber,
   playbackSequenceEntriesForAudio,
   preferredMode,
   readerFocusScrollRef,
   readerListHeaderHeightRef,
   resetFollowAlongClamp,
-  returnToPlanOnComplete,
   scrollReaderToOffset,
   setChapterSessionMode,
-  setCurrentBook,
-  setCurrentChapter,
-  setPlanDayResume,
+  setReadingPosition,
   setPlaybackSequence,
   setSelectedVerses,
   setShowFontSizeSheet,
@@ -94,9 +84,8 @@ export function useReaderChapterLifecycle({
   const sessionKeyRef = useRef<string | null>(null);
   const measuredChapterKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    setCurrentBook(bookId);
-    setCurrentChapter(chapter);
-  }, [bookId, chapter, setCurrentBook, setCurrentChapter]);
+    setReadingPosition({ bookId, chapter });
+  }, [bookId, chapter, setReadingPosition]);
 
   useEffect(() => {
     if (playbackSequenceEntriesForAudio.length === 0) {
@@ -116,14 +105,6 @@ export function useReaderChapterLifecycle({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookId, chapter, currentTranslation]);
-
-  useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || !returnToPlanOnComplete) {
-      return;
-    }
-
-    setPlanDayResume(activePlanId, planDayNumber, bookId, chapter);
-  }, [activePlanId, bookId, chapter, planDayNumber, returnToPlanOnComplete, setPlanDayResume]);
 
   useEffect(() => {
     const chapterKey = `${currentTranslation}:${bookId}:${chapter}`;

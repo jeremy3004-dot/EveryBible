@@ -545,7 +545,7 @@ test('a fresh device adopts the cloud reading position and progress', async () =
   assert.deepEqual(appliedProgress, [
     { chaptersRead: { JHN_3: 1000 }, streakDays: 4, lastReadDate: '2026-09-01' },
   ]);
-  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3 }]);
+  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3, updatedAt: null }]);
 });
 
 test('a fresh device adopts cloud progress without writing identical content back', async () => {
@@ -683,7 +683,7 @@ test('a failing progress upsert is reported after the local merge already happen
   };
 
   assert.deepEqual(await syncProgress(USER_A), { success: false, error: 'upsert conflict' });
-  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3 }]);
+  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3, updatedAt: null }]);
 });
 
 test('an unexpected throw during the progress sync is reported as a message, not a crash', async () => {
@@ -1260,7 +1260,7 @@ test('syncAll reports merged when any one branch merged something', async () => 
   const result = await syncAll(USER_A, 1);
 
   assert.deepEqual(result, { success: true, error: undefined, merged: true });
-  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3 }]);
+  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3, updatedAt: null }]);
 });
 
 test('syncAll surfaces the first failing branch and still runs the others', async () => {
@@ -1474,7 +1474,7 @@ test('pullFromCloud applies cloud progress, preferences and reading plans', asyn
   const result = await pullFromCloud(USER_A);
 
   assert.deepEqual(result, { success: true, merged: true });
-  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3 }]);
+  assert.deepEqual(appliedPositions, [{ bookId: 'JHN', chapter: 3, updatedAt: null }]);
   assert.equal(appliedPreferences[0]?.preferences.language, 'es');
   assert.deepEqual(planPullCalls, [
     { planId: undefined, userId: USER_A, generation: 1, identityUserId: USER_A },

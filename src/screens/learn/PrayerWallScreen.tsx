@@ -100,7 +100,9 @@ export function PrayerWallScreen() {
   // Pills with a write in flight. A ref, so a second tap in the same frame is already ignored.
   const inFlightRef = useRef(new Map<string, object>());
   const submittingRef = useRef<object | null>(null);
+  const draftGenerationRef = useRef(0);
   const reportingRef = useRef<object | null>(null);
+  const reportPresentationRef = useRef(0);
   // The viewer's confirmed flag per pill, read synchronously to decide what a tap does.
   const confirmedRef = useRef(new Map<string, boolean>());
   // Older requests load a page at a time as the reader reaches the end of the wall.
@@ -109,6 +111,8 @@ export function PrayerWallScreen() {
   const loadingMoreRef = useRef<object | null>(null);
   // Bumped by every first-page load, so a next page requested before a refresh is dropped.
   const loadGenerationRef = useRef(0);
+  // A list snapshot started before a confirmed write must not undo that write.
+  const confirmedMutationRef = useRef(0);
   // The request whose report form is open, if any.
   const [reportTarget, setReportTarget] = useState<PrayerRequestWithCounts | null>(null);
   const [isReporting, setIsReporting] = useState(false);
@@ -127,12 +131,14 @@ export function PrayerWallScreen() {
     const owner = captureOwner();
     if (!owner.isCurrent() || !owner.userId) return;
     const generation = ++loadGenerationRef.current;
+    const mutation = confirmedMutationRef.current;
     loadingMoreRef.current = null;
     setIsLoadingMore(false);
     const isCurrent = () => owner.isCurrent() && generation === loadGenerationRef.current;
+    const isFresh = () => isCurrent() && mutation === confirmedMutationRef.current;
     try {
       const result = await prayerService.listPrayerRequests(groupId);
-      if (!isCurrent()) return;
+      if (!isFresh()) return;
       if (result.success && result.data) {
         setRequests(result.data);
         setNextCursor(result.nextCursor ?? null);
@@ -141,14 +147,14 @@ export function PrayerWallScreen() {
         setLoadError(false);
       } else {
         const isOffline = await isDeviceOffline();
-        if (!isCurrent()) return;
+        if (!isFresh()) return;
         setOffline(isOffline);
         setLoadError(true);
       }
     } catch {
-      if (!isCurrent()) return;
+      if (!isFresh()) return;
       const isOffline = await isDeviceOffline().catch(() => false);
-      if (!isCurrent()) return;
+      if (!isFresh()) return;
       setOffline(isOffline);
       setLoadError(true);
     } finally {
@@ -166,13 +172,20 @@ export function PrayerWallScreen() {
     loadingMoreRef.current = request;
     setIsLoadingMore(true);
     const generation = loadGenerationRef.current;
+    const mutation = confirmedMutationRef.current;
     const isCurrent = () =>
       owner.isCurrent() &&
       generation === loadGenerationRef.current &&
       loadingMoreRef.current === request;
     try {
       const result = await prayerService.listPrayerRequests(groupId, { before: nextCursor });
-      if (!isCurrent() || !result.success || !result.data) return;
+      if (
+        !isCurrent() ||
+        mutation !== confirmedMutationRef.current ||
+        !result.success ||
+        !result.data
+      )
+        return;
       rememberConfirmed(result.data);
       const page = result.data;
       setRequests((prev) => {
@@ -242,6 +255,7 @@ export function PrayerWallScreen() {
     }
     const owner = captureOwner();
     const trimmed = submitText.trim();
+    const draftGeneration = draftGenerationRef.current;
     if (!owner.isCurrent() || !trimmed || submittingRef.current) return;
     const request = {};
     submittingRef.current = request;
@@ -250,18 +264,28 @@ export function PrayerWallScreen() {
       const result = await prayerService.createPrayerRequest(groupId, trimmed, owner);
       if (!owner.isCurrent()) return;
       if (result.success && result.data) {
-        setRequests((prev) => [
-          {
-            ...result.data!,
-            prayed_count: 0,
-            encouraged_count: 0,
-            viewer_prayed: false,
-            viewer_encouraged: false,
-          },
-          ...prev,
-        ]);
-        setSubmitText('');
-        inputRef.current?.blur();
+        confirmedMutationRef.current += 1;
+        // A refresh can see the committed row before this response arrives.
+        // Keep that row's newer content and counts instead of inserting a duplicate.
+        setRequests((prev) =>
+          prev.some((row) => row.id === result.data!.id)
+            ? prev
+            : [
+                {
+                  ...result.data!,
+                  prayed_count: 0,
+                  encouraged_count: 0,
+                  viewer_prayed: false,
+                  viewer_encouraged: false,
+                },
+                ...prev,
+              ]
+        );
+        // Editing stays available during submission; only retire the submitted draft.
+        if (draftGenerationRef.current === draftGeneration) {
+          setSubmitText('');
+          inputRef.current?.blur();
+        }
         successHaptic();
       } else Alert.alert(t('common.error'), writeErrorMessage(result.code));
     } catch {
@@ -311,6 +335,7 @@ export function PrayerWallScreen() {
         announceForAccessibility(t('common.somethingWentWrong'));
         return;
       }
+      confirmedMutationRef.current += 1;
       confirmedRef.current.set(key, active);
       setRequests((prev) =>
         prev.map((r) => (r.id === requestId ? applyConfirmedInteraction(r, type, active) : r))
@@ -336,11 +361,12 @@ export function PrayerWallScreen() {
               owner
             );
             if (!owner.isCurrent()) return;
-            if (result.success && result.data)
+            if (result.success && result.data) {
+              confirmedMutationRef.current += 1;
               setRequests((prev) =>
                 prev.map((r) => (r.id === request.id ? { ...r, content: result.data!.content } : r))
               );
-            else Alert.alert(t('common.error'), writeErrorMessage(result.code));
+            } else Alert.alert(t('common.error'), writeErrorMessage(result.code));
           } catch {
             if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
           }
@@ -360,6 +386,7 @@ export function PrayerWallScreen() {
         const result = await prayerService.markPrayerAnswered(requestId, owner);
         if (!owner.isCurrent()) return;
         if (result.success && result.data) {
+          confirmedMutationRef.current += 1;
           setRequests((prev) =>
             prev.map((r) =>
               r.id === requestId
@@ -391,6 +418,7 @@ export function PrayerWallScreen() {
               const result = await prayerService.deletePrayerRequest(requestId, owner);
               if (!owner.isCurrent()) return;
               if (result.success) {
+                confirmedMutationRef.current += 1;
                 setRequests((prev) => prev.filter((r) => r.id !== requestId));
                 announceForAccessibility(prayerRequestActionAnnouncement(t, 'delete'));
               } else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
@@ -409,6 +437,9 @@ export function PrayerWallScreen() {
       const owner = captureOwner();
       if (!owner.isCurrent() || !reportTarget || reportingRef.current) return;
       const request = {};
+      const presentation = reportPresentationRef.current;
+      const isCurrentPresentation = () =>
+        owner.isCurrent() && reportPresentationRef.current === presentation;
       reportingRef.current = request;
       setIsReporting(true);
       try {
@@ -420,10 +451,13 @@ export function PrayerWallScreen() {
         );
         if (!owner.isCurrent()) return;
         if (result.success) {
+          confirmedMutationRef.current += 1;
           setRequests((prev) => prev.filter((r) => r.id !== reportTarget.id));
-          setReportTarget(null);
-          Alert.alert(t('prayer.report'), t('prayer.reportSent'));
-        } else
+          if (isCurrentPresentation()) {
+            setReportTarget(null);
+            Alert.alert(t('prayer.report'), t('prayer.reportSent'));
+          }
+        } else if (isCurrentPresentation())
           Alert.alert(
             t('common.error'),
             result.code === 'rate_limited'
@@ -431,7 +465,7 @@ export function PrayerWallScreen() {
               : t('common.somethingWentWrong')
           );
       } catch {
-        if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+        if (isCurrentPresentation()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
       } finally {
         if (owner.isCurrent() && reportingRef.current === request) {
           reportingRef.current = null;
@@ -456,9 +490,10 @@ export function PrayerWallScreen() {
             try {
               const result = await prayerService.blockUser(request.user_id, owner);
               if (!owner.isCurrent()) return;
-              if (result.success)
+              if (result.success) {
+                confirmedMutationRef.current += 1;
                 setRequests((prev) => prev.filter((r) => r.user_id !== request.user_id));
-              else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
+              } else Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             } catch {
               if (owner.isCurrent()) Alert.alert(t('common.error'), t('common.somethingWentWrong'));
             }
@@ -500,8 +535,10 @@ export function PrayerWallScreen() {
         if (!owner.isCurrent()) return;
         if (action === 'edit') handleEdit(request);
         else if (action === 'markAnswered') handleMarkAnswered(request.id);
-        else if (action === 'report') setReportTarget(request);
-        else if (action === 'block') handleBlock(request);
+        else if (action === 'report') {
+          reportPresentationRef.current += 1;
+          setReportTarget(request);
+        } else if (action === 'block') handleBlock(request);
         else handleDelete(request.id);
       };
       const isDestructive = (action: (typeof actions)[number]) =>
@@ -830,7 +867,10 @@ export function PrayerWallScreen() {
           placeholder={t('prayer.requestPlaceholder')}
           placeholderTextColor={colors.secondaryText}
           value={submitText}
-          onChangeText={(text) => setSubmitText(text.slice(0, MAX_CHARS))}
+          onChangeText={(text) => {
+            draftGenerationRef.current += 1;
+            setSubmitText(text.slice(0, MAX_CHARS));
+          }}
           multiline
           maxLength={MAX_CHARS}
           returnKeyType="default"
@@ -953,7 +993,10 @@ export function PrayerWallScreen() {
         key={reportTarget?.id ?? 'closed'}
         visible={reportTarget !== null}
         isSubmitting={isReporting}
-        onClose={() => setReportTarget(null)}
+        onClose={() => {
+          reportPresentationRef.current += 1;
+          setReportTarget(null);
+        }}
         onSubmit={handleSubmitReport}
       />
     </SafeAreaView>

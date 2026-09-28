@@ -50,6 +50,7 @@ export interface BuildRhythmSegmentViewModelsInput {
   progressByPlanId: Record<string, UserReadingPlanProgress | null | undefined>;
   planTitleById: Record<string, string>;
   chaptersRead: Record<string, number>;
+  chaptersListened?: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   today: Date;
   t: TFunction;
@@ -63,6 +64,7 @@ export function buildRhythmSegmentViewModels({
   progressByPlanId,
   planTitleById,
   chaptersRead,
+  chaptersListened,
   listeningHistory,
   today,
   t,
@@ -79,6 +81,7 @@ export function buildRhythmSegmentViewModels({
           entries,
           progress,
           chaptersRead,
+          chaptersListened,
           listeningHistory,
           dayNumber: segment.dayNumber,
           today,
@@ -172,6 +175,9 @@ export function buildRhythmReaderParams(
     playbackSequenceEntries: session.playbackSequenceEntries,
     planId: startsOnPlan ? session.startSegment.planId : undefined,
     planDayNumber: startsOnPlan ? session.startSegment.dayNumber : undefined,
+    ...(startsOnPlan && session.startSegment.occurrenceKey
+      ? { planOccurrenceKey: session.startSegment.occurrenceKey }
+      : {}),
     returnToPlanOnComplete: true,
     sessionContext: session.sessionContext,
   };

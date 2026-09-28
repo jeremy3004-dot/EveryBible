@@ -30,7 +30,7 @@ export function followAutoAdvancedChapter(finished: ChapterRef, next: ChapterRef
     bible.hasReaderHistory &&
     isSameChapter({ bookId: bible.currentBook, chapter: bible.currentChapter }, finished)
   ) {
-    bible.applySyncedReadingPosition(next);
+    bible.setReadingPosition(next);
   }
 
   followPlanDayResume(finished, next);
@@ -52,5 +52,7 @@ function followPlanDayResume(finished: ChapterRef, next: ChapterRef): void {
   const plans = readingPlansStore.getState();
   const resume = plans.getPlanDayResume(planId, planDayNumber);
   if (!resume || !isSameChapter(resume, finished)) return;
-  plans.setPlanDayResume(planId, planDayNumber, next.bookId, next.chapter);
+  // This is still the session that owned the saved chapter, even if the date
+  // rolled over with the reader closed. Never promote it into a new occurrence.
+  plans.setPlanDayResume(planId, planDayNumber, next.bookId, next.chapter, resume.occurrenceKey);
 }

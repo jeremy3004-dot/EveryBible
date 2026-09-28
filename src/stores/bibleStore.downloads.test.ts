@@ -237,6 +237,179 @@ test('a pack that fails its read-back is closed before it is deleted and gets no
   assert.deepEqual(doubles.database.searchIndexBuilds, []);
 });
 
+test('failed final validation cleans its candidate before journal retirement, leaving no orphan after retry and delete', async () => {
+  const oldPath = 'file:///packs/esv1.old.db';
+  const candidatePath = 'file:///packs/esv1.operation-1.db';
+  const retryPath = 'file:///packs/esv1.operation-2.db';
+  withTranslations([
+    makeRuntimeTranslation({ id: 'esv1', isDownloaded: false, textPackLocalPath: oldPath }),
+  ]);
+  doubles.fileSystem.setFile(oldPath, { exists: true, size: 4096 });
+  doubles.cloud.paths = () => ({
+    finalPath: candidatePath,
+    stagingPath: candidatePath + '.staging',
+    rollbackPath: candidatePath + '.rollback',
+  });
+  doubles.cloud.run = async () => {
+    doubles.fileSystem.setFile(candidatePath, { exists: true, size: 4096 });
+    return candidatePath;
+  };
+  const { readTextPackInstallJournal } = await import('../services/bible/textPackInstallJournal');
+  doubles.cloud.deleteArtifacts = async (path) => {
+    assert.ok(
+      readTextPackInstallJournal().installs.esv1,
+      'candidate cleanup precedes journal retirement'
+    );
+    doubles.fileSystem.files.delete(path);
+  };
+  const validationError = new Error('final candidate validation failed');
+  doubles.cloud.validateError = (path) => (path === candidatePath ? validationError : null);
+  await assert.rejects(
+    useBibleStore.getState().downloadTranslation('esv1'),
+    (error) => error === validationError
+  );
+
+  assert.equal(doubles.fileSystem.files.has(candidatePath), false);
+  assert.equal(doubles.fileSystem.files.has(oldPath), true);
+  assert.equal(findTranslation('esv1')?.textPackLocalPath, oldPath);
+  assert.deepEqual(doubles.database.packLifecycle.slice(-2), [
+    `invalidate:${candidatePath}`,
+    `delete:${candidatePath}`,
+  ]);
+  assert.equal(readTextPackInstallJournal().installs.esv1, undefined);
+  assert.deepEqual(doubles.database.searchIndexBuilds, []);
+
+  doubles.cloud.validateError = () => null;
+  doubles.cloud.paths = () => ({
+    finalPath: retryPath,
+    stagingPath: retryPath + '.staging',
+    rollbackPath: retryPath + '.rollback',
+  });
+  doubles.cloud.run = async () => {
+    doubles.fileSystem.setFile(retryPath, { exists: true, size: 4096 });
+    return retryPath;
+  };
+  await useBibleStore.getState().downloadTranslation('esv1');
+  assert.equal(findTranslation('esv1')?.textPackLocalPath, retryPath);
+  await useBibleStore.getState().deleteTranslation('esv1');
+  assert.equal(
+    doubles.fileSystem.deleted.some((call) => call.path === retryPath),
+    true
+  );
+  assert.equal(doubles.fileSystem.files.has(candidatePath), false);
+});
+
+for (const returnedPath of ['file:///packs/esv1.old.db', 'file:///packs/esv1.unowned.db']) {
+  test(`failed final validation does not delete a returned path outside the operation's candidate: ${returnedPath}`, async () => {
+    withTranslations([
+      makeRuntimeTranslation({
+        id: 'esv1',
+        isDownloaded: false,
+        textPackLocalPath: 'file:///packs/esv1.old.db',
+      }),
+    ]);
+    doubles.cloud.paths = () => ({
+      finalPath: 'file:///packs/esv1.candidate.db',
+      stagingPath: 'file:///packs/esv1.candidate.staging.db',
+      rollbackPath: 'file:///packs/esv1.candidate.rollback.db',
+    });
+    doubles.cloud.run = async () => returnedPath;
+    const validationError = new Error('final candidate validation failed');
+    doubles.cloud.validateError = () => validationError;
+
+    await assert.rejects(
+      useBibleStore.getState().downloadTranslation('esv1'),
+      (error) => error === validationError
+    );
+
+    assert.deepEqual(doubles.cloud.deletedArtifacts, []);
+    assert.equal(findTranslation('esv1')?.textPackLocalPath, 'file:///packs/esv1.old.db');
+  });
+}
+
+test('failed final validation cannot clean a candidate after a newer replacement owns the translation', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
+  const candidatePath = 'file:///packs/esv1.candidate.db';
+  doubles.cloud.paths = () => ({
+    finalPath: candidatePath,
+    stagingPath: candidatePath + '.staging',
+    rollbackPath: candidatePath + '.rollback',
+  });
+  doubles.cloud.run = async () => candidatePath;
+  const runtime = await import('./bible/textPackRuntime');
+  const replacement = makeRuntimeTranslation({
+    id: 'esv1',
+    isDownloaded: true,
+    installState: 'installed',
+    textPackLocalPath: 'file:///packs/esv1.newer.db',
+  });
+  const validationError = new Error('old validation failed');
+  doubles.cloud.validateError = () => {
+    runtime.activeTextDownloadOperationIds.set('esv1', 'newer-owner');
+    useBibleStore.setState((state) => ({
+      translations: state.translations.map((item) => (item.id === 'esv1' ? replacement : item)),
+    }));
+    return validationError;
+  };
+  try {
+    await assert.rejects(
+      useBibleStore.getState().downloadTranslation('esv1'),
+      (error) => error === validationError
+    );
+    assert.deepEqual(doubles.cloud.deletedArtifacts, []);
+    assert.deepEqual(findTranslation('esv1'), replacement);
+  } finally {
+    runtime.activeTextDownloadOperationIds.delete('esv1');
+  }
+});
+
+for (const cleanupFailure of ['invalidation', 'deletion']) {
+  test(`candidate ${cleanupFailure} failure preserves the original validation error and the prior pack`, async (t) => {
+    const oldPath = 'file:///packs/esv1.old.db';
+    const candidatePath = 'file:///packs/esv1.candidate.db';
+    withTranslations([
+      makeRuntimeTranslation({ id: 'esv1', isDownloaded: false, textPackLocalPath: oldPath }),
+    ]);
+    doubles.fileSystem.setFile(oldPath, { exists: true, size: 4096 });
+    doubles.fileSystem.setFile(candidatePath, { exists: true, size: 4096 });
+    doubles.cloud.paths = () => ({
+      finalPath: candidatePath,
+      stagingPath: candidatePath + '.staging',
+      rollbackPath: candidatePath + '.rollback',
+    });
+    doubles.cloud.run = async () => candidatePath;
+    const validationError = new Error('final candidate validation failed');
+    doubles.cloud.validateError = () => {
+      if (cleanupFailure === 'invalidation')
+        doubles.database.invalidateError = new Error('native invalidation refused');
+      return validationError;
+    };
+    doubles.cloud.deleteArtifacts = async () => {
+      throw new Error('native cleanup refused');
+    };
+    const warnings = t.mock.method(console, 'warn', () => {});
+
+    await assert.rejects(
+      useBibleStore.getState().downloadTranslation('esv1'),
+      (error) => error === validationError
+    );
+
+    assert.deepEqual(
+      doubles.cloud.deletedArtifacts,
+      cleanupFailure === 'deletion' ? [candidatePath] : []
+    );
+    assert.equal(warnings.mock.callCount(), 1);
+    assert.equal(findTranslation('esv1')?.textPackLocalPath, oldPath);
+    assert.equal(findTranslation('esv1')?.lastInstallError, validationError.message);
+    assert.equal(doubles.fileSystem.files.has(oldPath), true);
+    assert.equal(
+      doubles.fileSystem.files.has(candidatePath),
+      true,
+      'native cleanup failure is best effort'
+    );
+  });
+}
+
 test('a cloud download reports its phases as reader-facing progress', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'esv1' })]);
   const snapshots: Array<TranslationDownloadProgress | null> = [];
@@ -521,14 +694,20 @@ test('cancelDownload stops the native job and removes it from the persisted regi
   assert.deepEqual(doubles.audio.removedJobIds, ['job-1']);
 });
 
-// The translation's own activeDownloadJob is authoritative and downloadProgress.jobId is
-// only its mirror, so a banner left behind by an earlier job must never redirect the cancel.
-test('cancelDownload targets the running job on the translation, not a stale banner id', async () => {
+// The one translation row can display a different concurrent book from the shared banner.
+// Cancel belongs to the visible banner; the other book remains live and cancelable later.
+test('cancelDownload targets the visible book and preserves the unrelated active book', async () => {
+  const visibleId = 'audio-download:esv1:book:GEN';
+  const liveId = 'audio-download:esv1:book:MRK';
+  doubles.audio.jobs.push(
+    makeAudioJob({ id: visibleId, translationId: 'esv1', bookId: 'GEN' }),
+    makeAudioJob({ id: liveId, translationId: 'esv1', bookId: 'MRK' })
+  );
   withTranslations([
     makeRuntimeTranslation({
       id: 'esv1',
       activeDownloadJob: {
-        id: 'job-live',
+        id: liveId,
         kind: 'audio-book',
         state: 'running',
         progress: 30,
@@ -540,7 +719,8 @@ test('cancelDownload targets the running job on the translation, not a stale ban
   useBibleStore.setState({
     downloadProgress: {
       translationId: 'esv1',
-      jobId: 'job-stale',
+      jobId: visibleId,
+      bookId: 'GEN',
       progress: 30,
       status: 'downloading',
     },
@@ -549,9 +729,10 @@ test('cancelDownload targets the running job on the translation, not a stale ban
   useBibleStore.getState().cancelDownload();
   await flushAsyncWork();
 
-  assert.deepEqual(doubles.audio.cancellationRequests, ['job-live']);
-  assert.deepEqual(doubles.audio.cancelledJobIds, ['job-live']);
-  assert.deepEqual(doubles.audio.removedJobIds, ['job-live']);
+  assert.deepEqual(doubles.audio.cancellationRequests, [visibleId]);
+  assert.deepEqual(doubles.audio.cancelledJobIds, [visibleId]);
+  assert.deepEqual(doubles.audio.removedJobIds, [visibleId]);
+  assert.equal(findTranslation('esv1')?.activeDownloadJob?.id, liveId);
 });
 
 test('cancelDownload still clears the registry when the native transport cannot cancel', async () => {
@@ -620,6 +801,56 @@ test('cancelDownload stops an in-flight text pack transfer', async () => {
 
   assert.equal(doubles.cloud.textCancellationRequests, 1);
   assert.equal(useBibleStore.getState().downloadProgress, null);
+});
+
+test('cancelling when the text banner first appears reaches the transfer owner', async () => {
+  withTranslations([makeRuntimeTranslation({ id: 'early-cancel' })]);
+  const cancellation = new Error('transfer cancelled');
+  let accepted = false;
+  let cancelled = false;
+  let transferStarted = false;
+  let signalCancellation!: () => void;
+  const cancellationObserved = new Promise<void>((resolve) => {
+    signalCancellation = resolve;
+  });
+  Object.defineProperty(doubles.cloud, 'cancelAccepted', {
+    configurable: true,
+    get: () => {
+      // The real service accepts cancellation only after downloadCatalogTextPack has
+      // synchronously registered the transfer, and refuses it before that point.
+      accepted = transferStarted;
+      signalCancellation();
+      return accepted;
+    },
+  });
+  doubles.cloud.isCancelled = (error) => error === cancellation;
+  doubles.cloud.run = async () => {
+    transferStarted = true;
+    await cancellationObserved;
+    if (accepted) throw cancellation;
+    return 'file:///packs/early-cancel.db';
+  };
+  const unsubscribe = useBibleStore.subscribe((state) => {
+    if (!cancelled && state.downloadProgress?.translationId === 'early-cancel') {
+      cancelled = true;
+      state.cancelDownload();
+    }
+  });
+
+  try {
+    assert.equal(await useBibleStore.getState().downloadTranslation('early-cancel'), 'cancelled');
+    assert.equal(accepted, true);
+    assert.equal(findTranslation('early-cancel')?.isDownloaded, false);
+    assert.equal(useBibleStore.getState().downloadProgress, null);
+    assert.deepEqual(doubles.analytics.events, []);
+  } finally {
+    unsubscribe();
+    Object.defineProperty(doubles.cloud, 'cancelAccepted', {
+      configurable: true,
+      writable: true,
+      value: true,
+    });
+  }
 });
 
 test('cancelDownload with nothing downloading leaves the translation list untouched', () => {

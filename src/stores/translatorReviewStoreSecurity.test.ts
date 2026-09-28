@@ -183,7 +183,7 @@ test('disable() and resetForSignOut() delete the stored passcode', async (t) => 
       secureStoreCalls
         .filter((call) => call.key === 'everybible.translatorReview.passcode')
         .map((call) => call.op),
-      ['delete']
+      ['delete', 'get']
     );
   }
 

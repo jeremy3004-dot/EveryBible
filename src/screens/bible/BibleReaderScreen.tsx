@@ -132,6 +132,7 @@ export function BibleReaderScreen() {
     planId: activePlanId,
     planDayNumber,
     planSessionKey,
+    planOccurrenceKey,
     returnToPlanOnComplete = false,
     sessionContext,
   } = route.params;
@@ -257,8 +258,8 @@ export function BibleReaderScreen() {
   );
   const markChapterRead = useProgressStore((state) => state.markChapterRead);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
-  const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
-  const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
+  const setReadingPosition = useBibleStore((state) => state.setReadingPosition);
   const setPreferredChapterLaunchMode = useBibleStore(
     (state) => state.setPreferredChapterLaunchMode
   );
@@ -413,11 +414,13 @@ export function BibleReaderScreen() {
     bookId,
     chapter,
     chaptersRead,
+    chaptersListened,
     getRootTabBarStyle,
     getRootTabNavigation,
     listeningHistory,
     planDayNumber,
     planSessionKey,
+    planOccurrenceKey,
     playbackSequenceEntries,
     requestedFocusVerse,
     returnToPlanOnComplete,
@@ -472,6 +475,10 @@ export function BibleReaderScreen() {
     showMinimalListenChrome;
   const isShowingRouteChapter =
     versesChapterKey === readerChapterKey(currentTranslation, bookId, chapter);
+  const hasSelectedTranslationText = versesChapterKey?.startsWith(`${currentTranslation}:`);
+  // Gate at render time too: the translation label changes before the load effect runs.
+  const isLoadingReplacementTranslation =
+    verses.length > 0 && !hasSelectedTranslationText && error == null;
   // Read at press time: memoized paragraph blocks keep the verse press handler they last
   // rendered with, which can predate the chapter change.
   const isShowingRouteChapterRef = useRef(isShowingRouteChapter);
@@ -480,6 +487,7 @@ export function BibleReaderScreen() {
   const {
     displayedAnnotations,
     handleCloseSelectedVerses,
+    handleCloseVerseImageSheet,
     handleCopySelectedVerses,
     handleHighlightSelectedVerses,
     handleNoteSelectedVerses,
@@ -539,7 +547,11 @@ export function BibleReaderScreen() {
     isShowingRouteChapter,
   });
   const showPremiumReadMode =
-    chapterPresentationMode === 'text' && verses.length > 0 && !isLoading && error == null;
+    chapterPresentationMode === 'text' &&
+    verses.length > 0 &&
+    !isLoading &&
+    !isLoadingReplacementTranslation &&
+    error == null;
   const premiumBottomInset = 18;
   // The squared controls carry a visible surface, so a bare inset let them butt
   // against the status bar / Dynamic Island. This restores the breathing gap the
@@ -600,7 +612,6 @@ export function BibleReaderScreen() {
     activeAudioBookId,
     activeAudioChapter,
     activeAudioTranslationId,
-    activePlanId,
     audioEnabled,
     autoplayAudio,
     bookId,
@@ -615,18 +626,14 @@ export function BibleReaderScreen() {
     loadChapter,
     paragraphHeightsRef,
     pendingReaderAutoScrollVerseRef,
-    planDayNumber,
     playbackSequenceEntriesForAudio,
     preferredMode,
     readerFocusScrollRef,
     readerListHeaderHeightRef,
     resetFollowAlongClamp,
-    returnToPlanOnComplete,
     scrollReaderToOffset,
     setChapterSessionMode,
-    setCurrentBook,
-    setCurrentChapter,
-    setPlanDayResume,
+    setReadingPosition,
     setPlaybackSequence,
     setSelectedVerses,
     setShowFontSizeSheet,
@@ -737,7 +744,9 @@ export function BibleReaderScreen() {
       bookId,
       chapter,
       translation: currentTranslationInfo,
-      currentVerseCount: verses.length,
+      // Retain text across chapters of one Bible, but never display that text under a
+      // replacement translation's label while its first chapter is still loading.
+      currentVerseCount: hasSelectedTranslationText ? verses.length : 0,
       returnToPlanOnComplete,
       getChapter,
       prefetchNextChapter,
@@ -772,6 +781,7 @@ export function BibleReaderScreen() {
     isLastPlanChapter,
     markChapterRead,
     planDayNumber,
+    planOccurrenceKey,
     returnToPlanOnComplete,
     setAudioTrack,
     setListenCountedNotice,
@@ -908,7 +918,10 @@ export function BibleReaderScreen() {
       // Not on the listen page (it has its own transport), and not before a first
       // chapter has loaded, so an audio-only chapter never flashes the row on its way in.
       showsPlayer: readerShowsPlayerRow,
-      showPlayButton: showPlanSessionChrome || !hidePlayButtonFromReadingTab,
+      showPlayButton:
+        (audioEnabled ||
+          (isCurrentAudioChapter && (status === 'playing' || status === 'loading'))) &&
+        (showPlanSessionChrome || !hidePlayButtonFromReadingTab),
       isPlaying: isCurrentAudioChapter && status === 'playing',
       isLoading: isCurrentAudioChapter && status === 'loading',
       errorMessage:
@@ -983,7 +996,7 @@ export function BibleReaderScreen() {
   );
 
   const renderLegacyContent = () => {
-    if (isLoading) {
+    if (isLoading || isLoadingReplacementTranslation) {
       return <VersesSkeleton count={10} />;
     }
 
@@ -1518,7 +1531,7 @@ export function BibleReaderScreen() {
         selectedVerseImageBackgroundIndex={selectedVerseImageBackgroundIndex}
         selectedVerseReferenceLabel={selectedVerseImageReferenceLabel}
         selectedVerseText={selectedVerseText}
-        setShowVerseImageSheet={setShowVerseImageSheet}
+        handleCloseVerseImageSheet={handleCloseVerseImageSheet}
         showVerseImageSheet={showVerseImageSheet}
         verseImageBackgroundCount={verseImageBackgroundCount}
         verseImageSharePreviewRef={verseImageSharePreviewRef}

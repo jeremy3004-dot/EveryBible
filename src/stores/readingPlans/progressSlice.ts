@@ -8,6 +8,7 @@ import {
   createProgressRecord,
   getRejoinNotBeforeMs,
   replaceProgressCollections,
+  resolvePlanDayResumeOccurrence,
   withoutKey,
 } from './planProgressModel';
 import type { ReadingPlansSliceCreator } from './readingPlansSliceTypes';
@@ -66,7 +67,7 @@ export const createProgressSlice: ReadingPlansSliceCreator<ProgressSlice> = (set
     }));
   },
 
-  setPlanDayResume: (planId, dayNumber, bookId, chapter) => {
+  setPlanDayResume: (planId, dayNumber, bookId, chapter, occurrenceKey) => {
     if (!bookId || !Number.isInteger(chapter) || chapter < 1) {
       return;
     }
@@ -76,13 +77,15 @@ export const createProgressSlice: ReadingPlansSliceCreator<ProgressSlice> = (set
       ...state,
       planDayResumeByKey: {
         ...state.planDayResumeByKey,
-        [resumeKey]: { bookId, chapter },
+        [resumeKey]: { bookId, chapter, ...(occurrenceKey ? { occurrenceKey } : {}) },
       },
     }));
   },
 
-  getPlanDayResume: (planId, dayNumber) =>
-    get().planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null,
+  getPlanDayResume: (planId, dayNumber, occurrenceKey) => {
+    const resume = get().planDayResumeByKey[buildPlanDayResumeKey(planId, dayNumber)] ?? null;
+    return resolvePlanDayResumeOccurrence(resume, occurrenceKey);
+  },
 
   clearPlanDayResume: (planId, dayNumber) => {
     const resumeKey = buildPlanDayResumeKey(planId, dayNumber);

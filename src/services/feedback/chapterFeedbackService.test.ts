@@ -380,3 +380,34 @@ test('submitChapterFeedback does not analytics-forward chapter feedback events',
     'neither the success nor the failure path may forward a bible-experience event'
   );
 });
+
+for (const denial of [
+  { category: 'scripture_council', status: 403, error: 'Council access denied', expected: true },
+  { category: 'community', status: 403, error: 'Council access denied', expected: false },
+  { category: 'scripture_council', status: 400, error: 'Council access denied', expected: false },
+  {
+    category: 'scripture_council',
+    status: 403,
+    error: 'Other permission refusal',
+    expected: false,
+  },
+] as const) {
+  test(`Council access classification requires its exact backend denial (${denial.category}/${denial.status}/${denial.error})`, async () => {
+    const result = await submitChapterFeedback(
+      { ...baseInput, contributorCategory: denial.category },
+      {
+        invoke: async () => ({
+          data: null,
+          error: {
+            context: new Response(JSON.stringify({ error: denial.error }), {
+              status: denial.status,
+            }),
+          },
+        }),
+      }
+    );
+    assert.equal(result.success, false);
+    assert.equal(result.requiresCouncilAccess === true, denial.expected);
+    assert.equal(result.retryable, undefined, 'a fresh invalid-code attempt is not queued');
+  });
+}

@@ -272,7 +272,7 @@ async function runFlush(
       sent += 1;
       continue;
     }
-    if (result.retryable || result.requiresSignIn) {
+    if (result.retryable || result.requiresSignIn || result.requiresCouncilAccess) {
       break;
     }
     removeEntry(entry.id);

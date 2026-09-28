@@ -8,6 +8,9 @@ export interface AudioDownloadJobRecord {
   translationId: string;
   scope: AudioDownloadJobScope;
   bookId?: string;
+  /** Stable identity of this admitted run; book rows identify their owning collection when nested. */
+  runId?: string;
+  parentRunId?: string;
   /** Collection targets; absent on legacy translation jobs, which mean the whole Bible. */
   requestedBookIds?: string[];
   status: AudioDownloadJobStatus;
@@ -49,6 +52,8 @@ export interface AudioDownloadLifecycleHooks {
   onComplete?: (job: AudioDownloadJobRecord) => void;
   onProgress?: (progress: AudioDownloadBookProgress) => void;
   onBookComplete?: (progress: AudioDownloadCollectionProgress) => void;
+  /** A chapter lacks trusted completeness; full-book success restores readiness. */
+  onUnverifiedCache?: (book: { translationId: string; bookId: string }) => void;
 }
 
 export interface AudioFileSystemAdapter {
@@ -81,8 +86,9 @@ export interface AudioFileSystemAdapter {
 
 export interface AudioDownloadTransport {
   downloadFile: AudioFileSystemAdapter['downloadFile'];
-  reattachJob?: (jobId: string) => Promise<void>;
-  cancelJob?: (jobId: string) => Promise<void>;
+  reattachJob?: (jobId: string, signal?: AbortSignal) => Promise<void>;
+  /** bookIds scopes a collection stop to its selected books; omitted keeps legacy namespace stops. */
+  cancelJob?: (jobId: string, options?: { bookIds: readonly string[] }) => Promise<void>;
 }
 
 export interface RemoteAudioAsset {

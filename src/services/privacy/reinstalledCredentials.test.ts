@@ -63,5 +63,33 @@ test('clearing reinstall residue deletes the session and both passcodes and noth
     'everybible.privacy.settings': 'kept for clearPrivacySettings',
     'unrelated-key': 'kept',
   });
-  assert.ok(secureStore.calls.every((call) => call.op === 'delete'));
+  assert.ok(secureStore.calls.every((call) => call.op === 'delete' || call.op === 'get'));
+  for (const key of credentials.getSupabaseAuthStorageKeys('https://projref.supabase.co')) {
+    assert.ok(secureStore.calls.some((call) => call.op === 'get' && call.key === key));
+  }
+});
+
+for (const key of ['sb-projref-auth-token', 'everybible.translatorReview.passcode']) {
+  test(`resolved deletion retaining ${key} rejects instead of claiming credential removal`, async (t) => {
+    secureStore.store.set(key, 'retained-secret');
+    const remove = secureStore.store.delete;
+    t.mock.method(secureStore.store, 'delete', (candidate: string) =>
+      candidate === key ? false : remove.call(secureStore.store, candidate)
+    );
+    await assert.rejects(
+      credentials.clearReinstalledCredentials(),
+      /Credential removal was not confirmed/
+    );
+    assert.equal(secureStore.store.get('unrelated-key'), 'kept');
+  });
+}
+
+test('a failed readback rejects and a later successful cleanup can retry', async (t) => {
+  t.mock.method(secureStore.store, 'has', () => {
+    throw new Error('readback unavailable');
+  });
+  await assert.rejects(credentials.clearReinstalledCredentials(), /readback unavailable/);
+  t.mock.restoreAll();
+  await credentials.clearReinstalledCredentials();
+  assert.equal(secureStore.store.get('unrelated-key'), 'kept');
 });

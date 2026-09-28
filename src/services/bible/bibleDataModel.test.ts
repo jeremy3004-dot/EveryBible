@@ -6,6 +6,7 @@ import {
   BUNDLED_BIBLE_SCHEMA_VERSION,
   buildBibleFallbackSearchTerms,
   buildBibleSearchQuery,
+  buildBibleSearchVerificationTerms,
   buildBibleSubstringSearchTerms,
   buildInstalledBibleDatabaseSource,
   failTranslationPackCandidate,
@@ -767,4 +768,38 @@ test('buildBibleFallbackSearchTerms lists the case spellings of each word for a 
   assert.deepEqual(buildBibleFallbackSearchTerms('प्रेम'), [['प्रेम']]);
   assert.deepEqual(buildBibleFallbackSearchTerms('% _ "'), []);
   assert.equal(buildBibleFallbackSearchTerms('a b c d e f g h i j').length, 8);
+});
+
+test('indexed search verification retains typed Indic/Arabic marks, NFC and joiners while leaving Latin accents to FTS', () => {
+  assert.deepEqual(buildBibleSearchVerificationTerms('येशू येश नील নীল حُبّ परमेश्\u200Dवर'), [
+    'येशू',
+    'येश',
+    'नील',
+    'নীল',
+    'حُبّ',
+    'परमेश्\u200Dवर',
+  ]);
+  assert.deepEqual(
+    buildBibleSearchVerificationTerms('Lord Trời troi café café'.normalize('NFD')),
+    []
+  );
+  assert.deepEqual(
+    buildBibleSearchVerificationTerms('الله hello'),
+    [],
+    'unmarked Arabic semantics stay unchanged'
+  );
+  assert.deepEqual(buildBibleSearchVerificationTerms('神爱 빛'), []);
+  assert.deepEqual(buildBibleSearchVerificationTerms('येशू येशू'), ['येशू']);
+  assert.deepEqual(
+    buildBibleSearchVerificationTerms('ज़').map((word) => word.normalize('NFC')),
+    ['ज़'.normalize('NFC')]
+  );
+});
+
+test('verification terms use exactly the same deduplicated sixteen-word window as the FTS query', () => {
+  const first = Array.from({ length: 16 }, (_, index) => `word${index}`);
+  assert.deepEqual(buildBibleSearchVerificationTerms([...first, 'येशू'].join(' ')), []);
+  const query = ['येशू', 'येशू', ...first].join(' ');
+  assert.equal(buildBibleSearchQuery(query)?.split(' ').length, 16);
+  assert.deepEqual(buildBibleSearchVerificationTerms(query), ['येशू']);
 });

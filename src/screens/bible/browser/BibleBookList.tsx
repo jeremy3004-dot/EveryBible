@@ -107,6 +107,7 @@ export function BibleBookList({
       keyExtractor={browserRowKey}
       contentContainerStyle={contentContainerStyle}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
       estimatedItemSize={BIBLE_BROWSER_ROW_ESTIMATED_SIZE}
       getItemType={browserRowType}
       // FlashList cells re-render only when extraData changes. renderRow already

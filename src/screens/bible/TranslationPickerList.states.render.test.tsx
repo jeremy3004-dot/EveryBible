@@ -503,3 +503,277 @@ test('a host re-rendering with fresh callbacks leaves the rows alone, and the ne
     ['activated', 'emtv', 2],
   ]);
 });
+
+// A failed catalog can leave the shipped Hindi placeholder visible in search.
+// Its next tap retries hydration; closing the host must abandon the selection.
+async function renderPendingHindiSelection(host: 'list' | 'reader' | 'browser' = 'list') {
+  const { TranslationPickerList } = await import('./TranslationPickerList');
+  const { ReaderTranslationSheet } = await import('./reader/ReaderTranslationSheet');
+  const { TranslationPickerSheet } = await import('./browser/TranslationPickerSheet');
+  const hindi = bible({
+    id: 'hincv',
+    name: 'Hindi Contemporary Version',
+    abbreviation: 'HCV',
+    language: 'Hindi',
+    source: 'runtime',
+    hasText: false,
+  });
+  useBibleStore.setState({ translations: [BSB, EMTV, hindi] });
+  catalog.failure = new Error('offline');
+  const renderHost = (active: boolean) =>
+    host === 'reader' ? (
+      <ReaderTranslationSheet
+        canShowTranslationSheet
+        showTranslationSheet={active}
+        handleCloseTranslationSheet={() => log.push(['close'])}
+        handleTranslationActivated={(translation) => log.push(['activated', translation.id])}
+      />
+    ) : host === 'browser' ? (
+      <TranslationPickerSheet visible={active} onClose={() => log.push(['close'])} />
+    ) : (
+      <TranslationPickerList
+        isActive={active}
+        onRequestClose={() => log.push(['close'])}
+        onTranslationActivated={(translation) => log.push(['activated', translation.id])}
+      />
+    );
+  const view = await harness.render(renderHost(true));
+  await view.flush();
+  const selectReady = rowOf(view, EMTV).props.onPress as () => void;
+  await view.changeText(view.getByTestId('translation-picker-search'), 'Hindi Contemporary');
+  log.length = 0;
+  catalog.failure = null;
+  catalog.hold = true;
+  await view.press(rowOf(view, hindi));
+  assert.equal(catalog.loads, 2, 'selection entered the awaited refresh');
+  const refreshedHindi = {
+    ...NET,
+    id: hindi.id,
+    name: hindi.name,
+    abbreviation: 'HCV',
+    language: 'Hindi',
+  };
+  return { view, renderHost, refreshedHindi, selectReady, finishCatalog: catalog.finish };
+}
+
+test('a catalog selection settling after picker unmount presents no prompt', async (context) => {
+  context.mock.method(console, 'warn', () => {});
+  const { view, refreshedHindi } = await renderPendingHindiSelection();
+  await view.unmount();
+  await inAct(() => useBibleStore.setState({ translations: [BSB, EMTV, refreshedHindi] }));
+  await inAct(() => catalog.finish());
+  assert.equal(lastAlert(), undefined);
+  assert.deepEqual(log, []);
+  assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+});
+
+for (const host of ['list', 'reader', 'browser'] as const) {
+  test(`a hidden then reopened ${host} sheet abandons its pending catalog selection`, async (context) => {
+    context.mock.method(console, 'warn', () => {});
+    const { view, renderHost, refreshedHindi, finishCatalog } =
+      await renderPendingHindiSelection(host);
+    await view.rerender(renderHost(false));
+    await view.rerender(renderHost(true));
+    await inAct(() => useBibleStore.setState({ translations: [BSB, EMTV, refreshedHindi] }));
+    await inAct(() => finishCatalog());
+    assert.equal(lastAlert(), undefined, 'reopening cannot restore old selection ownership');
+    assert.deepEqual(log, []);
+    assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+    await view.changeText(view.getByTestId('translation-picker-search'), '');
+    await view.press(rowOf(view, EMTV));
+    assert.equal(
+      useBibleStore.getState().currentTranslation,
+      'emtv',
+      'fresh selection still works'
+    );
+    assert.equal(log.at(-1)?.[0], host === 'browser' ? 'close' : 'activated');
+  });
+}
+
+test('a newer selection owns the reader when an older catalog selection settles', async (context) => {
+  context.mock.method(console, 'warn', () => {});
+  const { refreshedHindi, selectReady } = await renderPendingHindiSelection();
+  // A tap captured before the loading render may already be queued by native input.
+  await inAct(() => selectReady());
+  assert.equal(useBibleStore.getState().currentTranslation, EMTV.id);
+  const latestChoiceLog = [...log];
+  await inAct(() =>
+    useBibleStore.setState({
+      translations: [BSB, EMTV, { ...GOSPEL_AUDIO, id: refreshedHindi.id }],
+    })
+  );
+  await inAct(() => catalog.finish());
+  assert.equal(useBibleStore.getState().currentTranslation, EMTV.id);
+  assert.deepEqual(log, latestChoiceLog);
+  assert.equal(lastAlert(), undefined);
+});
+
+test('a translation removed during catalog refresh cannot be selected from its old row', async (context) => {
+  context.mock.method(console, 'warn', () => {});
+  await renderPendingHindiSelection();
+  await inAct(() => useBibleStore.setState({ translations: [BSB, EMTV] }));
+  await inAct(() => catalog.finish());
+  assert.equal(useBibleStore.getState().currentTranslation, BSB.id);
+  assert.deepEqual(log, []);
+  assert.equal(
+    lastAlert(),
+    undefined,
+    'the removed placeholder cannot explain its stale availability'
+  );
+});
+
+test('a captured removed-row tap releases loading owned by the superseded catalog selection', async (context) => {
+  context.mock.method(console, 'warn', () => {});
+  const { view, selectReady, finishCatalog } = await renderPendingHindiSelection();
+  assert.ok(view.getByText(t('common.loading')));
+  await inAct(() =>
+    useBibleStore.setState({
+      translations: useBibleStore.getState().translations.filter(({ id }) => id !== EMTV.id),
+    })
+  );
+  await inAct(() => selectReady());
+  await inAct(() => finishCatalog());
+  assert.equal(view.queryByText(t('common.loading')), null);
+  assert.equal(useBibleStore.getState().currentTranslation, BSB.id);
+  assert.deepEqual(log, []);
+  await view.changeText(view.getByTestId('translation-picker-search'), '');
+  await view.press(rowOf(view, BSB));
+  assert.deepEqual(log.at(-1), ['activated', BSB.id], 'available rows remain tappable');
+});
+
+test('a download prompt superseded by a newer Bible selection cannot start work', async () => {
+  const view = await renderPicker();
+  await view.press(rowOf(view, NET));
+  const acceptOldPrompt = alertButton(t('translations.download'))?.onPress;
+  assert.ok(acceptOldPrompt);
+  await view.press(rowOf(view, EMTV));
+  const latestChoiceLog = [...log];
+  await inAct(() => acceptOldPrompt());
+  assert.deepEqual(log, latestChoiceLog);
+  assert.equal(pending.download, null);
+  assert.equal(useBibleStore.getState().currentTranslation, 'emtv');
+});
+
+test('hide and reopen invalidate an existing download prompt while a fresh prompt works', async () => {
+  const { TranslationPickerList } = await import('./TranslationPickerList');
+  const picker = (isActive: boolean) => <TranslationPickerList isActive={isActive} />;
+  const view = await harness.render(picker(true));
+  await view.flush();
+  await view.press(rowOf(view, NET));
+  const acceptOldPrompt = alertButton(t('translations.download'))?.onPress;
+  assert.ok(acceptOldPrompt);
+  await view.rerender(picker(false));
+  await view.rerender(picker(true));
+  await inAct(() => acceptOldPrompt());
+  assert.equal(pending.download, null);
+  await startDownload(view, NET);
+  assert.ok(pending.download, 'fresh prompt can start a download');
+  await inAct(() => pending.download?.resolve('installed'));
+  assert.equal(useBibleStore.getState().currentTranslation, NET.id);
+});
+
+test('an installation started before hide finishes without stealing the reopened choice', async () => {
+  const { TranslationPickerList } = await import('./TranslationPickerList');
+  const picker = (isActive: boolean) => (
+    <TranslationPickerList
+      isActive={isActive}
+      onRequestClose={() => log.push(['close'])}
+      onTranslationActivated={(translation) => log.push(['activated', translation.id])}
+    />
+  );
+  const view = await harness.render(picker(true));
+  await view.flush();
+  await startDownload(view, NET);
+  await view.rerender(picker(false));
+  await view.rerender(picker(true));
+  // Completion races with reopening before the user makes another choice.
+  await inAct(() =>
+    useBibleStore.setState({
+      translations: ALL.map((translation) =>
+        translation.id === NET.id
+          ? { ...translation, isDownloaded: true, textPackLocalPath: 'file:///net.sqlite' }
+          : translation
+      ),
+    })
+  );
+  await inAct(() => pending.download?.resolve('installed'));
+  assert.equal(
+    useBibleStore.getState().translations.find((translation) => translation.id === NET.id)
+      ?.isDownloaded,
+    true
+  );
+  assert.equal(useBibleStore.getState().currentTranslation, 'bsb');
+  assert.deepEqual(log, [['downloadTranslation', NET.id]], 'no cancel, activation or old close');
+  await view.press(rowOf(view, EMTV));
+  assert.equal(useBibleStore.getState().currentTranslation, 'emtv');
+});
+
+test('catalog-delayed selection uses current book and current translation availability', async (context) => {
+  context.mock.method(console, 'warn', () => {});
+  useBibleStore.setState({ currentBook: 'GEN' });
+  const { view, refreshedHindi } = await renderPendingHindiSelection();
+  remote.unavailable.add('hincv:GEN');
+  remote.firstAudioBook = 'MAT';
+  await inAct(() =>
+    useBibleStore.setState({
+      currentBook: 'JHN',
+      translations: [
+        BSB,
+        EMTV,
+        { ...GOSPEL_AUDIO, id: refreshedHindi.id, name: refreshedHindi.name, language: 'Hindi' },
+      ],
+    })
+  );
+  await inAct(() => catalog.finish());
+  assert.equal(useBibleStore.getState().currentTranslation, 'hincv');
+  assert.equal(
+    log.some(([action]) => action === 'setCurrentBook' || action === 'setCurrentChapter'),
+    false,
+    'the old Genesis location must not redirect the current John reader'
+  );
+  assert.equal(lastAlert(), undefined);
+  await view.unmount();
+});
+
+for (const supersede of ['hide-reopen', 'new-selection', 'new-prompt', 'unmount'] as const) {
+  test(`a failed-download Retry cannot resume after ${supersede}`, async (context) => {
+    context.mock.method(console, 'error', () => {});
+    const { TranslationPickerList } = await import('./TranslationPickerList');
+    const picker = (isActive: boolean) => (
+      <TranslationPickerList
+        isActive={isActive}
+        onRequestClose={() => log.push(['close'])}
+        onTranslationActivated={(translation) => log.push(['activated', translation.id])}
+      />
+    );
+    const view = await harness.render(picker(true));
+    await view.flush();
+    await startDownload(view, NET);
+    const reported = nextCrashReport();
+    await inAct(() => pending.download?.reject(new Error('offline')));
+    await reported;
+    await view.flush();
+    const retry = alertButton(t('common.retry'))?.onPress;
+    assert.ok(retry);
+    pending.download = null;
+    if (supersede === 'hide-reopen') {
+      await view.rerender(picker(false));
+      await view.rerender(picker(true));
+    } else if (supersede === 'new-selection') {
+      await view.press(rowOf(view, EMTV));
+    } else if (supersede === 'new-prompt') {
+      await view.changeText(view.getByTestId('translation-picker-search'), 'Reina');
+      await view.press(rowOf(view, SPANISH_RV));
+    } else {
+      await view.unmount();
+    }
+    const latestLog = [...log];
+    await inAct(() => retry());
+    assert.equal(pending.download, null, 'old Retry cannot start a fresh operation');
+    assert.deepEqual(log, latestLog);
+    assert.equal(
+      useBibleStore.getState().currentTranslation,
+      supersede === 'new-selection' ? EMTV.id : BSB.id
+    );
+  });
+}

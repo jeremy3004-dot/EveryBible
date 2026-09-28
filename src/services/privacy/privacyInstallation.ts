@@ -1,6 +1,14 @@
 export const PRIVACY_INSTALLATION_MARKER_KEY = 'everybible.privacy.installation.v1';
 export const LEGACY_AUTH_STORAGE_KEY = 'auth-storage';
 
+/** Fresh-install cleanup must finish before any retained auth can be restored. */
+export class PrivacyInstallationResetError extends Error {
+  constructor() {
+    super('Fresh installation credentials could not be removed');
+    this.name = 'PrivacyInstallationResetError';
+  }
+}
+
 export type PrivacyInstallationReconciliationResult =
   | { status: 'preserved'; reason: 'marker' | 'legacy' }
   | { status: 'reset' };
@@ -89,13 +97,18 @@ export async function resetPrivacyIfInstallationIsFresh(
     return false;
   }
 
-  const resetPrivacy = await dependencies.loadResetPrivacy();
-  if (!isFresh()) {
-    return false;
+  try {
+    const resetPrivacy = await dependencies.loadResetPrivacy();
+    if (!isFresh()) {
+      return false;
+    }
+    await resetPrivacy();
+    return true;
+  } catch {
+    // A native icon or lock hint cannot establish that obsolete credentials
+    // were cleared. Keep the startup retry gate, including native-load failure.
+    throw new PrivacyInstallationResetError();
   }
-
-  await resetPrivacy();
-  return true;
 }
 
 /**

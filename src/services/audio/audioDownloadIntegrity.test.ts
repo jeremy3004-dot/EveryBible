@@ -123,6 +123,168 @@ test('a chapter matching both bytes and sha256 completes', async () => {
   assert.deepEqual(runtime.base64Reads, [CHAPTER_BYTES.byteLength]);
 });
 
+test('resuming replaces a cached chapter with the right size but the wrong checksum', async () => {
+  const fileUri = service.getChapterAudioFileUri('bsb', 'PHM', 1);
+  const receiptUri = `${service.getBookAudioDirectoryUri('bsb', 'PHM')}verified-sizes.json`;
+  const files = new Map<string, Uint8Array>([
+    [fileUri, new Uint8Array(CHAPTER_BYTES.byteLength).fill(8)],
+  ]);
+  // A stale receipt cannot certify this file because its recorded size differs.
+  const receipts = new Map<string, string>([
+    [receiptUri, JSON.stringify({ version: 2, sizes: { 1: 2048 } })],
+  ]);
+  const deleted: string[] = [];
+  let transfers = 0;
+  let checksumReads = 0;
+  let receiptBeforeTransfer: unknown;
+  const fileSystem: service.AudioFileSystemAdapter = {
+    ensureDirectory: async () => {},
+    fileExists: async (uri) => files.has(uri),
+    getFileSize: async (uri) => files.get(uri)?.byteLength ?? null,
+    readTextFile: async (uri) => receipts.get(uri) ?? null,
+    writeTextFile: async (uri, contents) => {
+      receipts.set(uri, contents);
+    },
+    readBase64Chunk: async (uri, position, length) => {
+      checksumReads += 1;
+      const bytes = files.get(uri);
+      return bytes ? toBase64(bytes.subarray(position, position + length)) : null;
+    },
+    deleteFile: async (uri) => {
+      deleted.push(uri);
+      files.delete(uri);
+    },
+    downloadFile: async (_from, to) => {
+      transfers += 1;
+      receiptBeforeTransfer = JSON.parse(receipts.get(receiptUri) ?? '{}');
+      files.set(to, CHAPTER_BYTES);
+    },
+  };
+
+  const download = () =>
+    service.downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem,
+      resolveRemoteAudio: async () => ({
+        url: 'https://audio.test/PHM/1.mp3',
+        duration: 10,
+        bytes: CHAPTER_BYTES.byteLength,
+        sha256: CHAPTER_SHA256,
+      }),
+    });
+  const result = await download();
+
+  assert.equal(result.chapterCount, 1);
+  assert.equal(transfers, 1, 'equal byte counts must not certify a corrupt cached chapter');
+  assert.ok(deleted.includes(fileUri));
+  assert.deepEqual(
+    receiptBeforeTransfer,
+    { version: 2, sizes: {} },
+    'discarding invalid bytes clears their stale receipt'
+  );
+  assert.deepEqual(files.get(fileUri), CHAPTER_BYTES);
+  assert.deepEqual(JSON.parse(receipts.get(receiptUri) ?? '{}'), {
+    version: 2,
+    sizes: { 1: 4096 },
+  });
+  assert.equal(checksumReads, 2, 'the corrupt cache and its replacement are both checked');
+
+  await download();
+  assert.equal(transfers, 1);
+  assert.equal(checksumReads, 2, 'the verified receipt keeps later resumes on the fast path');
+});
+
+test('cancelling during a cached checksum check cannot complete the chapter', async () => {
+  const controller = new AbortController();
+  const events: string[] = [];
+  const fileSystem: service.AudioFileSystemAdapter = {
+    ensureDirectory: async () => {},
+    fileExists: async () => true,
+    getFileSize: async () => CHAPTER_BYTES.byteLength,
+    readBase64Chunk: async (_uri, position, length) => {
+      controller.abort();
+      return toBase64(CHAPTER_BYTES.subarray(position, position + length));
+    },
+    downloadFile: async () => {
+      events.push('transfer');
+    },
+  };
+
+  await assert.rejects(
+    service.downloadAudioBook({
+      translationId: 'bsb',
+      book: getBookById('PHM')!,
+      fileSystem,
+      signal: controller.signal,
+      resolveRemoteAudio: async () => ({
+        url: 'https://audio.test/PHM/1.mp3',
+        duration: 10,
+        bytes: CHAPTER_BYTES.byteLength,
+        sha256: CHAPTER_SHA256,
+      }),
+      hooks: {
+        onComplete: () => events.push('complete'),
+        onFailure: () => events.push('failure'),
+        onProgress: () => events.push('progress'),
+      },
+    }),
+    service.AudioDownloadCancelledError
+  );
+  assert.deepEqual(events, []);
+});
+
+test('cancelling after corrupt cache discard clears its stale receipt without a replacement', async () => {
+  for (const cachedBytes of [CHAPTER_BYTES.byteLength, 3072]) {
+    const controller = new AbortController();
+    const events: string[] = [];
+    let receipt = JSON.stringify({ version: 2, sizes: { 1: 2048 } });
+    const fileSystem: service.AudioFileSystemAdapter = {
+      ensureDirectory: async () => {},
+      fileExists: async () => true,
+      getFileSize: async () => cachedBytes,
+      readTextFile: async (uri) => (uri.endsWith('verified-sizes.json') ? receipt : null),
+      writeTextFile: async (uri, contents) => {
+        if (uri.endsWith('verified-sizes.json')) receipt = contents;
+      },
+      readBase64Chunk: async (_uri, position, length) =>
+        toBase64(
+          new Uint8Array(CHAPTER_BYTES.byteLength).fill(8).subarray(position, position + length)
+        ),
+      deleteFile: async () => {
+        controller.abort();
+      },
+      downloadFile: async () => {
+        events.push('transfer');
+      },
+    };
+
+    await assert.rejects(
+      service.downloadAudioBook({
+        translationId: 'bsb',
+        book: getBookById('PHM')!,
+        fileSystem,
+        signal: controller.signal,
+        resolveRemoteAudio: async () => ({
+          url: 'https://audio.test/PHM/1.mp3',
+          duration: 10,
+          bytes: CHAPTER_BYTES.byteLength,
+          sha256: CHAPTER_SHA256,
+        }),
+        hooks: {
+          onComplete: () => events.push('complete'),
+          onFailure: () => events.push('failure'),
+          onProgress: () => events.push('progress'),
+        },
+      }),
+      service.AudioDownloadCancelledError
+    );
+
+    assert.deepEqual(JSON.parse(receipt), { version: 2, sizes: {} });
+    assert.deepEqual(events, []);
+  }
+});
+
 test('sha256 verification reads a large chapter in bounded chunks', async () => {
   const large = new Uint8Array(1_000_000).fill(3);
   const runtime = integrityRuntime({ bytes: large.byteLength, sha256: sha256HexSync(large) });
@@ -149,4 +311,33 @@ test('with neither bytes nor sha256 known the 1KB floor still guards the downloa
   await flush();
   t.mock.timers.tick(2000);
   await rejected;
+});
+
+test('an unreceipted cached chapter is reused after published checksum verification without a size', async () => {
+  let transfers = 0;
+  let checksumReads = 0;
+  const result = await service.downloadAudioBook({
+    translationId: 'bsb',
+    book: getBookById('PHM')!,
+    fileSystem: {
+      ensureDirectory: async () => {},
+      fileExists: async () => true,
+      getFileSize: async () => CHAPTER_BYTES.byteLength,
+      readBase64Chunk: async (_uri, position, length) => {
+        checksumReads += 1;
+        return toBase64(CHAPTER_BYTES.subarray(position, position + length));
+      },
+      downloadFile: async () => {
+        transfers += 1;
+      },
+    },
+    resolveRemoteAudio: async () => ({
+      url: 'https://audio.test/PHM/1.mp3',
+      duration: 10,
+      sha256: CHAPTER_SHA256,
+    }),
+  });
+  assert.equal(result.chapterCount, 1);
+  assert.equal(checksumReads, 1);
+  assert.equal(transfers, 0);
 });

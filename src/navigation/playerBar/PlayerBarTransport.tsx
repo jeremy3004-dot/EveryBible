@@ -106,10 +106,9 @@ export const PlayerBarTransport = memo(function PlayerBarTransport({
               mediumHaptic();
               controller.onPlayPause();
             }}
-            disabled={controller.isLoading}
             accessibilityRole="button"
             accessibilityLabel={playLabel}
-            accessibilityState={{ busy: controller.isLoading, disabled: controller.isLoading }}
+            accessibilityState={{ busy: controller.isLoading }}
             testID="reader-play-pause"
             style={styles.button}
           >

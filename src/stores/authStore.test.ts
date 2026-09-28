@@ -896,13 +896,18 @@ test('signing out deletes the translator review passcode from the OS keystore', 
   secureStore.calls.length = 0;
 
   await useAuthStore.getState().signOut();
-  // The keystore delete is fire-and-forget inside resetForSignOut.
+  // Deletion and its confirming readback settle asynchronously inside resetForSignOut.
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(useTranslatorReviewStore.getState().accessPasscode, null);
   assert.deepEqual(
     secureStore.calls.map((call) => `${call.op} ${call.key}`),
-    ['delete everybible.feedback.councilPasscode', 'delete everybible.translatorReview.passcode']
+    [
+      'delete everybible.feedback.councilPasscode',
+      'delete everybible.translatorReview.passcode',
+      'get everybible.feedback.councilPasscode',
+      'get everybible.translatorReview.passcode',
+    ]
   );
   assert.equal(secureStore.store.has('everybible.translatorReview.passcode'), false);
   assert.equal(secureStore.store.has('everybible.feedback.councilPasscode'), false);
@@ -1372,4 +1377,50 @@ test('an already-started local removal cannot emit a late SIGNED_OUT over a newe
     supabaseFake.authCalls.some((call) => call.method === '_notifyAllSubscribers'),
     false
   );
+});
+
+test('local removal admission failure retains the current account and private data', async (t) => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  seedPerUserData();
+  useAuthStore.getState().setPreferences({ fontSize: 'large' });
+  const auth = supabaseFake.client.auth as unknown as {
+    storage: { removeItem: (key: string) => Promise<void> };
+  };
+  t.mock.method(auth.storage, 'removeItem', async () => {
+    throw new Error('local removal not admitted');
+  });
+  await assert.rejects(useAuthStore.getState().signOut(), /Could not safely end/);
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  assert.equal(perUserDataIsCleared(), false);
+  assert.equal(bibleResetCount, 0);
+});
+
+test('auxiliary cleanup failure after primary removal still completes local sign-out', async (t) => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  seedPerUserData();
+  const auth = supabaseFake.client.auth as unknown as {
+    storageKey: string;
+    storage: { removeItem: (key: string) => Promise<void> };
+  };
+  const removeItem = auth.storage.removeItem;
+  t.mock.method(auth.storage, 'removeItem', async (key: string) => {
+    if (key !== auth.storageKey) throw new Error('auxiliary cleanup failed');
+    await removeItem(key);
+  });
+  await useAuthStore.getState().signOut();
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(perUserDataIsCleared(), true);
+});
+
+test('subscriber rejection after primary local removal cannot retain authenticated store state', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  seedPerUserData();
+  authHandlers._notifyAllSubscribers = async () => {
+    throw new Error('subscriber failed');
+  };
+  await useAuthStore.getState().signOut();
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
+  assert.equal(perUserDataIsCleared(), true);
 });

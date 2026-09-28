@@ -2,6 +2,7 @@ import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mockExpoCrypto,
+  mockMmkvStorage,
   mockModule,
   mockReactNative,
   mockSecureStore,
@@ -23,6 +24,7 @@ mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: Date.now(
 
 const keychain = mockSecureStore(mock);
 mockReactNative(mock, { os: 'ios' });
+mockMmkvStorage(mock);
 mockExpoCrypto(mock);
 mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   publicRuntimeConfig: {

@@ -25,11 +25,13 @@ const sharing = {
   outcome: 'shared' as 'shared' | 'cancelled' | 'rejected',
   error: new Error('Failed to share the file'),
   captures: 0,
+  releases: [] as string[],
 };
 let pendingShare: Promise<void> | null = null;
 let pendingCapture: Promise<string> | null = null;
 let pendingAvailability: Promise<boolean> | null = null;
 let availabilityStarted = () => {};
+let captureStarted = () => {};
 mockPackage(mock, 'expo-sharing', {
   isAvailableAsync: async () => {
     availabilityStarted();
@@ -48,8 +50,12 @@ mockPackage(mock, 'expo-sharing', {
   },
 });
 mockPackage(mock, 'react-native-view-shot', {
+  releaseCapture: (uri: string) => {
+    sharing.releases.push(uri);
+  },
   captureRef: async () => {
     sharing.captures += 1;
+    captureStarted();
     return pendingCapture ?? `file:///tmp/verse-${sharing.captures}.png`;
   },
 });
@@ -66,10 +72,12 @@ afterEach(() => {
   sharing.sheets.length = 0;
   sharing.outcome = 'shared';
   sharing.captures = 0;
+  sharing.releases.length = 0;
   pendingShare = null;
   pendingCapture = null;
   pendingAvailability = null;
   availabilityStarted = () => {};
+  captureStarted = () => {};
   reported.length = 0;
 });
 
@@ -237,6 +245,72 @@ test('a reader unmounted while its image picker closes cannot present a native s
   await view.unmount();
   await finishDismissal(view, onDismiss);
   assert.deepEqual(sharing.sheets, [], 'late dismissal cannot share after reader unmount');
+});
+
+for (const captureFails of [false, true]) {
+  test(`Cancel during iOS capture that later ${captureFails ? 'fails' : 'finishes'} prevents sharing and permits reopening`, async () => {
+    let release!: (uri: string) => void;
+    let reject!: (error: Error) => void;
+    pendingCapture = new Promise<string>((resolve, fail) => {
+      release = resolve;
+      reject = fail;
+    });
+    const started = new Promise<void>((resolve) => {
+      captureStarted = resolve;
+    });
+    const view = await renderReader();
+    const sheet = await openPicker(view);
+    const onDismiss = sheet.props.onDismiss;
+    await view.press(shareButton(sheet));
+    await started;
+    await view.press(within(sheet).getByRole('button', { name: t('common.cancel') }));
+    await finishDismissal(view, onDismiss);
+    await act(async () => {
+      if (captureFails) reject(new Error('capture failed after Cancel'));
+      else release('file:///cancelled.png');
+    });
+    await view.flush();
+    assert.deepEqual(sharing.sheets, []);
+    assert.deepEqual(harness.rn.__recorded.shares, []);
+    assert.deepEqual(reported, []);
+
+    pendingCapture = null;
+    captureStarted = () => {};
+    const reopened = await openPicker(view);
+    const reopenedDismissal = reopened.props.onDismiss;
+    assert.equal(shareButton(reopened).props.disabled, false, 'Cancel must clear busy state');
+    await view.press(shareButton(reopened));
+    await finishDismissal(view, reopenedDismissal);
+    assert.equal(sharing.sheets.length, 1, 'a fresh share can still present');
+  });
+}
+
+test('user dismissal during the iOS close wait resolves it without native image or text sharing', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const { onDismiss, onRequestClose } = sheet.props;
+  await view.press(shareButton(sheet));
+  await view.flush();
+  assert.equal(sharing.captures, 1);
+  assert.deepEqual(sharing.sheets, []);
+  await act(async () => onRequestClose());
+  await finishDismissal(view, onDismiss);
+  assert.deepEqual(sharing.sheets, []);
+  assert.deepEqual(harness.rn.__recorded.shares, []);
+  assert.deepEqual(sharing.releases, ['file:///tmp/verse-1.png']);
+});
+
+test('an image handed to native sharing is not released after a later reader unmount', async () => {
+  let finishShare!: () => void;
+  pendingShare = new Promise<void>((resolve) => {
+    finishShare = resolve;
+  });
+  const view = await renderReader();
+  await shareFromPicker(view);
+  assert.equal(sharing.sheets.length, 1);
+  await view.unmount();
+  await act(async () => finishShare());
+  assert.deepEqual(sharing.releases, []);
 });
 
 test('a same-tick second Share press cannot capture and share the image twice', async () => {

@@ -33,7 +33,10 @@ function createFakeNativeModule() {
     if (failures.has(method)) throw new Error(`${method} failed`);
   };
 
-  const module: AndroidMediaControlNativeModule = {
+  const module: AndroidMediaControlNativeModule & {
+    updateMediaControlOptions(options: Record<string, unknown>): Promise<void>;
+  } = {
+    updateMediaControlOptions: (options) => record('updateMediaControlOptions', [options]),
     enableMediaControls: (options) => record('enableMediaControls', [options]),
     disableMediaControls: () => record('disableMediaControls', []),
     updateMetadata: (metadata) => record('updateMetadata', [metadata]),
@@ -60,7 +63,7 @@ function createFakeNativeModule() {
   };
 }
 
-function createHarness(options: { module?: boolean } = {}) {
+function createHarness(options: { module?: boolean; legacy?: boolean } = {}) {
   const native = createFakeNativeModule();
   const clock = { now: 1_000_000 };
   const sleeps: number[] = [];
@@ -69,7 +72,12 @@ function createHarness(options: { module?: boolean } = {}) {
   const artwork = { uri: 'android.resource://com.everybible.app/drawable/art', resolved: 0 };
 
   const env: AndroidMediaSessionEnvironment = {
-    resolveNativeModule: () => (options.module === false ? null : native.module),
+    resolveNativeModule: () =>
+      options.module === false
+        ? null
+        : options.legacy
+          ? { ...native.module, updateMediaControlOptions: undefined }
+          : native.module,
     resolveArtworkUri: () => {
       artwork.resolved += 1;
       return artwork.uri;
@@ -480,4 +488,166 @@ test('unsubscribing removes the native listener', () => {
 
   assert.equal(h.native.listenerCount(), 0);
   assert.deepEqual(received, []);
+});
+
+function optionsOf(call: NativeCall) {
+  return call.args[0] as {
+    capabilities: string[];
+    compactCapabilities: string[];
+    android: { actionLabels: Record<string, string>; channelName: string };
+  };
+}
+
+for (const canSkipNext of [false, true]) {
+  for (const canSkipPrevious of [false, true]) {
+    test(`initial Android controls reflect next=${canSkipNext}, previous=${canSkipPrevious}`, async () => {
+      const h = createHarness();
+      await sync(h, { ...genesisOne, canSkipNext, canSkipPrevious });
+      const options = optionsOf(h.native.calls[0]);
+      for (const list of [options.capabilities, options.compactCapabilities]) {
+        assert.equal(list.includes('nextTrack'), canSkipNext);
+        assert.equal(list.includes('previousTrack'), canSkipPrevious);
+        assert.ok(list.includes('play'));
+      }
+      assert.ok(options.capabilities.includes('seek'));
+      assert.ok(options.capabilities.includes('skipBackward'));
+      assert.ok(options.capabilities.includes('skipForward'));
+    });
+  }
+}
+
+for (const isPlaying of [false, true]) {
+  test(`chapter control availability updates in place while playing=${isPlaying}`, async () => {
+    const h = createHarness();
+    await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: false, isPlaying });
+    h.native.calls.length = 0;
+    await sync(h, { ...genesisOne, canSkipNext: true, canSkipPrevious: false, isPlaying });
+    await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: true, isPlaying });
+    await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: false, isPlaying });
+    assert.deepEqual(h.native.methods(), Array(3).fill('updateMediaControlOptions'));
+    assert.deepEqual(
+      h.native.calls.map((call) => {
+        const options = optionsOf(call);
+        return [
+          options.capabilities.includes('nextTrack'),
+          options.capabilities.includes('previousTrack'),
+        ];
+      }),
+      [
+        [true, false],
+        [false, true],
+        [false, false],
+      ]
+    );
+    assert.deepEqual(h.errors, []);
+  });
+}
+
+test('unchanged options and book-name-only changes do not refresh native capabilities', async () => {
+  const h = createHarness();
+  const input = { ...genesisOne, canSkipNext: false, canSkipPrevious: true };
+  await sync(h, input);
+  h.native.calls.length = 0;
+  await sync(h, input);
+  await sync(h, { ...input, chapter: 2, localized: { ...english, bookName: 'Exodus' } });
+  assert.deepEqual(h.native.methods(), ['updateMetadata']);
+});
+
+test('changing only the interface labels refreshes the running session options', async () => {
+  const h = createHarness();
+  await sync(h, genesisOne);
+  h.native.calls.length = 0;
+  await sync(h, {
+    ...genesisOne,
+    localized: { ...english, channelName: 'Playing now', pause: 'Pause narration' },
+  });
+  assert.deepEqual(h.native.methods(), ['updateMediaControlOptions']);
+  const options = optionsOf(h.native.calls[0]);
+  assert.equal(options.android.channelName, 'Playing now');
+  assert.equal(options.android.actionLabels.pause, 'Pause narration');
+});
+
+test('a failed options setter is reported and retried without restarting the service', async () => {
+  const h = createHarness();
+  await sync(h, genesisOne);
+  const bounded = { ...genesisOne, canSkipNext: false, canSkipPrevious: false };
+  h.native.calls.length = 0;
+  h.native.failures.add('updateMediaControlOptions');
+  await sync(h, bounded);
+  h.native.failures.delete('updateMediaControlOptions');
+  await sync(h, bounded);
+  await sync(h, bounded);
+  assert.deepEqual(h.native.methods(), ['updateMediaControlOptions', 'updateMediaControlOptions']);
+  assert.deepEqual(h.errors, ['updateMediaControlOptions']);
+});
+
+test('pending options updates collapse to the latest boundaries and localized labels', async () => {
+  const h = createHarness();
+  await sync(h, genesisOne);
+  h.native.calls.length = 0;
+  let release!: () => void;
+  h.native.gates.set(
+    'updateMediaControlOptions',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const first = sync(h, { ...genesisOne, canSkipNext: false });
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = sync(h, { ...genesisOne, canSkipPrevious: false });
+  const latest = sync(h, {
+    ...genesisOne,
+    canSkipNext: false,
+    canSkipPrevious: false,
+    localized: {
+      ...english,
+      channelName: 'Playing now',
+      next: 'Next passage',
+      pause: 'Pause narration',
+    },
+  });
+  h.native.gates.delete('updateMediaControlOptions');
+  release();
+  await Promise.all([first, second, latest]);
+  assert.deepEqual(h.native.methods(), ['updateMediaControlOptions', 'updateMediaControlOptions']);
+  const options = optionsOf(h.native.calls[1]);
+  assert.equal(options.capabilities.includes('nextTrack'), false);
+  assert.equal(options.capabilities.includes('previousTrack'), false);
+  assert.deepEqual(options.compactCapabilities, ['play']);
+  assert.equal(options.android.channelName, 'Playing now');
+  assert.equal(options.android.actionLabels.nextTrack, 'Next passage');
+  assert.equal(options.android.actionLabels.pause, 'Pause narration');
+});
+
+test('clear and re-enable publish the new initial capabilities without a stale options cache', async () => {
+  const h = createHarness();
+  await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: false });
+  await h.session.clear();
+  h.native.calls.length = 0;
+  await sync(h, { ...genesisOne, canSkipNext: true, canSkipPrevious: false });
+  assert.deepEqual(h.native.methods(), [
+    'enableMediaControls',
+    'updateMetadata',
+    'updatePlaybackState',
+  ]);
+  const options = optionsOf(h.native.calls[0]);
+  assert.equal(options.capabilities.includes('nextTrack'), true);
+  assert.equal(options.capabilities.includes('previousTrack'), false);
+});
+
+test('older native binaries use filtered initial controls and keep playback updates without rebinding', async () => {
+  const h = createHarness({ legacy: true });
+  await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: false });
+  const initial = optionsOf(h.native.calls[0]);
+  assert.deepEqual(initial.compactCapabilities, ['play']);
+  h.native.calls.length = 0;
+  await sync(h, {
+    ...genesisOne,
+    chapter: 2,
+    canSkipNext: true,
+    canSkipPrevious: true,
+    isPlaying: false,
+  });
+  assert.deepEqual(h.native.methods(), ['updateMetadata', 'updatePlaybackState']);
+  assert.deepEqual(h.errors, []);
 });

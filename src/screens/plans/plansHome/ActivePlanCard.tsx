@@ -28,6 +28,7 @@ interface ActivePlanCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
+  chaptersListened?: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   /** The local "now" a recurring plan's day and today's activity are read against. */
   today: Date;
@@ -44,6 +45,7 @@ export const ActivePlanCard = memo(function ActivePlanCard({
   plan,
   progress,
   chaptersRead,
+  chaptersListened,
   listeningHistory,
   today,
   onPlanPress,
@@ -60,6 +62,7 @@ export const ActivePlanCard = memo(function ActivePlanCard({
     entries: readingPlanEntriesByPlanId[plan.id] ?? [],
     progress,
     chaptersRead,
+    chaptersListened,
     listeningHistory,
     today,
   });

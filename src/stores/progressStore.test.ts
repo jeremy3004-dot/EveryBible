@@ -1035,3 +1035,60 @@ test('a sync queued before sign-out is not revived by the next reader', async (t
 
   assert.deepEqual(syncCalls, [['user-2', 4]]);
 });
+
+for (const activity of ['read', 'listened', 'listening time'] as const) {
+  test(`${activity} saves its streak with the activity so interrupted persistence preserves consecutive days`, async (t) => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+    const recordActivity = (chapter: number) => {
+      if (activity === 'read') state().markChapterRead('GEN', chapter);
+      else if (activity === 'listened') state().markChapterListened('GEN', chapter);
+      else state().recordListeningTime(60_000);
+    };
+    recordActivity(1);
+
+    const writes: string[] = [];
+    const save = mmkv.zustandStorage.setItem.bind(mmkv.zustandStorage);
+    t.mock.method(mmkv.zustandStorage, 'setItem', (name: string, value: string) => {
+      writes.push(value);
+      return save(name, value);
+    });
+    t.mock.timers.setTime(localNoon(2026, 9, 9));
+    recordActivity(2);
+    const savedActivity = writes[0];
+    assert.ok(savedActivity);
+    const activityWriteCount = writes.length;
+
+    // Restore the first durable activity snapshot, as if the process stopped
+    // before any subsequent storage write could finish.
+    mmkv.store.set('progress-storage', savedActivity);
+    t.mock.timers.setTime(localNoon(2026, 9, 10));
+    await useProgressStore.persist.rehydrate();
+    if (activity === 'read') assert.equal(state().isChapterRead('GEN', 2), true);
+    else if (activity === 'listened')
+      assert.equal(state().chaptersListened.GEN_2, localNoon(2026, 9, 9));
+    else assert.equal(state().listeningMsByDate['2026-09-09'], 60_000);
+    recordActivity(3);
+
+    assert.equal(state().streakDays, 3);
+    assert.equal(activityWriteCount, 1, 'the activity and streak share one durable write');
+  });
+}
+
+test('listening syncs only when it first counts the local day for the streak', async (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+  state().recordListeningTime(20_000);
+  t.mock.timers.tick(2000);
+  await flushSync();
+  assert.deepEqual(syncCalls, []);
+
+  state().recordListeningTime(40_000);
+  t.mock.timers.tick(2000);
+  await flushSync();
+  assert.deepEqual(syncCalls, [['user-1', 3]]);
+
+  state().recordListeningTime(60_000);
+  state().markChapterListened('GEN', 1);
+  t.mock.timers.tick(2000);
+  await flushSync();
+  assert.deepEqual(syncCalls, [['user-1', 3]]);
+});

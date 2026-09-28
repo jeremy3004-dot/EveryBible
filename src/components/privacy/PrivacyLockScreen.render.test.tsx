@@ -44,11 +44,9 @@ async function tap(view: RenderResult, keys: string[]) {
   }
 }
 
-/** The PIN check runs 50ms after '='; let it and the unlock promise settle. */
+/** Let the unlock promise settle after the calculator's immediate submission. */
 async function settlePinCheck() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 80));
-  });
+  await act(async () => {});
 }
 
 const display = (view: RenderResult) => view.getAllByText(/./)[0].props.accessibilityLabel;
@@ -72,6 +70,33 @@ test('a PIN typed before "=" goes to the privacy store directly, not via the sto
 
   assert.deepEqual(unlockAttempts, [['1234']]);
   assert.equal(display(view), '1234', 'a wrong code leaves the calculator as it was');
+});
+
+test('rapid batched keypad presses submit exactly one attempt per equals tap', async () => {
+  const view = await renderLockScreen();
+  const presses = ['1', '2', '3', '4', '=', '='].map(
+    (key) => view.getByRole('button', { name: key }).props.onPress as () => void
+  );
+
+  await act(async () => {
+    for (const press of presses) {
+      press();
+    }
+  });
+
+  assert.deepEqual(unlockAttempts, [['1234'], ['1234']]);
+  assert.equal(display(view), '1234');
+});
+
+test('multiplication, division and clear preserve ordinary calculator behavior', async () => {
+  const view = await renderLockScreen();
+  await tap(view, ['6', '×', '7', '=']);
+  assert.equal(display(view), '42');
+  await tap(view, ['÷', '2', '=']);
+  assert.equal(display(view), '21');
+  await tap(view, ['C', '8', '÷', '0', '=']);
+  assert.equal(display(view), 'Error');
+  assert.deepEqual(unlockAttempts, [['*7/2', '6*7/2']]);
 });
 
 test('while unlock attempts are throttled, a wrong code shows only a generic Error', async () => {

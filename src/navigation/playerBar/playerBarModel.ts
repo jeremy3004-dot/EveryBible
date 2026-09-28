@@ -130,6 +130,7 @@ export function getReturnToReaderTarget({
       ...(target?.planId ? { planId: target.planId } : {}),
       ...(typeof target?.planDayNumber === 'number' ? { planDayNumber: target.planDayNumber } : {}),
       ...(target?.planSessionKey ? { planSessionKey: target.planSessionKey } : {}),
+      ...(target?.planOccurrenceKey ? { planOccurrenceKey: target.planOccurrenceKey } : {}),
       ...(target?.returnToPlanOnComplete ? { returnToPlanOnComplete: true } : {}),
       ...(target?.sessionContext ? { sessionContext: target.sessionContext } : {}),
     },

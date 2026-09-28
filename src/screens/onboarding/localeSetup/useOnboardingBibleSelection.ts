@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/refs -- latest-handler refs, moved unchanged from LocaleSetupFlow:
    the queue is created once and must call the handlers of the latest render, and the rows
    need a stable onPress. The refs are only read from event handlers and the queue. */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { BibleTranslation } from '../../../types';
@@ -53,12 +53,31 @@ export function useOnboardingBibleSelection({
     queuedId: null,
   });
 
-  const completeInitialSetup = async (translation: BibleTranslation) => {
+  const mountedRef = useRef(false);
+  const latestInterfaceLanguageRef = useRef(selectedInterfaceLanguageCode);
+  latestInterfaceLanguageRef.current = selectedInterfaceLanguageCode;
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const completeInitialSetup = async (translation: BibleTranslation): Promise<boolean> => {
     const translationLanguage = localeSearchEngine.getLanguageByName(translation.language);
-    const interfaceLanguageCode = selectedInterfaceLanguageCode;
+    let interfaceLanguageCode = latestInterfaceLanguageRef.current;
     const deviceCountry = localeSearchEngine.getCountryByCode(deviceCountryCode);
 
-    await changeLanguage(interfaceLanguageCode);
+    while (mountedRef.current) {
+      interfaceLanguageCode = latestInterfaceLanguageRef.current;
+      const isCurrent = () =>
+        mountedRef.current && interfaceLanguageCode === latestInterfaceLanguageRef.current;
+      const applied = await changeLanguage(interfaceLanguageCode, isCurrent);
+      if (!mountedRef.current) return false;
+      if (applied !== false && isCurrent()) break;
+      // Another language load won. Keep the chosen Bible and apply the latest choice.
+    }
+    if (!mountedRef.current) return false;
     setPreferredTranslationLanguage(normalizeTranslationLanguage(translation.language));
     setCurrentTranslation(translation.id);
 
@@ -75,6 +94,7 @@ export function useOnboardingBibleSelection({
     });
 
     onFinished();
+    return true;
   };
 
   // Refreshed every render so the queue, created once below, always calls the latest
@@ -95,6 +115,7 @@ export function useOnboardingBibleSelection({
       translation,
     complete: completeInitialSetup,
     onDownloadFailed: async (translation, error) => {
+      if (!mountedRef.current) return;
       reportTranslationDownloadFailure(error);
       const fallbackTranslation = resolveRegionalFallbackTranslation(
         useBibleStore.getState().translations,
@@ -107,19 +128,23 @@ export function useOnboardingBibleSelection({
       }
 
       showTranslationDownloadFailedAlert(t, () => {
-        void bibleSelectionQueue.chooseDownload(translation);
+        if (mountedRef.current) void bibleSelectionQueue.chooseDownload(translation);
       });
     },
     onCompleteFailed: (translation, error) => {
+      if (!mountedRef.current) return;
       console.error('[Onboarding] Failed to finish setup:', error);
       showOnboardingFinishFailedAlert(t, () => {
-        void bibleSelectionQueue.chooseReady(translation);
+        if (mountedRef.current) void bibleSelectionQueue.chooseReady(translation);
       });
     },
-    onStateChange: setBibleSelectionState,
+    onStateChange: (state) => {
+      if (mountedRef.current) setBibleSelectionState(state);
+    },
   };
 
   const handleTranslationSelectImpl = async (translation: BibleTranslation) => {
+    if (!mountedRef.current) return;
     const { selectionState } = getOnboardingTranslationDisplayData(translation);
 
     if (selectionState.reason === 'download-required') {

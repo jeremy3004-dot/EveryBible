@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -8,7 +9,7 @@ import { groupRowStyle, pickerStyles as styles } from './pickerStyles';
 import { groupPosition } from './translationPickerRowsModel';
 
 /** The picker's language mode: every language with its Bible count, and a way back. */
-export function TranslationLanguageList({
+export const TranslationLanguageList = memo(function TranslationLanguageList({
   languageOptions,
   selectedLanguage,
   onSelectLanguage,
@@ -78,4 +79,4 @@ export function TranslationLanguageList({
       })}
     </ScrollView>
   );
-}
+});

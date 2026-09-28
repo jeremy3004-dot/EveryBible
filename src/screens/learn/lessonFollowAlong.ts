@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Verse } from '../../types';
 import type { LessonAudioSource } from '../../services/gather/lessonAudioSource';
 import { getChapter } from '../../services/bible/bibleService';
@@ -65,14 +65,21 @@ export function useLessonFollowAlongVerse({
     };
   }, [key, source, textTranslationId]);
 
-  if (!source || !started || durationMillis <= 0 || !timing || timing.key !== key) {
-    return null;
-  }
-  const verse = getEstimatedFollowAlongVerse({
-    verses: timing.verses,
-    currentPosition: positionMillis,
-    duration: durationMillis,
-    timestamps: timing.timestamps,
-  });
-  return verse == null ? null : { bookId: source.bookId, chapter: source.chapter, verse };
+  const bookId = source?.bookId;
+  const chapter = source?.chapter;
+  const verse =
+    source && started && durationMillis > 0 && timing?.key === key
+      ? getEstimatedFollowAlongVerse({
+          verses: timing.verses,
+          currentPosition: positionMillis,
+          duration: durationMillis,
+          timestamps: timing.timestamps,
+        })
+      : null;
+
+  // Progress changes within a verse should not invalidate the story subtree.
+  return useMemo(
+    () => (bookId && chapter != null && verse != null ? { bookId, chapter, verse } : null),
+    [bookId, chapter, verse]
+  );
 }

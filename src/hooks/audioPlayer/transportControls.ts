@@ -1,3 +1,5 @@
+import { bibleNarrationOwner, claimNarration } from '../../services/audio/narrationOwnership';
+import { captureActivePlaybackPause } from './transportRegistry';
 import { audioPlayer, backgroundMusicPlayer, clearBibleNowPlaying } from '../../services/audio';
 import type { PlaybackStartAction } from '../../services/audio/audioPlaybackStartModel';
 import {
@@ -22,7 +24,7 @@ import type {
   PlayChapterForTranslation,
   SyncNowPlaying,
 } from './playerSession';
-import { chapterTransition, pausedByListener } from './sharedPlaybackState';
+import { chapterTransition, pausedByListener, seekRequest } from './sharedPlaybackState';
 
 export interface TransportContext {
   session: AudioPlayerSession;
@@ -45,6 +47,8 @@ export interface PauseOptions {
    * Any other pause ends Selah and pauses the bed with the narration.
    */
   holdForSelah?: boolean;
+  /** A cross-player handoff must fail if the native sound could not be suspended. */
+  requireSuspension?: boolean;
 }
 
 export async function pausePlayback(
@@ -53,7 +57,7 @@ export async function pausePlayback(
     fallbackTranslationId,
     syncNowPlaying,
   }: TransportContext & { syncNowPlaying: SyncNowPlaying },
-  { holdForSelah = false }: PauseOptions = {}
+  { holdForSelah = false, requireSuspension = false }: PauseOptions = {}
 ): Promise<void> {
   const requestId = ++session.playRequestId;
   if (!holdForSelah) endSelahForPause();
@@ -78,7 +82,8 @@ export async function pausePlayback(
     },
     true
   );
-  await audioPlayer.pause();
+  await audioPlayer.pause(requireSuspension ? { requireSuspension: true } : undefined);
+  if (requireSuspension) await backgroundMusicPlayer.stop();
   // A Selah fade (out into it, or back in from it) ends here: paused, the narration goes
   // back to the Voice level, where the next chapter or resume expects it.
   if (requestId === session.playRequestId) restoreNarrationVolume();
@@ -99,8 +104,18 @@ export async function resumePlayback({
   playChapterForTranslation: PlayChapterForTranslation;
 }): Promise<void> {
   const requestId = ++session.playRequestId;
-  pausedByListener.current = false;
+  const seekIdAtResume = seekRequest.current;
   const errorId = session.playbackErrorId;
+  const narration = claimNarration('bible', bibleNarrationOwner, captureActivePlaybackPause());
+  try {
+    await narration.ready;
+  } catch {
+    // The outgoing sound may still be audible. Keep the existing paused chapter
+    // ready for an explicit retry instead of starting a second sound.
+    return;
+  }
+  if (requestId !== session.playRequestId || !narration.isCurrent()) return;
+  pausedByListener.current = false;
   // Out of Selah the narration picks up a little earlier, so no words are lost, and
   // fades back in. Selah ends here, whichever Play (reader, bar, lock screen) resumed it.
   const selahResume = takeSelahResume();
@@ -141,11 +156,16 @@ export async function resumePlayback({
   };
 
   if (fadesIn) await silenceNarrationForSelahResume();
+  if (requestId !== session.playRequestId) return standDown();
+  if (errorId !== session.playbackErrorId) {
+    standDown();
+    await reloadIfSoundWasReleased();
+    return;
+  }
   // Reset poll anchor so interpolation starts fresh from the resumed position.
   // If the native player lost its offset during an interruption, re-seek first.
-  if (isLoaded && (resumePosition > 0 || selahResume)) {
+  if (seekIdAtResume === seekRequest.current && isLoaded && (resumePosition > 0 || selahResume)) {
     await audioPlayer.seekTo(resumePosition);
-    if (selahResume) useAudioStore.getState().setPosition(resumePosition);
   }
   if (requestId !== session.playRequestId) return standDown();
   if (errorId !== session.playbackErrorId) {
@@ -153,8 +173,12 @@ export async function resumePlayback({
     await reloadIfSoundWasReleased();
     return;
   }
-
-  anchorPositionInterpolation(session, resumePosition);
+  // A scrub or skip owns its anchor immediately, even while its native seek is pending.
+  // Keep the Play intent, but leave that newer command's position alone.
+  if (seekIdAtResume === seekRequest.current) {
+    if (selahResume) useAudioStore.getState().setPosition(resumePosition);
+    anchorPositionInterpolation(session, resumePosition);
+  }
   await audioPlayer.resume();
   if (requestId !== session.playRequestId) return standDown();
   if (errorId !== session.playbackErrorId) {
@@ -167,7 +191,10 @@ export async function resumePlayback({
   syncNowPlaying(
     {
       isPlaying: true,
-      positionMs: Math.max(useAudioStore.getState().currentPosition, resumePosition),
+      positionMs:
+        seekIdAtResume === seekRequest.current
+          ? Math.max(useAudioStore.getState().currentPosition, resumePosition)
+          : useAudioStore.getState().currentPosition,
       durationMs: useAudioStore.getState().duration,
     },
     true
@@ -215,15 +242,16 @@ export async function seekPlayback(
   requestedPositionMs: number
 ): Promise<void> {
   const requestId = session.playRequestId;
+  const seekRequestId = ++seekRequest.current;
   const positionMs = clampSeekPosition(requestedPositionMs, useAudioStore.getState().duration);
   // The listener's own move: a repeated passage does not take it for playback reaching its end.
   notePassageManualSeek();
   // Reset interpolation anchor to the seek target so we don't overshoot
   anchorPositionInterpolation(session, positionMs);
   await audioPlayer.seekTo(positionMs);
-  // A new playback command can replace the sound while its native seek settles.
-  // Its chapter owns the store position and durable resume point now.
-  if (requestId !== session.playRequestId) return;
+  // A newer seek or playback command can take over while its native seek settles.
+  // That command owns the store position and durable resume point now.
+  if (requestId !== session.playRequestId || seekRequestId !== seekRequest.current) return;
   useAudioStore.getState().setPosition(positionMs);
 }
 
@@ -234,6 +262,7 @@ export async function skipPlayback(session: AudioPlayerSession, deltaMs: number)
     return;
   }
 
+  const seekRequestId = ++seekRequest.current;
   const nextPosition = skipTargetPosition(currentPosition, deltaMs, duration);
   notePassageManualSeek();
   // Re-anchor interpolation on the skip target, exactly as a seek does. Without
@@ -242,6 +271,6 @@ export async function skipPlayback(session: AudioPlayerSession, deltaMs: number)
   // player reports a fresh position.
   anchorPositionInterpolation(session, nextPosition);
   await audioPlayer.seekTo(nextPosition);
-  if (requestId !== session.playRequestId) return;
+  if (requestId !== session.playRequestId || seekRequestId !== seekRequest.current) return;
   useAudioStore.getState().setPosition(nextPosition);
 }

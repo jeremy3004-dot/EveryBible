@@ -254,8 +254,11 @@ function getRecurringCycleDate(
 export function getPlanCompletionEntryKey(
   plan: Pick<ReadingPlan, 'scheduleMode'>,
   dayNumber: number,
-  today: Date = new Date()
+  today: Date = new Date(),
+  occurrenceKey?: string
 ): string {
+  // Reader launches pin the displayed occurrence; legacy callers retain the rollover heuristic.
+  if (isRecurringPlan(plan) && occurrenceKey) return occurrenceKey;
   const cycleDate = getRecurringCycleDate(plan, dayNumber, today);
   if (!cycleDate) {
     return String(dayNumber);
@@ -482,9 +485,10 @@ export function buildPlanSessionCompletionKey(
   plan: Pick<ReadingPlan, 'scheduleMode'>,
   dayNumber: number,
   sessionKey: PlanSessionKey,
-  today: Date = new Date()
+  today: Date = new Date(),
+  occurrenceKey?: string
 ): string {
-  return `${getPlanCompletionEntryKey(plan, dayNumber, today)}:${sessionKey}`;
+  return `${getPlanCompletionEntryKey(plan, dayNumber, today, occurrenceKey)}:${sessionKey}`;
 }
 
 function compareSessionEntryOrder(left: ReadingPlanEntry, right: ReadingPlanEntry): number {

@@ -10,7 +10,7 @@ import { afterEach, type MockTracker } from 'node:test';
 import { create } from 'zustand';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
-import { installRenderHarness, within } from '../../testing/render';
+import { installRenderHarness, within, type RenderHarnessOptions } from '../../testing/render';
 import type { ChapterFeedbackReviewItem } from '../../services/feedback/chapterFeedbackReviewService';
 
 export type PlaybackStatus = {
@@ -91,8 +91,11 @@ const defaultResponders = (): Record<
   audioUrl: async () => ({ success: true, playbackUrl: 'https://media.test/c1.m4a' }),
 });
 
-export function installFeedbackReviewFixture(mock: MockTracker) {
-  const harness = installRenderHarness(mock);
+export function installFeedbackReviewFixture(
+  mock: MockTracker,
+  options: RenderHarnessOptions = {}
+) {
+  const harness = installRenderHarness(mock, options);
   const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
 
   // Participation is switched in Settings only; the review screen must never call these.
@@ -130,9 +133,17 @@ export function installFeedbackReviewFixture(mock: MockTracker) {
     Audio: {
       setAudioModeAsync: async () => {},
       Sound: {
-        createAsync: async (source: unknown, status: unknown) => {
+        createAsync: async (
+          source: unknown,
+          status: unknown,
+          onPlaybackStatusUpdate?: (status: PlaybackStatus) => void
+        ) => {
           created.push({ source, status });
-          return sounds.createOverride ? sounds.createOverride() : { sound };
+          const createdSound = sounds.createOverride ? await sounds.createOverride() : { sound };
+          if (onPlaybackStatusUpdate) {
+            createdSound.sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
+          }
+          return createdSound;
         },
       },
     },

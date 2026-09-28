@@ -757,6 +757,24 @@ function buildCustomPackBytes(setupSql: string): Buffer {
   return bytes;
 }
 
+function buildDamagedOverflowPackBytes(): Buffer {
+  const bytes = buildCustomPackBytes(`
+    CREATE TABLE verses (
+      id INTEGER PRIMARY KEY, translation_id TEXT, book_id TEXT,
+      chapter INTEGER, verse INTEGER, text TEXT, heading TEXT, formatting TEXT
+    );
+    INSERT INTO verses VALUES (1, 'overflow', 'GEN', 1, 1, 'Readable representative', NULL, NULL);
+    INSERT INTO verses VALUES (
+      2, 'overflow', 'GEN', 2, 1, '${'Long verse payload '.repeat(1200)}', NULL, NULL
+    );
+  `);
+  // The table's leaf page remains readable, but its third-page overflow chain is damaged.
+  // COUNT(*) and the representative first chapter therefore still work.
+  const pageSize = bytes.readUInt16BE(16);
+  bytes.writeUInt32BE(99999, pageSize * 2);
+  return bytes;
+}
+
 /** Holds the next resumable transfer open until the returned `release` is called. */
 function holdNextTransfer(): { started: Promise<void>; release: () => void } {
   resumable.enabled = true;
@@ -1252,6 +1270,76 @@ test('a truncated pack with no declared checksum is rejected by the database che
     openHandles.every((handle) => handle.closed),
     'the handle that read the bad pack is closed'
   );
+});
+
+for (const withChecksum of [false, true]) {
+  test(`a damaged overflow chain is rejected before activation ${withChecksum ? 'with a matching checksum' : 'without a checksum'}`, async () => {
+    const { downloadCatalogTextPack, getCatalogTextPackPaths } = await loadModule();
+    installWorkingPack('overflow');
+    download.bytes = buildDamagedOverflowPackBytes();
+    const operationId = 'overflow-install';
+    const paths = getCatalogTextPackPaths('overflow', operationId);
+
+    const probePath = `${root}/overflow-probe.db`;
+    writeFileSync(probePath, download.bytes);
+    const probe = new DatabaseSync(probePath);
+    try {
+      assert.equal(
+        (probe.prepare('SELECT COUNT(*) AS count FROM verses').get() as { count: number }).count,
+        2
+      );
+      const chapterSql = `
+        SELECT id, book_id, chapter, verse, text, heading, formatting
+        FROM verses WHERE translation_id = ? AND book_id = ? AND chapter = ? ORDER BY verse
+      `;
+      assert.equal(probe.prepare(chapterSql).all('overflow', 'GEN', 1).length, 1);
+      assert.throws(() => probe.prepare(chapterSql).all('overflow', 'GEN', 2), /malformed/);
+    } finally {
+      probe.close();
+    }
+
+    await assert.rejects(
+      downloadCatalogTextPack({
+        translationId: 'overflow',
+        operationId,
+        downloadUrl: 'https://media.example.test/overflow.db',
+        expectedVerseCount: 2,
+        expectedSha256: withChecksum ? sha256Hex(download.bytes) : undefined,
+      }),
+      /failed SQLite integrity verification/
+    );
+    assert.equal(readVerseCount(packPath('overflow')), 2, 'the prior Bible remains readable');
+    assert.equal(existsSync(paths.stagingPath), false);
+    assert.equal(existsSync(paths.finalPath), false);
+    assert.ok(
+      openHandles.every((handle) => handle.closed),
+      'validation handles are closed'
+    );
+  });
+}
+
+test('final-path and rollback validation reject damaged overflow pages', async () => {
+  const { validateCatalogTextPack, recoverInterruptedCatalogTextPack, getCatalogTextPackPaths } =
+    await loadModule();
+  const paths = getCatalogTextPackPaths('overflow', 'recovery');
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(paths.rollbackPath, buildDamagedOverflowPackBytes());
+
+  await assert.rejects(
+    validateCatalogTextPack(paths.rollbackPath, 2),
+    /failed SQLite integrity verification/
+  );
+  await assert.rejects(
+    recoverInterruptedCatalogTextPack(paths),
+    /failed SQLite integrity verification/
+  );
+  assert.equal(
+    existsSync(paths.rollbackPath),
+    true,
+    'failed recovery retains the original evidence'
+  );
+  assert.equal(existsSync(paths.finalPath), false, 'damaged rollback is never adopted');
+  assert.ok(openHandles.every((handle) => handle.closed));
 });
 
 test('a truncated pack with a declared checksum fails the checksum before it is opened', async () => {

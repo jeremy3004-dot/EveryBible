@@ -25,6 +25,21 @@ The index is built on the device, so the packs already on R2 do not need to be p
   indexed at version 1 are rebuilt on their next search. The bundled database was rebuilt with
   the same tokenizer on 2026-09-25 (schema 8), adding `prefix='1 2 3'`; its term list did not
   change, so no bundled search result changed.
+- **Typed Indic/Arabic marks (2026-09-28).** Quoting a word does not preserve its marks in
+  `unicode61`: its default token categories exclude marks, so Nepali `येशू` and `यिशै` both
+  tokenize as `य` followed by `श`. Indexed search now verifies words containing typed
+  combining marks in the Arabic and Indic/Sinhala ranges against the verse text with bound
+  `instr()` predicates. Query and text both ignore ZWJ/ZWNJ, while the other typed marks
+  must remain present. The predicates run before `ORDER BY` and `LIMIT`, so false candidates
+  cannot consume the result limit; the surviving candidates retain the existing bm25 ranking
+  and prefix behavior (`येश` still finds `येशू`). Both FTS and verification use the same
+  deduplicated sixteen-word query window. Latin/Vietnamese diacritic folding, unmarked Arabic,
+  and the existing CJK/Korean substring path are unchanged. No database or index rebuild is
+  needed. See the [SQLite Unicode61 contract](https://sqlite.org/fts5.html#unicode61_tokenizer).
+  The real shipped database regression asserts all fifty results are valid and preserves
+  ranking for `येशू`/`येश`, plus joiner-containing `परमेश्वर` matches. A desktop read-only probe
+  measured warm medians of about 4 ms for `येशू`, 7 ms for `परमेश्वर`, and 28 ms for the broad
+  two-character prefix `ये`; target-device timings require a source-matched reload.
 - **Build marker.** The `search_index_state` table (one row) records `index_schema_version`,
   `pack_version` (the catalog text version, from `activeTextPackVersion`), `last_indexed_id`,
   `indexed_count` and `completed_at`. The status is one of:

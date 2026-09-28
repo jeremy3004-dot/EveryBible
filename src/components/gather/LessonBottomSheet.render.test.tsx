@@ -5,8 +5,15 @@ import { mockBarrel, mockModule, mockPackage, sourcePath } from '../../testing/m
 import { installRenderHarness } from '../../testing/render';
 import type { PassageBlock } from '../../services/gather/gatherBibleService';
 import type { GatherLesson } from '../../types/gather';
+import type { FoundationDetailScreenProps } from '../../navigation/types';
+import {
+  createFakeGatherStore,
+  mockSvgForCommonJs,
+} from '../../screens/learn/gatherRenderFixtures';
 
-const harness = installRenderHarness(mock, { os: 'ios' });
+const harness = installRenderHarness(mock, { os: 'ios', skip: ['react-native-svg'] });
+mockSvgForCommonJs(mock);
+mockModule(mock, sourcePath('stores/gatherStore.ts'), { useGatherStore: createFakeGatherStore() });
 const t = (key: string) => harness.i18n.t(key);
 
 const useBibleStore = create(() => ({
@@ -40,10 +47,20 @@ mockModule(mock, sourcePath('services/audio/audioService.ts'), {
 
 // "Share audio" loads the native share path on demand.
 const nativeShares: unknown[][] = [];
+let pauseAssetPreparation: (() => Promise<void>) | null = null;
+let finishPreparation: (() => void) | null = null;
+let pauseSharingAvailability: (() => Promise<void>) | null = null;
+let finishSharingAvailability: (() => void) | null = null;
+let fileShareFailure: Error | null = null;
 mockPackage(mock, 'expo-sharing', {
-  isAvailableAsync: async () => true,
+  isAvailableAsync: async () => {
+    await pauseSharingAvailability?.();
+    finishSharingAvailability?.();
+    return true;
+  },
   shareAsync: async (...args: unknown[]) => {
     nativeShares.push(args);
+    if (fileShareFailure) throw fileShareFailure;
   },
 });
 mockPackage(mock, 'expo-file-system/legacy', {
@@ -61,10 +78,14 @@ mockModule(mock, sourcePath('services/audio/audioRemote.ts'), {
   fetchRemoteChapterAudio: async () => null,
 });
 mockModule(mock, sourcePath('services/audio/audioShareService.ts'), {
-  prepareChapterAudioShareAsset: async (input: { translationId: string; rootUri: string }) => ({
-    uri: `${input.rootUri}${input.translationId}-GEN-1.mp3`,
-    mimeType: 'audio/mpeg',
-  }),
+  prepareChapterAudioShareAsset: async (input: { translationId: string; rootUri: string }) => {
+    await pauseAssetPreparation?.();
+    finishPreparation?.();
+    return {
+      uri: `${input.rootUri}${input.translationId}-GEN-1.mp3`,
+      mimeType: 'audio/mpeg',
+    };
+  },
 });
 
 const lesson: GatherLesson = {
@@ -90,6 +111,11 @@ beforeEach(() => {
   passage.requests = [];
   audio.urls = {};
   nativeShares.length = 0;
+  pauseAssetPreparation = null;
+  finishPreparation = null;
+  pauseSharingAvailability = null;
+  finishSharingAvailability = null;
+  fileShareFailure = null;
   sheet.closes = 0;
   sheet.toggles = 0;
 });
@@ -195,6 +221,61 @@ test('when only the borrowed BSB passage has audio, share audio attaches that re
   assert.equal(sheet.closes, 1);
 });
 
+test('dismissing during lazy share dependency loading prevents preparation and presentation', async () => {
+  passage.blocks = [{ label: 'Genesis 1:1-2', translationId: 'bsb', verses: [verse(1, 'In')] }];
+  audio.urls = { bsb: 'https://audio.test/bsb/GEN/1.mp3' };
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markAvailable!: () => void;
+  const available = new Promise<void>((resolve) => {
+    markAvailable = resolve;
+  });
+  pauseSharingAvailability = () => {
+    markStarted();
+    return pending;
+  };
+  finishSharingAvailability = markAvailable;
+  let preparations = 0;
+  pauseAssetPreparation = async () => {
+    preparations += 1;
+  };
+  const view = await renderSheet();
+  await view.press(view.getByRole('button', { name: t('gather.shareAudio') }));
+  await started;
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  release();
+  await available;
+  await view.flush();
+
+  assert.equal(preparations, 0);
+  assert.deepEqual(nativeShares, []);
+  assert.equal(sheet.closes, 1, 'the dismissed operation must not close again');
+});
+
+test('a current lesson falls back to its audio link after native file sharing fails and closes', async () => {
+  passage.blocks = [{ label: 'Genesis 1:1-2', translationId: 'bsb', verses: [verse(1, 'In')] }];
+  audio.urls = { bsb: 'https://audio.test/bsb/GEN/1.mp3' };
+  fileShareFailure = new Error('No activity found');
+  const view = await renderSheet();
+  await view.press(view.getByRole('button', { name: t('gather.shareAudio') }));
+  await view.flush();
+
+  assert.equal(nativeShares.length, 1);
+  assert.deepEqual(harness.rn.__recorded.shares, [
+    {
+      message: `${t('gather.lessons.f101')} · Genesis 1:1-2`,
+      url: audio.urls.bsb,
+    },
+  ]);
+  assert.equal(sheet.closes, 1);
+});
+
 test('marking complete toggles the lesson and closes; a complete lesson offers to undo', async () => {
   const view = await renderSheet();
 
@@ -210,4 +291,70 @@ test('rows for features that are not built yet are announced as disabled', async
 
   assert.ok(view.getByRole('button', { name: t('gather.download'), disabled: true }));
   assert.ok(view.getByRole('button', { name: t('gather.manageBookmarks'), disabled: true }));
+});
+
+test('dismissing a pending audio share leaves the next lesson sheet open and shares nothing', async () => {
+  passage.blocks = [{ label: 'Genesis 1:1-2', translationId: 'bsb', verses: [verse(1, 'In')] }];
+  audio.urls = { bsb: 'https://audio.test/bsb/GEN/1.mp3' };
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markPrepared!: () => void;
+  const prepared = new Promise<void>((resolve) => {
+    markPrepared = resolve;
+  });
+  pauseAssetPreparation = () => {
+    markStarted();
+    return pending;
+  };
+  finishPreparation = markPrepared;
+  const { FoundationDetailScreen } = await import('../../screens/learn/FoundationDetailScreen');
+  const view = await harness.render(
+    <FoundationDetailScreen
+      navigation={
+        harness.navigation.navigation as unknown as FoundationDetailScreenProps['navigation']
+      }
+      route={
+        {
+          key: 'foundation',
+          name: 'FoundationDetail',
+          params: { foundationId: 'foundation-1' },
+        } as FoundationDetailScreenProps['route']
+      }
+    />
+  );
+  const rows = () =>
+    view
+      .getAllByRole('button')
+      .filter((node) =>
+        node.props.accessibilityActions?.some(
+          (action: { name: string }) => action.name === 'moreOptions'
+        )
+      );
+  await view.fire(rows()[0], 'onAccessibilityAction', {
+    nativeEvent: { actionName: 'moreOptions' },
+  });
+  await view.flush();
+  await view.press(view.getByRole('button', { name: t('gather.shareAudio') }));
+  await started;
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  await view.fire(rows()[1], 'onAccessibilityAction', {
+    nativeEvent: { actionName: 'moreOptions' },
+  });
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: t('common.done') }));
+
+  release();
+  await prepared;
+  await view.flush();
+  assert.ok(
+    view.queryByRole('button', { name: t('common.done') }),
+    'the old share completion must not close the new lesson sheet'
+  );
+  assert.deepEqual(nativeShares, [], 'a dismissed share must not present the old audio');
 });

@@ -30,7 +30,7 @@ async function renderSheet(text = VERSE) {
       selectedVerseImageBackgroundIndex={0}
       selectedVerseReferenceLabel="Genesis 4:2"
       selectedVerseText={text}
-      setShowVerseImageSheet={noop}
+      handleCloseVerseImageSheet={noop}
       showVerseImageSheet
       verseImageBackgroundCount={20}
       verseImageSharePreviewRef={createRef<View>()}

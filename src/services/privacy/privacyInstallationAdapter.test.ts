@@ -107,7 +107,7 @@ test('a reinstall deletes the keychain session and passcodes before auth can res
   assert.deepEqual(
     secureStore.calls.map((call) => `${call.op}:${call.key}`).sort(),
     Object.keys(KEYCHAIN_RESIDUE)
-      .map((key) => `delete:${key}`)
+      .flatMap((key) => [`delete:${key}`, `get:${key}`])
       .sort()
   );
   assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
@@ -135,7 +135,9 @@ test('a normal relaunch never touches the keychain', async () => {
 test('a keychain that refuses the credential wipe leaves the marker unwritten so the next launch retries', async () => {
   secureStore.state.failure = new Error('keychain locked');
 
-  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), /keychain locked/);
+  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), {
+    name: 'PrivacyInstallationResetError',
+  });
   assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
 });
 
@@ -245,7 +247,9 @@ test('a retry after a failed migration starts a fresh attempt rather than replay
 test('a bootstrap whose reset fails rejects, and the next launch retries both steps', async () => {
   clearFailure = new Error('keychain locked');
 
-  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), /keychain locked/);
+  await assert.rejects(() => adapter.initializePrivacyInstallationOnStartup(), {
+    name: 'PrivacyInstallationResetError',
+  });
   assert.deepEqual(events, ['migrate', 'clearPrivacySettings']);
   assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
 
@@ -300,7 +304,9 @@ test('a bootstrap that is still migrating is joined, not restarted', async () =>
 test('a failed reset leaves the marker unwritten so the next launch retries in a locked state', async () => {
   clearFailure = new Error('keychain locked');
 
-  await assert.rejects(() => adapter.reconcilePrivacyInstallationOnStartup(), /keychain locked/);
+  await assert.rejects(() => adapter.reconcilePrivacyInstallationOnStartup(), {
+    name: 'PrivacyInstallationResetError',
+  });
   assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
 });
 
@@ -325,4 +331,19 @@ test('auth state migrated into MMKV during the AsyncStorage read still prevents 
 
   assert.deepEqual(events, [], 'a migrated install must never be reset');
   assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+});
+
+test('resolved native session deletion retaining residue cannot seed installation completion', async (t) => {
+  const remove = secureStore.store.delete;
+  t.mock.method(secureStore.store, 'delete', (key: string) =>
+    key === SESSION_KEY ? false : remove.call(secureStore.store, key)
+  );
+  await assert.rejects(adapter.initializePrivacyInstallationOnStartup());
+  assert.equal(mmkv.has(PRIVACY_INSTALLATION_MARKER_KEY), false);
+  assert.equal(events.includes('clearPrivacySettings'), false);
+  assert.ok(secureStore.store.get(SESSION_KEY));
+  t.mock.restoreAll();
+  await adapter.initializePrivacyInstallationOnStartup();
+  assert.equal(mmkv.get(PRIVACY_INSTALLATION_MARKER_KEY), '1');
+  assert.equal(secureStore.store.has(SESSION_KEY), false);
 });

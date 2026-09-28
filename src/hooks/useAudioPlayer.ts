@@ -11,7 +11,7 @@ import {
   type PlaybackStartAction,
 } from '../services/audio/audioPlaybackStartModel';
 import { reportHandledError } from '../services/diagnostics/crashReportQueue';
-import type { PlaybackRate, SleepTimerOption } from '../types';
+import type { AudioStatus, PlaybackRate, SleepTimerOption } from '../types';
 import {
   chapterTransition,
   clearPlayerNowPlaying,
@@ -52,8 +52,6 @@ import {
 // player to them and to the audio store.
 
 /** How often a loaded chapter that is buffering checks that its sound still exists. */
-const STALLED_STREAM_CHECK_INTERVAL_MS = 5000;
-
 export function useAudioPlayer(translationId: string = 'bsb') {
   const { t } = useTranslation();
   const sessionRef = useAudioPlayerSession();
@@ -253,12 +251,15 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   );
 
   const pause = useCallback(
-    () =>
-      pausePlayback({
-        session: sessionRef.current,
-        fallbackTranslationId: translationId,
-        syncNowPlaying: syncCurrentNowPlaying,
-      }),
+    (options?: { requireSuspension?: boolean }) =>
+      pausePlayback(
+        {
+          session: sessionRef.current,
+          fallbackTranslationId: translationId,
+          syncNowPlaying: syncCurrentNowPlaying,
+        },
+        options
+      ),
     [sessionRef, syncCurrentNowPlaying, translationId]
   );
   // Native progress callbacks outlive the reader and enforce the sleep timer with it.
@@ -300,7 +301,7 @@ export function useAudioPlayer(translationId: string = 'bsb') {
 
   // Toggle play/pause
   const togglePlayPause = useCallback(async () => {
-    if (status === 'playing') {
+    if (status === 'playing' || status === 'loading') {
       await pause();
       return;
     }
@@ -355,14 +356,20 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   // Change playback rate
   const changePlaybackRate = useCallback(
     async (rate: PlaybackRate) => {
-      await audioPlayer.setRate(rate);
       setPlaybackRate(rate);
+      await audioPlayer.setRate(rate);
     },
     [setPlaybackRate]
   );
 
   const navigateChapterForTranslation = useCallback(
-    (targetTranslationId: string, bookId: string, chapter: number, verse?: number) =>
+    (
+      targetTranslationId: string,
+      bookId: string,
+      chapter: number,
+      verse?: number,
+      statusAtInvocation?: AudioStatus
+    ) =>
       navigateToChapter(
         sessionRef.current,
         playChapterForTranslation,
@@ -370,7 +377,8 @@ export function useAudioPlayer(translationId: string = 'bsb') {
         targetTranslationId,
         bookId,
         chapter,
-        verse
+        verse,
+        statusAtInvocation
       ),
     [playChapterForTranslation, sessionRef, syncCurrentNowPlaying]
   );
@@ -379,13 +387,14 @@ export function useAudioPlayer(translationId: string = 'bsb') {
     (direction: -1 | 1) =>
       stepChapter(
         {
+          session: sessionRef.current,
           fallbackTranslationId: translationId,
           resolveAudioCoverage,
           navigateChapterForTranslation,
         },
         direction
       ),
-    [navigateChapterForTranslation, resolveAudioCoverage, translationId]
+    [navigateChapterForTranslation, resolveAudioCoverage, sessionRef, translationId]
   );
   const previousChapter = useCallback(() => stepChapterBy(-1), [stepChapterBy]);
   const nextChapter = useCallback(() => stepChapterBy(1), [stepChapterBy]);
@@ -486,20 +495,6 @@ export function useAudioPlayer(translationId: string = 'bsb') {
   useEffect(() => {
     followRepeatPassage(passageContext());
   }, [passageContext]);
-
-  // A loaded chapter that is buffering mid-stream may be waiting on a sound the
-  // native side has already released (Android does so silently when the stream
-  // fails), which would leave an endless spinner with the controls disabled. Check
-  // now and then that the sound still exists; a released one surfaces as an error
-  // that Play recovers from. The first load of a chapter is not loaded yet, so it is
-  // left to its own load error.
-  useEffect(() => {
-    if (status !== 'loading') return;
-    const timer = setInterval(() => {
-      if (audioPlayer.isLoaded()) void audioPlayer.verifyLoaded();
-    }, STALLED_STREAM_CHECK_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [status]);
 
   const sleepTimerRemaining = useSleepTimerCountdown({
     sleepTimerEndTime,

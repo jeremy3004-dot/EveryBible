@@ -58,18 +58,33 @@ mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore
 mockModule(mock, sourcePath('stores/libraryStore.ts'), {
   useLibraryStore: create(() => ({ history: [] })),
 });
-mockModule(mock, sourcePath('stores/progressStore.ts'), {
-  useProgressStore: create(() => ({ chaptersRead: {} })),
-});
+const progressStore = create(() => ({
+  chaptersRead: {} as Record<string, number>,
+  chaptersListened: {} as Record<string, number>,
+}));
+mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
 // Scheduled day labels read the in-app language from the i18n singleton.
 mockModule(mock, sourcePath('i18n/index.ts'), { default: harness.i18n });
 mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
 // Plans are local-first; with no backend configured, enrolling stays on the device.
 mockSupabaseModule(mock, createSupabaseFake(), { configured: false });
 const leaveService = { run: null as (() => Promise<{ success: boolean }>) | null };
+const enrollService = { before: null as (() => Promise<void>) | null };
 mockBarrel(mock, 'services/plans/readingPlanService.ts', {
-  real: ['listReadingPlans', 'getPlanEntries', 'getPlansByCategory', 'enrollInPlan'],
+  real: [
+    'listReadingPlans',
+    'getPlanEntries',
+    'getPlansByCategory',
+    'markDayComplete',
+    'markPlanSessionComplete',
+  ],
   provide: {
+    enrollInPlan: async (planId: string) => {
+      await enrollService.before?.();
+      return (await import('../../services/plans/readingPlan/planProgressActions')).enrollInPlan(
+        planId
+      );
+    },
     unenrollFromPlan: async (planId: string) =>
       leaveService.run
         ? leaveService.run()
@@ -102,6 +117,7 @@ async function loadStore() {
 
 beforeEach(() => {
   leaveService.run = null;
+  enrollService.before = null;
   mock.timers.enable({ apis: ['Date'], now: new Date(TODAY) });
 });
 
@@ -111,6 +127,7 @@ afterEach(async () => {
   store.setState(store.getInitialState(), true);
   bibleStore.setState(bibleStore.getInitialState(), true);
   audioStore.setState(audioStore.getInitialState(), true);
+  progressStore.setState(progressStore.getInitialState(), true);
   rootCalls.length = 0;
 });
 
@@ -184,11 +201,11 @@ const lastReaderLaunch = () => {
 // Opening a plan day in the reader
 // ---------------------------------------------------------------------------
 
-test("Read on today's card opens the reader on the day's first chapter with the day queued and the plan context", async () => {
+test("tapping today's card honors the listen preference with the day queued and the plan context", async () => {
   await enroll(PSALMS, { current_day: 3, completed_entries: { '1': 'x', '2': 'x' } });
   const view = await renderPlan(PSALMS);
 
-  await view.press(view.getByRole('button', { name: t('bible.read') }));
+  await view.press(view.getByTestId('plan-detail-current-day-row'));
 
   const reader = lastReaderLaunch();
   const chapters = chaptersOf(PSALMS, 3);
@@ -206,6 +223,63 @@ test("Read on today's card opens the reader on the day's first chapter with the 
   assert.equal('planSessionKey' in reader, false);
 });
 
+test('explicit Read overrides the listen preference without autoplay and preserves the saved day resume', async () => {
+  const store = await enroll(PSALMS, { current_day: 3 });
+  const chapters = chaptersOf(PSALMS, 3);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  const view = await renderPlan(PSALMS);
+
+  await view.press(view.getByRole('button', { name: t('bible.read') }));
+
+  assert.deepEqual(lastReaderLaunch(), {
+    bookId: 'PSA',
+    chapter: chapters[2],
+    preferredMode: 'read',
+    playbackSequenceEntries: chapters.map((chapter) => ({ bookId: 'PSA', chapter })),
+    planId: PSALMS,
+    planDayNumber: 3,
+    returnToPlanOnComplete: true,
+  });
+  assert.equal(bibleStore.getState().preferredChapterLaunchMode, 'listen');
+
+  await view.press(view.getByRole('button', { name: t('bible.listen') }));
+  assert.equal(lastReaderLaunch().preferredMode, 'listen');
+  assert.equal(lastReaderLaunch().autoplayAudio, true);
+  assert.equal(lastReaderLaunch().chapter, chapters[2]);
+});
+
+test('explicit Read keeps paused audio paused and chooses reading over the listen preference', async () => {
+  audioStore.setState({ status: 'paused' });
+  await enroll(PSALMS, { current_day: 3 });
+  const view = await renderPlan(PSALMS);
+
+  await view.press(view.getByRole('button', { name: t('bible.read') }));
+
+  assert.equal(lastReaderLaunch().preferredMode, 'read');
+  assert.equal('autoplayAudio' in lastReaderLaunch(), false);
+  assert.equal(audioStore.getState().status, 'paused');
+
+  await view.press(view.getByTestId('plan-detail-current-day-row'));
+  assert.equal(lastReaderLaunch().preferredMode, 'listen');
+  assert.equal('autoplayAudio' in lastReaderLaunch(), false);
+});
+
+test('explicit Read preserves the recurring day occurrence and selected session sequence', async () => {
+  await enroll(KATHISMA, { started_at: '2026-09-20T09:00:00.000Z' });
+  const view = await renderPlan(KATHISMA);
+  await view.press(view.getByTestId('plan-detail-current-day-row'));
+  const genericLaunch = lastReaderLaunch();
+  assert.equal(genericLaunch.planOccurrenceKey, '2026-09-24');
+  assert.equal(genericLaunch.planSessionKey, 'morning');
+  assert.equal(genericLaunch.autoplayAudio, true);
+
+  await view.press(view.getByRole('button', { name: t('bible.read') }));
+
+  const expected: ReaderParams = { ...genericLaunch, preferredMode: 'read' };
+  delete expected.autoplayAudio;
+  assert.deepEqual(lastReaderLaunch(), expected);
+});
+
 test('a saved resume point reopens the day on that chapter, still queuing the whole day', async () => {
   const store = await enroll(PSALMS, { current_day: 3 });
   const chapters = chaptersOf(PSALMS, 3);
@@ -219,6 +293,40 @@ test('a saved resume point reopens the day on that chapter, still queuing the wh
   assert.equal(reader.playbackSequenceEntries.length, chapters.length);
 });
 
+for (const fixture of [
+  { planId: KATHISMA, day: 5, label: 'Morning Kathismata for day 5', older: '2026-09-17' },
+  { planId: 'common-prayer-psalter', day: 24, label: 'Morning for day 24', older: '2026-08-24' },
+]) {
+  for (const occurrence of ['previous', 'current', 'legacy'] as const) {
+    test(`${fixture.planId} launches ${occurrence === 'current' ? 'its saved chapter for the same occurrence' : 'the first chapter instead of a ' + occurrence + ' occurrence resume'}`, async () => {
+      const store = await enroll(fixture.planId);
+      const entries = readingPlanEntriesByPlanId[fixture.planId].filter(
+        (entry) => entry.day_number === fixture.day && entry.session_key === 'morning'
+      );
+      const firstEntry = entries[0];
+      const lastEntry = entries.at(-1);
+      assert.ok(firstEntry && lastEntry);
+      const first = firstEntry.chapter_start;
+      const last = lastEntry.chapter_end ?? lastEntry.chapter_start;
+      assert.notEqual(first, last, 'fixture has several chapters');
+      const occurrenceKey = occurrence === 'current' ? '2026-09-24' : fixture.older;
+      store.setState({
+        planDayResumeByKey: {
+          [`${fixture.planId}:${fixture.day}`]: {
+            bookId: 'PSA',
+            chapter: last,
+            ...(occurrence === 'legacy' ? {} : { occurrenceKey }),
+          },
+        },
+      });
+      const view = await renderPlan(fixture.planId);
+      await view.press(view.getByRole('button', { name: fixture.label }));
+
+      assert.equal(lastReaderLaunch().chapter, occurrence === 'current' ? last : first);
+    });
+  }
+}
+
 test('a reader who prefers reading opens the day without autoplay, while Listen always starts audio', async () => {
   bibleStore.setState({ preferredChapterLaunchMode: 'read' });
   await enroll(PSALMS, { current_day: 3 });
@@ -226,6 +334,11 @@ test('a reader who prefers reading opens the day without autoplay, while Listen 
 
   await view.press(view.getByRole('button', { name: t('bible.read') }));
   let reader = lastReaderLaunch();
+  assert.equal(reader.preferredMode, 'read');
+  assert.equal('autoplayAudio' in reader, false);
+
+  await view.press(view.getByTestId('plan-detail-current-day-row'));
+  reader = lastReaderLaunch();
   assert.equal(reader.preferredMode, 'read');
   assert.equal('autoplayAudio' in reader, false);
 
@@ -760,4 +873,149 @@ test('a plan id missing from the catalog shows the error page with a way back, a
     ['goBack']
   );
   assert.deepEqual(store.getState().progressByPlanId, {});
+});
+
+test('plan detail updates completion from the durable listen ledger without replay history', async () => {
+  await enroll(PSALMS, { current_day: 1 });
+  const view = await renderPlan(PSALMS);
+  await act(async () => {
+    progressStore.setState({ chaptersListened: { PSA_1: Date.now() } });
+  });
+  assert.ok(
+    view.getByText(
+      t('readingPlans.todayTargetProgress', { completed: 1, target: chaptersOf(PSALMS, 1).length })
+    )
+  );
+});
+
+/** Complete the real reader hook using the route supplied by the rendered plan action. */
+async function completeDisplayedPlanLaunch(launch: ReaderParams) {
+  const store = await loadStore();
+  const { usePlanDayCompletion } = await import('../bible/reader/usePlanDayCompletion');
+  const { Pressable } = await import('react-native');
+  const planId = launch.planId as string;
+  const dayNumber = launch.planDayNumber as number;
+  const sessionKey = launch.planSessionKey as 'morning' | 'evening' | undefined;
+  const entries = readingPlanEntriesByPlanId[planId].filter(
+    (entry) => entry.day_number === dayNumber && (!sessionKey || entry.session_key === sessionKey)
+  );
+  function CompletionControl() {
+    const { handleCompletePlanDay } = usePlanDayCompletion({
+      activeChapterKey: `${launch.bookId}_${launch.chapter}`,
+      activePlanChapterIndex: 0,
+      activePlanDaySummary: null,
+      activePlanId: planId,
+      activePlanIsMultiSession: Boolean(sessionKey),
+      activePlanProgress: store.getState().progressByPlanId[planId]!,
+      activePlanSessionEntries: entries,
+      activePlanSessionKey: sessionKey ?? null,
+      activePlanSessionSummary: null,
+      bookId: launch.bookId,
+      chapter: launch.chapter,
+      chapterSessionMode: 'read',
+      clearAudioPlaybackSequence: () => {},
+      clearPlanDayResume: store.getState().clearPlanDayResume,
+      currentChapterListenStatus: null,
+      isLastPlanChapter: true,
+      markChapterRead: () => {},
+      planDayNumber: dayNumber,
+      ...{ planOccurrenceKey: launch.planOccurrenceKey as string | undefined },
+      returnToPlanOnComplete: true,
+      setAudioTrack: () => {},
+      setListenCountedNotice: () => {},
+      stop: async () => {},
+    });
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Complete day"
+        onPress={handleCompletePlanDay}
+      />
+    );
+  }
+  const completion = await harness.render(<CompletionControl />);
+  await completion.press(completion.getByRole('button', { name: 'Complete day' }));
+  return store.getState().progressByPlanId[planId]!;
+}
+
+for (const hour of [0, 12]) {
+  test(`a new future October ledger reading at ${hour}:10 completes October rather than last night`, async () => {
+    mock.timers.setTime(
+      new Date(`2026-10-01T${String(hour).padStart(2, '0')}:10:00.000Z`).getTime()
+    );
+    await enroll(PROVERBS, { started_at: '2026-09-01T09:00:00.000Z' });
+    const view = await renderPlan(PROVERBS);
+    const row = ledgerRow(view, 30);
+    assert.match(accessibilityLabelOf(row)!, /^Day 30, Oct 30: /);
+    await view.press(row);
+    const launch = lastReaderLaunch();
+    const progress = await completeDisplayedPlanLaunch(launch);
+    assert.ok(progress.completed_entries['2026-10-30']);
+    assert.equal(progress.completed_entries['2026-09-30'], undefined);
+    assert.equal(launch.planOccurrenceKey, '2026-10-30');
+  });
+}
+
+for (const hour of [0, 5]) {
+  test(`a reading opened September 30 stays with that occurrence when completed October 1 at ${hour}:10`, async () => {
+    mock.timers.setTime(new Date('2026-09-30T23:55:00.000Z').getTime());
+    await enroll(PROVERBS, { started_at: '2026-09-01T09:00:00.000Z' });
+    const view = await renderPlan(PROVERBS);
+    await view.press(view.getByRole('button', { name: t('bible.read') }));
+    const launch = lastReaderLaunch();
+    mock.timers.setTime(
+      new Date(`2026-10-01T${String(hour).padStart(2, '0')}:10:00.000Z`).getTime()
+    );
+    const progress = await completeDisplayedPlanLaunch(launch);
+    assert.ok(progress.completed_entries['2026-09-30']);
+    assert.equal(progress.completed_entries['2026-10-30'], undefined);
+    assert.equal(launch.planOccurrenceKey, '2026-09-30');
+  });
+}
+
+test('weekly session actions keep the displayed upcoming Saturday occurrence and its session suffix', async () => {
+  mock.timers.setTime(new Date('2026-09-27T00:10:00.000Z').getTime());
+  await enroll(KATHISMA, { started_at: '2026-09-01T09:00:00.000Z' });
+  const view = await renderPlan(KATHISMA);
+  const row = ledgerRow(view, 7);
+  assert.match(accessibilityLabelOf(row)!, /^Day 7, Oct 3: /);
+  await view.press(row);
+  const launch = lastReaderLaunch();
+  assert.equal(launch.planSessionKey, 'morning');
+  const progress = await completeDisplayedPlanLaunch(launch);
+  assert.ok(progress.completed_sessions?.['2026-10-03:morning']);
+  assert.equal(progress.completed_sessions?.['2026-09-26:morning'], undefined);
+  assert.equal(launch.planOccurrenceKey, '2026-10-03');
+});
+
+test('a displayed row occurrence is captured before enrollment crosses midnight, in read and listen modes', async () => {
+  for (const mode of ['read', 'listen'] as const) {
+    mock.timers.setTime(new Date('2026-09-30T23:55:00Z').getTime());
+    const store = await loadStore();
+    store.setState(store.getInitialState(), true);
+    let resolveEnrollment!: () => void;
+    let entered = false;
+    enrollService.before = () => {
+      entered = true;
+      return new Promise<void>((resolve) => {
+        resolveEnrollment = resolve;
+      });
+    };
+    bibleStore.setState({ preferredChapterLaunchMode: mode });
+    const view = await renderPlan(PROVERBS);
+    const press = view.press(ledgerRow(view, 30));
+    assert.equal(entered, true);
+    assert.equal(rootCalls.length, 0);
+    mock.timers.setTime(new Date('2026-10-01T05:10:00Z').getTime());
+    resolveEnrollment();
+    await press;
+    const launch = lastReaderLaunch();
+    assert.equal(launch.chapter, 30);
+    assert.equal(launch.planOccurrenceKey, '2026-09-30');
+    const progress = await completeDisplayedPlanLaunch(launch);
+    assert.ok(progress.completed_entries['2026-09-30']);
+    assert.equal(progress.completed_entries['2026-10-30'], undefined);
+    await view.unmount();
+    rootCalls.length = 0;
+  }
 });

@@ -33,6 +33,8 @@ interface PlanChapterActivityRecord {
 
 export interface MergeTodayChapterActivityInput {
   chaptersRead: Record<string, number>;
+  /** Completed listens retain their actual completion day across later replays. */
+  chaptersListened?: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   now?: Date;
   listenCompletionThreshold?: number;
@@ -83,7 +85,11 @@ export interface BuildRhythmReaderSessionInput {
   planEntriesById: Record<string, ReadingPlanEntry[]>;
   progressByPlanId?: Record<string, UserReadingPlanProgress | null | undefined>;
   planTitlesById?: Record<string, string>;
-  getPlanDayResume?: (planId: string, dayNumber: number) => ReadingPlanDayResume | null;
+  getPlanDayResume?: (
+    planId: string,
+    dayNumber: number,
+    occurrenceKey?: string
+  ) => ReadingPlanDayResume | null;
   today?: Date;
 }
 
@@ -294,6 +300,9 @@ export function buildRhythmReaderSession({
         title: planTitlesById[planId] ?? planId,
         planId,
         dayNumber,
+        ...(plan && isRecurringPlan(plan)
+          ? { occurrenceKey: getPlanCompletionEntryKey(plan, dayNumber, today) }
+          : {}),
         startIndex,
         endIndex,
         chapterKeys: segmentChapterKeys,
@@ -345,12 +354,24 @@ export function buildRhythmReaderSession({
 
   const startSegment = resolveFirstIncompleteRhythmSessionSegment(sessionContext, progressByPlanId);
   const startPlanId = startSegment?.type === 'plan' ? startSegment.planId : null;
+  const startPlan = startPlanId ? readingPlansById.get(startPlanId) : null;
   const startResume =
     startSegment?.type === 'plan' &&
     typeof startPlanId === 'string' &&
     getPlanDayResume &&
     typeof startSegment.dayNumber === 'number'
-      ? getPlanDayResume(startPlanId, startSegment.dayNumber)
+      ? getPlanDayResume(
+          startPlanId,
+          startSegment.dayNumber,
+          startPlan && isRecurringPlan(startPlan)
+            ? getPlanCompletionEntryKey(
+                startPlan,
+                startSegment.dayNumber,
+                today,
+                startSegment.occurrenceKey
+              )
+            : undefined
+        )
       : null;
   const startEntry =
     startSegment && startSegment.startIndex < playbackSequenceEntries.length
@@ -474,6 +495,7 @@ function mergeChapterActivityRecords(
 ): PlanChapterActivityRecord[] {
   const {
     chaptersRead,
+    chaptersListened = {},
     listeningHistory,
     now = new Date(),
     listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
@@ -492,6 +514,14 @@ function mergeChapterActivityRecords(
       source: 'read',
       progress: null,
     });
+  }
+
+  for (const [chapterKey, timestamp] of Object.entries(chaptersListened)) {
+    if (!Number.isFinite(timestamp) || !isSameLocalDay(timestamp, todayKey)) continue;
+    const existing = merged.get(chapterKey);
+    if (!existing || timestamp >= existing.timestamp) {
+      merged.set(chapterKey, { chapterKey, timestamp, source: 'listen', progress: 1 });
+    }
   }
 
   for (const entry of listeningHistory) {
@@ -636,10 +666,11 @@ function getPlanDayDateKey(
   plan: ReadingPlan | null | undefined,
   progress: UserReadingPlanProgress,
   dayNumber: number,
-  today: Date
+  today: Date,
+  occurrenceKey?: string
 ): string {
   if (isRecurringPlan(plan)) {
-    return getPlanCompletionEntryKey(plan!, dayNumber, today);
+    return getPlanCompletionEntryKey(plan!, dayNumber, today, occurrenceKey);
   }
 
   return getScheduledPlanDayDateKey(progress.started_at, dayNumber);
@@ -650,8 +681,10 @@ export function getCurrentPlanDaySummary({
   entries,
   progress,
   chaptersRead,
+  chaptersListened,
   listeningHistory,
   dayNumber,
+  occurrenceKey,
   today = new Date(),
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
 }: {
@@ -659,8 +692,11 @@ export function getCurrentPlanDaySummary({
   entries: ReadingPlanEntry[];
   progress: UserReadingPlanProgress;
   chaptersRead: Record<string, number>;
+  /** Completed listens retain their actual completion day across later replays. */
+  chaptersListened?: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   dayNumber?: number;
+  occurrenceKey?: string;
   today?: Date;
   listenCompletionThreshold?: number;
 }): CurrentPlanDaySummary {
@@ -669,13 +705,14 @@ export function getCurrentPlanDaySummary({
 
   const summary = buildPlanDayCompletionSummary(entries, resolvedDayNumber, {
     chaptersRead,
+    chaptersListened,
     listeningHistory,
     now: today,
     listenCompletionThreshold,
   });
 
   const completionKey = plan
-    ? getPlanCompletionEntryKey(plan, resolvedDayNumber, today)
+    ? getPlanCompletionEntryKey(plan, resolvedDayNumber, today, occurrenceKey)
     : String(resolvedDayNumber);
   const isPersistedDayComplete = Boolean(progress.completed_entries[completionKey]);
 
@@ -689,9 +726,11 @@ export function getCurrentPlanDaySummary({
     progress,
     entries,
     dayNumber: resolvedDayNumber,
+    occurrenceKey,
     today,
     input: {
       chaptersRead,
+      chaptersListened,
       listeningHistory,
       now: today,
       listenCompletionThreshold,
@@ -701,7 +740,7 @@ export function getCurrentPlanDaySummary({
 
   return {
     dayNumber: resolvedDayNumber,
-    dateKey: getPlanDayDateKey(plan, progress, resolvedDayNumber, today),
+    dateKey: getPlanDayDateKey(plan, progress, resolvedDayNumber, today, occurrenceKey),
     targetChapterKeys: summary.targetChapterKeys,
     completedChapterKeys: isPersistedDayComplete
       ? summary.targetChapterKeys
@@ -726,6 +765,7 @@ function buildPlanDaySessionSummaries({
   progress,
   entries,
   dayNumber,
+  occurrenceKey,
   today,
   input,
 }: {
@@ -733,6 +773,7 @@ function buildPlanDaySessionSummaries({
   progress: UserReadingPlanProgress;
   entries: ReadingPlanEntry[];
   dayNumber: number;
+  occurrenceKey?: string;
   today: Date;
   input: MergeTodayChapterActivityInput;
 }): PlanDaySessionSummary[] {
@@ -743,7 +784,13 @@ function buildPlanDaySessionSummaries({
       input
     );
     const persistedCompletionKey = plan
-      ? buildPlanSessionCompletionKey(plan, dayNumber, sessionGroup.sessionKey, today)
+      ? buildPlanSessionCompletionKey(
+          plan,
+          dayNumber,
+          sessionGroup.sessionKey,
+          today,
+          occurrenceKey
+        )
       : `${dayNumber}:${sessionGroup.sessionKey}`;
     const isPersistedSessionComplete = Boolean(
       progress.completed_sessions?.[persistedCompletionKey]
@@ -781,6 +828,7 @@ export function getPlanChapterListenStatus({
   chapter,
   targetChapterKeys,
   completedChapterKeys,
+  chaptersListened,
   listeningHistory,
   dateKey,
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
@@ -790,6 +838,7 @@ export function getPlanChapterListenStatus({
   chapter: number;
   targetChapterKeys: string[];
   completedChapterKeys: string[];
+  chaptersListened?: Record<string, number>;
   listeningHistory: ListeningHistoryEntry[];
   dateKey: string;
   listenCompletionThreshold?: number;
@@ -801,6 +850,13 @@ export function getPlanChapterListenStatus({
     };
   }
 
+  const completedAt = chaptersListened?.[chapterKey];
+  const ledgerCountedAt =
+    completedAt !== undefined &&
+    Number.isFinite(completedAt) &&
+    formatLocalDateKey(new Date(completedAt)) === dateKey
+      ? completedAt
+      : null;
   const matchingHistoryEntry = listeningHistory.find(
     (entry) =>
       entry.bookId === bookId &&
@@ -810,7 +866,7 @@ export function getPlanChapterListenStatus({
   );
 
   return {
-    currentChapterListenCountedAt: matchingHistoryEntry?.listenedAt ?? null,
+    currentChapterListenCountedAt: ledgerCountedAt ?? matchingHistoryEntry?.listenedAt ?? null,
     alreadyCountedForPlan: completedChapterKeys.includes(chapterKey),
   };
 }

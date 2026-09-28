@@ -139,6 +139,7 @@ export function PlansHomeScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: contentClearance }}
         stickyHeaderIndices={[1]}
         refreshControl={

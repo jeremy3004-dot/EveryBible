@@ -126,7 +126,15 @@ function reuseRowsOfReplacedHighlights(
     const [id] = softDeleteIds.splice(index, 1);
     return { ...upsert, id };
   });
-  return { softDeleteIds, upserts };
+  // A reused row can shrink the original range. Persist every new replacement first:
+  // if one fails, the original still covers all of its unselected verses.
+  return {
+    softDeleteIds,
+    upserts: [
+      ...upserts.filter((upsert) => !byId.has(upsert.id)),
+      ...upserts.filter((upsert) => byId.has(upsert.id)),
+    ],
+  };
 }
 
 /**

@@ -1170,3 +1170,21 @@ test('a backward jump of two seconds or more is a seek; smaller wobble is not', 
   );
   assert.equal(hasAudioPositionJumpedBack({ previousPosition: null, currentPosition: 0 }), false);
 });
+
+test('chapter route updates preserve a captured plan occurrence and explicitly clear it on a passage segment', () => {
+  const pinned = buildReaderChapterRouteParams({
+    bookId: 'PRO',
+    chapter: 30,
+    preferredMode: 'read',
+    planOccurrenceKey: '2026-09-30',
+  });
+  assert.equal(pinned.planOccurrenceKey, '2026-09-30');
+  const passage = buildReaderChapterRouteParams({
+    bookId: 'PSA',
+    chapter: 1,
+    preferredMode: 'read',
+    planOccurrenceKey: undefined,
+  });
+  assert.equal(Object.hasOwn(passage, 'planOccurrenceKey'), true);
+  assert.equal(passage.planOccurrenceKey, undefined);
+});

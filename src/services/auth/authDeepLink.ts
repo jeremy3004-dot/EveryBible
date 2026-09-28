@@ -1,3 +1,4 @@
+import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
 import {
@@ -46,6 +47,8 @@ export interface ActivatePasswordRecoveryOptions {
   signedInUserId?: string | null;
   /** Clears the current account while keeping the isolated recovery route mounted. */
   signOutCurrentAccount?: () => Promise<void>;
+  /** Observes the exact session returned by this validated recovery exchange. */
+  onActivated?: (session: Session) => void;
 }
 
 // auth-js keeps the PKCE verifier in the client's storage under `<storageKey>-code-verifier`.
@@ -59,7 +62,10 @@ interface AuthStorageInternals {
   storageKey: string;
 }
 
-async function readStoredCodeVerifier(): Promise<{ restore: () => Promise<void> } | null> {
+async function readStoredCodeVerifier(): Promise<{
+  isRecovery: boolean;
+  restore: () => Promise<void>;
+} | null> {
   const auth = supabase.auth as unknown as AuthStorageInternals;
   const key = `${auth.storageKey}-code-verifier`;
   let value: string | null = null;
@@ -70,7 +76,19 @@ async function readStoredCodeVerifier(): Promise<{ restore: () => Promise<void> 
   }
   if (!value) return null;
   const stored = value;
+  let isRecovery = false;
+  try {
+    // getItemAsync in auth-js decodes storage before splitting this same tag.
+    const decoded: unknown = JSON.parse(stored);
+    if (typeof decoded === 'string') {
+      const [verifier, redirectType] = decoded.split('/');
+      isRecovery = Boolean(verifier) && redirectType === 'PASSWORD_RECOVERY';
+    }
+  } catch {
+    // Malformed SDK storage cannot authorize a recovery exchange.
+  }
   return {
+    isRecovery,
     restore: async () => {
       await auth.storage.setItem(key, stored);
     },
@@ -104,16 +122,14 @@ export async function activatePendingPasswordRecovery(
     return { status: 'failed', problem: 'configuration' };
   }
 
+  const verifier = await readStoredCodeVerifier();
+  if (!verifier || !verifier.isRecovery) {
+    pendingPasswordRecovery = null;
+    return { status: 'failed', problem: verifier ? 'expired' : 'wrong-device' };
+  }
   if (options.signedInUserId && options.signOutCurrentAccount) {
-    // auth-js deletes the stored PKCE verifier on every sign-out, so signing out first
-    // destroyed the verifier this exchange needs: a signed-in user could never finish a
-    // reset, and any crafted reset link signed them out for nothing. Keep the verifier
-    // across the sign-out, and do not sign out at all when this install holds none.
-    const verifier = await readStoredCodeVerifier();
-    if (!verifier) {
-      pendingPasswordRecovery = null;
-      return { status: 'failed', problem: 'wrong-device' };
-    }
+    // auth-js deletes the verifier on sign-out; restore only the validated
+    // recovery verifier before exchanging this device's parked code.
     try {
       await options.signOutCurrentAccount();
       await verifier.restore();
@@ -124,7 +140,39 @@ export async function activatePendingPasswordRecovery(
 
   pendingPasswordRecovery = null;
 
+  let observed: Session | null = null;
+  let admitted: Session | null = null;
+  let revision = 0;
+  let admittedRevision = 0;
+  let release = () => {};
+  const sameSession = (left: Session | null, right: Session | null) =>
+    left?.user.id === right?.user.id &&
+    left?.access_token === right?.access_token &&
+    left?.refresh_token === right?.refresh_token;
   try {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+        if (!sameSession(observed, session)) {
+          revision += 1;
+          admitted = session;
+          admittedRevision = revision;
+        }
+        observed = session;
+      } else if (event === 'TOKEN_REFRESHED') {
+        if (observed?.user.id !== session?.user.id) {
+          revision += 1;
+          admitted = null;
+        }
+        observed = session;
+      } else if (event === 'SIGNED_OUT') {
+        revision += 1;
+        admitted = null;
+        observed = null;
+      }
+    });
+    release = () => subscription.unsubscribe();
     const { data, error } = await supabase.auth.exchangeCodeForSession(pending.code);
 
     if (error || !data.session) {
@@ -136,11 +184,25 @@ export async function activatePendingPasswordRecovery(
     // (auth-js returns `redirectType` at runtime but its published type omits it.)
     const { redirectType } = data as { redirectType?: string | null };
     if (redirectType !== 'PASSWORD_RECOVERY') {
-      await supabase.auth.signOut().catch(() => undefined);
+      // A later verifier write can still change the SDK tag after preflight.
+      // Keep its defense scoped to the exchange session, including across native
+      // removal. Refresh/duplicate SIGNED_IN retain the initial admission identity.
+      const ownsExchange = sameSession(admitted, data.session) && admittedRevision === revision;
+      const cleanupRevision = revision;
+      const isCurrent = () =>
+        ownsExchange && revision === cleanupRevision && observed?.user.id === data.session?.user.id;
+      if (isCurrent()) {
+        await import('./authService')
+          .then(({ signOut }) => signOut(isCurrent))
+          .catch(() => undefined);
+      }
       return { status: 'failed', problem: 'expired' };
     }
+    options.onActivated?.(data.session);
   } catch (e) {
     return { status: 'failed', problem: classifyRecoveryExchangeError(e) };
+  } finally {
+    release();
   }
 
   return { status: 'activated' };

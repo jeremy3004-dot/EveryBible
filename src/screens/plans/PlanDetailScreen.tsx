@@ -59,6 +59,7 @@ import {
   buildPlanDayViewModels,
   getDominantPlanBook,
   getNextLedgerDayNumber,
+  getLedgerDayCompletionKey,
   getPlanCadenceLabelKey,
   groupEntriesByDay,
   orderLedgerRows,
@@ -104,6 +105,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     ? getActivePlanDayNumber(plan, progress, today)
     : (progress?.current_day ?? 1);
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
+  const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningHistory = useLibraryStore((state) => state.history);
   const preferredChapterLaunchMode = useBibleStore((state) => state.preferredChapterLaunchMode);
   // Only whether the current translation has audio: a download or catalog change
@@ -122,10 +124,11 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       entries,
       progress,
       chaptersRead,
+      chaptersListened,
       listeningHistory,
       today,
     });
-  }, [chaptersRead, entries, listeningHistory, plan, progress, today]);
+  }, [chaptersRead, chaptersListened, entries, listeningHistory, plan, progress, today]);
   const isEnrolled = progress !== null;
   const multiSessionPlan = isMultiSessionPlan(plan);
 
@@ -136,6 +139,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       if (!rootNavigationRef.isReady()) return null;
 
       lightHaptic();
+      const planOccurrenceKey =
+        plan && isRecurringPlan(plan)
+          ? getLedgerDayCompletionKey(plan, dayNumber, today)
+          : undefined;
 
       if (!progress) {
         const enrollResult = await enrollInPlan(planId);
@@ -155,26 +162,30 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
       }
 
       const playbackSequenceEntries = buildPlanDayPlaybackSequenceEntries(dayEntries);
-      const resumeTarget = getPlanDayResume(planId, dayNumber);
+      const resumeTarget = getPlanDayResume(planId, dayNumber, planOccurrenceKey);
       const playbackStartEntry = resolvePlanDayPlaybackStartEntry(dayEntries, resumeTarget) ?? {
         bookId: fallbackEntry.book,
         chapter: fallbackEntry.chapter_start,
       };
 
-      return { playbackSequenceEntries, playbackStartEntry };
+      return { playbackSequenceEntries, playbackStartEntry, planOccurrenceKey };
     },
-    [entriesByDay, getPlanDayResume, multiSessionPlan, planId, progress]
+    [entriesByDay, getPlanDayResume, multiSessionPlan, plan, planId, progress, today]
   );
 
   const handleOpenChapter = useCallback(
-    async (dayNumber: number, sessionKey?: PlanSessionKey) => {
+    async (
+      dayNumber: number,
+      sessionKey?: PlanSessionKey,
+      preferredMode = preferredChapterLaunchMode
+    ) => {
       const launch = await resolvePlanDayLaunch(dayNumber, sessionKey);
       if (!launch) return;
 
       const { playbackSequenceEntries, playbackStartEntry } = launch;
       const autoplayAudio = shouldAutoplayPlanDayLaunch({
         trigger: 'open',
-        preferredMode: preferredChapterLaunchMode,
+        preferredMode,
         audioStatus: useAudioStore.getState().status,
       });
 
@@ -184,16 +195,23 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           bookId: playbackStartEntry.bookId,
           chapter: playbackStartEntry.chapter,
           ...(autoplayAudio ? { autoplayAudio: true } : {}),
-          preferredMode: preferredChapterLaunchMode,
+          preferredMode,
           playbackSequenceEntries,
           planId,
           planDayNumber: dayNumber,
+          ...(launch.planOccurrenceKey ? { planOccurrenceKey: launch.planOccurrenceKey } : {}),
           ...(sessionKey ? { planSessionKey: sessionKey } : {}),
           returnToPlanOnComplete: true,
         },
       });
     },
     [planId, preferredChapterLaunchMode, resolvePlanDayLaunch]
+  );
+
+  const handleReadDay = useCallback(
+    (dayNumber: number, sessionKey?: PlanSessionKey) =>
+      handleOpenChapter(dayNumber, sessionKey, 'read'),
+    [handleOpenChapter]
   );
 
   // The play button is an explicit "listen to this day", so it overrides the
@@ -213,6 +231,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
           playbackSequenceEntries: launch.playbackSequenceEntries,
           planId,
           planDayNumber: dayNumber,
+          ...(launch.planOccurrenceKey ? { planOccurrenceKey: launch.planOccurrenceKey } : {}),
           ...(sessionKey ? { planSessionKey: sessionKey } : {}),
           returnToPlanOnComplete: true,
         },
@@ -372,9 +391,10 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
         isLast={index === ledgerRows.length - 1}
         sessionActions={item.sessionActions}
         onPress={handleOpenChapter}
+        onRead={handleReadDay}
       />
     ),
-    [handleOpenChapter, ledgerRows.length]
+    [handleOpenChapter, handleReadDay, ledgerRows.length]
   );
 
   const keyExtractorDay = useCallback((item: PlanDayViewModel) => String(item.dayNumber), []);
@@ -436,6 +456,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
               audioAvailable={audioAvailable}
               sessionActions={todayViewModel.sessionActions}
               onPress={handleOpenChapter}
+              onRead={handleReadDay}
               onListen={handleListenToDay}
             />
           </View>

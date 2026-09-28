@@ -8,6 +8,7 @@ import { hostAncestors, installRenderHarness, textContent, within } from '../../
 import type { RhythmDetailScreenProps } from '../../navigation/types';
 import type { ReadingPlanRhythmItem, UserReadingPlanProgress } from '../../services/plans/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
 
 // The real reading-plans store runs behind an in-memory MMKV; the plan catalog is the bundled one.
 mockMmkvStorage(mock);
@@ -29,7 +30,10 @@ mockModule(mock, sourcePath('stores/audioStore.ts'), { useAudioStore: audioStore
 mockModule(mock, sourcePath('stores/libraryStore.ts'), {
   useLibraryStore: create(() => ({ history: [] })),
 });
-const progressStore = create(() => ({ chaptersRead: {} as Record<string, number> }));
+const progressStore = create(() => ({
+  chaptersRead: {} as Record<string, number>,
+  chaptersListened: {} as Record<string, number>,
+}));
 mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
 
 const PLAN_ID = 'psalms-30-days';
@@ -92,6 +96,41 @@ const psalm63: ReadingPlanRhythmItem = {
   endChapter: 63,
 };
 const psalmsPlan: ReadingPlanRhythmItem = { id: '', type: 'plan', planId: PLAN_ID };
+
+for (const fixture of [
+  { planId: 'kathisma-weekly', day: 5, previous: '2026-09-17' },
+  { planId: 'common-prayer-psalter', day: 24, previous: '2026-08-24' },
+]) {
+  for (const currentOccurrence of [false, true]) {
+    test(`a rhythm containing ${fixture.planId} ${currentOccurrence ? 'keeps its current' : 'ignores its previous'} occurrence resume`, async (context) => {
+      context.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 24, 12) });
+      const rhythmId = await seedRhythm([{ id: '', type: 'plan', planId: fixture.planId }], null);
+      const store = await loadStore();
+      store.getState().upsertProgress(progress({ plan_id: fixture.planId }));
+      const entries = readingPlanEntriesByPlanId[fixture.planId].filter(
+        (entry) => entry.day_number === fixture.day
+      );
+      const firstEntry = entries[0];
+      const lastEntry = entries.at(-1);
+      assert.ok(firstEntry && lastEntry);
+      const lastChapter = lastEntry.chapter_end ?? lastEntry.chapter_start;
+      store
+        .getState()
+        .setPlanDayResume(
+          fixture.planId,
+          fixture.day,
+          'PSA',
+          lastChapter,
+          currentOccurrence ? '2026-09-24' : fixture.previous
+        );
+      const view = await renderDetail(rhythmId);
+      await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+
+      const reader = rootCalls[0]?.params.params as Record<string, unknown>;
+      assert.equal(reader.chapter, currentOccurrence ? lastChapter : firstEntry.chapter_start);
+    });
+  }
+}
 
 async function renderDetail(rhythmId: string) {
   const { RhythmDetailScreen } = await import('./RhythmDetailScreen');
@@ -393,4 +432,55 @@ test('an edit to the rhythm reaches a detail screen that is already open', async
   assert.ok(view.getByText(t('readingPlans.eveningRhythm')));
   assert.ok(view.getByText(t('interface.chapterNumber', { chapter: 141 })));
   assert.equal(view.queryByText('Evening psalm'), null);
+});
+
+test('rhythm cards refresh plan credit from completed listens without history', async () => {
+  const rhythmId = await seedRhythm([psalmsPlan]);
+  const view = await renderDetail(rhythmId);
+  await act(async () => {
+    progressStore.setState({ chaptersListened: { PSA_1: Date.now() } });
+  });
+  assert.equal(
+    view.getAllByText(t('readingPlans.todayTargetProgress', { completed: 1, target: 5 })).length,
+    2
+  );
+});
+
+test('a recurring rhythm launches its displayed occurrence before midnight and refreshes it on the next foreground', async (context) => {
+  context.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 30, 23, 55) });
+  const planId = 'proverbs-31-days';
+  const store = await loadStore();
+  store.setState({
+    enrolledPlanIds: [planId],
+    progressByPlanId: { [planId]: progress({ plan_id: planId }) },
+  });
+  const result = store
+    .getState()
+    .createRhythm({ title: 'Wisdom', items: [{ id: '', type: 'plan', planId }] });
+  assert.ok(result.success);
+  const view = await renderDetail(result.rhythm!.id);
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+  const opened = rootCalls[0].params.params as Record<string, unknown>;
+  assert.equal(opened.chapter, 30);
+  assert.equal(opened.planOccurrenceKey, '2026-09-30');
+  const capturedContext = opened.sessionContext as { segments: Array<{ occurrenceKey?: string }> };
+  assert.equal(capturedContext.segments[0].occurrenceKey, '2026-09-30');
+  await act(async () => {
+    harness.rn.AppState.emit('background');
+  });
+  mock.timers.setTime(new Date(2026, 9, 1, 5, 10).getTime());
+  await act(async () => {
+    harness.rn.AppState.emit('active');
+  });
+  await view.flush();
+  await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
+  const fresh = rootCalls[1].params.params as Record<string, unknown>;
+  assert.equal(fresh.chapter, 1);
+  assert.equal(fresh.planOccurrenceKey, '2026-10-01');
+  assert.equal(
+    capturedContext.segments[0].occurrenceKey,
+    '2026-09-30',
+    'the prior reader session stays immutable'
+  );
 });

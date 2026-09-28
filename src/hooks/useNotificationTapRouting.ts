@@ -6,10 +6,18 @@ import {
 import {
   createNotificationTapRouter,
   getActiveReadingPlanIds,
+  getNotificationTapKey,
   type NotificationTapRouter,
 } from '../services/notifications/notificationTapRouting';
 import { rootNavigationRef, subscribeToNavigationReady } from '../navigation/rootNavigation';
+import {
+  captureInboundNavigationLaunch,
+  claimInboundNavigation,
+  isCurrentInboundNavigation,
+  type InboundNavigationArrival,
+} from '../navigation/inboundNavigationOwnership';
 
+let lastAdmittedTapKey: string | null = null;
 let routerPromise: Promise<NotificationTapRouter> | null = null;
 
 /**
@@ -73,11 +81,19 @@ export function useNotificationTapRouting(): void {
       unsubscribeFromReady = null;
     };
 
-    const waitForNavigation = (router: NotificationTapRouter) => {
+    const waitForNavigation = (
+      router: NotificationTapRouter,
+      arrival: InboundNavigationArrival
+    ) => {
       if (unsubscribeFromReady) {
         return;
       }
       const flush = () => {
+        if (!isMounted || !isCurrentInboundNavigation(arrival)) {
+          router.clearPending();
+          stopWaiting();
+          return;
+        }
         if (router.flush() || !router.hasPending()) {
           stopWaiting();
         }
@@ -88,14 +104,21 @@ export function useNotificationTapRouting(): void {
     };
 
     const route = (response: unknown) => {
+      if (!isMounted) return;
+      const key = getNotificationTapKey(response);
+      if (key === null || key === lastAdmittedTapKey) return;
+      lastAdmittedTapKey = key;
+      const arrival = claimInboundNavigation();
+      stopWaiting();
+      activeRouter?.clearPending();
       getNotificationTapRouter()
         .then((router) => {
-          if (!isMounted) {
+          if (!isMounted || !isCurrentInboundNavigation(arrival)) {
             return;
           }
           activeRouter = router;
           if (router.handleResponse(response) === 'pending') {
-            waitForNavigation(router);
+            waitForNavigation(router, arrival);
           } else if (!router.hasPending()) {
             stopWaiting();
           }
@@ -106,9 +129,10 @@ export function useNotificationTapRouting(): void {
     };
 
     const subscription = addNotificationResponseReceivedListener(route);
+    const launchArrival = captureInboundNavigationLaunch();
     getLastNotificationResponseAsync()
       .then((response) => {
-        if (response) {
+        if (response && isMounted && isCurrentInboundNavigation(launchArrival)) {
           route(response);
         }
       })

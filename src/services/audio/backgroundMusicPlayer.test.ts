@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { before, beforeEach, mock } from 'node:test';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import type { BackgroundMusicChoice } from '../../types';
+import { assertDefined } from '../../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // Bundled audio assets
@@ -58,6 +59,8 @@ class FakeSound {
     this.record('setPositionAsync', [positionMillis]);
   setOnPlaybackStatusUpdate = (listener: ((status: FakeStatus) => void) | null): void => {
     this.calls.push({ method: 'setOnPlaybackStatusUpdate', args: [listener] });
+    const failure = this.rejections.get('setOnPlaybackStatusUpdate');
+    if (failure) throw failure;
     this.statusListener = listener;
   };
 
@@ -92,10 +95,12 @@ let nextCreateFailure: unknown = null;
 
 const createAsync = async (
   source: unknown,
-  initialStatus: unknown
+  initialStatus: unknown,
+  onPlaybackStatusUpdate?: ((status: FakeStatus) => void) | null
 ): Promise<{ sound: FakeSound }> => {
   createCalls.push({ source, initialStatus });
   const sound = new FakeSound();
+  sound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate ?? null);
   sounds.push(sound);
 
   const gate = nextCreateGate;
@@ -182,7 +187,7 @@ const nearEndOfLoop = (remainingMillis = FADE_DURATION_MS): FakeStatus => ({
 
 // Fades run on setInterval. Enabling the mock clock once (rather than per test)
 // keeps a single scheduling timeline; each test starts from a stopped player.
-mock.timers.enable({ apis: ['setInterval'] });
+mock.timers.enable({ apis: ['setInterval', 'Date'] });
 
 before(async () => {
   mod = await import('./backgroundMusicPlayer');
@@ -271,7 +276,9 @@ test('switching preset while playing crossfades the old loop out as the new one 
   );
   // No hard cut: the old loop is still sounding while the new one starts.
   assert.equal(outgoing.methods().slice(outgoingCallsBefore).includes('stopAsync'), false);
-  assert.equal(outgoing.statusListener, null, 'the old loop can no longer start a crossfade');
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  assert.equal(createCalls.length, 2, 'the retired loop can no longer start a crossfade');
   assert.deepEqual(sounds[1].methods(), ['setOnPlaybackStatusUpdate', 'playAsync']);
 
   mock.timers.tick(FADE_DURATION_MS / 2);
@@ -282,7 +289,11 @@ test('switching preset while playing crossfades the old loop out as the new one 
   mock.timers.tick(FADE_DURATION_MS);
   await flush();
   assert.equal(outgoing.volumes(outgoingCallsBefore).at(-1), 0);
-  assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+  assert.deepEqual(outgoing.methods().slice(-3), [
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
   assert.equal(sounds[1].volumes().at(-1), PIANO_VOLUME);
 });
 
@@ -293,9 +304,9 @@ test('switching preset while paused loads the new one without a crossfade', asyn
   await mod.backgroundMusicPlayer.sync('piano', true);
 
   assert.deepEqual(sounds[0].methods().slice(-3), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
 });
 
@@ -329,9 +340,9 @@ test('syncing to off stops and unloads the loop', async () => {
   await mod.backgroundMusicPlayer.sync('off', true);
 
   assert.deepEqual(sounds[0].methods().slice(-3), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
 });
 
@@ -352,6 +363,29 @@ test('stop unloads the loop and forgets the preset', async () => {
   await mod.backgroundMusicPlayer.sync('ambient', true);
 
   assert.equal(createCalls.length, 2);
+});
+
+test('choosing OFF unloads a disowned sound even when its stop seek rejects', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  outgoing.rejections.set(
+    'stopAsync',
+    Object.assign(new Error('Seeking interrupted.'), { code: 'E_AV_SEEKING' })
+  );
+
+  await mod.backgroundMusicPlayer.sync('off', false);
+  await mod.backgroundMusicPlayer.stop();
+  assert.equal(outgoing.statusListener, null);
+  assert.equal(outgoing.methods().filter((method) => method === 'unloadAsync').length, 1);
+  const volumesAfterOff = outgoing.volumes();
+  runFade();
+  assert.deepEqual(outgoing.volumes(), volumesAfterOff, 'OFF clears all fade timers');
+
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  runFade();
+  assert.equal(sounds[1].methods().includes('playAsync'), true);
+  assert.equal(sounds[1].volumes().at(-1), PIANO_VOLUME);
 });
 
 test('stopping when nothing was ever loaded is a no-op', async () => {
@@ -456,7 +490,11 @@ test('a level change during a loop crossfade reaches the incoming loop', async (
 
   assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME * 2);
   assert.equal(outgoing.volumes().at(-1), 0);
-  assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+  assert.deepEqual(outgoing.methods().slice(-3), [
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
 });
 
 test('a level chosen while a loop replacement loads applies to the replacement', async () => {
@@ -496,6 +534,118 @@ test('level 0 silences the bed but keeps it playing and looping', async () => {
   mod.backgroundMusicPlayer.setLevel(0.5);
   mock.timers.tick(1_000);
   assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME);
+});
+
+for (const transition of ['preset switch', 'loop restart'] as const) {
+  test(`level 0 silences both loops during ${transition} without the old fade restoring volume`, async () => {
+    await mod.backgroundMusicPlayer.sync('ambient', true);
+    runFade();
+    const outgoing = sounds[0];
+    if (transition === 'preset switch') await mod.backgroundMusicPlayer.sync('piano', true);
+    else {
+      outgoing.emitStatus(nearEndOfLoop());
+      await flush();
+    }
+    mock.timers.tick(100);
+    const incoming = sounds[1];
+
+    mod.backgroundMusicPlayer.setLevel(0);
+    mock.timers.tick(400);
+    await flush();
+
+    assert.equal(incoming.volumes().at(-1), 0);
+    assert.equal(outgoing.volumes().at(-1), 0, 'the outgoing loop must obey Sound level 0');
+    assert.equal(outgoing.methods().filter((method) => method === 'unloadAsync').length, 1);
+    mock.timers.tick(500);
+    assert.equal(outgoing.volumes().at(-1), 0, 'the previous fade timer cannot restore volume');
+    assert.equal(incoming.methods().includes('unloadAsync'), false, 'the live loop remains ready');
+    mod.backgroundMusicPlayer.setLevel(0.5);
+    mock.timers.tick(400);
+    assert.equal(
+      incoming.volumes().at(-1),
+      transition === 'preset switch' ? PIANO_VOLUME : AMBIENT_VOLUME
+    );
+  });
+
+  test(`level 0 cannot extend a ${transition} already nearing retirement`, async () => {
+    await mod.backgroundMusicPlayer.sync('ambient', true);
+    runFade();
+    const outgoing = sounds[0];
+    if (transition === 'preset switch') await mod.backgroundMusicPlayer.sync('piano', true);
+    else {
+      outgoing.emitStatus(nearEndOfLoop(1_000));
+      await flush();
+    }
+    // Both outgoing fades have 200 ms left: preset fades take 2500 ms, and
+    // this short remaining loop retires in 750 ms.
+    mock.timers.tick(transition === 'preset switch' ? 2_300 : 550);
+    mod.backgroundMusicPlayer.setLevel(0);
+    mock.timers.tick(200);
+    await flush();
+
+    assert.equal(outgoing.volumes().at(-1), 0);
+    assert.equal(outgoing.methods().filter((method) => method === 'unloadAsync').length, 1);
+  });
+}
+
+test('level 0 mutes the outgoing loop while the replacement preset is still loading', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  const gate = createDeferred();
+  nextCreateGate = gate.promise;
+  const replacement = mod.backgroundMusicPlayer.sync('piano', true);
+  await flush();
+
+  mod.backgroundMusicPlayer.setLevel(0);
+  mock.timers.tick(400);
+  await flush();
+  assert.equal(outgoing.volumes().at(-1), 0);
+  assert.ok(outgoing.methods().includes('unloadAsync'));
+  nextCreateGate = null;
+  gate.resolve();
+  await replacement;
+  runFade();
+  assert.equal(sounds[1].volumes().at(-1), 0);
+  assert.equal(sounds[1].methods().includes('unloadAsync'), false);
+});
+
+test('rapid level 0 then unmute resumes only the live loop while the outgoing loop retires', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  mock.timers.tick(100);
+
+  mod.backgroundMusicPlayer.setLevel(0);
+  mock.timers.tick(150);
+  mod.backgroundMusicPlayer.setLevel(0.5);
+  mock.timers.tick(400);
+  await flush();
+
+  assert.equal(outgoing.volumes().at(-1), 0);
+  assert.equal(outgoing.methods().filter((method) => method === 'unloadAsync').length, 1);
+  assert.equal(sounds[1].volumes().at(-1), PIANO_VOLUME);
+  assert.equal(sounds[1].methods().includes('unloadAsync'), false);
+});
+
+test('level 0 silences every outgoing loop after rapid preset changes', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  mock.timers.tick(100);
+  await mod.backgroundMusicPlayer.sync('soft-guitar', true);
+
+  mod.backgroundMusicPlayer.setLevel(0);
+  mock.timers.tick(400);
+  await flush();
+
+  for (const outgoing of sounds.slice(0, 2)) {
+    assert.equal(outgoing.volumes().at(-1), 0);
+    assert.equal(outgoing.methods().filter((method) => method === 'unloadAsync').length, 1);
+  }
+  assert.equal(sounds[2].volumes().at(-1), 0);
+  assert.equal(sounds[2].methods().includes('unloadAsync'), false);
 });
 
 test('a level change while paused leaves the paused loop alone and applies on resume', async () => {
@@ -587,9 +737,9 @@ test('pausing while switching to a different preset unloads instead of pausing',
 
   assert.equal(createCalls.length, 1);
   assert.deepEqual(sounds[0].methods().slice(-3), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
 });
 
@@ -646,14 +796,21 @@ test('approaching the end of the loop crossfades into a fresh instance', async (
     volume: 0,
     progressUpdateIntervalMillis: 250,
   });
-  // The outgoing loop's handler is detached so the crossfade cannot re-enter.
-  assert.equal(outgoing.statusListener, null);
+  // A retained SDK callback has no authority after its sound retires.
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  assert.equal(createCalls.length, 2, 'late retired status must not re-enter crossfade');
 
   const outgoingCallsBefore = outgoing.calls.length;
   runFade();
+  await flush();
 
   assert.equal(outgoing.volumes(outgoingCallsBefore).at(-1), 0);
-  assert.deepEqual(outgoing.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+  assert.deepEqual(outgoing.methods().slice(-3), [
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
   assert.equal(sounds[1].volumes().at(-1), AMBIENT_VOLUME);
 });
 
@@ -708,11 +865,22 @@ test('a crossfade replacement that arrives after the music stopped is discarded'
   sounds[0].emitStatus(nearEndOfLoop());
   await flush();
   nextCreateGate = null;
-  await mod.backgroundMusicPlayer.stop();
+  let stopped = false;
+  const stopping = mod.backgroundMusicPlayer.stop().then(() => {
+    stopped = true;
+  });
+  await flush();
+  assert.equal(stopped, false, 'stop owns the pending crossfade until its candidate is released');
   gate.resolve();
+  await stopping;
   await flush();
 
-  assert.deepEqual(sounds[1].methods(), ['setOnPlaybackStatusUpdate', 'stopAsync', 'unloadAsync']);
+  assert.deepEqual(sounds[1].methods(), [
+    'setOnPlaybackStatusUpdate',
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
 });
 
 test('a crossfade that cannot load a replacement restarts the current loop from the top', async () => {
@@ -725,26 +893,36 @@ test('a crossfade that cannot load a replacement restarts the current loop from 
   outgoing.emitStatus(nearEndOfLoop());
   await flush();
 
-  assert.deepEqual(outgoing.methods().slice(callsBefore), [
-    'setOnPlaybackStatusUpdate',
-    'setPositionAsync',
-    'setOnPlaybackStatusUpdate',
-  ]);
-  assert.equal(outgoing.calls.at(-2)?.args[0], 0);
+  assert.deepEqual(outgoing.methods().slice(callsBefore), ['setPositionAsync']);
+  assert.equal(outgoing.calls.at(-1)?.args[0], 0);
   assert.notEqual(outgoing.statusListener, null);
 });
 
-test('a failed crossfade whose restart also fails leaves the loop alone', async () => {
+test('a failed crossfade and rewind are contained until a later status retries', async () => {
   await mod.backgroundMusicPlayer.sync('ambient', true);
   runFade();
   const outgoing = sounds[0];
-  outgoing.rejections.set('setPositionAsync', new Error('sound released'));
+  outgoing.setPositionAsync = async (positionMillis: number) => {
+    outgoing.calls.push({ method: 'setPositionAsync', args: [positionMillis] });
+    outgoing.emitStatus(nearEndOfLoop()); // Native status may arrive during the rewind.
+    throw new Error('sound released');
+  };
   nextCreateFailure = new Error('asset unavailable');
 
   outgoing.emitStatus(nearEndOfLoop());
   await flush();
 
-  assert.equal(outgoing.statusListener, null);
+  assert.equal(createCalls.length, 2, 'a rejected rewind must not recursively create replacements');
+  await flush();
+  assert.equal(createCalls.length, 2, 'no retry occurs without a new status');
+  assert.notEqual(outgoing.statusListener, null);
+  nextCreateFailure = null;
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  assert.equal(createCalls.length, 3, 'the owned loop can recover on a later status');
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  assert.equal(createCalls.length, 3, 'the replaced loop has lost status authority');
 });
 
 test('pausing during a crossfade cleans up the retiring loop', async () => {
@@ -760,11 +938,196 @@ test('pausing during a crossfade cleans up the retiring loop', async () => {
   await mod.backgroundMusicPlayer.sync('ambient', false);
 
   assert.deepEqual(outgoing.methods().slice(-3), [
-    'setOnPlaybackStatusUpdate',
     'stopAsync',
     'unloadAsync',
+    'setOnPlaybackStatusUpdate',
   ]);
   assert.deepEqual(incoming.methods().slice(incomingCallsBefore), ['setVolumeAsync', 'pauseAsync']);
+});
+
+test('pausing during crossfade unloads the retiring sound when its stop seek rejects', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  const incoming = sounds[1];
+  outgoing.rejections.set(
+    'stopAsync',
+    Object.assign(new Error('Seeking interrupted.'), { code: 'E_AV_SEEKING' })
+  );
+
+  await mod.backgroundMusicPlayer.sync('ambient', false);
+  assert.equal(outgoing.statusListener, null);
+  assert.equal(outgoing.methods().includes('unloadAsync'), true);
+  assert.equal(incoming.methods().includes('pauseAsync'), true);
+  assert.equal(incoming.methods().includes('unloadAsync'), false, 'pause keeps the active loop');
+  const volumesAfterPause = [outgoing.volumes(), incoming.volumes()];
+  runFade();
+  assert.deepEqual([outgoing.volumes(), incoming.volumes()], volumesAfterPause);
+
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  assert.equal(createCalls.length, 2, 'resume reuses the active loop');
+  assert.equal(incoming.volumes().at(-1), AMBIENT_VOLUME);
+});
+
+test('a retiring sound failing to stop and unload cannot skip releasing the active sound', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = sounds[0];
+  outgoing.emitStatus(nearEndOfLoop());
+  await flush();
+  const incoming = sounds[1];
+  outgoing.rejections.set('stopAsync', new Error('Seeking interrupted.'));
+  outgoing.rejections.set('unloadAsync', new Error('native unload failed'));
+
+  await assert.doesNotReject(() => mod.backgroundMusicPlayer.stop());
+  assert.equal(outgoing.methods().includes('unloadAsync'), true);
+  assert.equal(incoming.methods().includes('unloadAsync'), true);
+  assert.equal(incoming.statusListener, null);
+  const volumesAfterStop = [outgoing.volumes(), incoming.volumes()];
+  runFade();
+  assert.deepEqual([outgoing.volumes(), incoming.volumes()], volumesAfterStop);
+});
+
+test('stop waits for retiring cleanup already detached by a paused sync', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  const gate = createDeferred();
+  const outgoing = assertDefined(sounds[0], 'loaded ambient sound');
+  outgoing.gates.set('stopAsync', gate.promise);
+  const pausing = mod.backgroundMusicPlayer.sync('piano', false);
+  await flush();
+  let stopped = false;
+  const stopping = mod.backgroundMusicPlayer.stop().then(() => {
+    stopped = true;
+  });
+  await flush();
+  const stoppedBeforeCleanup = stopped;
+  gate.resolve();
+  await Promise.all([pausing, stopping]);
+
+  assert.equal(stoppedBeforeCleanup, false, 'stop must drain the already-detached outgoing loop');
+  for (const sound of sounds) assert.ok(sound.methods().includes('unloadAsync'));
+});
+
+test('repeated stop waits for the same detached native cleanup without releasing twice', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  const gate = createDeferred();
+  const sound = assertDefined(sounds[0], 'loaded ambient sound');
+  sound.gates.set('unloadAsync', gate.promise);
+  const first = mod.backgroundMusicPlayer.stop();
+  await flush();
+  let secondDone = false;
+  const second = mod.backgroundMusicPlayer.stop().then(() => {
+    secondDone = true;
+  });
+  await flush();
+  const secondBeforeCleanup = secondDone;
+  gate.resolve();
+  await Promise.all([first, second]);
+
+  assert.equal(secondBeforeCleanup, false);
+  assert.equal(sound.methods().filter((method) => method === 'stopAsync').length, 1);
+  assert.equal(sound.methods().filter((method) => method === 'unloadAsync').length, 1);
+});
+
+test('stop drains cleanup started by Sound Off even if stop rejected before unload', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  const sound = assertDefined(sounds[0], 'loaded ambient sound');
+  const gate = createDeferred();
+  sound.rejections.set('stopAsync', new Error('Seeking interrupted.'));
+  sound.gates.set('unloadAsync', gate.promise);
+  const off = mod.backgroundMusicPlayer.sync('off', false);
+  await flush();
+  let stopped = false;
+  const stopping = mod.backgroundMusicPlayer.stop().then(() => {
+    stopped = true;
+  });
+  await flush();
+  const stoppedBeforeUnload = stopped;
+  gate.resolve();
+  await Promise.all([off, stopping]);
+
+  assert.equal(stoppedBeforeUnload, false);
+  assert.equal(sound.methods().filter((method) => method === 'unloadAsync').length, 1);
+});
+
+test('stop waits for native cleanup begun at the end of an outgoing fade', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  await mod.backgroundMusicPlayer.sync('piano', true);
+  const gate = createDeferred();
+  assertDefined(sounds[0], 'loaded ambient sound').gates.set('unloadAsync', gate.promise);
+  runFade();
+  await flush();
+  let stopped = false;
+  const stopping = mod.backgroundMusicPlayer.stop().then(() => {
+    stopped = true;
+  });
+  await flush();
+  const stoppedBeforeCleanup = stopped;
+  gate.resolve();
+  await stopping;
+
+  assert.equal(stoppedBeforeCleanup, false);
+  for (const sound of sounds)
+    assert.equal(sound.methods().filter((method) => method === 'unloadAsync').length, 1);
+});
+
+test('cleanup is registered before a native stop callback reenters stop', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  const sound = assertDefined(sounds[0], 'loaded ambient sound');
+  const gate = createDeferred();
+  sound.gates.set('stopAsync', gate.promise);
+  const originalStop = sound.stopAsync;
+  let nestedStop: Promise<void> | null = null;
+  let nestedDone = false;
+  sound.stopAsync = () => {
+    const result = originalStop();
+    nestedStop = mod.backgroundMusicPlayer.stop().then(() => {
+      nestedDone = true;
+    });
+    return result;
+  };
+  const stopping = mod.backgroundMusicPlayer.stop();
+  await flush();
+  const nestedBeforeCleanup = nestedDone;
+  gate.resolve();
+  await Promise.all([stopping, nestedStop]);
+
+  assert.equal(nestedBeforeCleanup, false);
+  assert.equal(nestedDone, true);
+  assert.equal(sound.methods().filter((method) => method === 'unloadAsync').length, 1);
+});
+
+test('synchronous detach and stop errors cannot bypass an owned native unload', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  const sound = assertDefined(sounds[0], 'loaded ambient sound');
+  const gate = createDeferred();
+  sound.rejections.set('setOnPlaybackStatusUpdate', new Error('listener detached'));
+  sound.stopAsync = () => {
+    sound.calls.push({ method: 'stopAsync', args: [] });
+    throw new Error('Seeking interrupted.');
+  };
+  sound.gates.set('unloadAsync', gate.promise);
+  let stopped = false;
+  const stopping = mod.backgroundMusicPlayer.stop().then(() => {
+    stopped = true;
+  });
+  await flush();
+  const beforeCleanup = stopped;
+  gate.resolve();
+  await stopping;
+
+  assert.equal(beforeCleanup, false);
+  assert.deepEqual(sound.methods().slice(-3), [
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
 });
 
 test('stopping during a crossfade unloads both the retiring and the current loop', async () => {
@@ -776,7 +1139,11 @@ test('stopping during a crossfade unloads both the retiring and the current loop
   await mod.backgroundMusicPlayer.stop();
 
   for (const sound of sounds) {
-    assert.deepEqual(sound.methods().slice(-2), ['stopAsync', 'unloadAsync']);
+    assert.deepEqual(sound.methods().slice(-3), [
+      'stopAsync',
+      'unloadAsync',
+      'setOnPlaybackStatusUpdate',
+    ]);
   }
 });
 
@@ -836,7 +1203,12 @@ test('a load superseded before it finishes is unloaded and never becomes the act
   gate.resolve();
   await pending;
 
-  assert.deepEqual(sounds[0].methods(), ['unloadAsync']);
+  assert.deepEqual(sounds[0].methods(), [
+    'setOnPlaybackStatusUpdate',
+    'stopAsync',
+    'unloadAsync',
+    'setOnPlaybackStatusUpdate',
+  ]);
 });
 
 test('pausing before the first preset finishes loading never starts the music', async () => {

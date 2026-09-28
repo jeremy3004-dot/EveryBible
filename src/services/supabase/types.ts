@@ -21,6 +21,10 @@ export interface UserProgress {
   last_read_date: string | null;
   current_book: string;
   current_chapter: number;
+  /** Optional until the reading-position migration is deployed. Epoch milliseconds. */
+  position_updated_at?: number | null;
+  /** Tuple owning the stamp, e.g. JHN_10. Legacy direct writes can omit it. */
+  position_updated_for?: string | null;
   synced_at: string;
 }
 

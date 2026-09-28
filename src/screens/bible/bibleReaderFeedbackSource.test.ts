@@ -163,18 +163,25 @@ test('BibleReaderScreen submits chapter feedback through the dedicated service a
 
 test('BibleReaderScreen restores speaker playback mode after feedback recording and before feedback audio playback', () => {
   const source = readBibleReaderSource();
+  const audioHook = readRelativeSource('./reader/useChapterFeedbackAudio.ts');
   const stopRecordingBlock =
-    source.match(/const stopFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+    audioHook.match(
+      /const stopFeedbackAudioRecording = async \(requireSuspension = false\): Promise<void> => \{[\s\S]*?\n {2}\};/
+    )?.[0] ?? '';
   const startRecordingBlock =
-    source.match(/const startFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ??
+    audioHook.match(/const startFeedbackAudioRecording = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ??
     '';
   const previewBlock =
-    source.match(/const playFeedbackAudioPreview = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ?? '';
+    audioHook.match(/const playFeedbackAudioPreview = async \(\) => \{[\s\S]*?\n {2}\};/)?.[0] ??
+    '';
   const translatorPlaybackBlock = readRelativeSource('./feedbackReview/useFeedbackVoiceNote.ts');
   const unmountCleanupBlock =
-    source.match(
-      /const recording = feedbackAudioRecordingRef\.current;[\s\S]*?void \(async \(\) => \{[\s\S]*?\n {6}\}\)\(\);/
+    audioHook.match(
+      /useEffect\(\(\) => \{[\s\S]*?feedbackAudioClaimRef\.current\?\.cancel\(\);[\s\S]*?\n {2}\}, \[feedbackAudioPreview\]\);/
     )?.[0] ?? '';
+  const drainBlock =
+    audioHook.match(/const drainFeedbackAudio = \(\): Promise<void> => \{[\s\S]*?\n {2}\};/)?.[0] ??
+    '';
 
   assert.match(
     source,
@@ -188,7 +195,7 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
   );
   assert.match(
     startRecordingBlock,
-    /catch\s*\{[\s\S]*restoreFeedbackAudioPlaybackMode\(\)/,
+    /catch\s*\(error\)\s*\{[\s\S]*?await restoreFeedbackAudioPlaybackMode\(\)/,
     'Feedback recording startup errors should restore playback mode after enabling microphone recording'
   );
   assert.match(
@@ -203,8 +210,13 @@ test('BibleReaderScreen restores speaker playback mode after feedback recording 
   );
   assert.match(
     unmountCleanupBlock,
-    /try\s*\{[\s\S]*?await recording\?\.stopAndUnloadAsync\(\);[\s\S]*?\}\s*catch\s*\{[\s\S]*?\}\s*finally\s*\{[\s\S]*?await restoreFeedbackAudioPlaybackMode\(\)/,
-    'Unmount cleanup should contain recording-stop failures while still restoring playback mode'
+    /feedbackAudioClaimRef\.current\?\.cancel\(\)/,
+    'Unmount cleanup should revoke feedback audio ownership and begin its native drain'
+  );
+  assert.match(
+    drainBlock,
+    /stopFeedbackAudioRecording\(true\)/,
+    'The ownership drain should await recorder stop, whose finally restores playback mode'
   );
 });
 

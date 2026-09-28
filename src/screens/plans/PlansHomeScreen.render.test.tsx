@@ -77,7 +77,10 @@ function SwipeableFake({
 }
 
 const libraryStore = create(() => ({ history: [] as ListeningHistoryEntry[] }));
-const progressStore = create(() => ({ chaptersRead: {} as Record<string, number> }));
+const progressStore = create(() => ({
+  chaptersRead: {} as Record<string, number>,
+  chaptersListened: {} as Record<string, number>,
+}));
 mockModule(mock, sourcePath('stores/libraryStore.ts'), { useLibraryStore: libraryStore });
 mockModule(mock, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
 // Cover art is bundled PNGs, which Node cannot require. Every plan row draws its
@@ -220,7 +223,7 @@ afterEach(async () => {
   plansWithoutArt.clear();
   swipeCloses.length = 0;
   handledErrors.length = 0;
-  progressStore.setState({ chaptersRead: {} });
+  progressStore.setState({ chaptersRead: {}, chaptersListened: {} });
   libraryStore.setState({ history: [] });
 });
 
@@ -1043,6 +1046,20 @@ test('search narrows the catalog by title, forgives typos, and has its own empty
   assert.ok(view.getByText(titleOf(PSALMS)), 'a blank query shows everything');
 });
 
+test('a filtered plan result opens on its first press while the search input is active', async () => {
+  const view = await renderHome();
+  await openTab(view, 'readingPlans.findPlans');
+  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length }));
+  await view.changeText(input, 'Week');
+
+  // The render harness does not run the native keyboard responder. Assert the
+  // forwarded ScrollView contract that lets its result press reach the handler.
+  const [page] = view.queryAllByType('ScrollView');
+  assert.equal(page.props.keyboardShouldPersistTaps, 'handled');
+  await view.press(view.getByRole('button', { name: titleOf('week-of-christ') }));
+  assert.deepEqual(navigateCalls(), [['PlanDetail', { planId: 'week-of-christ' }]]);
+});
+
 test('tapping a Daily rhythms card or the body of a browse row opens that plan', async () => {
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
@@ -1410,4 +1427,22 @@ test('pull to refresh does not redraw plan rows that did not change', async () =
 
   assert.deepEqual(drawn, []);
   assert.equal(refreshing(), false);
+});
+
+test('My Plans moves to the next session from completed listens after partial replays', async () => {
+  await seed(progressRow(KATHISMA));
+  const view = await renderHome();
+  const now = Date.now();
+  await act(async () => {
+    progressStore.setState({
+      chaptersListened: Object.fromEntries(kathismaMorningChapters().map((key) => [key, now])),
+    });
+    libraryStore.setState({
+      history: [{ id: 'PSA:1', bookId: 'PSA', chapter: 1, listenedAt: now, progress: 0.1 }],
+    });
+  });
+  const card = view.getByRole('button', { name: titleOf(KATHISMA) });
+  const sessions = `${t('readingPlans.morningLabel')} ${t('readingPlans.sessionDone')} • ${t('readingPlans.eveningLabel')} ${t('readingPlans.sessionNext')}`;
+  assert.ok(within(card).getByText(sessions));
+  assert.ok(within(card).getByText(t('readingPlans.eveningLabel')));
 });

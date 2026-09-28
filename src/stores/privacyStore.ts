@@ -14,6 +14,7 @@ import {
   writePrivacyLockHint,
 } from '../services/privacy';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
+import { PrivacyInstallationResetError } from '../services/privacy/privacyInstallation';
 import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
 import { DEFAULT_CRITICAL_TASK_TIMEOUT_MS } from '../services/startup/startupService';
 
@@ -116,15 +117,16 @@ const lockHintFor = (locks: boolean) => (locks ? 'discreet' : 'standard');
 
 // An icon change that fails is reported and left for reconcileAppIcon to retry; it never
 // undoes the saved mode, which is what the lock screen follows.
-const syncAppIcon = async (mode: PrivacyAppIconMode): Promise<void> => {
+const syncAppIcon = async (mode: PrivacyAppIconMode, shouldApply: () => boolean): Promise<void> => {
   try {
-    await applyPrivacyAppIcon(mode);
+    await applyPrivacyAppIcon(mode, shouldApply);
   } catch (error) {
     reportIconChangeFailure(error);
   }
 };
 
 export const usePrivacyStore = create<PrivacyState>()((set, get) => {
+  let lockGeneration = 0;
   // Starts without the keychain record: mode and hasPin are assumed until unlock reads it.
   const assumeModeWithoutKeychain = (mode: PrivacyAppIconMode): void => {
     const locks = mode === 'discreet';
@@ -183,16 +185,20 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     if (result.status === 'unavailable') {
       console.error('Failed to initialize privacy mode:', result.error);
       reportUnreadablePrivacySettings(result.error);
-      // A keychain that failed late leaves the icon read only what remains of the budget.
-      const assumedMode = await resolveLockWithoutKeychain(
-        Math.min(ICON_READ_TIMEOUT_MS, PRIVACY_STARTUP_BUDGET_MS - (Date.now() - startedAt))
-      );
-      if (generation !== initializationGeneration) {
-        return;
-      }
-      if (assumedMode) {
-        assumeModeWithoutKeychain(assumedMode);
-        return;
+      // Failed fresh-install cleanup cannot use an icon/hint to open the auth
+      // gate: the keychain may still hold the previous installation's session.
+      if (!(result.error instanceof PrivacyInstallationResetError)) {
+        // A keychain that failed late leaves the icon read only what remains of the budget.
+        const assumedMode = await resolveLockWithoutKeychain(
+          Math.min(ICON_READ_TIMEOUT_MS, PRIVACY_STARTUP_BUDGET_MS - (Date.now() - startedAt))
+        );
+        if (generation !== initializationGeneration) {
+          return;
+        }
+        if (assumedMode) {
+          assumeModeWithoutKeychain(assumedMode);
+          return;
+        }
       }
     } else {
       console.warn('Privacy mode initialization timed out; waiting for retry.');
@@ -213,8 +219,11 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
     });
   };
 
-  const attemptUnlock = async (pinInput: string | string[]): Promise<boolean> => {
-    if (!get().isInitialized) {
+  const attemptUnlock = async (
+    pinInput: string | string[],
+    generation: number
+  ): Promise<boolean> => {
+    if (generation !== lockGeneration || !get().isInitialized) {
       return false;
     }
 
@@ -225,6 +234,9 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         settings = await loadPrivacySettings();
       } catch (error) {
         reportUnreadablePrivacySettings(error);
+        return false;
+      }
+      if (generation !== lockGeneration) {
         return false;
       }
       const hasPin = hasPrivacyPin(settings);
@@ -271,6 +283,12 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
     set({ pinLockedUntil: result.lockedUntil });
 
+    // Backgrounding can lock again while the keychain/hash work is pending.
+    // A completed verification still counts, but only its original lock may open.
+    if (generation !== lockGeneration) {
+      return false;
+    }
+
     if (result.success) {
       set({ isLocked: false });
     }
@@ -316,6 +334,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
           };
         }
 
+        const generation = lockGeneration;
         // Hint first: if the keychain write lands and anything after it fails, a later
         // launch that cannot read the keychain still keeps the app locked.
         writePrivacyLockHint('discreet');
@@ -325,7 +344,8 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
           initializationError: null,
           mode: 'discreet',
           hasPin: true,
-          isLocked: false,
+          // Saving a code may finish after backgrounding raised a newer lock.
+          isLocked: generation !== lockGeneration,
           pinLockedUntil: null,
           keychainUnreadable: false,
         });
@@ -333,7 +353,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
         // Defer icon change until after navigation and re-renders complete to
         // prevent the concurrent Zustand + AppState cascade that OOMs Hermes GC.
         setTimeout(() => {
-          void syncAppIcon('discreet');
+          void get().reconcileAppIcon();
         }, 400);
 
         return {
@@ -355,7 +375,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
       // Defer icon change until after navigation and re-renders complete.
       setTimeout(() => {
-        void syncAppIcon('standard');
+        void get().reconcileAppIcon();
       }, 400);
 
       return {
@@ -364,16 +384,20 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
       };
     },
 
-    lock: () =>
+    lock: () => {
+      lockGeneration += 1;
       set((state) => ({
         isLocked: !state.isInitialized || (state.mode === 'discreet' && state.hasPin),
-      })),
+      }));
+    },
 
     // One attempt at a time: each reads the failure count from the keychain and writes it
     // back, so attempts that overlapped (rapid '=' presses, an automated tapper) all read
     // the same count and the backoff only ever saw one of them.
     unlock: (pinInput) => {
-      const attempt = unlockQueue.then(() => attemptUnlock(pinInput));
+      // Capture when submitted, so attempts waiting in the queue cannot cross a lock.
+      const generation = lockGeneration;
+      const attempt = unlockQueue.then(() => attemptUnlock(pinInput, generation));
       unlockQueue = attempt.catch(() => undefined);
       return attempt;
     },
@@ -382,7 +406,8 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
       if (!get().isInitialized) {
         return;
       }
-      await syncAppIcon(get().mode);
+      const mode = get().mode;
+      await syncAppIcon(mode, () => get().isInitialized && get().mode === mode);
     },
 
     disablePrivacy: async () => {

@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import * as SecureStore from 'expo-secure-store';
+import {
+  readFeedbackAccessCredential,
+  writeFeedbackAccessCredential,
+  removeFeedbackAccessCredential,
+} from './translatorReviewCredentials';
 import { zustandStorage } from './mmkvStorage';
 import {
   COUNCIL_PASSCODE_SECURE_KEY,
@@ -77,23 +81,17 @@ function stripResolutionFromMarkers(markers: unknown): TranslatorFeedbackReviewM
   return next;
 }
 
-// Write-through helpers. SecureStore is async and can reject (locked keychain, simulator
-// quirks); a failure must never take down a synchronous store action, so these swallow and
-// log. Worst case the passcode is not remembered across launches and the translator
-// re-enters it — strictly better than persisting it in plaintext.
-function persistPasscodeToSecureStore(passcode: string): void {
-  void SecureStore.setItemAsync(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY, passcode).catch(
-    (error: unknown) => {
-      console.warn('Failed to persist translator review passcode securely:', error);
-    }
+// A failed native write may keep this launch's entered code in memory, but
+// durable hydration remains blocked until the matching replacement is confirmed.
+function persistPasscodeToSecureStore(passcode: string): boolean {
+  return writeFeedbackAccessCredential(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY, passcode, (error) =>
+    console.warn('Failed to persist translator review passcode securely:', error)
   );
 }
 
 function deletePasscodeFromSecureStore(): void {
-  void SecureStore.deleteItemAsync(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY).catch(
-    (error: unknown) => {
-      console.warn('Failed to clear translator review passcode:', error);
-    }
+  removeFeedbackAccessCredential(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY, (error) =>
+    console.warn('Failed to clear translator review passcode:', error)
   );
 }
 
@@ -115,22 +113,22 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
       councilPasscode: null,
       enableCommunityFeedback: () => {
         if (get().enabled) deletePasscodeFromSecureStore();
-        if (get().councilPasscode)
-          void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
+        if (get().councilPasscode) removeFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY);
         set({ mode: 'community', enabled: false, accessPasscode: null, councilPasscode: null });
       },
       enableCouncilWithPasscode: (passcode) => {
         const councilPasscode = normalizeTranslatorReviewPasscode(passcode);
         if (!councilPasscode) return false;
+        if (!writeFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY, councilPasscode))
+          return false;
         if (get().enabled) deletePasscodeFromSecureStore();
         set({ mode: 'scripture_council', enabled: false, accessPasscode: null, councilPasscode });
-        void SecureStore.setItemAsync(COUNCIL_PASSCODE_SECURE_KEY, councilPasscode).catch(() => {});
         return true;
       },
       disableFeedback: () => {
         if (get().enabled) return;
+        removeFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY);
         set({ mode: 'reader', councilPasscode: null });
-        void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
       },
       enabled: developmentTranslatorReviewPasscode !== null,
       accessPasscode: developmentTranslatorReviewPasscode,
@@ -139,20 +137,21 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         const accessPasscode = normalizeTranslatorReviewPasscode(passcode);
 
         if (accessPasscode) {
-          if (get().councilPasscode)
-            void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
+          if (!persistPasscodeToSecureStore(accessPasscode)) return false;
+          if (get().councilPasscode) removeFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY);
           set({ mode: 'translator', enabled: true, accessPasscode, councilPasscode: null });
-          persistPasscodeToSecureStore(accessPasscode);
           return true;
         }
 
         return false;
       },
       disable: () => {
-        set({ mode: 'reader', enabled: false, accessPasscode: null });
         deletePasscodeFromSecureStore();
+        set({ mode: 'reader', enabled: false, accessPasscode: null });
       },
       resetForSignOut: () => {
+        removeFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY);
+        deletePasscodeFromSecureStore();
         set({
           mode: 'reader',
           enabled: false,
@@ -160,8 +159,6 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
           councilPasscode: null,
           feedbackMarkers: {},
         });
-        void SecureStore.deleteItemAsync(COUNCIL_PASSCODE_SECURE_KEY).catch(() => {});
-        deletePasscodeFromSecureStore();
       },
       markListened: (feedbackId) =>
         set((state) => ({
@@ -190,7 +187,16 @@ export const useTranslatorReviewStore = create<TranslatorReviewState>()(
         }
 
         if (version < 4 && accessPasscode) {
-          persistPasscodeToSecureStore(accessPasscode);
+          if (!persistPasscodeToSecureStore(accessPasscode)) {
+            return {
+              ...state,
+              mode: 'reader',
+              enabled: false,
+              accessPasscode: null,
+              councilPasscode: null,
+              feedbackMarkers,
+            };
+          }
         }
 
         // The passcode is kept in the in-memory state (so the current session keeps
@@ -230,7 +236,7 @@ export async function hydrateTranslatorReviewPasscode(): Promise<void> {
   if (!state.enabled || state.accessPasscode) return;
 
   try {
-    const stored = await SecureStore.getItemAsync(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY);
+    const stored = await readFeedbackAccessCredential(TRANSLATOR_REVIEW_PASSCODE_SECURE_KEY);
     const accessPasscode = normalizeTranslatorReviewPasscode(stored ?? '');
     if (!accessPasscode) return;
     if (
@@ -258,7 +264,7 @@ export function getFeedbackParticipationMode(
 export async function hydrateCouncilPasscode(): Promise<void> {
   if (useTranslatorReviewStore.getState().mode !== 'scripture_council') return;
   try {
-    const passcode = await SecureStore.getItemAsync(COUNCIL_PASSCODE_SECURE_KEY);
+    const passcode = await readFeedbackAccessCredential(COUNCIL_PASSCODE_SECURE_KEY);
     const current = useTranslatorReviewStore.getState();
     if (current.mode === 'scripture_council' && !current.councilPasscode) {
       useTranslatorReviewStore.setState({

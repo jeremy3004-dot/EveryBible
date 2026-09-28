@@ -2687,7 +2687,15 @@ const MINUTE_MS = 60_000;
  * (normalize_reading_plan_unenrollment, 20260924112025) and merge_reading_plan_progress with
  * skip_ended_reading_plan_progress (20260924023340).
  */
-const serveSkewedServer = (skewMs: number) => {
+const serveSkewedServer = (skewMs: number, t: TestContext) => {
+  // Native request processing and response delivery take time. Keep those instants
+  // deterministic instead of relying on incidental storage awaits or wall-clock timing.
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const beginRequest = () => {
+    t.mock.timers.tick(2);
+    // The phone receives the response after the server has stamped the row.
+    queueMicrotask(() => t.mock.timers.tick(2));
+  };
   const serverNow = () => Date.now() + skewMs;
   const tombstones = new Map<string, number>();
   const stored = new Map<string, Record<string, unknown>>();
@@ -2717,6 +2725,7 @@ const serveSkewedServer = (skewMs: number) => {
       : Date.parse(at as string);
 
   supabaseFake.respondTo(UNENROLLMENTS, (call) => {
+    beginRequest();
     if (call.operation === 'select') {
       return {
         data: [...tombstones].map(([planSlug, at]) => ({
@@ -2744,10 +2753,12 @@ const serveSkewedServer = (skewMs: number) => {
     };
   });
   supabaseFake.respondTo('user_reading_plan_progress', () => {
+    beginRequest();
     server.onProgressRead();
     return { data: [...stored.values()] };
   });
   supabaseFake.respondToRpc(MERGE_RPC, (call) => {
+    beginRequest();
     if (server.pushFails) {
       return { data: null, error: { message: 'network request failed' } };
     }
@@ -2782,9 +2793,9 @@ const leaveAndRejoinOffline = (planId: string) => {
   planStore().markDayComplete(planId, 1, 30);
 };
 
-test('a re-join made offline after an offline leave survives the sync on a phone whose clock runs slow', async () => {
+test('a re-join made offline after an offline leave survives the sync on a phone whose clock runs slow', async (t) => {
   signIn('user-a', 2);
-  serveSkewedServer(10 * MINUTE_MS);
+  serveSkewedServer(10 * MINUTE_MS, t);
   leaveAndRejoinOffline('psalms-30-days');
 
   const result = await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
@@ -2803,9 +2814,9 @@ test('a re-join made offline after an offline leave survives the sync on a phone
   assert.ok(Date.parse(progress.started_at) <= Date.now() + 10 * MINUTE_MS);
 });
 
-test('a slow phone keeps its offline re-join when a completion pushes it before any sync', async () => {
+test('a slow phone keeps its offline re-join when a completion pushes it before any sync', async (t) => {
   signIn('user-a', 4);
-  serveSkewedServer(10 * MINUTE_MS);
+  serveSkewedServer(10 * MINUTE_MS, t);
   planStore().enrollPlan('psalms-30-days');
   planStore().unenrollPlan('psalms-30-days');
   planStore().enrollPlan('psalms-30-days');
@@ -2820,9 +2831,9 @@ test('a slow phone keeps its offline re-join when a completion pushes it before 
   assert.equal(progress.id, 'server-psalms-30-days');
 });
 
-test('a slow phone keeps its offline re-join through a later sync when the first push failed', async () => {
+test('a slow phone keeps its offline re-join through a later sync when the first push failed', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
   leaveAndRejoinOffline('psalms-30-days');
   // The leave reaches the server, then the connection drops before the push.
   server.pushFails = true;
@@ -2839,9 +2850,9 @@ test('a slow phone keeps its offline re-join through a later sync when the first
   assert.equal(progress.id, 'server-psalms-30-days');
 });
 
-test('an offline leave and re-join still syncs as before on a phone whose clock runs fast', async () => {
+test('an offline leave and re-join still syncs as before on a phone whose clock runs fast', async (t) => {
   signIn('user-a', 2);
-  serveSkewedServer(-10 * MINUTE_MS);
+  serveSkewedServer(-10 * MINUTE_MS, t);
   leaveAndRejoinOffline('psalms-30-days');
   const rejoinedAt = planStore().getProgress('psalms-30-days')!.started_at;
 
@@ -2854,9 +2865,9 @@ test('an offline leave and re-join still syncs as before on a phone whose clock 
   assert.equal(pushed?.started_at, rejoinedAt, 'the re-join start is sent unchanged');
 });
 
-test('an offline leave and re-join still syncs as before on a phone with the right time', async () => {
+test('an offline leave and re-join still syncs as before on a phone with the right time', async (t) => {
   signIn('user-a', 2);
-  serveSkewedServer(0);
+  serveSkewedServer(0, t);
   leaveAndRejoinOffline('psalms-30-days');
   const rejoinedAt = planStore().getProgress('psalms-30-days')!.started_at;
 
@@ -2870,15 +2881,15 @@ test('an offline leave and re-join still syncs as before on a phone with the rig
   assert.ok(Date.parse(pushed?.started_at as string) >= Date.parse(rejoinedAt));
 });
 
-test('a leave on another phone after the slow phone re-joined still ends the re-join', async () => {
+test('a leave on another phone after the slow phone re-joined still ends the re-join', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
   leaveAndRejoinOffline('psalms-30-days');
   // The other phone leaves once this phone's leave has reached the server.
   server.onProgressRead = () => {
     server.leaveElsewhere('psalms-30-days');
   };
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
 
   await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
 
@@ -2895,12 +2906,12 @@ test('a leave on another phone after the slow phone re-joined still ends the re-
  * Enrols (through the store, so no push races the leave), leaves online and re-joins through
  * the service, finishing day 1 of the re-join; returns the pushes the re-join made.
  */
-const leaveOnlineThenRejoin = async (planId: string) => {
+const leaveOnlineThenRejoin = async (planId: string, t: TestContext) => {
   planStore().enrollPlan(planId);
   assert.deepEqual(await service.unenrollFromPlan(planId), { success: true });
   assert.deepEqual(planStore().pendingUnenrollPlanIds, [], 'the leave is confirmed');
   // A reader cannot re-join within the same millisecond the server stored the leave.
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
 
   await service.enrollInPlan(planId);
   await service.markDayComplete(planId, 1);
@@ -2909,11 +2920,11 @@ const leaveOnlineThenRejoin = async (planId: string) => {
   return mergeRpcCalls().flatMap((call) => (call.payload as MergeRpcArgs).p_rows);
 };
 
-test('a re-join right after an online leave survives its push on a phone whose clock runs slow', async () => {
+test('a re-join right after an online leave survives its push on a phone whose clock runs slow', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
 
-  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress, 'the re-join is kept');
@@ -2930,12 +2941,12 @@ test('a re-join right after an online leave survives its push on a phone whose c
   assert.deepEqual(planStore().serverLeftAtByPlanId, {});
 });
 
-test('a re-join after an online leave starts and syncs as before on a phone whose clock runs fast', async () => {
+test('a re-join after an online leave starts and syncs as before on a phone whose clock runs fast', async (t) => {
   signIn('user-a', 2);
-  serveSkewedServer(-10 * MINUTE_MS);
+  serveSkewedServer(-10 * MINUTE_MS, t);
 
   const before = Date.now();
-  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress?.completed_entries['1']);
@@ -2946,11 +2957,11 @@ test('a re-join after an online leave starts and syncs as before on a phone whos
   assert.ok(Date.parse(pushed[0]?.started_at as string) >= before);
 });
 
-test('a re-join after an online leave starts and syncs as before on a phone with the right time', async () => {
+test('a re-join after an online leave starts and syncs as before on a phone with the right time', async (t) => {
   signIn('user-a', 2);
-  serveSkewedServer(0);
+  serveSkewedServer(0, t);
 
-  const pushed = await leaveOnlineThenRejoin('psalms-30-days');
+  const pushed = await leaveOnlineThenRejoin('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress?.completed_entries['1']);
@@ -2959,12 +2970,12 @@ test('a re-join after an online leave starts and syncs as before on a phone with
   assert.ok(pushed.every((row) => typeof row.client_clock_at === 'string'));
 });
 
-test('a leave on another phone after the slow phone re-joined online still ends the re-join', async () => {
+test('a leave on another phone after the slow phone re-joined online still ends the re-join', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
-  await leaveOnlineThenRejoin('psalms-30-days');
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
+  await leaveOnlineThenRejoin('psalms-30-days', t);
   assert.ok(planStore().getProgress('psalms-30-days'), 'the re-join was kept');
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
   server.leaveElsewhere('psalms-30-days');
 
   await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
@@ -2980,11 +2991,14 @@ test('a leave on another phone after the slow phone re-joined online still ends 
  * Enrols and pushes the plan, has another phone leave it and syncs, which ends it here; returns
  * when the server stored that leave.
  */
-const leaveElsewhereThenSync = async (server: ReturnType<typeof serveSkewedServer>) => {
+const leaveElsewhereThenSync = async (
+  server: ReturnType<typeof serveSkewedServer>,
+  t: TestContext
+) => {
   planStore().enrollPlan('psalms-30-days');
   await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
   assert.equal(planStore().getProgress('psalms-30-days')?.id, 'server-psalms-30-days');
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
   server.leaveElsewhere('psalms-30-days');
 
   await service.syncPlanProgress(Object.values(planStore().progressByPlanId));
@@ -2994,9 +3008,9 @@ const leaveElsewhereThenSync = async (server: ReturnType<typeof serveSkewedServe
 };
 
 /** Re-joins through the service, finishing day 1; returns the pushes the re-join made. */
-const rejoinAndFinishDayOne = async (planId: string) => {
+const rejoinAndFinishDayOne = async (planId: string, t: TestContext) => {
   const callsBefore = mergeRpcCalls().length;
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
   await service.enrollInPlan(planId);
   await service.markDayComplete(planId, 1);
   await flushBackgroundWork();
@@ -3006,12 +3020,12 @@ const rejoinAndFinishDayOne = async (planId: string) => {
     .flatMap((call) => (call.payload as MergeRpcArgs).p_rows);
 };
 
-test('a re-join right after a leave on another phone survives its push on a phone whose clock runs slow', async () => {
+test('a re-join right after a leave on another phone survives its push on a phone whose clock runs slow', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
-  const storedLeftAt = await leaveElsewhereThenSync(server);
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
+  const storedLeftAt = await leaveElsewhereThenSync(server, t);
 
-  const pushed = await rejoinAndFinishDayOne('psalms-30-days');
+  const pushed = await rejoinAndFinishDayOne('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress, 'the re-join is kept');
@@ -3026,13 +3040,13 @@ test('a re-join right after a leave on another phone survives its push on a phon
   assert.deepEqual(planStore().serverLeftAtByPlanId, {});
 });
 
-test('a re-join after a leave on another phone starts and syncs as before on a phone whose clock runs fast', async () => {
+test('a re-join after a leave on another phone starts and syncs as before on a phone whose clock runs fast', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(-10 * MINUTE_MS);
-  await leaveElsewhereThenSync(server);
+  const server = serveSkewedServer(-10 * MINUTE_MS, t);
+  await leaveElsewhereThenSync(server, t);
 
   const before = Date.now();
-  const pushed = await rejoinAndFinishDayOne('psalms-30-days');
+  const pushed = await rejoinAndFinishDayOne('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress?.completed_entries['1']);
@@ -3042,12 +3056,12 @@ test('a re-join after a leave on another phone starts and syncs as before on a p
   assert.ok(Date.parse(pushed[0]?.started_at as string) >= before);
 });
 
-test('a re-join after a leave on another phone starts and syncs as before on a phone with the right time', async () => {
+test('a re-join after a leave on another phone starts and syncs as before on a phone with the right time', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(0);
-  await leaveElsewhereThenSync(server);
+  const server = serveSkewedServer(0, t);
+  await leaveElsewhereThenSync(server, t);
 
-  const pushed = await rejoinAndFinishDayOne('psalms-30-days');
+  const pushed = await rejoinAndFinishDayOne('psalms-30-days', t);
 
   const progress = planStore().getProgress('psalms-30-days');
   assert.ok(progress?.completed_entries['1']);
@@ -3056,13 +3070,13 @@ test('a re-join after a leave on another phone starts and syncs as before on a p
   assert.ok(pushed.every((row) => typeof row.client_clock_at === 'string'));
 });
 
-test('a later leave on another phone still ends the slow phone re-join made after an earlier one', async () => {
+test('a later leave on another phone still ends the slow phone re-join made after an earlier one', async (t) => {
   signIn('user-a', 2);
-  const server = serveSkewedServer(10 * MINUTE_MS);
-  await leaveElsewhereThenSync(server);
-  await rejoinAndFinishDayOne('psalms-30-days');
+  const server = serveSkewedServer(10 * MINUTE_MS, t);
+  await leaveElsewhereThenSync(server, t);
+  await rejoinAndFinishDayOne('psalms-30-days', t);
   assert.ok(planStore().getProgress('psalms-30-days'), 'the re-join was kept');
-  await new Promise<void>((resolve) => setTimeout(resolve, 2));
+  t.mock.timers.tick(2);
   server.leaveElsewhere('psalms-30-days');
 
   await service.syncPlanProgress(Object.values(planStore().progressByPlanId));

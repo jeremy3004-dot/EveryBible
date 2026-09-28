@@ -156,6 +156,13 @@ let currentRate: number = 1.0;
 /** The narration volume (0–1). Sticky like the rate: every chapter loaded plays at it. */
 let currentVolume = 1;
 let loadRequestId = 0;
+let seekRequestId = 0;
+let rateRequestId = 0;
+// expo-av retains the ended sound and can report ordinary pause/finish statuses
+// afterward. Only a successful explicit play/seek or a new load re-arms it.
+let playbackEnded = false;
+const pendingNativePlays = new Map<Audio.Sound, Set<Promise<AVPlaybackStatus>>>();
+const pendingSoundReleases = new Map<Audio.Sound, Promise<void>>();
 
 const listeners = new Map<Event, Set<EventListener<Event>>>();
 
@@ -186,6 +193,9 @@ function handleAVStatus(status: AVPlaybackStatus): void {
     }
     return;
   }
+
+  if (playbackEnded) return;
+  if (status.didJustFinish) playbackEnded = true;
 
   const positionSec = status.positionMillis / 1000;
   const durationSec = (status.durationMillis ?? 0) / 1000;
@@ -225,10 +235,11 @@ function handleAVStatus(status: AVPlaybackStatus): void {
  */
 function dropReleasedSound(ref: Audio.Sound): void {
   if (sound !== ref) return;
-  ref.setOnPlaybackStatusUpdate(null);
   sound = null;
   activeTrack = null;
   setState(State.Error);
+  // Native release does not retire expo-av's JavaScript subscriptions on Android.
+  void releaseSound(ref);
 }
 
 /** Whether a sound whose command just failed has been released by the native side. */
@@ -241,19 +252,44 @@ async function isSoundReleased(ref: Audio.Sound): Promise<boolean> {
   }
 }
 
-async function unloadSound(): Promise<void> {
-  if (!sound) return;
+/** Deduplicate owned teardown so replacements can drain it even after sound was dropped. */
+function releaseSound(ref: Audio.Sound): Promise<void> {
+  const existing = pendingSoundReleases.get(ref);
+  if (existing) return existing;
+  const releasing = releaseOwnedSound(ref);
+  pendingSoundReleases.set(ref, releasing);
+  const settled = () => pendingSoundReleases.delete(ref);
+  void releasing.then(settled, settled);
+  return releasing;
+}
 
-  const ref = sound;
-  sound = null;
-
+async function releaseOwnedSound(ref: Audio.Sound): Promise<void> {
   try {
-    ref.setOnPlaybackStatusUpdate(null);
     await ref.stopAsync();
+  } catch {
+    // A rejected rewind does not mean the sound was released.
+  }
+  try {
     await ref.unloadAsync();
   } catch {
-    // Sound may already be unloaded
+    // Sound may already be unloaded.
+  } finally {
+    try {
+      // The setter starts an unawaited getStatusAsync. unloadAsync clears the SDK's
+      // loaded flag before awaiting native work, so detaching now cannot query a dead player.
+      ref.setOnPlaybackStatusUpdate(null);
+    } catch {
+      // Native unload still owns cleanup when callback detachment fails.
+    }
   }
+}
+
+async function unloadSound(): Promise<void> {
+  const ref = sound;
+  sound = null;
+  playbackEnded = false;
+  if (ref) releaseSound(ref);
+  await Promise.all([...pendingSoundReleases.values()]);
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +343,7 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
   await unloadSound();
   if (requestId !== loadRequestId) return;
 
+  playbackEnded = false;
   try {
     let loadedSound: Audio.Sound | null = null;
     const loadVolume = currentVolume;
@@ -326,7 +363,7 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
       (status) => {
         // Ignore pending sounds superseded by another load or transport command.
         // A loaded sound keeps reporting after pause/resume while it remains active.
-        if (requestId === loadRequestId || (loadedSound !== null && sound === loadedSound)) {
+        if (loadedSound === null ? requestId === loadRequestId : sound === loadedSound) {
           if (!status.isLoaded && status.error && loadedSound !== null) {
             // A loaded sound that reports an error has been released natively.
             dropReleasedSound(loadedSound);
@@ -338,11 +375,8 @@ async function loadTrack(target: Track, startPositionMillis = 0): Promise<number
     loadedSound = newSound;
 
     if (requestId !== loadRequestId) {
-      // Detach before tearing down: expo-av reports a final loaded status from
-      // stopAsync, and this sound is not the one playing any more.
-      newSound.setOnPlaybackStatusUpdate(null);
-      await newSound.stopAsync();
-      await newSound.unloadAsync();
+      // The callback has lost ownership before stop/unload can publish final statuses.
+      await releaseSound(newSound);
       return;
     }
 
@@ -368,21 +402,40 @@ async function play(): Promise<void> {
   const ref = sound;
   if (!ref) return;
   const requestId = ++loadRequestId;
+  const seekId = seekRequestId;
+  const wasEnded = playbackEnded;
 
   try {
-    await ref.playAsync();
-    if (ref !== sound || requestId !== loadRequestId) return;
-    setState(State.Playing);
+    const operation = ref.playAsync();
+    const pending = pendingNativePlays.get(ref) ?? new Set<Promise<AVPlaybackStatus>>();
+    pending.add(operation);
+    pendingNativePlays.set(ref, pending);
+    const clear = () => {
+      pending.delete(operation);
+      if (pending.size === 0) pendingNativePlays.delete(ref);
+    };
+    void operation.then(clear, clear);
+    const status = await operation;
+    if (ref !== sound || requestId !== loadRequestId || seekId !== seekRequestId) return;
+    if (wasEnded) {
+      playbackEnded = false;
+      handleAVStatus(status);
+    }
+    if (!playbackEnded && requestId === loadRequestId && seekId === seekRequestId) {
+      setState(State.Playing);
+    }
   } catch (error) {
-    if (ref !== sound || requestId !== loadRequestId) return;
+    if (ref !== sound || requestId !== loadRequestId || seekId !== seekRequestId) return;
     if (await isSoundReleased(ref)) dropReleasedSound(ref);
-    if (requestId !== loadRequestId) return;
+    if (requestId !== loadRequestId || seekId !== seekRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to play';
     emit(Event.PlaybackError, { code: 'PLAY_ERROR', message });
   }
 }
 
-async function pause(): Promise<void> {
+async function pause({
+  requireSuspension = false,
+}: { requireSuspension?: boolean } = {}): Promise<void> {
   const requestId = ++loadRequestId;
   const ref = sound;
   if (!ref) {
@@ -391,15 +444,22 @@ async function pause(): Promise<void> {
   }
 
   try {
+    if (requireSuspension) {
+      await Promise.allSettled([...(pendingNativePlays.get(ref) ?? [])]);
+      // Await the pending native operation before final suspension. A later
+      // ordinary Pause does not release this handoff's captured sound.
+      if (ref !== sound) return;
+    }
     await ref.pauseAsync();
     if (ref !== sound || requestId !== loadRequestId) return;
-    setState(State.Paused);
+    if (!playbackEnded) setState(State.Paused);
   } catch (error) {
-    if (ref !== sound || requestId !== loadRequestId) return;
+    if (ref !== sound || (!requireSuspension && requestId !== loadRequestId)) return;
     if (await isSoundReleased(ref)) dropReleasedSound(ref);
-    if (requestId !== loadRequestId) return;
+    if (ref !== sound || (!requireSuspension && requestId !== loadRequestId)) return;
     const message = error instanceof Error ? error.message : 'Failed to pause';
     emit(Event.PlaybackError, { code: 'PAUSE_ERROR', message });
+    if (requireSuspension) throw error;
   }
 }
 
@@ -416,23 +476,41 @@ async function seekTo(positionSeconds: number): Promise<void> {
   const ref = sound;
   if (!ref) return;
 
+  const requestId = loadRequestId;
+  const seekId = ++seekRequestId;
+  const wasEnded = playbackEnded;
   try {
-    await ref.setPositionAsync(positionSeconds * 1000);
+    // Android retains shouldPlay at EOF; position alone would restart the sound.
+    const status = wasEnded
+      ? await ref.setStatusAsync({ positionMillis: positionSeconds * 1000, shouldPlay: false })
+      : await ref.setPositionAsync(positionSeconds * 1000);
+    if (wasEnded) {
+      if (ref !== sound || requestId !== loadRequestId || seekId !== seekRequestId) return;
+      playbackEnded = false;
+      handleAVStatus(status);
+    }
   } catch (error) {
-    if (ref !== sound) return;
-    if (await isSoundReleased(ref)) dropReleasedSound(ref);
+    if (ref !== sound || requestId !== loadRequestId || seekId !== seekRequestId) return;
+    const released = await isSoundReleased(ref);
+    if (ref !== sound || requestId !== loadRequestId || seekId !== seekRequestId) return;
+    if (released) dropReleasedSound(ref);
+    if (requestId !== loadRequestId || seekId !== seekRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to seek';
     emit(Event.PlaybackError, { code: 'SEEK_ERROR', message });
   }
 }
 
 async function setRate(rate: number): Promise<void> {
+  const rateId = ++rateRequestId;
+  const requestId = loadRequestId;
+  const ref = sound;
   currentRate = rate;
-  if (!sound) return;
+  if (!ref) return;
 
   try {
-    await sound.setRateAsync(rate, true);
+    await ref.setRateAsync(rate, true);
   } catch (error) {
+    if (ref !== sound || requestId !== loadRequestId || rateId !== rateRequestId) return;
     const message = error instanceof Error ? error.message : 'Failed to set rate';
     emit(Event.PlaybackError, { code: 'RATE_ERROR', message });
   }

@@ -7,6 +7,10 @@ import type {
 } from '../../services/audio/audioNowPlayingModel';
 import { bibleNowPlayingSignature } from '../../services/audio/audioNowPlayingSignatureModel';
 import type { AudioChapterMap } from '../../services/bible/contentAvailability';
+import {
+  getAdjacentAudioPlaybackSequenceEntry,
+  hasAudioPlaybackSequenceEntry,
+} from '../../stores/audioPlaybackSequenceModel';
 import { useAudioStore } from '../../stores/audioStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import type { AudioPlayerSession, Translate } from './playerSession';
@@ -56,19 +60,28 @@ export function syncPlayerNowPlaying(
     overrides.translationName ??
     useBibleStore.getState().translations.find((t) => t.id === resolvedTranslationId)?.name;
 
-  // Compute skip availability so the lock screen next/previous buttons reflect
-  // whether adjacent chapters actually exist. Queue entries take priority over
-  // the linear chapter adjacency check, and an exact chapter map (Every Language)
-  // decides for translations whose audio skips books and chapters.
+  // A chapter in a pinned sequence follows only that sequence, matching the
+  // transport controls. Other chapters keep queue and audio-coverage adjacency.
   const coverage = peekAudioCoverage(resolvedTranslationId);
-  const resolvedAdjacentChapter = (direction: -1 | 1) =>
-    getAdjacentAudioChapter(resolvedBookId, resolvedChapter, direction, coverage);
-  const resolvedCanSkipNext =
-    overrides.canSkipNext ??
-    Boolean(state.queue[state.queueIndex + 1] ?? resolvedAdjacentChapter(1));
-  const resolvedCanSkipPrevious =
-    overrides.canSkipPrevious ??
-    Boolean(state.queue[state.queueIndex - 1] ?? resolvedAdjacentChapter(-1));
+  const inPlaybackSequence = hasAudioPlaybackSequenceEntry(
+    state.playbackSequence,
+    resolvedBookId,
+    resolvedChapter
+  );
+  const canSkip = (direction: -1 | 1) =>
+    Boolean(
+      inPlaybackSequence
+        ? getAdjacentAudioPlaybackSequenceEntry(
+            state.playbackSequence,
+            resolvedBookId,
+            resolvedChapter,
+            direction
+          )
+        : (state.queue[state.queueIndex + direction] ??
+          getAdjacentAudioChapter(resolvedBookId, resolvedChapter, direction, coverage))
+    );
+  const resolvedCanSkipNext = overrides.canSkipNext ?? canSkip(1);
+  const resolvedCanSkipPrevious = overrides.canSkipPrevious ?? canSkip(-1);
   // Both lock screens title the entry with the book in the interface language.
   const bookName = getTranslatedBookName(resolvedBookId, t);
   // Android builds its media notification from JS, so it also needs the control

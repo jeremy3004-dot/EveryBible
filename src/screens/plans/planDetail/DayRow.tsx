@@ -47,6 +47,7 @@ interface DayRowProps {
   audioAvailable?: boolean;
   sessionActions?: PlanDaySessionAction[];
   onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
+  onRead: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
   onListen?: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
 }
 
@@ -66,6 +67,7 @@ export const DayRow = memo(function DayRow({
   audioAvailable = false,
   sessionActions = NO_SESSION_ACTIONS,
   onPress,
+  onRead,
   onListen,
 }: DayRowProps) {
   const { colors } = useTheme();
@@ -180,7 +182,7 @@ export const DayRow = memo(function DayRow({
               label={t('bible.read')}
               size="md"
               fullWidth={false}
-              onPress={() => onPress(dayNumber, launchSessionKey)}
+              onPress={() => onRead(dayNumber, launchSessionKey)}
               style={styles.todayReadButton}
             />
             {audioAvailable && onListen ? (

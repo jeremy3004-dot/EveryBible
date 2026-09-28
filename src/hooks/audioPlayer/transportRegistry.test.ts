@@ -65,3 +65,26 @@ test('seeking moves the playing session to a position, like the lock screen scru
   await seekActivePlayback(45_000);
   assert.deepEqual(seeks, [45_000]);
 });
+
+test('a captured handoff pauses its original Bible controls even after a new player registers', async () => {
+  const { captureActivePlaybackPause, registerPlayerTransport } =
+    await import('./transportRegistry');
+  const oldCalls: unknown[] = [];
+  const newCalls: unknown[] = [];
+  registerPlayerTransport({
+    ...controls,
+    pause: async (options?: { requireSuspension?: boolean }) => {
+      oldCalls.push(options);
+    },
+  });
+  const suspendOld = captureActivePlaybackPause();
+  registerPlayerTransport({
+    ...controls,
+    pause: async (options?: { requireSuspension?: boolean }) => {
+      newCalls.push(options);
+    },
+  });
+  await suspendOld();
+  assert.deepEqual(oldCalls, [{ requireSuspension: true }]);
+  assert.deepEqual(newCalls, []);
+});

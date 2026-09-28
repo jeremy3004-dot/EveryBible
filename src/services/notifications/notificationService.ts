@@ -319,22 +319,32 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
   const signature = getReminderSignature(hour, minute, content);
   // Recorded before the native call: a schedule that fails partway may still be armed.
   markDailyReminderMayBeScheduled();
-  await Notifications.scheduleNotificationAsync({
-    identifier: DAILY_REMINDER_ID,
-    content: {
-      title: content.title,
-      body: content.body,
-      sound: true,
-      data: { ...DAILY_REMINDER_NOTIFICATION_DATA },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-      channelId: DAILY_REMINDER_CHANNEL_ID,
-    },
-  });
-  scheduledReminderSignature = signature;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_REMINDER_ID,
+      content: {
+        title: content.title,
+        body: content.body,
+        sound: true,
+        data: { ...DAILY_REMINDER_NOTIFICATION_DATA },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: DAILY_REMINDER_CHANNEL_ID,
+      },
+    });
+    scheduledReminderSignature = signature;
+  } catch (error) {
+    // A concurrent Settings cancel may have recorded 'off' while this was pending.
+    scheduledReminderSignature = null;
+    throw error;
+  } finally {
+    // That cancel cannot account for an alarm registered after it completed, even
+    // when native scheduling rejects. Let the queued OFF reconciliation cancel it.
+    markDailyReminderMayBeScheduled();
+  }
 }
 
 /**

@@ -12,6 +12,8 @@ const PRIVACY_SETTINGS_KEY = 'everybible.privacy.settings';
 const secureStore = new Map<string, string>();
 const secureStoreCalls: Array<{ method: string; key: string; value?: string }> = [];
 let secureStoreFailure: Error | null = null;
+let pauseSecureRead: (() => Promise<void>) | null = null;
+let failNextWrite = false;
 
 const guard = () => {
   if (secureStoreFailure) {
@@ -29,11 +31,17 @@ mockModule(mock, 'expo-secure-store', {
   getItemAsync: async (key: string) => {
     secureStoreCalls.push({ method: 'getItemAsync', key });
     guard();
-    return secureStore.get(key) ?? null;
+    const record = secureStore.get(key) ?? null;
+    await pauseSecureRead?.();
+    return record;
   },
   setItemAsync: async (key: string, value: string) => {
     secureStoreCalls.push({ method: 'setItemAsync', key, value });
     guard();
+    if (failNextWrite) {
+      failNextWrite = false;
+      throw new Error('write refused');
+    }
     secureStore.set(key, value);
   },
   deleteItemAsync: async (key: string) => {
@@ -71,6 +79,8 @@ beforeEach(() => {
   secureStore.clear();
   secureStoreCalls.length = 0;
   secureStoreFailure = null;
+  pauseSecureRead = null;
+  failNextWrite = false;
   iconCalls.length = 0;
   setAppIconResult = true;
 });
@@ -90,6 +100,75 @@ const hashedRecord = async (mode: PrivacyAppIconMode, pin: string) => ({
   legacyPin: null,
   failedPinAttempts: 0,
   pinLockedUntil: null,
+});
+
+const pauseNextRead = () => {
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  let release!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  pauseSecureRead = () => {
+    markStarted();
+    return paused;
+  };
+  return { started, release };
+};
+
+test('a verification started before a PIN change settles before the new credential is saved', async () => {
+  await privacyService.updatePrivacyMode('discreet', '1234');
+  const read = pauseNextRead();
+  const attempt = privacyService.verifyPrivacyPin('1234');
+  await read.started;
+  const change = privacyService.updatePrivacyMode('discreet', '5678');
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  pauseSecureRead = null;
+  read.release();
+  const [verification] = await Promise.all([attempt, change]);
+
+  assert.equal(verification.success, true);
+  assert.equal((await privacyService.verifyPrivacyPin('5678')).success, true);
+  assert.equal((await privacyService.verifyPrivacyPin('1234')).success, false);
+});
+
+test('concurrent wrong PIN attempts each retain their failed-attempt count', async () => {
+  await privacyService.updatePrivacyMode('discreet', '1234');
+  const attempts = await Promise.all(
+    ['1111', '2222', '3333'].map((pin) => privacyService.verifyPrivacyPin(pin))
+  );
+  assert.ok(attempts.every((attempt) => !attempt.success));
+  assert.equal((await privacyService.loadPrivacySettings()).failedPinAttempts, 3);
+});
+
+test('a rejected credential write does not poison the next save or verification', async () => {
+  failNextWrite = true;
+  const failed = privacyService.updatePrivacyMode('discreet', '1234');
+  const failure = assert.rejects(failed, /write refused/);
+  const nextRecord = await hashedRecord('discreet', '5678');
+  const next = privacyService.savePrivacySettings(nextRecord);
+  await Promise.all([failure, next]);
+
+  assert.equal((await privacyService.verifyPrivacyPin('5678')).success, true);
+  assert.equal((await privacyService.verifyPrivacyPin('1234')).success, false);
+});
+
+test('clearing after a pending verification cannot resurrect its credential', async () => {
+  await privacyService.updatePrivacyMode('discreet', '1234');
+  const read = pauseNextRead();
+  const attempt = privacyService.verifyPrivacyPin('1234');
+  await read.started;
+  const clear = privacyService.clearPrivacySettings();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  pauseSecureRead = null;
+  read.release();
+  await Promise.all([attempt, clear]);
+
+  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), false);
+  assert.equal((await privacyService.verifyPrivacyPin('1234')).success, false);
+  assert.equal(secureStore.has(PRIVACY_SETTINGS_KEY), false);
 });
 
 test('a device with nothing stored loads the standard, code-less defaults', async () => {

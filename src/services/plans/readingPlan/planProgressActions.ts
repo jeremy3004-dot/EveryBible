@@ -31,14 +31,15 @@ export async function enrollInPlan(
 
 export async function markDayComplete(
   planId: string,
-  dayNumber: number
+  dayNumber: number,
+  occurrenceKey?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress>> {
   const plan = getPlan(planId);
   if (!plan) {
     return { success: false, error: 'Plan not found' };
   }
 
-  const localUpdated = completePlanDayInStore(readingPlansStore, plan, dayNumber);
+  const localUpdated = completePlanDayInStore(readingPlansStore, plan, dayNumber, occurrenceKey);
   if (!localUpdated) {
     return { success: false, error: 'Not enrolled in this plan' };
   }
@@ -51,14 +52,21 @@ export async function markDayComplete(
 export async function markPlanSessionComplete(
   planId: string,
   dayNumber: number,
-  sessionKey: PlanSessionKey
+  sessionKey: PlanSessionKey,
+  occurrenceKey?: string
 ): Promise<PlanServiceResult<UserReadingPlanProgress>> {
   const plan = getPlan(planId);
   if (!plan) {
     return { success: false, error: 'Plan not found' };
   }
 
-  const outcome = completePlanSessionInStore(readingPlansStore, plan, dayNumber, sessionKey);
+  const outcome = completePlanSessionInStore(
+    readingPlansStore,
+    plan,
+    dayNumber,
+    sessionKey,
+    occurrenceKey
+  );
   if (!outcome.found) {
     return { success: false, error: 'Plan session not found' };
   }

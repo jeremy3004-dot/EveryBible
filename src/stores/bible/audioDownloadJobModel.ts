@@ -8,6 +8,7 @@ import type {
   TranslationDownloadProgress,
 } from '../../types';
 import type { AudioDownloadJobRecord } from '../../services/audio/audioDownloadService';
+import { isAudioDownloadBookOwnedByCollection } from '../../services/audio/download/activeDownloads';
 
 export function mapAudioJobStatus(
   status: AudioDownloadJobRecord['status']
@@ -36,6 +37,9 @@ export function mapAudioDownloadJob(job: AudioDownloadJobRecord): TranslationDow
   return {
     id: job.id,
     kind: mapAudioJobKind(job.scope),
+    ...(job.scope === 'translation' && job.requestedBookIds
+      ? { requestedBookIds: job.requestedBookIds }
+      : {}),
     state: mapAudioJobStatus(job.status),
     progress: job.status === 'completed' ? 100 : 0,
     startedAt: job.createdAt,
@@ -116,6 +120,20 @@ export function getLatestPersistedAudioJobByTranslation(
   return jobsByTranslation;
 }
 
+/** A collection owns only its selected child books; other books remain independent jobs. */
+export function getDisplayableActiveAudioJobs(
+  jobs: AudioDownloadJobRecord[]
+): AudioDownloadJobRecord[] {
+  const active = jobs.filter((job) => job.status === 'downloading' || job.status === 'queued');
+  const collections = new Map(
+    active.filter((job) => job.scope === 'translation').map((job) => [job.translationId, job])
+  );
+  return active.filter((job) => {
+    const parent = collections.get(job.translationId);
+    return !parent || !isAudioDownloadBookOwnedByCollection(job, parent);
+  });
+}
+
 /** Adds each newly completed book once, keeping the existing order. */
 export function appendDownloadedAudioBooks(
   downloadedAudioBooks: string[],
@@ -132,10 +150,9 @@ export function appendDownloadedAudioBooks(
  * The audio job a cancel request should stop, or null when the banner belongs to a text
  * transfer.
  *
- * The authoritative id is the one on the translation's active job. downloadProgress.jobId
- * is a best-effort mirror, and during a collection download a book-scope event could once
- * leave a nested book job id there — which requestAudioDownloadCancellation could not
- * resolve, so cancel silently did nothing while chapters kept downloading. (N22)
+ * The visible banner owns Cancel. An older collection path could put one of its covered
+ * child book ids in that banner, so only that proven parent/child relationship maps back
+ * to the collection. An independent book outside a selected collection retains its own id.
  * A text transfer has no audio job id. Never let a stale audio job on the same
  * translation hijack a text cancellation request.
  */
@@ -144,9 +161,18 @@ export function resolveAudioCancellationJobId(
   translations: readonly BibleTranslation[]
 ): string | null {
   const cancelledTranslationId = progress?.translationId;
-  const activeJobId = cancelledTranslationId
-    ? (translations.find((item) => item.id === cancelledTranslationId)?.activeDownloadJob?.id ??
-      null)
-    : null;
-  return progress?.jobId ? (activeJobId ?? progress.jobId) : null;
+  if (!progress?.jobId) return null;
+  const activeJob = translations.find(
+    (item) => item.id === cancelledTranslationId
+  )?.activeDownloadJob;
+  const bookId = progress.bookId;
+  if (
+    activeJob?.kind === 'translation-audio' &&
+    bookId &&
+    progress.jobId === `audio-download:${cancelledTranslationId}:book:${bookId}` &&
+    (!activeJob.requestedBookIds || activeJob.requestedBookIds.includes(bookId))
+  ) {
+    return activeJob.id;
+  }
+  return progress.jobId;
 }

@@ -58,6 +58,6 @@ test('a dev build can still be switched off at runtime, clearing the keystore en
   assert.equal(state().accessPasscode, null);
   assert.deepEqual(
     secureStore.calls.map((call) => call.op),
-    ['delete']
+    ['delete', 'get']
   );
 });

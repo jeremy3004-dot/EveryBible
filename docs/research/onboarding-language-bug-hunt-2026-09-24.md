@@ -22,6 +22,15 @@ Coverage added with no bug found: `bundledBibleDatabaseAsset.test.ts` now checks
 catalog id declared as bundled text has all 66 books in the shipped `bible-bsb-v2.db`, and that
 the DB contains no translations beyond those. Today bsb, web, asv and npiulb all pass.
 
+## Initial Bible completion ownership (2026-09-28)
+
+Selecting a Bible retains that choice while interface-language resources load. If a newer
+interface-language choice supersedes the load, completion retries with the latest language;
+`changeLanguage(false)` never authorizes saving the old language. Unmount cancels completion,
+preferences, navigation, and late error prompts. Cancelled completion releases the queue for
+a fresh attempt; genuine load failures retain the existing Retry behavior. Downloads already
+started may finish installing without activating a Bible after the flow has unmounted.
+
 ## Found, not fixed
 
 - **Low (copy):** On a catalog failure or offline first run, the error card reads "Something went wrong" with `onboarding.noLanguagesFoundBody`, which is advice about search spelling. It should say the connection failed and that the listed Bibles work offline. This needs a new key in all 21 locales.

@@ -474,7 +474,7 @@ test('the music plays straight through a Selah resume', async (t) => {
   );
 });
 
-test('two resumes of one Selah pick up at the same place', async (t) => {
+test('the newer concurrent resume of one Selah owns the shared pick-up point', async (t) => {
   await playing(t, 42_000);
   await holdInSelah(t);
   calls.length = 0;
@@ -492,7 +492,7 @@ test('two resumes of one Selah pick up at the same place', async (t) => {
 
   assert.deepEqual(
     calls.filter((call) => call.startsWith('seek')),
-    ['seek 40500', 'seek 40500']
+    ['seek 40500']
   );
   assert.equal(store().selahActive, false);
   assert.equal(store().status, 'playing');

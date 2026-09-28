@@ -128,7 +128,8 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
   const scrollRef = useRef<ScrollView | null>(null);
   const verseTopsRef = useRef<Record<number, number>>({});
   const viewportHeightRef = useRef(0);
-  const isDraggingRef = useRef(false);
+  const isManualScrollingRef = useRef(false);
+  const ownsManualScrollRef = useRef(false);
   const lastManualScrollAtRef = useRef<number | null>(null);
   // A verse to bring into view as soon as its row has been measured.
   const pendingVerseRef = useRef<number | null>(null);
@@ -143,6 +144,10 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
         return;
       }
       pendingVerseRef.current = null;
+      // Android also emits momentum events for this animated scroll. A drag
+      // without a fling must not claim the next automatic animation's end.
+      ownsManualScrollRef.current = false;
+      isManualScrollingRef.current = false;
       scrollRef.current?.scrollTo({
         y: getReadAlongScrollOffset({ verseTopY: top, viewportHeight: viewportHeightRef.current }),
         animated: animated && !reduceMotion,
@@ -152,7 +157,7 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
   );
 
   useEffect(() => {
-    if (currentVerse == null || isDraggingRef.current) return;
+    if (currentVerse == null || isManualScrollingRef.current) return;
     if (
       !shouldAutoFollow({ nowMs: Date.now(), lastManualScrollAtMs: lastManualScrollAtRef.current })
     )
@@ -167,6 +172,8 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
   useEffect(() => {
     if (shownChapterKeyRef.current === chapterKey) return;
     shownChapterKeyRef.current = chapterKey;
+    ownsManualScrollRef.current = false;
+    isManualScrollingRef.current = false;
     lastManualScrollAtRef.current = null;
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [chapterKey]);
@@ -189,12 +196,22 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
   );
 
   const handleScrollBeginDrag = useCallback(() => {
-    isDraggingRef.current = true;
+    ownsManualScrollRef.current = true;
+    isManualScrollingRef.current = true;
     lastManualScrollAtRef.current = Date.now();
   }, []);
   // The pause runs from the moment the finger (or the fling it started) lets go.
-  const handleScrollEnd = useCallback(() => {
-    isDraggingRef.current = false;
+  const handleScrollEndDrag = useCallback(() => {
+    isManualScrollingRef.current = false;
+    lastManualScrollAtRef.current = Date.now();
+  }, []);
+  const handleMomentumScrollBegin = useCallback(() => {
+    if (ownsManualScrollRef.current) isManualScrollingRef.current = true;
+  }, []);
+  const handleMomentumScrollEnd = useCallback(() => {
+    if (!ownsManualScrollRef.current) return;
+    ownsManualScrollRef.current = false;
+    isManualScrollingRef.current = false;
     lastManualScrollAtRef.current = Date.now();
   }, []);
 
@@ -206,8 +223,9 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
       showsVerticalScrollIndicator={false}
       onLayout={handleViewportLayout}
       onScrollBeginDrag={handleScrollBeginDrag}
-      onScrollEndDrag={handleScrollEnd}
-      onMomentumScrollEnd={handleScrollEnd}
+      onScrollEndDrag={handleScrollEndDrag}
+      onMomentumScrollBegin={handleMomentumScrollBegin}
+      onMomentumScrollEnd={handleMomentumScrollEnd}
       scrollEventThrottle={16}
     >
       {verses.map((verse) => (

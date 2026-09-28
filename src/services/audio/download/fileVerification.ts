@@ -69,10 +69,13 @@ export async function isCachedChapterSizeWrong(
 // its recorded size is trusted without asking again. A partial left by an interrupted rewrite has
 // a different size, so it is still looked up and replaced.
 const VERIFIED_CHAPTER_SIZES_FILENAME = 'verified-sizes.json';
+// Older receipts also certified unknown-size cached partials, so their trust is not reusable.
+const VERIFIED_CHAPTER_SIZES_VERSION = 2;
 
 export interface VerifiedChapterSizes {
   isVerified: (chapter: number, fileUri: string) => Promise<boolean>;
   record: (chapter: number, fileUri: string) => Promise<void>;
+  forget: (chapter: number) => Promise<void>;
   /** Resolves once every recorded size has been written. */
   flush: () => Promise<void>;
 }
@@ -80,26 +83,39 @@ export interface VerifiedChapterSizes {
 export const UNTRACKED_CHAPTER_SIZES: VerifiedChapterSizes = {
   isVerified: async () => false,
   record: async () => {},
+  forget: async () => {},
   flush: async () => {},
 };
 
-function parseVerifiedChapterSizes(contents: string | null): Map<number, number> {
+function parseVerifiedChapterSizes(contents: string | null): {
+  sizes: Map<number, number>;
+  needsRetirement: boolean;
+} {
   const sizes = new Map<number, number>();
-  if (!contents) return sizes;
+  if (!contents) return { sizes, needsRetirement: false };
   try {
     const parsed: unknown = JSON.parse(contents);
-    if (parsed && typeof parsed === 'object') {
-      for (const [chapter, bytes] of Object.entries(parsed)) {
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'version' in parsed &&
+      parsed.version === VERIFIED_CHAPTER_SIZES_VERSION &&
+      'sizes' in parsed &&
+      parsed.sizes &&
+      typeof parsed.sizes === 'object'
+    ) {
+      for (const [chapter, bytes] of Object.entries(parsed.sizes)) {
         const chapterNumber = Number(chapter);
         if (Number.isInteger(chapterNumber) && typeof bytes === 'number' && bytes > 0) {
           sizes.set(chapterNumber, bytes);
         }
       }
+      return { sizes, needsRetirement: false };
     }
   } catch {
     // An unreadable record only costs a lookup per chapter.
   }
-  return sizes;
+  return { sizes, needsRetirement: true };
 }
 
 export async function openVerifiedChapterSizes(
@@ -110,8 +126,25 @@ export async function openVerifiedChapterSizes(
   if (!readTextFile || !writeTextFile || !getFileSize) return UNTRACKED_CHAPTER_SIZES;
 
   const recordUri = `${directoryUri}${VERIFIED_CHAPTER_SIZES_FILENAME}`;
-  const sizes = parseVerifiedChapterSizes(await readTextFile(recordUri).catch(() => null));
+  const parsed = parseVerifiedChapterSizes(await readTextFile(recordUri).catch(() => null));
+  const sizes = parsed.sizes;
+  let needsRetirement = parsed.needsRetirement;
   let writes: Promise<void> = Promise.resolve();
+
+  const persist = () => {
+    const contents = JSON.stringify({
+      version: VERIFIED_CHAPTER_SIZES_VERSION,
+      sizes: Object.fromEntries(sizes),
+    });
+    needsRetirement = false;
+    // Chapters finish concurrently; writing in order keeps the last write the fullest.
+    writes = writes
+      .then(() => writeTextFile(recordUri, contents))
+      .catch((error: unknown) => {
+        console.warn('[AudioDownload] Could not save verified chapter sizes:', error);
+      });
+    return writes;
+  };
 
   return {
     isVerified: async (chapter, fileUri) => {
@@ -122,14 +155,10 @@ export async function openVerifiedChapterSizes(
       const size = await getFileSize(fileUri);
       if (size == null || size <= 0) return;
       sizes.set(chapter, size);
-      const contents = JSON.stringify(Object.fromEntries(sizes));
-      // Chapters finish concurrently; writing in order keeps the last write the fullest.
-      writes = writes
-        .then(() => writeTextFile(recordUri, contents))
-        .catch((error: unknown) => {
-          console.warn('[AudioDownload] Could not save verified chapter sizes:', error);
-        });
-      await writes;
+      await persist();
+    },
+    forget: async (chapter) => {
+      if (sizes.delete(chapter) || needsRetirement) await persist();
     },
     flush: () => writes,
   };

@@ -17,7 +17,7 @@ import {
 import type { RepeatPassage } from '../../types';
 import type { AudioPlayerSession, ResolveAudioCoverage } from './playerSession';
 import { followAutoAdvancedChapter } from './readingPositionFollow';
-import { chapterTransition, pausedByListener } from './sharedPlaybackState';
+import { chapterTransition, pausedByListener, seekRequest } from './sharedPlaybackState';
 
 // Carries out `repeatMode: 'passage'` (the decisions live in
 // stores/audioRepeatPassageModel.ts).
@@ -194,6 +194,7 @@ async function resolveLoopStart(
 
 interface TrackAtDecision extends ChapterRef {
   requestId: number;
+  seekRequestId: number;
   translationId: string;
   rawPassage: RepeatPassage;
 }
@@ -202,6 +203,7 @@ function captureTrack(ctx: PassageRepeatContext, rawPassage: RepeatPassage): Tra
   const { currentTranslationId, currentBookId, currentChapter } = useAudioStore.getState();
   return {
     requestId: ctx.session.playRequestId,
+    seekRequestId: seekRequest.current,
     translationId: currentTranslationId ?? ctx.fallbackTranslationId,
     bookId: currentBookId ?? '',
     chapter: currentChapter ?? 0,
@@ -211,12 +213,13 @@ function captureTrack(ctx: PassageRepeatContext, rawPassage: RepeatPassage): Tra
 
 /**
  * Whether anything took over while a decision awaited timings or coverage: a newer
- * command (play, pause, stop, a chapter pick), another chapter, or another passage.
+ * command (play, pause, stop, seek or skip, a chapter pick), another chapter, or another passage.
  */
 function tookOver(ctx: PassageRepeatContext, at: TrackAtDecision): boolean {
   const live = useAudioStore.getState();
   return (
     ctx.session.playRequestId !== at.requestId ||
+    seekRequest.current !== at.seekRequestId ||
     (live.currentTranslationId ?? ctx.fallbackTranslationId) !== at.translationId ||
     live.currentBookId !== at.bookId ||
     live.currentChapter !== at.chapter ||
@@ -226,11 +229,19 @@ function tookOver(ctx: PassageRepeatContext, at: TrackAtDecision): boolean {
 }
 
 /** Moves the loaded sound to `positionMs`, as a seek does, without restarting it. */
-async function seekLoadedChapter(session: AudioPlayerSession, positionMs: number): Promise<void> {
+async function seekLoadedChapter(
+  ctx: PassageRepeatContext,
+  at: TrackAtDecision,
+  positionMs: number
+): Promise<void> {
+  const seekAt = { ...at, seekRequestId: ++seekRequest.current };
   // Re-anchor interpolation, or its next tick extrapolates from the pre-seek position.
-  session.lastPollPosition = positionMs;
-  session.lastPollTime = Date.now();
+  ctx.session.lastPollPosition = positionMs;
+  ctx.session.lastPollTime = Date.now();
   await audioPlayer.seekTo(positionMs);
+  // A newer seek, pause, stop, chapter pick or passage change may own playback by the time
+  // the native seek settles. Its position and durable resume point must survive.
+  if (tookOver(ctx, seekAt)) return;
   useAudioStore.getState().setPosition(positionMs);
 }
 
@@ -292,7 +303,7 @@ async function loopFromEndVerse(ctx: PassageRepeatContext): Promise<void> {
 
     // A one-chapter passage loops inside the loaded sound: a seek, not a reload.
     if (target.bookId === at.bookId && target.chapter === at.chapter && audioPlayer.isLoaded()) {
-      await seekLoadedChapter(ctx.session, target.startPositionMs);
+      await seekLoadedChapter(ctx, at, target.startPositionMs);
       return;
     }
     if (!ctx.session.playChapterForTranslation) return;
@@ -459,7 +470,7 @@ async function moveIntoPassage(
 
   if (target.bookId === at.bookId && target.chapter === at.chapter && audioPlayer.isLoaded()) {
     // Playing or paused, the loaded sound only has to move.
-    await seekLoadedChapter(ctx.session, target.startPositionMs);
+    await seekLoadedChapter(ctx, at, target.startPositionMs);
     return;
   }
   if (useAudioStore.getState().status === 'paused') {

@@ -52,6 +52,8 @@ export interface ChapterFeedbackFunctionResponse {
   // Set when the backend rejected the request for want of a signed-in user (401), so the
   // UI can show a localized sign-in prompt instead of the raw server message.
   requiresSignIn?: boolean;
+  // Existing queued Council text waits for a fresh code instead of being discarded.
+  requiresCouncilAccess?: boolean;
   // Set when the request never got a considered answer (offline, timed out, server
   // outage), so the same submission may succeed later; see chapterFeedbackOutbox.
   retryable?: boolean;
@@ -364,12 +366,17 @@ export async function submitChapterFeedback(
     if (error) {
       const resolvedErrorMessage = await resolveFunctionErrorMessage(error);
       const requiresSignIn = getFunctionErrorStatus(error) === 401;
+      const requiresCouncilAccess =
+        payload.contributorCategory === 'scripture_council' &&
+        getFunctionErrorStatus(error) === 403 &&
+        resolvedErrorMessage === 'Council access denied';
       return {
         success: false,
         saved: false,
         exported: false,
         error: resolvedErrorMessage,
         requiresSignIn,
+        ...(requiresCouncilAccess ? { requiresCouncilAccess: true } : {}),
         ...(isRetryableFunctionError(error) ? { retryable: true } : {}),
       };
     }

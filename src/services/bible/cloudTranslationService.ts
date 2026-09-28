@@ -380,6 +380,15 @@ async function verifyInstalledTranslationDatabase({
       throw new Error('Downloaded translation database has an incompatible verses schema.');
     }
 
+    // COUNT(*) and a first-verse read can miss damaged overflow pages in later chapters.
+    // Limit reported errors to one, while still checking the entire database before adoption.
+    const integrity = await database.getFirstAsync<{ quick_check: string }>(
+      'PRAGMA quick_check(1)'
+    );
+    if (integrity?.quick_check !== 'ok') {
+      throw new Error('Downloaded translation database failed SQLite integrity verification.');
+    }
+
     const countResult = await database.getFirstAsync<{ count: number }>(
       'SELECT COUNT(*) as count FROM verses'
     );

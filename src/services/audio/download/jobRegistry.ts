@@ -13,8 +13,6 @@ import type {
 } from './types';
 import { DEFAULT_AUDIO_ROOT_URI } from './audioFileLocations';
 
-export const AUDIO_DOWNLOAD_JOB_ID_PREFIX = 'audio-download:';
-
 export function createAudioDownloadJobId({
   translationId,
   scope,
@@ -50,6 +48,7 @@ interface StartJobParams extends DownloadContext {
   scope: AudioDownloadJobScope;
   bookId?: string;
   requestedBookIds?: string[];
+  parentRunId?: string;
 }
 
 interface FailJobParams extends DownloadContext {
@@ -171,22 +170,40 @@ const upsertJob = async (
   return job;
 };
 
+let runSequence = 0;
+const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;
+
 export async function startAudioDownloadJob({
   translationId,
   scope,
   bookId,
   requestedBookIds,
+  parentRunId,
   jobStore,
   hooks,
 }: StartJobParams): Promise<AudioDownloadJobRecord> {
   const activeJobStore = resolveJobStoreOrMemory(jobStore);
   const id = createAudioDownloadJobId({ translationId, scope, bookId });
   const existing = await activeJobStore.getJob(id);
+  // Recovery keeps an active collection's child ownership; a new book admission takes over its row.
+  const runId =
+    scope === 'translation' &&
+    existing &&
+    (existing.status === 'queued' || existing.status === 'downloading')
+      ? (existing.runId ?? createRunId())
+      : createRunId();
+  const ownRun = (job: AudioDownloadJobRecord): AudioDownloadJobRecord => ({
+    ...job,
+    runId,
+    parentRunId,
+  });
 
   if (existing && (existing.status === 'downloading' || existing.status === 'queued')) {
     const reattached = await upsertJob(
       activeJobStore,
-      createJobRecord(translationId, scope, bookId, 'downloading', existing, requestedBookIds)
+      ownRun(
+        createJobRecord(translationId, scope, bookId, 'downloading', existing, requestedBookIds)
+      )
     );
     hooks?.onReattach?.(reattached);
     return reattached;
@@ -194,13 +211,15 @@ export async function startAudioDownloadJob({
 
   const started = await upsertJob(
     activeJobStore,
-    createJobRecord(
-      translationId,
-      scope,
-      bookId,
-      'downloading',
-      existing ?? undefined,
-      requestedBookIds
+    ownRun(
+      createJobRecord(
+        translationId,
+        scope,
+        bookId,
+        'downloading',
+        existing ?? undefined,
+        requestedBookIds
+      )
     )
   );
   hooks?.onStart?.(started);

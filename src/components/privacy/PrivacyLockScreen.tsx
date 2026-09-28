@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -98,14 +98,15 @@ export function PrivacyLockScreen() {
   }, [screenWidth]);
   const [calc, setCalc] = useState<CalcState>(initialCalcState);
   const [activeOp, setActiveOp] = useState<string | null>(null);
+  const keySequenceRef = useRef('');
 
   const handlePress = useCallback(
     async (key: ButtonKey | string) => {
       const rawKey = key === '0_wide' ? '0' : key;
+      const seq = rawKey === 'C' ? '' : keySequenceRef.current + rawKey;
+      keySequenceRef.current = seq;
 
       setCalc((prev) => {
-        const seq = prev.rawKeySequence + rawKey;
-
         // --- clear ---
         if (rawKey === 'C') {
           setActiveOp(null);
@@ -218,53 +219,41 @@ export function PrivacyLockScreen() {
 
       // --- check PIN on = press ---
       if (rawKey === '=') {
-        // Small delay so state updates first
-        setTimeout(() => {
-          setCalc((current) => {
-            // Extract only digits and basic operator chars from the sequence
-            const pinCandidate = current.rawKeySequence
-              .replace(/[C%±.=]/g, '')
-              .replace(/×/g, '*')
-              .replace(/÷/g, '/');
-
-            // Try the last 4-6 chars as a PIN. All candidates go in together so
-            // one '=' press costs one throttled attempt, not three.
-            const candidates: string[] = [];
-            for (let len = 4; len <= 6; len++) {
-              if (pinCandidate.length >= len) {
-                const attempt = pinCandidate.slice(-len);
-                const validation = validatePrivacyPin(attempt);
-                if (validation.isValid) {
-                  candidates.push(validation.normalized);
-                }
-              }
+        // Submit at the tap, so a later background lock invalidates this attempt.
+        // A ref also keeps rapid taps independent of React's state batching.
+        const pinCandidate = seq
+          .replace(/[C%±.=]/g, '')
+          .replace(/×/g, '*')
+          .replace(/÷/g, '/');
+        const candidates: string[] = [];
+        for (let len = 4; len <= 6; len++) {
+          if (pinCandidate.length >= len) {
+            const validation = validatePrivacyPin(pinCandidate.slice(-len));
+            if (validation.isValid) {
+              candidates.push(validation.normalized);
             }
+          }
+        }
 
-            if (candidates.length > 0) {
-              void unlock(candidates).then((success) => {
-                if (success) {
-                  // Will unmount — no state update needed
-                  return;
-                }
-
-                // While throttled, fall back to the calculator's own generic
-                // failure output. Nothing here may hint that a code exists.
-                if (usePrivacyStore.getState().pinLockedUntil !== null) {
-                  setCalc((state) => ({
-                    ...state,
-                    display: 'Error',
-                    previousValue: null,
-                    operator: null,
-                    waitingForOperand: true,
-                    rawKeySequence: '',
-                  }));
-                }
-              });
+        if (candidates.length > 0) {
+          void unlock(candidates).then((success) => {
+            if (success) {
+              return;
             }
-
-            return current;
+            // Generic calculator output must not hint that a code exists.
+            if (usePrivacyStore.getState().pinLockedUntil !== null) {
+              keySequenceRef.current = '';
+              setCalc((state) => ({
+                ...state,
+                display: 'Error',
+                previousValue: null,
+                operator: null,
+                waitingForOperand: true,
+                rawKeySequence: '',
+              }));
+            }
           });
-        }, 50);
+        }
       }
     },
     [unlock]

@@ -50,6 +50,11 @@ function readTapTarget(response: unknown): { target: NotificationTapTarget; key:
   return { target: 'plans', key: `${identifier}:${date}` };
 }
 
+/** Startup-light admission/deduplication before the plans dependencies are loaded. */
+export function getNotificationTapKey(response: unknown): string | null {
+  return readTapTarget(response)?.key ?? null;
+}
+
 /** The plans a reader is part-way through: joined and not yet finished. */
 export function getActiveReadingPlanIds(
   progressByPlanId: Record<string, UserReadingPlanProgress>

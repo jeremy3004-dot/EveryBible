@@ -48,8 +48,8 @@ mockModule(mock, sourcePath('hooks/useI18n.ts'), {
 });
 
 // The real translator-review store runs against in-memory secure storage and MMKV.
-mockMmkvStorage(mock);
-mockSecureStore(mock);
+const feedbackMmkv = mockMmkvStorage(mock);
+const feedbackSecureStore = mockSecureStore(mock);
 
 const syncCalls: number[] = [];
 const syncOwners: [string | undefined, number | undefined][] = [];
@@ -110,6 +110,11 @@ mockModule(mock, sourcePath('stores/deviceCaches.ts'), {
 mockModule(mock, sourcePath('services/onboarding/localeSelection.ts'), {
   localeSearchEngine: { getCountryDisplayName: (code: string) => `Country ${code}` },
 });
+let pauseReminderSchedule: (() => Promise<void>) | null = null;
+let pauseReminderReconciliation: (() => Promise<void>) | null = null;
+let pauseReminderPermission: (() => Promise<void>) | null = null;
+let pauseReminderCancellation: (() => Promise<void>) | null = null;
+let scheduledReminderTime: string | null = null;
 const reminders: {
   permission: 'granted' | 'denied' | 'blocked';
   calls: string[];
@@ -128,14 +133,29 @@ const reminders: {
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   scheduleDailyReminder: async (hour: number, minute: number) => {
     reminders.calls.push(`schedule:${hour}:${minute}`);
+    await pauseReminderSchedule?.();
+    scheduledReminderTime = `${hour}:${minute}`;
     if (reminders.scheduleError) throw reminders.scheduleError;
   },
   cancelDailyReminder: async () => {
     reminders.calls.push('cancel');
+    await pauseReminderCancellation?.();
+    scheduledReminderTime = null;
+  },
+  reconcileDailyReminder: async (preferences: {
+    notificationsEnabled: boolean;
+    reminderTime: string | null;
+  }) => {
+    reminders.calls.push('reconcile');
+    await pauseReminderReconciliation?.();
+    scheduledReminderTime = preferences.notificationsEnabled
+      ? (preferences.reminderTime?.replace(/^0/, '') ?? null)
+      : null;
   },
   requestNotificationPermissionOutcome: async () => {
     reminders.requests += 1;
     reminders.promptsUnderLockGrace.push(isPrivacyLockGraceActive());
+    await pauseReminderPermission?.();
     return reminders.permission;
   },
 });
@@ -168,6 +188,11 @@ afterEach(async () => {
   reminders.requests = 0;
   reminders.promptsUnderLockGrace.length = 0;
   reminders.scheduleError = null;
+  pauseReminderSchedule = null;
+  pauseReminderCancellation = null;
+  pauseReminderPermission = null;
+  pauseReminderReconciliation = null;
+  scheduledReminderTime = null;
   reported.length = 0;
   reportWaiters = [];
   harness.rn.__recorded.alerts.length = 0;
@@ -897,6 +922,38 @@ test('Translator Access unlocks through a numeric keypad passcode modal', async 
   assert.ok(view.getByRole('switch', { name: t('settings.translatorAccess'), checked: true }));
 });
 
+for (const kind of ['translator', 'council'] as const) {
+  test(`${kind} Settings verification cannot enable access when durable protection is unavailable`, async (ctx) => {
+    ctx.mock.method(console, 'warn', () => {});
+    const store = await reviewStore();
+    if (kind === 'council') {
+      harness.authStore.getState().setPreferences({ chapterFeedbackEnabled: true });
+      store.getState().enableCommunityFeedback();
+    }
+    const priorMode = store.getState().mode;
+    const view = await renderSettings();
+    await view.press(
+      kind === 'translator'
+        ? view.getByRole('switch', { name: t('settings.translatorAccess') })
+        : view.getByRole('button', {
+            name: `${t('feedback.council')}, ${t('feedback.councilCodeRequired')}`,
+          })
+    );
+    for (const digit of ['2', '2', '2', '2']) {
+      await view.press(view.getByRole('button', { name: digit }));
+    }
+    ctx.mock.method(feedbackMmkv.mmkvInstance, 'set', () => {
+      throw new Error('Preference storage unavailable');
+    });
+    const callsBefore = feedbackSecureStore.calls.length;
+    await view.press(view.getByRole('button', { name: t('settings.translatorAccessUnlock') }));
+    assert.ok(access.checked.some((checked) => checked.startsWith(`${kind}:2222`)));
+    assert.equal(store.getState().mode, priorMode);
+    assert.ok(view.getByText(t('feedback.incorrectCode')));
+    assert.equal(feedbackSecureStore.calls.length, callsBefore, 'no unsafe credential write');
+  });
+}
+
 test('a rejected translator passcode shows the incorrect-code message and stays locked', async () => {
   access.translator = { success: false, error: 'Translator access denied' };
   const store = await reviewStore();
@@ -1082,6 +1139,134 @@ test('turning the reminder off cancels it and syncs', async () => {
   assert.deepEqual(reminders.calls, ['cancel']);
   assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
   assert.equal(syncCalls.length, 1);
+});
+
+for (const scheduleFails of [false, true]) {
+  test(`turning the reminder off supersedes a pending time save after the picker closes (${scheduleFails ? 'failed schedule' : 'successful schedule'})`, async () => {
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+    const view = await renderSettings();
+    await view.press(view.getByRole('button', { name: rowNamed(t('settings.reminderTime')) }));
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    pauseReminderSchedule = () => {
+      markStarted();
+      return paused;
+    };
+    if (scheduleFails) {
+      reminders.scheduleError = new Error('native schedule failed after registering the alarm');
+    }
+    const failureReported = scheduleFails ? nextReport() : null;
+    let save!: Promise<void>;
+    await act(async () => {
+      save = view.getByRole('button', { name: t('settings.setTime') }).props.onPress();
+      await started;
+    });
+    await view.press(view.getByRole('button', { name: t('common.cancel') }));
+    let disable!: Promise<void>;
+    await act(async () => {
+      disable = switchNamed(view, t('settings.dailyReminder')).props.onValueChange(false);
+      release();
+      await Promise.all([save, disable]);
+    });
+
+    assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+    assert.equal(harness.authStore.getState().preferences.reminderTime, '07:30');
+    assert.deepEqual(reminders.calls, ['schedule:7:30', 'cancel']);
+    assert.equal(scheduledReminderTime, null, 'the native reminder finishes cancelled');
+    if (failureReported) {
+      await failureReported;
+      assert.equal(harness.rn.__recorded.alerts.length, 0, 'a superseded failure does not alert');
+      assert.equal(reported[0]?.source, 'settings.reminderSchedule');
+    }
+  });
+}
+
+test('turning the reminder off still saves the choice after Settings unmounts', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  const view = await renderSettings();
+  let release!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  pauseReminderCancellation = () => {
+    markStarted();
+    return paused;
+  };
+  let disable!: Promise<void>;
+  await act(async () => {
+    disable = switchNamed(view, t('settings.dailyReminder')).props.onValueChange(false);
+    await started;
+  });
+  await view.unmount();
+  await act(async () => {
+    release();
+    await disable;
+  });
+
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+  assert.equal(scheduledReminderTime, null);
+});
+
+test('turning the reminder off from reopened Settings supersedes the previous screen time save', async () => {
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  const previous = await renderSettings();
+  await previous.press(
+    previous.getByRole('button', { name: rowNamed(t('settings.reminderTime')) })
+  );
+  let release!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let markStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  pauseReminderSchedule = () => {
+    markStarted();
+    return paused;
+  };
+  let save!: Promise<void>;
+  await act(async () => {
+    save = previous.getByRole('button', { name: t('settings.setTime') }).props.onPress();
+    await started;
+  });
+  await previous.unmount();
+  const reopened = await renderSettings();
+  let disable!: Promise<void>;
+  await act(async () => {
+    disable = switchNamed(reopened, t('settings.dailyReminder')).props.onValueChange(false);
+    release();
+    await Promise.all([save, disable]);
+  });
+
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+  assert.equal(scheduledReminderTime, null, 'the shared native reminder finishes cancelled');
+
+  pauseReminderSchedule = null;
+  await reopened.fire(switchNamed(reopened, t('settings.dailyReminder')), 'onValueChange', true);
+  assert.equal(
+    harness.authStore.getState().preferences.notificationsEnabled,
+    true,
+    'a fresh enable after the superseded work still succeeds'
+  );
+  assert.equal(scheduledReminderTime, '7:30');
+  assert.deepEqual(reminders.calls, ['schedule:7:30', 'cancel', 'schedule:7:30']);
 });
 
 test('a refused notification permission explains itself, and a blocked one offers system settings', async () => {
@@ -1292,3 +1477,192 @@ test('a stored "Creoles and pidgins" content language is reset to English and sy
   assert.equal(preferences.contentLanguageNativeName, 'English');
   assert.equal(syncCalls.length, 1);
 });
+
+const reminderGate = () => {
+  let release!: () => void;
+  let enter!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  return {
+    release,
+    started,
+    pause: () => {
+      enter();
+      return pending;
+    },
+  };
+};
+
+for (const permission of ['granted', 'blocked'] as const) {
+  test(`permission ${permission} completing after account switch cannot schedule, open picker or alert`, async () => {
+    harness.authStore.setState({ user: { uid: 'reminder-a' }, authGeneration: 1 });
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: false, reminderTime: null });
+    reminders.permission = permission;
+    const gate = reminderGate();
+    pauseReminderPermission = gate.pause;
+    const view = await renderSettings();
+    let enable!: Promise<void>;
+    await act(async () => {
+      enable = switchNamed(view, t('settings.dailyReminder')).props.onValueChange(true);
+      await gate.started;
+    });
+    await act(async () => {
+      harness.authStore.setState({ user: { uid: 'reminder-b' }, authGeneration: 2 });
+      gate.release();
+      await enable;
+    });
+    assert.deepEqual(reminders.calls, []);
+    assert.equal(view.queryByRole('button', { name: t('settings.setTime') }), null);
+    assert.equal(harness.rn.__recorded.alerts.length, 0);
+    assert.equal(syncCalls.length, 0);
+  });
+}
+
+for (const scenario of ['next-off', 'next-on', 'same-user-new-session', 'time-save'] as const) {
+  test(`pending reminder schedule preserves current preferences and reconciles native state: ${scenario}`, async () => {
+    harness.authStore.setState({ user: { uid: 'reminder-a' }, authGeneration: 1 });
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: scenario === 'time-save', reminderTime: '07:30' });
+    const view = await renderSettings();
+    if (scenario === 'time-save')
+      await view.press(view.getByRole('button', { name: rowNamed(t('settings.reminderTime')) }));
+    const gate = reminderGate();
+    pauseReminderSchedule = gate.pause;
+    let save!: Promise<void>;
+    await act(async () => {
+      save =
+        scenario === 'time-save'
+          ? view.getByRole('button', { name: t('settings.setTime') }).props.onPress()
+          : switchNamed(view, t('settings.dailyReminder')).props.onValueChange(true);
+      await gate.started;
+    });
+    await view.unmount();
+    const current = { notificationsEnabled: scenario === 'next-on', reminderTime: '20:45' };
+    await act(async () => {
+      harness.authStore.setState({
+        user: { uid: scenario === 'same-user-new-session' ? 'reminder-a' : 'reminder-b' },
+        authGeneration: 2,
+      });
+      harness.authStore.getState().setPreferences(current);
+      gate.release();
+      await save;
+    });
+    const { notificationsEnabled, reminderTime } = harness.authStore.getState().preferences;
+    assert.deepEqual({ notificationsEnabled, reminderTime }, current);
+    assert.equal(syncCalls.length, 0);
+    assert.equal(scheduledReminderTime, current.notificationsEnabled ? '20:45' : null);
+    assert.deepEqual(reminders.calls, ['schedule:7:30', 'reconcile']);
+  });
+}
+
+test('pending old-account OFF restores current enabled reminder without changing preferences', async () => {
+  harness.authStore.setState({ user: { uid: 'reminder-a' }, authGeneration: 1 });
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  const gate = reminderGate();
+  pauseReminderCancellation = gate.pause;
+  const view = await renderSettings();
+  let disable!: Promise<void>;
+  await act(async () => {
+    disable = switchNamed(view, t('settings.dailyReminder')).props.onValueChange(false);
+    await gate.started;
+  });
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'reminder-b' }, authGeneration: 2 });
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: true, reminderTime: '20:45' });
+    gate.release();
+    await disable;
+  });
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+  assert.equal(harness.authStore.getState().preferences.reminderTime, '20:45');
+  assert.equal(syncCalls.length, 0);
+  assert.equal(scheduledReminderTime, '20:45');
+});
+
+test('new-account ON queued behind old-account OFF finishes with the new desired time', async () => {
+  harness.authStore.setState({ user: { uid: 'reminder-a' }, authGeneration: 1 });
+  harness.authStore
+    .getState()
+    .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+  const gate = reminderGate();
+  pauseReminderCancellation = gate.pause;
+  const oldView = await renderSettings();
+  let disable!: Promise<void>;
+  await act(async () => {
+    disable = switchNamed(oldView, t('settings.dailyReminder')).props.onValueChange(false);
+    await gate.started;
+  });
+  await oldView.unmount();
+  await act(async () => {
+    harness.authStore.setState({ user: { uid: 'reminder-b' }, authGeneration: 2 });
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: false, reminderTime: '20:45' });
+  });
+  const currentView = await renderSettings();
+  let enable!: Promise<void>;
+  await act(async () => {
+    enable = switchNamed(currentView, t('settings.dailyReminder')).props.onValueChange(true);
+    gate.release();
+    await Promise.all([disable, enable]);
+  });
+  assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+  assert.equal(harness.authStore.getState().preferences.reminderTime, '20:45');
+  assert.equal(scheduledReminderTime, '20:45');
+  assert.equal(syncCalls.length, 1);
+  assert.deepEqual(syncOwners, [['reminder-b', 2]]);
+});
+
+for (const change of ['account', 'preferences'] as const) {
+  test(`a ${change} change during stale reminder restoration gets a serialized current-state continuation`, async () => {
+    harness.authStore.setState({ user: { uid: 'reminder-a' }, authGeneration: 1 });
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: false, reminderTime: '07:30' });
+    const native = reminderGate();
+    pauseReminderSchedule = native.pause;
+    const view = await renderSettings();
+    let save!: Promise<void>;
+    await act(async () => {
+      save = switchNamed(view, t('settings.dailyReminder')).props.onValueChange(true);
+      await native.started;
+    });
+    const restoration = reminderGate();
+    let restorations = 0;
+    pauseReminderReconciliation = () =>
+      ++restorations === 1 ? restoration.pause() : Promise.resolve();
+    await act(async () => {
+      harness.authStore.setState({ user: { uid: 'reminder-b' }, authGeneration: 2 });
+      harness.authStore
+        .getState()
+        .setPreferences({ notificationsEnabled: true, reminderTime: '20:45' });
+      native.release();
+      await restoration.started;
+    });
+    await act(async () => {
+      if (change === 'account')
+        harness.authStore.setState({ user: { uid: 'reminder-c' }, authGeneration: 3 });
+      harness.authStore
+        .getState()
+        .setPreferences({ notificationsEnabled: false, reminderTime: '18:15' });
+      restoration.release();
+      await save;
+    });
+    await view.flush();
+    assert.equal(scheduledReminderTime, null);
+    assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
+    assert.equal(harness.authStore.getState().preferences.reminderTime, '18:15');
+    assert.equal(syncCalls.length, 0);
+    assert.equal(restorations, 2, 'one continuation handles the intervening desired-state change');
+  });
+}

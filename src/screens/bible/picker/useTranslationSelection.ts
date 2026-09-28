@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { config } from '../../../constants/config';
 import { useI18n } from '../../../hooks/useI18n';
@@ -20,6 +20,7 @@ interface TranslationSelectionOptions extends TranslationPickerCallbacks {
   setIsHydratingRuntimeCatalog: (isHydrating: boolean) => void;
   downloadQueue: TranslationPickerDownloadQueue<BibleTranslation>;
   handleDownloadTextTranslation: (translation: BibleTranslation) => Promise<void>;
+  invalidateDownloadRetry: () => void;
 }
 
 /**
@@ -28,15 +29,16 @@ interface TranslationSelectionOptions extends TranslationPickerCallbacks {
  * device is looked up again first, so the decision uses its catalog entry.
  */
 export function useTranslationSelection({
+  isActive = true,
   hasHydratedRuntimeCatalog,
   setIsHydratingRuntimeCatalog,
   downloadQueue,
   handleDownloadTextTranslation,
+  invalidateDownloadRetry,
   onRequestClose,
   onTranslationActivated,
 }: TranslationSelectionOptions) {
   const { t } = useI18n();
-  const currentBook = useBibleStore((state) => state.currentBook);
   const setCurrentTranslation = useBibleStore((state) => state.setCurrentTranslation);
   const setCurrentBook = useBibleStore((state) => state.setCurrentBook);
   const setCurrentChapter = useBibleStore((state) => state.setCurrentChapter);
@@ -46,12 +48,38 @@ export function useTranslationSelection({
   // Hosts (the reader re-renders on every audio tick) pass new handlers each render; reading
   // them through a ref keeps this callback, and so every memoised row, stable.
   const hostCallbacksRef = useLatestRef({ onRequestClose, onTranslationActivated });
+  const activeRef = useLatestRef(isActive);
+  const mountedRef = useRef(false);
+  const selectionGenerationRef = useRef(0);
+
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      selectionGenerationRef.current += 1;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (!isActive) {
+      selectionGenerationRef.current += 1;
+      setIsHydratingRuntimeCatalog(false);
+    }
+  }, [isActive, setIsHydratingRuntimeCatalog]);
 
   return useCallback(
     async (translation: BibleTranslation) => {
-      let nextTranslation = translation;
+      if (!mountedRef.current || !activeRef.current) return;
+      const generation = ++selectionGenerationRef.current;
+      invalidateDownloadRetry();
+      setIsHydratingRuntimeCatalog(false);
+      const ownsSelection = () =>
+        mountedRef.current && activeRef.current && selectionGenerationRef.current === generation;
+      let nextTranslation = useBibleStore
+        .getState()
+        .translations.find((candidate) => candidate.id === translation.id);
+      if (!nextTranslation) return;
 
-      if (!hasHydratedRuntimeCatalog && !translation.isDownloaded) {
+      if (!hasHydratedRuntimeCatalog && !nextTranslation.isDownloaded) {
         setIsHydratingRuntimeCatalog(true);
 
         try {
@@ -59,17 +87,18 @@ export function useTranslationSelection({
         } catch (error) {
           console.warn('[Bible] Failed to refresh translation catalog before selection:', error);
         } finally {
-          setIsHydratingRuntimeCatalog(false);
+          if (ownsSelection()) setIsHydratingRuntimeCatalog(false);
         }
 
-        nextTranslation =
-          useBibleStore
-            .getState()
-            .translations.find((candidate) => candidate.id === translation.id) ?? translation;
+        if (!ownsSelection()) return;
+        nextTranslation = useBibleStore
+          .getState()
+          .translations.find((candidate) => candidate.id === translation.id);
+        if (!nextTranslation) return;
       }
 
       const outcome = resolveTranslationSelection(nextTranslation, {
-        currentBook,
+        currentBook: useBibleStore.getState().currentBook,
         audioEnabled: config.features.audioEnabled,
         isRemoteAudioAvailable,
         getFirstAvailableAudioBook,
@@ -109,6 +138,7 @@ export function useTranslationSelection({
             {
               text: t('translations.download'),
               onPress: () => {
+                if (!ownsSelection()) return;
                 void handleDownloadTextTranslation(nextTranslation);
               },
             },
@@ -126,7 +156,7 @@ export function useTranslationSelection({
     [
       hasHydratedRuntimeCatalog,
       setIsHydratingRuntimeCatalog,
-      currentBook,
+      activeRef,
       setPreferredTranslationLanguage,
       setCurrentBook,
       setCurrentChapter,
@@ -134,6 +164,7 @@ export function useTranslationSelection({
       hostCallbacksRef,
       t,
       handleDownloadTextTranslation,
+      invalidateDownloadRetry,
       downloadQueue,
     ]
   );

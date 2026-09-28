@@ -110,10 +110,6 @@ export function useAudioPortionShare({
   }, [audioPortionStartMs, seekTo, togglePlayPause]);
 
   const handleCloseAudioPortionSheet = () => {
-    if (requestRef.current) {
-      return;
-    }
-
     if (isPreviewingAudioPortion && isCurrentAudioChapter && status === 'playing') {
       void togglePlayPause();
     }

@@ -333,3 +333,29 @@ test('single-flight task turns a synchronous throw into a rejection and allows a
   assert.equal(await run(), 'reconciled');
   assert.equal(calls, 2);
 });
+
+for (const loading of [true, false]) {
+  test(`fresh reset ${loading ? 'native loader' : 'execution'} failure stays distinct from an ordinary unreadable keychain`, async () => {
+    let fail = true;
+    let resetCalls = 0;
+    const reset = () =>
+      resetPrivacyIfInstallationIsFresh({
+        getInstallationMarker: () => undefined,
+        getLegacyAuthState: () => undefined,
+        loadResetPrivacy: async () => {
+          if (loading && fail) throw new Error('native loader with private key details');
+          return async () => {
+            resetCalls += 1;
+            if (fail) throw new Error('native reset with private key details');
+          };
+        },
+      });
+    await assert.rejects(reset(), {
+      name: 'PrivacyInstallationResetError',
+      message: 'Fresh installation credentials could not be removed',
+    });
+    fail = false;
+    assert.equal(await reset(), true);
+    assert.equal(resetCalls, loading ? 1 : 2);
+  });
+}

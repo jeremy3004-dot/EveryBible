@@ -106,6 +106,7 @@ export interface TranslationCatalog {
 export interface TranslationDownloadJob {
   id: string;
   kind: TranslationDownloadJobKind;
+  requestedBookIds?: string[];
   state: TranslationDownloadJobState;
   progress: number;
   startedAt: number;

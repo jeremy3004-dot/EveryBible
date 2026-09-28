@@ -27,9 +27,17 @@ const authState = {
   user: null as { uid: string } | null,
   authGeneration: 0,
   throws: false,
+  preferences: { notificationsEnabled: true, reminderTime: '07:30' },
 };
+const preferenceListeners = new Set<
+  (state: typeof authState, previous: typeof authState) => void
+>();
 mockModule(mock, sourcePath('stores/authStore.ts'), {
   useAuthStore: {
+    subscribe: (listener: (state: typeof authState, previous: typeof authState) => void) => {
+      preferenceListeners.add(listener);
+      return () => preferenceListeners.delete(listener);
+    },
     getState: () => {
       if (authState.throws) {
         throw new Error('auth store unavailable');
@@ -41,15 +49,28 @@ mockModule(mock, sourcePath('stores/authStore.ts'), {
 
 // Discreet (calculator icon) mode: every app-generated notification must stay neutral.
 const privacyState = { discreet: false };
+const privacyListeners = new Set<
+  (state: typeof privacyState, previous: typeof privacyState) => void
+>();
 mockModule(mock, sourcePath('stores/privacyStore.ts'), {
-  isDiscreetModeActive: () => privacyState.discreet,
+  isDiscreetModeActive: (state = privacyState) => state.discreet,
+  usePrivacyStore: {
+    subscribe: (listener: (state: typeof privacyState, previous: typeof privacyState) => void) => {
+      privacyListeners.add(listener);
+      return () => privacyListeners.delete(listener);
+    },
+  },
 });
 
 // `language` prefixes every string so a test can tell which language a reminder
 // was scheduled in; it stays empty for the tests that assert on bare keys.
 const i18nState = { language: '' };
 mockModule(mock, sourcePath('i18n/index.ts'), {
-  default: { t: (key: string) => `${i18nState.language}${key}` },
+  default: {
+    t: (key: string) => `${i18nState.language}${key}`,
+    on: () => {},
+    off: () => {},
+  },
 });
 
 const expoConfig: { extra?: { eas?: { projectId?: string } } } = {
@@ -72,6 +93,9 @@ const autoRegistration: boolean[] = [];
 const tokenCalls: TokenOptions[] = [];
 let cancelFailure: Error | null = null;
 let scheduleFailure: Error | null = null;
+let pauseNativeSchedule: (() => Promise<void>) | null = null;
+let pauseNativeCancellation: (() => Promise<void>) | null = null;
+let nativeReminderArmed = false;
 let channelFailure: Error | null = null;
 let getToken: (options: TokenOptions) => Promise<{ data: string }> = async () => ({
   data: 'expo-token',
@@ -111,11 +135,16 @@ mockModule(mock, 'expo-notifications', {
   },
   cancelScheduledNotificationAsync: async (identifier: string) => {
     cancellations.push(identifier);
+    await pauseNativeCancellation?.();
     if (cancelFailure) {
       throw cancelFailure;
     }
+    nativeReminderArmed = false;
   },
   scheduleNotificationAsync: async (request: Record<string, unknown>) => {
+    await pauseNativeSchedule?.();
+    // Native scheduling can register the alarm before returning an error.
+    nativeReminderArmed = true;
     if (scheduleFailure) {
       throw scheduleFailure;
     }
@@ -210,6 +239,12 @@ beforeEach(() => {
   permission.canAskAgain = true;
   cancelFailure = null;
   scheduleFailure = null;
+  pauseNativeSchedule = null;
+  pauseNativeCancellation = null;
+  nativeReminderArmed = false;
+  preferenceListeners.clear();
+  privacyListeners.clear();
+  authState.preferences = { notificationsEnabled: true, reminderTime: '07:30' };
   channelFailure = null;
   channelImportance.clear();
   channelReads = 0;
@@ -557,6 +592,126 @@ const scheduledAt = () =>
     const trigger = request.trigger as { hour: number; minute: number };
     return [trigger.hour, trigger.minute, (request.content as { title: string }).title];
   });
+
+const publishReminderPreference = (preferences: typeof authState.preferences) => {
+  const previous = { ...authState };
+  authState.preferences = preferences;
+  preferenceListeners.forEach((listener) => listener(authState, previous));
+};
+
+for (const failsAfterRegistration of [false, true]) {
+  test(`Settings OFF cancels a foreground schedule that completes late with ${failsAfterRegistration ? 'a native error' : 'success'}`, async () => {
+    await startWithNoReminder();
+    const started = deferred<void>();
+    const schedule = deferred<void>();
+    pauseNativeSchedule = () => {
+      started.resolve();
+      return schedule.promise;
+    };
+    const nativeError = new Error('native scheduling failed after alarm registration');
+    scheduleFailure = failsAfterRegistration ? nativeError : null;
+    const errors: unknown[] = [];
+    const { installDailyReminderReconciler } = await import('./dailyReminderReconciler');
+    const reconciler = installDailyReminderReconciler(async () => ({
+      reconcileDailyReminder: async (preference) => {
+        try {
+          await notifications.reconcileDailyReminder(preference);
+        } catch (error) {
+          errors.push(error);
+          throw error;
+        }
+      },
+    }));
+    try {
+      await started.promise;
+      // Settings cancels before publishing OFF; its queue is separate from the reconciler.
+      await notifications.cancelDailyReminder();
+      assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+      publishReminderPreference({ notificationsEnabled: false, reminderTime: '07:30' });
+      schedule.resolve();
+      await reconciler.idle();
+
+      assert.equal(authState.preferences.notificationsEnabled, false);
+      assert.equal(nativeReminderArmed, false, 'the newer OFF must reach the native alarm');
+      assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+      assert.deepEqual(errors, failsAfterRegistration ? [nativeError] : []);
+    } finally {
+      reconciler.uninstall();
+    }
+  });
+}
+
+test('a cancellation completing after a foreground schedule keeps its cancelled accounting', async () => {
+  await startWithNoReminder();
+  const started = deferred<void>();
+  const schedule = deferred<void>();
+  pauseNativeSchedule = () => {
+    started.resolve();
+    return schedule.promise;
+  };
+  const { installDailyReminderReconciler } = await import('./dailyReminderReconciler');
+  const reconciler = installDailyReminderReconciler();
+  try {
+    await started.promise;
+    const cancelStarted = deferred<void>();
+    const cancellation = deferred<void>();
+    pauseNativeCancellation = () => {
+      cancelStarted.resolve();
+      return cancellation.promise;
+    };
+    const cancel = notifications.cancelDailyReminder();
+    await cancelStarted.promise;
+    schedule.resolve();
+    await reconciler.idle();
+    assert.equal(nativeReminderArmed, true);
+    assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+
+    cancellation.resolve();
+    await cancel;
+    publishReminderPreference({ notificationsEnabled: false, reminderTime: '07:30' });
+    await reconciler.idle();
+    assert.equal(nativeReminderArmed, false);
+    assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '0');
+    assert.equal(cancellations.length, 2, 'an already completed OFF needs no extra cancellation');
+
+    pauseNativeCancellation = null;
+    publishReminderPreference({ notificationsEnabled: true, reminderTime: '07:30' });
+    await reconciler.idle();
+    assert.equal(nativeReminderArmed, true, 'a fresh enable still schedules normally');
+  } finally {
+    reconciler.uninstall();
+  }
+});
+
+test('a pending foreground schedule is replaced by the latest time and discreet content', async () => {
+  await startWithNoReminder();
+  const started = deferred<void>();
+  const schedule = deferred<void>();
+  pauseNativeSchedule = () => {
+    started.resolve();
+    return schedule.promise;
+  };
+  const { installDailyReminderReconciler } = await import('./dailyReminderReconciler');
+  const reconciler = installDailyReminderReconciler();
+  try {
+    await started.promise;
+    publishReminderPreference({ notificationsEnabled: true, reminderTime: '21:15' });
+    const previous = { ...privacyState };
+    privacyState.discreet = true;
+    privacyListeners.forEach((listener) => listener(privacyState, previous));
+    schedule.resolve();
+    await reconciler.idle();
+
+    assert.equal(nativeReminderArmed, true);
+    assert.equal(mmkv.store.get(MAY_BE_SCHEDULED_KEY), '1');
+    assert.deepEqual(scheduledAt(), [
+      [7, 30, 'settings.notificationTitle'],
+      [21, 15, 'privacy.discreetNotificationTitle'],
+    ]);
+  } finally {
+    reconciler.uninstall();
+  }
+});
 
 test('an enabled reminder preference is scheduled at its saved time', async () => {
   await startWithNoReminder();

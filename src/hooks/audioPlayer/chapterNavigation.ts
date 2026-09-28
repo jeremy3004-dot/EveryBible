@@ -4,7 +4,7 @@ import {
   getAdjacentAudioPlaybackSequenceEntry,
   hasAudioPlaybackSequenceEntry,
 } from '../../stores/audioPlaybackSequenceModel';
-import type { AudioPlaybackSequenceEntry } from '../../types';
+import type { AudioPlaybackSequenceEntry, AudioStatus } from '../../types';
 import { stopAudioProgressTelemetry } from './listeningTelemetry';
 import { stopPositionInterpolation } from './playbackProgress';
 import type {
@@ -13,14 +13,15 @@ import type {
   ResolveAudioCoverage,
   SyncNowPlaying,
 } from './playerSession';
-import { chapterTransition } from './sharedPlaybackState';
+import { chapterTransition, navigationIntent } from './sharedPlaybackState';
 import { getAdjacentAudioChapter } from './useAudioCoverage';
 
 export type NavigateChapterForTranslation = (
   translationId: string,
   bookId: string,
   chapter: number,
-  verse?: number
+  verse?: number,
+  statusAtInvocation?: AudioStatus
 ) => Promise<void>;
 
 /**
@@ -35,9 +36,14 @@ export async function navigateToChapter(
   targetTranslationId: string,
   bookId: string,
   chapter: number,
-  verse?: number
+  verse?: number,
+  statusAtInvocation?: AudioStatus
 ): Promise<void> {
-  const statusAtNavigation = useAudioStore.getState().status;
+  const liveStatus = useAudioStore.getState().status;
+  // Completion can settle idle while a manual step waits for coverage. Preserve
+  // that step's intent, but a native interruption's live paused state must win.
+  const statusAtNavigation =
+    liveStatus === 'idle' ? (statusAtInvocation ?? liveStatus) : liveStatus;
   if (statusAtNavigation === 'playing' || statusAtNavigation === 'loading') {
     await playChapterForTranslation(targetTranslationId, bookId, chapter, verse);
     return;
@@ -72,78 +78,131 @@ export async function navigateToChapter(
 }
 
 export interface StepChapterContext {
+  session: AudioPlayerSession;
   fallbackTranslationId: string;
   resolveAudioCoverage: ResolveAudioCoverage;
   navigateChapterForTranslation: NavigateChapterForTranslation;
 }
 
 /**
- * Steps the player one chapter back or forward: the queue first, then a pinned
- * plan or rhythm session, then plain (or sparse-set) chapter adjacency. State is
+ * Steps the player one chapter back or forward: a pinned plan or rhythm session
+ * first, then the queue, then plain (or sparse-set) chapter adjacency. State is
  * read at call time because lock-screen commands arrive after the reader unmounts,
  * when the reader's render may be several auto-advanced chapters behind.
  */
 export async function stepChapter(
   {
+    session,
     fallbackTranslationId,
     resolveAudioCoverage,
     navigateChapterForTranslation,
   }: StepChapterContext,
   direction: -1 | 1
 ): Promise<AudioPlaybackSequenceEntry | null> {
-  const {
-    queue: liveQueue,
-    queueIndex: liveQueueIndex,
-    playbackSequence: liveSequence,
-    currentTranslationId: liveTranslationId,
-    currentBookId: liveBookId,
-    currentChapter: liveChapter,
-    setQueueIndex,
-  } = useAudioStore.getState();
-
-  const queuedEntry = liveQueue[liveQueueIndex + direction];
-  if (queuedEntry) {
-    setQueueIndex(liveQueueIndex + direction);
-    await navigateChapterForTranslation(
-      queuedEntry.translationId,
-      queuedEntry.bookId,
-      queuedEntry.chapter
+  const stepRequestId = ++navigationIntent.current;
+  navigationIntent.pendingId = stepRequestId;
+  const statusAtInvocation = useAudioStore.getState().status;
+  const requestId = session.playRequestId;
+  const navigateToTarget = async (
+    translationId: string,
+    target: AudioPlaybackSequenceEntry
+  ): Promise<AudioPlaybackSequenceEntry | null> => {
+    const navigation = navigateChapterForTranslation(
+      translationId,
+      target.bookId,
+      target.chapter,
+      undefined,
+      statusAtInvocation
     );
-    return { bookId: queuedEntry.bookId, chapter: queuedEntry.chapter };
+    // Navigation claims its playback generation before awaiting native stop/load.
+    // Capture that claim, so its own increment is valid but a later command is not.
+    const navigationRequestId = session.playRequestId;
+    if (navigationRequestId !== requestId && navigationIntent.pendingId === stepRequestId) {
+      navigationIntent.pendingId = null;
+    }
+    await navigation;
+    if (
+      navigationRequestId !== session.playRequestId ||
+      stepRequestId !== navigationIntent.current
+    ) {
+      return null;
+    }
+    return target;
+  };
+  const navigatePinnedOrQueued = (): Promise<AudioPlaybackSequenceEntry | null> | undefined => {
+    const {
+      queue: liveQueue,
+      queueIndex: liveQueueIndex,
+      playbackSequence: liveSequence,
+      currentTranslationId: liveTranslationId,
+      currentBookId: liveBookId,
+      currentChapter: liveChapter,
+      setQueueIndex,
+    } = useAudioStore.getState();
+
+    const targetTranslationId = liveTranslationId ?? fallbackTranslationId;
+    // A pinned session owns manual navigation as it owns automatic completion,
+    // including its boundaries, even when an older listening queue is retained.
+    if (
+      liveBookId &&
+      liveChapter &&
+      hasAudioPlaybackSequenceEntry(liveSequence, liveBookId, liveChapter)
+    ) {
+      const sequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
+        liveSequence,
+        liveBookId,
+        liveChapter,
+        direction
+      );
+      return sequenceEntry
+        ? navigateToTarget(targetTranslationId, sequenceEntry)
+        : Promise.resolve(null);
+    }
+
+    const queuedEntry = liveQueue[liveQueueIndex + direction];
+    if (queuedEntry) {
+      setQueueIndex(liveQueueIndex + direction);
+      return navigateToTarget(queuedEntry.translationId, {
+        bookId: queuedEntry.bookId,
+        chapter: queuedEntry.chapter,
+      });
+    }
+
+    return undefined;
+  };
+  try {
+    const {
+      currentTranslationId: liveTranslationId,
+      currentBookId: liveBookId,
+      currentChapter: liveChapter,
+    } = useAudioStore.getState();
+    const targetTranslationId = liveTranslationId ?? fallbackTranslationId;
+    const priorityNavigation = navigatePinnedOrQueued();
+    if (priorityNavigation) return priorityNavigation;
+
+    if (!liveBookId || !liveChapter) return null;
+
+    const coverage = await resolveAudioCoverage(targetTranslationId);
+    // Coverage may need a manifest fetch. A later Play, Pause or Stop owns the
+    // transport by then; this old chapter lookup must not navigate away from it.
+    if (requestId !== session.playRequestId || stepRequestId !== navigationIntent.current)
+      return null;
+    const current = useAudioStore.getState();
+    if (
+      current.currentTranslationId !== liveTranslationId ||
+      current.currentBookId !== liveBookId ||
+      current.currentChapter !== liveChapter
+    )
+      return null;
+    // Queue edits and a newly pinned session can arrive during the manifest fetch.
+    // Apply the same live priority before selecting ordinary chapter adjacency.
+    const livePriorityNavigation = navigatePinnedOrQueued();
+    if (livePriorityNavigation) return livePriorityNavigation;
+    const adjacentChapter = getAdjacentAudioChapter(liveBookId, liveChapter, direction, coverage);
+    if (!adjacentChapter) return null;
+
+    return navigateToTarget(targetTranslationId, adjacentChapter);
+  } finally {
+    if (navigationIntent.pendingId === stepRequestId) navigationIntent.pendingId = null;
   }
-
-  if (!liveBookId || !liveChapter) return null;
-  const targetTranslationId = liveTranslationId ?? fallbackTranslationId;
-
-  const sequenceEntry = getAdjacentAudioPlaybackSequenceEntry(
-    liveSequence,
-    liveBookId,
-    liveChapter,
-    direction
-  );
-  if (sequenceEntry) {
-    await navigateChapterForTranslation(
-      targetTranslationId,
-      sequenceEntry.bookId,
-      sequenceEntry.chapter
-    );
-    return sequenceEntry;
-  }
-
-  const isPinnedToPlaybackSequence =
-    liveSequence.length > 0 && hasAudioPlaybackSequenceEntry(liveSequence, liveBookId, liveChapter);
-  if (isPinnedToPlaybackSequence) {
-    return null;
-  }
-
-  const coverage = await resolveAudioCoverage(targetTranslationId);
-  const adjacentChapter = getAdjacentAudioChapter(liveBookId, liveChapter, direction, coverage);
-  if (!adjacentChapter) return null;
-
-  await navigateChapterForTranslation(
-    targetTranslationId,
-    adjacentChapter.bookId,
-    adjacentChapter.chapter
-  );
-  return adjacentChapter;
 }

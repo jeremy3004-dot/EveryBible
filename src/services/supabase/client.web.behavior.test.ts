@@ -1,5 +1,6 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import type { AuthSessionStorage } from './authSessionStorage';
 import { createRequire } from 'node:module';
 import { mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
 
@@ -12,11 +13,7 @@ interface CreateClientCall {
   key: string;
   options: {
     auth?: {
-      storage?: {
-        getItem: (key: string) => Promise<string | null>;
-        setItem: (key: string, value: string) => Promise<void>;
-        removeItem: (key: string) => Promise<void>;
-      };
+      storage?: AuthSessionStorage;
     };
   };
 }
@@ -133,5 +130,32 @@ test('the web build never reaches for the native keychain', async () => {
   await storageAdapter().getItem('sb-access-token');
   await storageAdapter().removeItem('sb-access-token');
 
+  assert.deepEqual(secureStoreCalls, []);
+});
+
+test('web metadata patch synchronously preserves refreshed tokens and skips a replacement owner', async () => {
+  const adapter = storageAdapter();
+  assert.ok(adapter.updateItemIfCurrent);
+  const session = {
+    access_token: 'latest-access',
+    refresh_token: 'latest-refresh',
+    user: { id: 'a', avatar: 'old' },
+  };
+  await adapter.setItem('session', JSON.stringify(session));
+  const patch = (current: string | null) => {
+    const stored = current ? JSON.parse(current) : null;
+    return stored?.user.id === 'a'
+      ? JSON.stringify({ ...stored, user: { ...stored.user, avatar: 'new' } })
+      : undefined;
+  };
+  assert.equal(await adapter.updateItemIfCurrent('session', patch), true);
+  assert.deepEqual(JSON.parse((await adapter.getItem('session')) ?? 'null'), {
+    ...session,
+    user: { id: 'a', avatar: 'new' },
+  });
+  const b = { ...session, user: { id: 'b', avatar: 'b-avatar' } };
+  await adapter.setItem('session', JSON.stringify(b));
+  assert.equal(await adapter.updateItemIfCurrent('session', patch), false);
+  assert.deepEqual(JSON.parse((await adapter.getItem('session')) ?? 'null'), b);
   assert.deepEqual(secureStoreCalls, []);
 });

@@ -11,7 +11,7 @@ import { registerPlayerTransport } from './transportRegistry';
 export interface RemoteCommandControls {
   /** Play whatever Play would start when nothing is playing. */
   playFromRemote: () => Promise<void>;
-  pause: () => Promise<void>;
+  pause: (options?: { requireSuspension?: boolean }) => Promise<void>;
   resume: () => Promise<void>;
   stop: () => Promise<void>;
   skipForward: () => Promise<void>;

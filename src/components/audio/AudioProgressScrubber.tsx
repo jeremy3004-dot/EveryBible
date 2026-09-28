@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   AccessibilityActionEvent,
   GestureResponderEvent,
@@ -16,6 +16,8 @@ interface AudioProgressScrubberProps {
   position: number;
   duration: number;
   onSeek: (positionMs: number) => void;
+  /** The translation, book and chapter owning a drag, even when duration is unchanged. */
+  mediaKey?: string;
   trackColor: string;
   fillColor: string;
   containerStyle?: StyleProp<ViewStyle>;
@@ -42,6 +44,7 @@ export function AudioProgressScrubber({
   position,
   duration,
   onSeek,
+  mediaKey,
   trackColor,
   fillColor,
   containerStyle,
@@ -53,8 +56,21 @@ export function AudioProgressScrubber({
   const [trackWidth, setTrackWidth] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [draftPosition, setDraftPosition] = useState(0);
+  const [draftMediaKey, setDraftMediaKey] = useState(mediaKey);
+  const gestureOwnerRef = useRef<{ mediaKey: string | undefined } | null>(null);
+  if (draftMediaKey !== mediaKey) {
+    setDraftMediaKey(mediaKey);
+    setIsScrubbing(false);
+  }
+  useLayoutEffect(() => {
+    // Forget the gesture rather than matching its old key again after A -> B -> A.
+    gestureOwnerRef.current = null;
+  }, [mediaKey]);
 
-  const displayedPosition = isScrubbing ? draftPosition : clampProgressPosition(position, duration);
+  const isCurrentScrub = isScrubbing && draftMediaKey === mediaKey;
+  const displayedPosition = isCurrentScrub
+    ? draftPosition
+    : clampProgressPosition(position, duration);
   const progress = duration > 0 ? (displayedPosition / duration) * 100 : 0;
 
   const resolvePosition = (locationX: number) => {
@@ -67,17 +83,30 @@ export function AudioProgressScrubber({
 
   const canScrub = useLatestCallback(() => duration > 0 && trackWidth > 0);
   const previewPosition = useLatestCallback((event: GestureResponderEvent) => {
-    if (!canScrub()) return;
+    if (!gestureOwnerRef.current || gestureOwnerRef.current.mediaKey !== mediaKey || !canScrub()) {
+      return;
+    }
     const nextPosition = resolvePosition(event.nativeEvent.locationX);
     setIsScrubbing(true);
     setDraftPosition(nextPosition);
     return nextPosition;
   });
+  const startScrubbing = useLatestCallback((event: GestureResponderEvent) => {
+    if (!canScrub()) return;
+    gestureOwnerRef.current = { mediaKey };
+    previewPosition(event);
+  });
 
   const commitPosition = useLatestCallback((event: GestureResponderEvent) => {
+    const owner = gestureOwnerRef.current;
+    gestureOwnerRef.current = null;
     setIsScrubbing(false);
-    if (!canScrub()) return;
+    if (!owner || owner.mediaKey !== mediaKey || !canScrub()) return;
     onSeek(resolvePosition(event.nativeEvent.locationX));
+  });
+  const cancelScrubbing = useLatestCallback(() => {
+    gestureOwnerRef.current = null;
+    setIsScrubbing(false);
   });
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -106,13 +135,13 @@ export function AudioProgressScrubber({
       PanResponder.create({
         onStartShouldSetPanResponder: canScrub,
         onMoveShouldSetPanResponder: canScrub,
-        onPanResponderGrant: previewPosition,
+        onPanResponderGrant: startScrubbing,
         onPanResponderMove: previewPosition,
         onPanResponderRelease: commitPosition,
-        onPanResponderTerminate: () => setIsScrubbing(false),
+        onPanResponderTerminate: cancelScrubbing,
         onPanResponderTerminationRequest: () => false,
       }),
-    [canScrub, previewPosition, commitPosition]
+    [canScrub, startScrubbing, previewPosition, commitPosition, cancelScrubbing]
   );
 
   return (
@@ -120,6 +149,7 @@ export function AudioProgressScrubber({
       style={[styles.container, containerStyle]}
       onLayout={handleLayout}
       hitSlop={{ top: 12, bottom: 12 }}
+      accessible
       accessibilityRole="adjustable"
       accessibilityState={{ disabled: duration <= 0 }}
       accessibilityLabel={accessibilityLabel}
@@ -148,17 +178,17 @@ export function AudioProgressScrubber({
           ]}
         />
       </View>
-      {thumb === 'always' || isScrubbing ? (
+      {thumb === 'always' || isCurrentScrub ? (
         <View
           pointerEvents="none"
           style={[
             styles.thumb,
             {
               left: `${progress}%`,
-              width: isScrubbing ? 16 : 12,
-              height: isScrubbing ? 16 : 12,
-              marginLeft: isScrubbing ? -8 : -6,
-              marginTop: isScrubbing ? -8 : -6,
+              width: isCurrentScrub ? 16 : 12,
+              height: isCurrentScrub ? 16 : 12,
+              marginLeft: isCurrentScrub ? -8 : -6,
+              marginTop: isCurrentScrub ? -8 : -6,
               backgroundColor: fillColor,
             },
           ]}

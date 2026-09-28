@@ -397,3 +397,29 @@ test('cancelling after selecting different verses does not carry the old draft i
 
   assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, '');
 });
+
+test('a closed save cannot close or clear busy state for a newer save in the retained sheet', async () => {
+  const pending: ((result: boolean) => void)[] = [];
+  const { view, calls, rerender } = await renderSheet({
+    onNote: () => new Promise<boolean>((resolve) => pending.push(resolve)),
+  });
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+  await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'First draft');
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+
+  await view.fire(sheetHeader(view), 'onAccessibilityEscape');
+  await rerender({ referenceLabel: 'John 3:17', selectedText: 'Another verse' });
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+  await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'New draft');
+  await view.press(view.getByRole('button', { name: t('common.done') }));
+  assert.equal(pending.length, 2);
+
+  await act(async () => pending[0]?.(true));
+  assert.deepEqual(calls, ['close']);
+  assert.equal(view.getByLabelText(t('annotations.noteHint')).props.value, 'New draft');
+  assert.equal(view.getByRole('button', { name: t('common.done') }).props.disabled, true);
+
+  await act(async () => pending[1]?.(true));
+  assert.deepEqual(calls, ['close', 'close']);
+  assert.ok(view.getByRole('button', { name: t('annotations.copy') }));
+});

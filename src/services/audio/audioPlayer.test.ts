@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ function listenerCount(event: EventName): number {
 const trackPlayerDouble = {
   setupPlayer: () => record('setupPlayer'),
   play: () => record('play'),
-  pause: () => record('pause'),
+  pause: (options?: { requireSuspension?: boolean }) => record('pause', options ? [options] : []),
   stop: () => record('stop'),
   seekTo: (positionSeconds: number) => record('seekTo', [positionSeconds]),
   setRate: (rate: number) => record('setRate', [rate]),
@@ -153,6 +153,12 @@ beforeEach(async () => {
     mod.audioPlayer.setCallbacks({});
   }
   trackPlayerCalls.length = 0;
+});
+
+afterEach(async () => {
+  failures.clear();
+  gates.clear();
+  await mod.audioPlayer.stop();
 });
 
 // ---------------------------------------------------------------------------
@@ -763,6 +769,51 @@ test('an error from one transport command does not unload the chapter', async ()
   assert.equal(mod.audioPlayer.isLoaded(), true);
 });
 
+for (const signal of ['native state', 'fatal error'] as const) {
+  test(`initial Play failure: ${signal} keeps a resolved load unloaded`, async () => {
+    const gate = deferOperation();
+    gates.set('loadAndPlay', gate.promise);
+    const loading = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1, 180_000);
+    await flushOperations();
+    if (signal === 'native state') emit(Event.PlaybackState, { state: State.Error });
+    else emit(Event.PlaybackError, { code: 'LOAD_ERROR', message: 'Native player released' });
+    gate.resolve();
+    await loading;
+    assert.equal(mod.audioPlayer.isLoaded(), false);
+    await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3', 1, 180_000);
+    assert.equal(mod.audioPlayer.isLoaded(), true, 'a fresh request can admit a healthy sound');
+  });
+}
+
+for (const code of ['RATE_ERROR', 'SEEK_ERROR', 'PLAY_ERROR']) {
+  test(`initial Play failure: retained-sound ${code} does not reject load admission`, async () => {
+    const gate = deferOperation();
+    gates.set('loadAndPlay', gate.promise);
+    const loading = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+    await flushOperations();
+    emit(Event.PlaybackError, {
+      code,
+      message: 'Command failed while native sound remains loaded',
+    });
+    gate.resolve();
+    await loading;
+    assert.equal(mod.audioPlayer.isLoaded(), true);
+  });
+}
+
+test('initial Play failure: the old resolved load cannot reject its healthy replacement', async () => {
+  const gate = deferOperation();
+  gates.set('loadAndPlay', gate.promise);
+  const oldLoad = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  await flushOperations();
+  emit(Event.PlaybackState, { state: State.Error });
+  gates.clear();
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen2.mp3');
+  gate.resolve();
+  await oldLoad;
+  assert.equal(mod.audioPlayer.isLoaded(), true);
+});
+
 test('a speed chosen while the chapter is still loading applies once it has loaded', async () => {
   const gate = deferOperation();
   gates.set('loadAndPlay', gate.promise);
@@ -815,4 +866,181 @@ test('stopping reports no paused snapshot after playback is torn down', async ()
   emit(Event.PlaybackState, { state: State.Stopped });
 
   assert.deepEqual(snapshots, []);
+});
+
+test('strict handoff pause rejects native failure without duplicate facade error', async () => {
+  await mod.audioPlayer.loadAndPlay('https://audio.test/chapter.mp3');
+  const errors: string[] = [];
+  mod.audioPlayer.setCallbacks({ onError: (message) => errors.push(message) });
+  failures.set('pause', new Error('native pause failed'));
+  await assert.rejects(mod.audioPlayer.pause({ requireSuspension: true }), /native pause failed/);
+  assert.deepEqual(
+    errors,
+    [],
+    'trackPlayer reports its own error event; facade must not duplicate it'
+  );
+  assert.deepEqual(trackPlayerCalls.at(-1), {
+    method: 'pause',
+    args: [{ requireSuspension: true }],
+  });
+});
+
+const flushStreamProbe = async () => {
+  for (let i = 0; i < 10; i += 1) await Promise.resolve();
+};
+const streamProbeCalls = () =>
+  trackPlayerCalls.filter((call) => call.method === 'verifyActiveTrack');
+
+for (const callbacksDetached of [false, true]) {
+  test(`stream health: loaded buffering checks survive ${callbacksDetached ? 'detached reader callbacks' : 'reader callback replacement'}`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+    emit(Event.PlaybackState, { state: State.Buffering });
+    mod.audioPlayer.setCallbacks(callbacksDetached ? {} : { onError: () => {} });
+    t.mock.timers.tick(4_999);
+    assert.equal(streamProbeCalls().length, 0);
+    t.mock.timers.tick(1);
+    await flushStreamProbe();
+    assert.equal(streamProbeCalls().length, 1);
+    t.mock.timers.tick(5_000);
+    await flushStreamProbe();
+    assert.equal(streamProbeCalls().length, 2);
+  });
+}
+
+test('stream health: initial native load is not probed before it finishes', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  await flushStreamProbe();
+  emit(Event.PlaybackState, { state: State.Buffering });
+  t.mock.timers.tick(20_000);
+  assert.equal(streamProbeCalls().length, 0);
+  gates.delete('loadAndPlay');
+  release();
+  await loading;
+  t.mock.timers.tick(5_000);
+  await flushStreamProbe();
+  assert.equal(streamProbeCalls().length, 1);
+});
+
+test('stream health: a pending native probe never piles up across timer ticks or replacement', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  let release!: () => void;
+  gates.set(
+    'verifyActiveTrack',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  t.mock.timers.tick(5_000);
+  assert.equal(streamProbeCalls().length, 1);
+  t.mock.timers.tick(20_000);
+  assert.equal(streamProbeCalls().length, 1);
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen2.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  t.mock.timers.tick(10_000);
+  assert.equal(streamProbeCalls().length, 1);
+  gates.delete('verifyActiveTrack');
+  release();
+  await flushStreamProbe();
+  t.mock.timers.tick(5_000);
+  await flushStreamProbe();
+  assert.equal(streamProbeCalls().length, 2);
+});
+
+for (const state of [State.Playing, State.Paused, State.Stopped, State.Ended, State.Error]) {
+  test(`stream health: native ${state} cancels buffering verification`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+    emit(Event.PlaybackState, { state: State.Buffering });
+    t.mock.timers.tick(4_000);
+    emit(Event.PlaybackState, { state });
+    t.mock.timers.tick(10_000);
+    await flushStreamProbe();
+    assert.equal(streamProbeCalls().length, 0);
+  });
+}
+
+test('stream health: explicit Pause suppresses an old buffering event while native pause awaits', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  let release!: () => void;
+  gates.set(
+    'pause',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const pausing = mod.audioPlayer.pause();
+  emit(Event.PlaybackState, { state: State.Buffering });
+  t.mock.timers.tick(10_000);
+  assert.equal(streamProbeCalls().length, 0);
+  release();
+  await pausing;
+  await mod.audioPlayer.play();
+  emit(Event.PlaybackState, { state: State.Buffering });
+  t.mock.timers.tick(5_000);
+  await flushStreamProbe();
+  assert.equal(streamProbeCalls().length, 1);
+});
+
+test('stream health: explicit Stop and playback error cancel pending timer cadence', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  await mod.audioPlayer.stop();
+  t.mock.timers.tick(10_000);
+  assert.equal(streamProbeCalls().length, 0);
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen2.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  emit(Event.PlaybackError, { code: 'LOAD_ERROR', message: 'native sound released' });
+  t.mock.timers.tick(10_000);
+  assert.equal(streamProbeCalls().length, 0);
+});
+
+test('stream health: an unexpected rejected probe is caught and later cadence remains usable', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  await mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  emit(Event.PlaybackState, { state: State.Buffering });
+  failures.set('verifyActiveTrack', new Error('native bridge unavailable'));
+  t.mock.timers.tick(5_000);
+  await flushStreamProbe();
+  failures.delete('verifyActiveTrack');
+  t.mock.timers.tick(5_000);
+  await flushStreamProbe();
+  assert.equal(streamProbeCalls().length, 2);
+});
+
+test('stream health: a released sound during initial Play never starts native probes', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let release!: () => void;
+  gates.set(
+    'loadAndPlay',
+    new Promise<void>((resolve) => {
+      release = resolve;
+    })
+  );
+  const loading = mod.audioPlayer.loadAndPlay('https://audio.test/gen1.mp3');
+  await flushStreamProbe();
+  // The created sound can fail during Play. Its unloaded status reports an
+  // error, while TrackPlayer.play catches the native rejection and resolves.
+  emit(Event.PlaybackState, { state: State.Error });
+  emit(Event.PlaybackError, { code: 'LOAD_ERROR', message: 'source unavailable' });
+  emit(Event.PlaybackError, { code: 'PLAY_ERROR', message: 'native sound released' });
+  gates.delete('loadAndPlay');
+  release();
+  await loading;
+  t.mock.timers.tick(10_000);
+  await flushStreamProbe();
+  assert.equal(streamProbeCalls().length, 0);
 });

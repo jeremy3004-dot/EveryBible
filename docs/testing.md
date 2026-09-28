@@ -485,3 +485,16 @@ the whole suite under a non-UTC zone: `TZ=Asia/Kathmandu npm test`.
 Bugs found while writing tests are fixed test-first: write the failing test that
 reproduces the bug, watch it fail, fix, watch it pass. Keep the fix minimal and
 in the same commit as its test.
+
+## Android artwork coroutine regression
+
+After applying the repository dependency patches, the standalone Python harness compiles the actual media-service methods with cached Kotlin tools and real coroutines. Android metadata and bitmap IO are test seams; this does not replace an Android build or device test. It does not download tools or modify the installed package.
+
+```sh
+python3 scripts/test_android_artwork_ownership.py \
+  --service-source node_modules/expo-media-control/android/src/main/java/expo/modules/mediacontrol/MediaPlaybackService.kt \
+  --gradle-cache "$GRADLE_MODULE_CACHE" \
+  --java "$JAVA_HOME/bin/java"
+```
+
+Set `GRADLE_MODULE_CACHE` to the build cache's `modules-2/files-2.1` directory. The script reports missing cached compiler dependencies explicitly and bounds compilation/execution time.

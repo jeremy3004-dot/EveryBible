@@ -119,3 +119,24 @@ test('between chapters the return target stands in, and the current translation 
     'nothing loaded and nowhere to return to'
   );
 });
+
+test('return to a plan reader preserves the displayed occurrence after midnight', () => {
+  const result = getReturnToReaderTarget({
+    currentTranslationId: 'bsb',
+    currentBookId: 'PRO',
+    currentChapter: 30,
+    lastPlayedTranslationId: 'bsb',
+    currentTranslation: 'bsb',
+    audioReturnTarget: {
+      translationId: 'bsb',
+      bookId: 'PRO',
+      chapter: 30,
+      preferredMode: 'listen',
+      planId: 'proverbs-31-days',
+      planDayNumber: 30,
+      returnToPlanOnComplete: true,
+      ...{ planOccurrenceKey: '2026-09-30' },
+    },
+  });
+  assert.equal((result?.params as Record<string, unknown>).planOccurrenceKey, '2026-09-30');
+});

@@ -59,6 +59,7 @@ interface PassageCall {
   resolveBook: (bookId: string) => string;
 }
 const passageCalls: PassageCall[] = [];
+let failPassageLoad = false;
 const PASSAGE = [
   {
     label: 'Genesis 1',
@@ -95,6 +96,7 @@ mockModule(mock, sourcePath('services/gather/gatherBibleService.ts'), {
     options: { bookNameResolver: (bookId: string) => string }
   ) => {
     passageCalls.push({ references, translationId, resolveBook: options.bookNameResolver });
+    if (failPassageLoad) throw new Error('passage unavailable');
     // Blocks name the translation they were read from, as the real service does.
     return PASSAGE.map((block) => ({ ...block, translationId }));
   },
@@ -120,10 +122,13 @@ interface FakeSound {
 }
 const sounds: { source: unknown; initial: Record<string, unknown>; sound: FakeSound }[] = [];
 // Streaming a chapter the device has not downloaded fails when it is offline.
-const network = { offline: false };
+const network = { offline: false, offlineCheck: null as Promise<void> | null };
 const initialStatus = { value: null as Record<string, unknown> | null };
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
-  isDeviceOffline: async () => network.offline,
+  isDeviceOffline: async () => {
+    if (network.offlineCheck) await network.offlineCheck;
+    return network.offline;
+  },
 });
 mockPackage(mock, 'expo-av', {
   Audio: {
@@ -138,6 +143,7 @@ mockPackage(mock, 'expo-av', {
           throw new Error('The Internet connection appears to be offline.');
         }
         const calls: FakeSound['calls'] = [];
+        let shouldPlay = initial.shouldPlay === true;
         const record =
           (method: string) =>
           async (...args: unknown[]) => {
@@ -147,6 +153,7 @@ mockPackage(mock, 'expo-av', {
           (isPlaying: boolean) =>
           async (...args: unknown[]) => {
             await record(isPlaying ? 'playAsync' : 'pauseAsync')(...args);
+            shouldPlay = isPlaying;
             sound.isPlaying = isPlaying;
           };
         const sound = {
@@ -155,9 +162,35 @@ mockPackage(mock, 'expo-av', {
           isPlaying: initial.shouldPlay === true,
           playAsync: playing(true),
           pauseAsync: playing(false),
-          unloadAsync: record('unloadAsync'),
+          unloadAsync: async () => {
+            await record('unloadAsync')();
+            sound.isPlaying = false;
+          },
           setRateAsync: record('setRateAsync'),
-          setPositionAsync: record('setPositionAsync'),
+          setPositionAsync: async (positionMillis: number) => {
+            await record('setPositionAsync')(positionMillis);
+            // Expo keeps shouldPlay at EOF and reapplies it after a position-only seek.
+            sound.isPlaying = shouldPlay;
+            listener({
+              isLoaded: true,
+              isPlaying: shouldPlay,
+              shouldPlay,
+              positionMillis,
+              durationMillis: 60_000,
+            });
+          },
+          stopAsync: async () => {
+            await record('stopAsync')();
+            shouldPlay = false;
+            sound.isPlaying = false;
+            listener({
+              isLoaded: true,
+              isPlaying: false,
+              shouldPlay: false,
+              positionMillis: 0,
+              durationMillis: 60_000,
+            });
+          },
         };
         sounds.push({ source, initial, sound });
         if (initialStatus.value) listener(initialStatus.value);
@@ -169,9 +202,11 @@ mockPackage(mock, 'expo-av', {
 
 beforeEach(() => {
   passageCalls.length = 0;
+  failPassageLoad = false;
   audioUrlCalls.length = 0;
   sounds.length = 0;
   network.offline = false;
+  network.offlineCheck = null;
   initialStatus.value = null;
   audioUrl.value = 'https://audio.test/web/GEN/1.mp3';
   chapterTimestamps.value = null;
@@ -397,6 +432,38 @@ test('play starts the chapter at the chosen speed and the same control pauses it
   assert.deepEqual(sounds[0].sound.calls.at(-1)?.method, 'playAsync');
 });
 
+test('natural story completion stays paused at zero until explicit Play restarts it', async () => {
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const sound = sounds[0].sound;
+  assert.equal(sound.isPlaying, true);
+
+  await act(async () => {
+    // Native STATE_ENDED stops playback without clearing its shouldPlay intent.
+    sound.isPlaying = false;
+    sound.listener({
+      isLoaded: true,
+      isPlaying: false,
+      shouldPlay: true,
+      didJustFinish: true,
+      positionMillis: 60_000,
+      durationMillis: 60_000,
+    });
+  });
+  await view.flush();
+
+  assert.equal(sound.isPlaying, false, 'completion must not automatically replay the story');
+  assert.deepEqual(sound.calls.at(-1), { method: 'stopAsync', args: [] });
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+  assert.equal(view.getByRole('progressbar', { name: LISTEN() }).props.accessibilityValue.now, 0);
+
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  assert.equal(sounds.length, 1, 'explicit replay uses the recording already rewound to zero');
+  assert.equal(sound.isPlaying, true);
+  assert.deepEqual(sound.calls.at(-1), { method: 'playAsync', args: [] });
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+});
+
 test('offline, play on streamed audio says the reader is offline instead of doing nothing', async () => {
   network.offline = true;
   const view = await renderLesson();
@@ -407,6 +474,73 @@ test('offline, play on streamed audio says the reader is offline instead of doin
   const [alert] = harness.rn.__recorded.alerts;
   assert.equal(alert?.message, t('common.offlineTryAgain'));
   assert.ok(view.getByRole('button', { name: PLAY() }), 'the control stays ready for a retry');
+});
+
+test('a failed lesson Play whose offline check settles after source change cannot alert', async () => {
+  network.offline = true;
+  let releaseOfflineCheck!: () => void;
+  network.offlineCheck = new Promise<void>((resolve) => {
+    releaseOfflineCheck = resolve;
+  });
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
+  await view.flush();
+  releaseOfflineCheck();
+  await view.flush();
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+});
+
+test('a failed lesson Play whose offline check settles after Bible takeover cannot alert', async () => {
+  network.offline = true;
+  let releaseOfflineCheck!: () => void;
+  network.offlineCheck = new Promise<void>((resolve) => {
+    releaseOfflineCheck = resolve;
+  });
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const { bibleNarrationOwner, claimNarration } =
+    await import('../../services/audio/narrationOwnership');
+  await act(async () => {
+    const bible = claimNarration('bible', bibleNarrationOwner, async () => {});
+    await bible.ready;
+  });
+  releaseOfflineCheck();
+  await view.flush();
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+});
+
+test('a failed lesson Play whose offline check settles after an explicit Pause cannot alert', async () => {
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+  const sound = sounds[0].sound;
+  Object.assign(sound, {
+    playAsync: async () => {
+      sound.isPlaying = true;
+      sound.listener({
+        isLoaded: true,
+        isPlaying: true,
+        positionMillis: 0,
+        durationMillis: 60_000,
+      });
+      throw new Error('play failed');
+    },
+  });
+  network.offline = true;
+  let releaseOfflineCheck!: () => void;
+  network.offlineCheck = new Promise<void>((resolve) => {
+    releaseOfflineCheck = resolve;
+  });
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+  releaseOfflineCheck();
+  await view.flush();
+  assert.deepEqual(harness.rn.__recorded.alerts, []);
+  assert.ok(view.getByRole('button', { name: PLAY() }));
 });
 
 test('without chapter audio the play control and the progress rule are disabled', async () => {
@@ -482,7 +616,7 @@ test('a released translation recording cannot rewind or pause the new lesson rec
   );
 
   assert.deepEqual(
-    current.calls.filter((call) => call.method === 'setPositionAsync'),
+    current.calls.filter((call) => ['setPositionAsync', 'stopAsync'].includes(call.method)),
     []
   );
   assert.ok(view.getByRole('button', { name: PAUSE() }));
@@ -575,6 +709,159 @@ function verseSpan(view: View, words: RegExp): ReactTestInstance {
   return span;
 }
 
+test('story progress within one verse redraws no story text while highlight changes stay live', async () => {
+  chapterTimestamps.value = { 1: 0, 2: 4 };
+  const palette = await lightPalette();
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  const tick = async (positionMillis: number, didJustFinish = false) => {
+    await act(async () => {
+      sounds[0].sound.listener({
+        isLoaded: true,
+        positionMillis,
+        durationMillis: 60_000,
+        isPlaying: !didJustFinish,
+        didJustFinish,
+      });
+    });
+    await view.flush();
+  };
+  const highlighted = (words: RegExp) =>
+    flattenStyle(verseSpan(view, words).props.style)?.backgroundColor ===
+    palette.bibleFollowHighlight;
+
+  await tick(1_000);
+  assert.equal(highlighted(/In the beginning/), true);
+  const mark = harness.renders.mark();
+  await tick(2_000);
+  assert.equal(
+    harness.renders
+      .since(mark)
+      .filter(
+        (entry) =>
+          entry.type === 'Text' &&
+          PASSAGE[0].verses.some((verse) => entry.props.children === verse.text)
+      ).length,
+    0
+  );
+
+  await tick(5_000);
+  assert.equal(highlighted(/In the beginning/), false);
+  assert.equal(
+    flattenStyle(verseSpan(view, /In the beginning/).props.style)?.backgroundColor,
+    'transparent'
+  );
+  assert.equal(highlighted(/formless/), true);
+  await tick(60_000, true);
+  assert.equal(highlighted(/formless/), false);
+  assert.equal(
+    flattenStyle(verseSpan(view, /formless/).props.style)?.backgroundColor,
+    'transparent'
+  );
+});
+
+test('same-verse audio progress redraws none of the question text', async () => {
+  chapterTimestamps.value = { 1: 0, 2: 4 };
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.flush();
+  const tick = async (positionMillis: number) => {
+    await act(async () =>
+      sounds[0].sound.listener({
+        isLoaded: true,
+        positionMillis,
+        durationMillis: 60_000,
+        isPlaying: true,
+      })
+    );
+    await view.flush();
+  };
+  await tick(1_000);
+  const mark = harness.renders.mark();
+  await tick(2_000);
+  const questions = [
+    ...[1, 2, 3, 4].map((number) => t(`gather.fellowshipQ${number}`)),
+    ...[1, 2, 3, 4, 5, 6, 7].map((number) => t(`gather.applicationQ${number}`)),
+  ];
+  assert.equal(
+    harness.renders
+      .since(mark)
+      .filter(
+        (entry) => entry.type === 'Text' && questions.includes(entry.props.children as string)
+      ).length,
+    0
+  );
+});
+
+test('isolated questions retain live theme, locale and replay source', async () => {
+  const view = await renderLesson();
+  await act(async () => harness.authStore.getState().setPreferences({ theme: 'dark' }));
+  await view.flush();
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  assert.equal(
+    flattenStyle(view.getByText(t('gather.fellowshipQ1')).props.style)?.color,
+    createThemeColors('dark', DEFAULT_APPEARANCE_PALETTE).primaryText
+  );
+
+  harness.i18n.addResourceBundle(
+    'ne',
+    'translation',
+    {
+      gather: { fellowshipQ1: 'Localized fellowship question' },
+      learn: { listenToStoryAgain: 'Localized replay', shareApp: 'Localized share' },
+      common: { shareMessage: 'Localized invitation' },
+    },
+    true,
+    true
+  );
+  await act(async () => {
+    await harness.i18n.changeLanguage('ne');
+  });
+  await view.flush();
+  assert.ok(view.getByText('Localized fellowship question'));
+  await view.press(view.getByRole('button', { name: 'Localized share' }));
+  assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
+    message: 'Localized invitation\nhttps://everybible.app',
+  });
+
+  audioUrl.value = 'https://audio.test/hincv/GEN/1.mp3';
+  await act(async () => bibleStore.setState({ currentTranslation: 'hincv' }));
+  await view.flush();
+  await view.press(view.getByRole('button', { name: 'Localized replay' }));
+  await view.flush();
+  assert.deepEqual(sounds.at(-1)?.source, { uri: audioUrl.value });
+});
+
+test('the isolated story follows live theme and translation changes', async () => {
+  const view = await renderLesson();
+  const words = () => view.getByText(PASSAGE[0].verses[0].text);
+  const originalColor = flattenStyle(words().props.style)?.color;
+  await act(async () => harness.authStore.getState().setPreferences({ theme: 'dark' }));
+  await view.flush();
+  const { createThemeColors } = await import('../../contexts/ThemeContext');
+  const dark = createThemeColors('dark', DEFAULT_APPEARANCE_PALETTE);
+  assert.equal(flattenStyle(words().props.style)?.color, dark.primaryText);
+  assert.notEqual(dark.primaryText, originalColor);
+
+  await act(async () => bibleStore.setState({ currentTranslation: 'hincv' }));
+  await view.flush();
+  assert.equal(passageCalls.at(-1)?.translationId, 'hincv');
+  assert.equal(flattenStyle(passageParagraph(view).props.style)?.fontFamily, undefined);
+});
+
+test('the isolated story retries a failed passage load', async () => {
+  failPassageLoad = true;
+  const view = await renderLesson();
+  assert.ok(view.getByText(t('learn.passageLoadFailed')));
+  failPassageLoad = false;
+  await view.press(view.getByRole('button', { name: t('common.retry') }));
+  await view.flush();
+  assert.ok(view.getByText(PASSAGE[0].verses[0].text));
+  assert.equal(view.queryByText(t('learn.passageLoadFailed')), null);
+  assert.equal(passageCalls.length, 2);
+});
+
 test('the story highlights the verse the audio is on, following it through the chapter', async () => {
   // Verse 2 starts 4 s in (timings are in seconds).
   chapterTimestamps.value = { 1: 0, 2: 4 };
@@ -614,7 +901,7 @@ test('the story highlights the verse the audio is on, following it through the c
   });
   await view.flush();
   assert.equal(followed(/formless and void/), false);
-  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [0] });
+  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'stopAsync', args: [] });
   assert.ok(view.getByRole('button', { name: PLAY() }));
 });
 
@@ -871,4 +1158,97 @@ test('an unknown lesson says so and still offers the way back', async () => {
   assert.equal(audioUrlCalls.length, 0);
   await view.press(view.getByRole('button', { name: t('common.back') }));
   assert.deepEqual(harness.navigation.calls, [{ method: 'goBack', args: [] }]);
+});
+
+test('a Bible playback takeover releases the visible lesson sound and restores its Play control', async () => {
+  const { bibleNarrationOwner, claimNarration } =
+    await import('../../services/audio/narrationOwnership');
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const lesson = sounds[0].sound;
+  assert.equal(lesson.isPlaying, true);
+
+  await act(async () => {
+    const bible = claimNarration('bible', bibleNarrationOwner, async () => {});
+    await bible.ready;
+  });
+  await view.flush();
+  assert.equal(lesson.isPlaying, false);
+  assert.ok(lesson.calls.some((call) => call.method === 'unloadAsync'));
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+});
+
+test('a delayed lesson Play result cannot restore Pause after a newer Pause', async () => {
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+  const sound = sounds[0].sound;
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let started!: () => void;
+  const observed = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  Object.assign(sound, {
+    playAsync: async () => {
+      sound.isPlaying = true;
+      sound.listener({
+        isLoaded: true,
+        isPlaying: true,
+        positionMillis: 0,
+        durationMillis: 60_000,
+      });
+      started();
+      await pending;
+    },
+  });
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  await observed;
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+  assert.equal(sound.isPlaying, false);
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+  await act(async () => finish());
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: PLAY() }), 'old Play cannot rewrite the newer Pause');
+});
+
+test('a delayed lesson Pause result cannot hide a newer Play', async () => {
+  const view = await renderLesson();
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  const sound = sounds[0].sound;
+  let finish!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let paused!: () => void;
+  const observed = new Promise<void>((resolve) => {
+    paused = resolve;
+  });
+  Object.assign(sound, {
+    pauseAsync: async () => {
+      sound.isPlaying = false;
+      sound.listener({
+        isLoaded: true,
+        isPlaying: false,
+        positionMillis: 0,
+        durationMillis: 60_000,
+      });
+      paused();
+      await pending;
+    },
+  });
+  await view.press(view.getByRole('button', { name: PAUSE() }));
+  await observed;
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: PLAY() }));
+  await view.press(view.getByRole('button', { name: PLAY() }));
+  assert.equal(sound.isPlaying, true);
+  assert.ok(view.getByRole('button', { name: PAUSE() }));
+  await act(async () => finish());
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: PAUSE() }), 'old Pause cannot rewrite the newer Play');
 });

@@ -21,8 +21,8 @@ export interface OnboardingBibleSelectionDeps<T extends { id: string }> {
   download: (translation: T) => Promise<OnboardingDownloadResult>;
   /** The translation as it stands after its install (fresh store state). */
   getInstalled: (translation: T) => T;
-  /** Finishes onboarding with this Bible. */
-  complete: (translation: T) => Promise<void>;
+  /** Finishes onboarding with this Bible; false cancels without a failure alert. */
+  complete: (translation: T) => Promise<void | boolean>;
   /** A download failed and no other choice is waiting behind it. */
   onDownloadFailed: (translation: T, error: unknown) => Promise<void> | void;
   /**
@@ -63,7 +63,7 @@ export function createOnboardingBibleSelectionQueue<T extends { id: string }>(
   const complete = async (translation: T) => {
     completed = true;
     try {
-      await getDeps().complete(translation);
+      if ((await getDeps().complete(translation)) === false) completed = false;
     } catch (error) {
       completed = false;
       getDeps().onCompleteFailed(translation, error);

@@ -1,7 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
+import { mockMmkvStorage, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
 
 // This file deliberately does NOT use `mockSupabaseModule`: it tests the real
 // client module, so `@supabase/supabase-js`, `expo-secure-store`, `react-native`
@@ -93,6 +93,7 @@ mockModule(mock, 'expo-secure-store', {
 });
 
 mockReactNative(mock, { os: 'ios' });
+mockMmkvStorage(mock);
 
 mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   publicRuntimeConfig: {
@@ -224,7 +225,10 @@ test('the auth storage adapter deletes the keychain entry on removeItem', async 
   await storageAdapter().removeItem('sb-access-token');
 
   assert.equal(secureStore.store.has('sb-access-token'), false);
-  assert.deepEqual(secureStore.calls.at(-1), ['deleteItemAsync', 'sb-access-token']);
+  assert.deepEqual(secureStore.calls.slice(-2), [
+    ['deleteItemAsync', 'sb-access-token'],
+    ['getItemAsync', 'sb-access-token'],
+  ]);
 });
 
 test('getCurrentUserId returns the id of the signed-in user', async () => {

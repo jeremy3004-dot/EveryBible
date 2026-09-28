@@ -50,8 +50,8 @@ test('BibleReaderScreen opens a verse-image background picker and captures the s
 
   assert.match(
     source,
-    /const \{ captureRef \} = await import\('react-native-view-shot'\);/,
-    'BibleReaderScreen should lazy-load react-native-view-shot for verse images'
+    /const \{ captureRef, releaseCapture \} = await import\('react-native-view-shot'\);/,
+    'BibleReaderScreen should lazy-load image capture and cleanup together'
   );
 
   assert.match(

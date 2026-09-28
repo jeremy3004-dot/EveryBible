@@ -76,6 +76,42 @@ test('removing a colour from the middle of a highlight succeeds and keeps both e
   assert.deepEqual(await liveHighlights(), ['10-11 yellow', '13-14 yellow']);
 });
 
+test('a failed split write keeps the original highlight on every unselected verse', async () => {
+  await highlight(10, 14, 'yellow');
+  const planned = edits.planReaderHighlightRemove({
+    book: 'JHN',
+    chapter: 3,
+    annotations: await chapterAnnotations(),
+    selectedVerses: [12],
+    createId,
+    color: 'yellow',
+  });
+  let writes = 0;
+  const succeeded = await edits.applyReaderAnnotationEdits(planned, {
+    softDelete: service.softDeleteAnnotation,
+    upsert: async (draft) => {
+      writes += 1;
+      if (writes === 2) return { success: false };
+      return service.upsertAnnotation(draft);
+    },
+  });
+
+  assert.equal(succeeded, false);
+  const live = await chapterAnnotations();
+  for (const verse of [10, 11, 13, 14]) {
+    assert.ok(
+      live.some(
+        (annotation) =>
+          annotation.type === 'highlight' &&
+          annotation.color === 'yellow' &&
+          annotation.verse_start <= verse &&
+          (annotation.verse_end ?? annotation.verse_start) >= verse
+      ),
+      `verse ${verse} kept its highlight`
+    );
+  }
+});
+
 test('painting across two highlights gives each verse exactly one colour', async () => {
   await highlight(3, 4, 'yellow');
   await highlight(5, 7, 'green');

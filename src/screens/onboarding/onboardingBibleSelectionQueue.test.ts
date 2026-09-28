@@ -295,3 +295,24 @@ test('if finishing onboarding throws after a download, the installed Bible is re
   assert.equal(harness.attempts(), 2);
   assert.equal(harness.completeFailures.length, 1);
 });
+
+test('cancelled completion releases the queue so a fresh choice can finish', async () => {
+  let attempts = 0;
+  const failures: unknown[] = [];
+  const queue = createOnboardingBibleSelectionQueue<FakeTranslation>(() => ({
+    download: async () => 'installed',
+    getInstalled: (translation) => translation,
+    complete: async () => ++attempts > 1,
+    onDownloadFailed: (_translation, error) => {
+      failures.push(error);
+    },
+    onCompleteFailed: (_translation, error) => {
+      failures.push(error);
+    },
+    onStateChange: () => {},
+  }));
+  await queue.chooseReady({ id: 'bsb' });
+  await queue.chooseReady({ id: 'web' });
+  assert.equal(attempts, 2);
+  assert.deepEqual(failures, [], 'cancellation is not a locale load error');
+});

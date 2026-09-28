@@ -77,6 +77,7 @@ test('cancelling a translation audio download stops books that have not started 
 
   service.requestAudioDownloadCancellation('audio-download:bsb:translation:all');
   await rejected;
+  assert.equal(runtime.jobs.has('audio-download:bsb:translation:all'), false);
 
   assert.deepEqual(runtime.started, ['PHM', 'JUD'], 'no further book may start after cancellation');
   for (const signal of runtime.inFlight.values()) {

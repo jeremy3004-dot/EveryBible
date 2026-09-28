@@ -77,11 +77,15 @@ export type SentAndroidPlaybackSnapshot = AndroidPlaybackSnapshot & {
 };
 
 export function buildAndroidMediaControlOptions(
-  localized?: BibleNowPlayingLocalizedStrings
+  localized?: BibleNowPlayingLocalizedStrings,
+  availability: Pick<BibleNowPlayingInput, 'canSkipNext' | 'canSkipPrevious'> = {}
 ): AndroidMediaControlOptions {
+  const available = (capability: string) =>
+    (capability !== 'nextTrack' || availability.canSkipNext !== false) &&
+    (capability !== 'previousTrack' || availability.canSkipPrevious !== false);
   const options: AndroidMediaControlOptions = {
-    capabilities: [...ANDROID_MEDIA_CAPABILITIES],
-    compactCapabilities: [...ANDROID_COMPACT_CAPABILITIES],
+    capabilities: ANDROID_MEDIA_CAPABILITIES.filter(available),
+    compactCapabilities: ANDROID_COMPACT_CAPABILITIES.filter(available),
     android: { skipInterval: ANDROID_SKIP_INTERVAL_SECONDS },
   };
 

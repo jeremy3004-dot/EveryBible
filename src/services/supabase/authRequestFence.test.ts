@@ -86,3 +86,53 @@ test('the caller can still abort a refresh it started, as the request timeout do
 
   assert.equal(network.requests[0]?.init?.signal?.aborted, true);
 });
+
+test('releasing a failed sign-out fence permits retry without removing another owner fence', async () => {
+  let requests = 0;
+  const fetch = createRefreshTokenFencedFetch(async () => {
+    requests += 1;
+    return refreshed();
+  });
+  const release = fenceRefreshToken('failed-removal');
+  await assert.rejects(fetch(REFRESH_URL, refreshInit('failed-removal')), TypeError);
+  release();
+  assert.equal((await fetch(REFRESH_URL, refreshInit('failed-removal'))).status, 200);
+  const earlier = fenceRefreshToken('previously-fenced');
+  const unsuccessful = fenceRefreshToken('previously-fenced');
+  unsuccessful();
+  await assert.rejects(fetch(REFRESH_URL, refreshInit('previously-fenced')), TypeError);
+  earlier();
+  const original = fenceRefreshToken('concurrent-fence');
+  const concurrent = fenceRefreshToken('concurrent-fence');
+  original();
+  await assert.rejects(fetch(REFRESH_URL, refreshInit('concurrent-fence')), TypeError);
+  concurrent();
+  assert.equal(requests, 1);
+});
+
+test('two unsuccessful concurrent fence owners both release without poisoning later refresh', async () => {
+  const network = createNetwork();
+  const fetch = createRefreshTokenFencedFetch(network.fetch);
+  const first = fenceRefreshToken('both-admissions-failed');
+  const second = fenceRefreshToken('both-admissions-failed');
+  first();
+  second();
+  const retried = fetch(REFRESH_URL, refreshInit('both-admissions-failed'));
+  assert.equal(network.requests.length, 1);
+  network.requests[0]?.answer(refreshed());
+  assert.equal((await retried).status, 200);
+});
+
+test('failed admission leaves its old in-flight refresh aborted but permits a new request', async () => {
+  const network = createNetwork();
+  const fetch = createRefreshTokenFencedFetch(network.fetch);
+  const original = fetch(REFRESH_URL, refreshInit('admission-retry'));
+  const release = fenceRefreshToken('admission-retry');
+  release();
+  network.requests[0]?.answer(refreshed());
+  await assert.rejects(original, TypeError);
+  assert.equal(network.requests[0]?.init?.signal?.aborted, true);
+  const retried = fetch(REFRESH_URL, refreshInit('admission-retry'));
+  network.requests[1]?.answer(refreshed());
+  assert.equal((await retried).status, 200);
+});

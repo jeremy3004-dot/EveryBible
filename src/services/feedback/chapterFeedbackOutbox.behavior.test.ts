@@ -505,3 +505,102 @@ test('feedback queued by an older build gets one id that it keeps across retries
   assert.match(first.clientSubmissionId ?? '', UUID);
   assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
 });
+
+// Use the real submit service: its error classification determines whether the only
+// local copy survives a Council code rotation while the phone was offline.
+test('queued Council text survives access denial and retries its original id with a fresh code', async () => {
+  const { submitChapterFeedback } = await import('./chapterFeedbackService');
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(
+    { ...baseInput, contributorCategory: 'scripture_council', councilPasscode: 'old-code' },
+    h.deps
+  );
+  h.passcode = 'old-code';
+  h.deps.submit = (input) =>
+    submitChapterFeedback(input, {
+      invoke: async (_name, { body }) => {
+        h.submissions.push(body);
+        return body.councilPasscode === 'new-code'
+          ? { data: sent(), error: null }
+          : {
+              data: null,
+              error: {
+                name: 'FunctionsHttpError',
+                message: 'Edge Function returned a non-2xx status code',
+                context: new Response(JSON.stringify({ error: 'Council access denied' }), {
+                  status: 403,
+                }),
+              },
+            };
+      },
+    });
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 0,
+    remaining: 1,
+  });
+  const first = assertDefined(h.submissions[0], 'denied attempt');
+  // Another account must neither send nor remove A's retained text.
+  h.userId = 'user-b';
+  h.passcode = 'new-code';
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 0,
+    remaining: 1,
+  });
+  assert.equal(h.submissions.length, 1);
+  h.userId = 'user-a';
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 1,
+    remaining: 0,
+  });
+  const retry = assertDefined(h.submissions[1], 'corrected-code retry');
+  assert.equal(retry.comment, baseInput.comment);
+  assert.equal(retry.councilPasscode, 'new-code');
+  assert.equal(retry.clientSubmissionId, first.clientSubmissionId);
+});
+
+test('fresh Council access denial is reported without silently queuing invalid-code feedback', async () => {
+  const { submitChapterFeedback } = await import('./chapterFeedbackService');
+  h.deps.submit = (input) =>
+    submitChapterFeedback(input, {
+      invoke: async () => ({
+        data: null,
+        error: {
+          context: new Response(JSON.stringify({ error: 'Council access denied' }), {
+            status: 403,
+          }),
+        },
+      }),
+    });
+  const result = await outbox.submitChapterFeedbackOrQueue(
+    { ...baseInput, contributorCategory: 'scripture_council', councilPasscode: 'wrong-code' },
+    h.deps
+  );
+  assert.equal(result.success, false);
+  assert.equal(result.queued, undefined);
+  assert.equal(outbox.countQueuedChapterFeedback('user-a'), 0);
+});
+
+test('permanently invalid Council payload is still removed through the real submit service', async () => {
+  const { submitChapterFeedback } = await import('./chapterFeedbackService');
+  h.offline = true;
+  await outbox.submitChapterFeedbackOrQueue(
+    { ...baseInput, contributorCategory: 'scripture_council', councilPasscode: 'valid-code' },
+    h.deps
+  );
+  h.passcode = 'valid-code';
+  h.deps.submit = (input) =>
+    submitChapterFeedback(input, {
+      invoke: async () => ({
+        data: null,
+        error: {
+          context: new Response(JSON.stringify({ error: 'Chapter is out of range' }), {
+            status: 400,
+          }),
+        },
+      }),
+    });
+  assert.deepEqual(await outbox.flushChapterFeedbackOutbox('user-a', h.deps), {
+    sent: 0,
+    remaining: 0,
+  });
+});

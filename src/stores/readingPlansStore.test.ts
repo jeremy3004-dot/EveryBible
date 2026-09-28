@@ -17,6 +17,25 @@ function createMemoryStorage(): StateStorage {
   };
 }
 
+test('a recurring resume belongs only to its saved occurrence, while legacy sequential resumes remain usable', async () => {
+  const { createReadingPlansStore } = await import('./readingPlansStore');
+  const store = createReadingPlansStore(createMemoryStorage());
+  store.getState().setPlanDayResume('kathisma-weekly', 2, 'PSA', 37, '2026-09-21');
+  store.getState().setPlanDayResume('psalms-30-days', 2, 'PSA', 6);
+
+  assert.equal(store.getState().getPlanDayResume('kathisma-weekly', 2, '2026-09-28'), null);
+  assert.deepEqual(store.getState().getPlanDayResume('kathisma-weekly', 2, '2026-09-21'), {
+    bookId: 'PSA',
+    chapter: 37,
+    occurrenceKey: '2026-09-21',
+  });
+  assert.deepEqual(store.getState().getPlanDayResume('psalms-30-days', 2), {
+    bookId: 'PSA',
+    chapter: 6,
+  });
+  assert.equal(store.getState().getPlanDayResume('psalms-30-days', 2, '2026-09-28'), null);
+});
+
 function completePlan(
   store: {
     getState(): {

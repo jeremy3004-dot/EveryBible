@@ -144,7 +144,7 @@ test('enabling persists the enabled flag to MMKV and the passcode to the keystor
   assert.equal(mmkv.store.get('translator-review-storage')?.includes('let-me-in'), false);
   assert.deepEqual(
     secureStore.calls.map((call) => `${call.op} ${call.key}`),
-    [`set ${PASSCODE_KEY}`]
+    [`set ${PASSCODE_KEY}`, `get ${PASSCODE_KEY}`]
   );
   assert.equal(secureStore.store.get(PASSCODE_KEY), 'let-me-in');
 });
@@ -184,7 +184,7 @@ test('disabling clears the enabled flag, the passcode and the keystore entry', a
   assert.equal(state().accessPasscode, null);
   assert.deepEqual(
     secureStore.calls.map((call) => `${call.op} ${call.key}`),
-    [`delete ${PASSCODE_KEY}`]
+    [`delete ${PASSCODE_KEY}`, `get ${PASSCODE_KEY}`]
   );
   assert.equal(secureStore.store.has(PASSCODE_KEY), false);
 });
@@ -279,7 +279,7 @@ test('resetForSignOut wipes the persisted snapshot so translator mode cannot ble
   // The credential is deleted from the keystore too, not just forgotten in memory.
   assert.equal(secureStore.store.has(PASSCODE_KEY), false);
   assert.deepEqual(secureStore.calls.at(-1), {
-    op: 'delete',
+    op: 'get',
     key: PASSCODE_KEY,
     options: undefined,
   });
@@ -791,3 +791,194 @@ test('cold-start passcode hydration settles quietly when the keychain cannot be 
   );
   assert.deepEqual(unhandled, []);
 });
+
+for (const kind of ['translator', 'council'] as const) {
+  test(`${kind} failed native removal and replacement cannot restore the previous account credential`, async (t) => {
+    t.mock.method(console, 'warn', () => {});
+    const key = kind === 'translator' ? PASSCODE_KEY : 'everybible.feedback.councilPasscode';
+    const enable = (code: string) =>
+      kind === 'translator'
+        ? state().enableWithPasscode(code)
+        : state().enableCouncilWithPasscode(code);
+    const hydrate =
+      kind === 'translator' ? hydrateTranslatorReviewPasscode : hydrateCouncilPasscode;
+    assert.equal(enable('old-account-code'), true);
+    await flushSecureStore();
+    secureStore.state.failure = new Error('keychain unavailable');
+    state().resetForSignOut();
+    await flushSecureStore();
+    assert.equal(enable('new-account-code'), true);
+    await flushSecureStore();
+    const snapshot = mmkv.store.get('translator-review-storage');
+    assert.ok(snapshot);
+    secureStore.state.failure = null;
+    useTranslatorReviewStore.setState(useTranslatorReviewStore.getInitialState(), true);
+    mmkv.store.set('translator-review-storage', snapshot);
+    await useTranslatorReviewStore.persist.rehydrate();
+    await hydrate();
+    assert.equal(kind === 'translator' ? state().accessPasscode : state().councilPasscode, null);
+    assert.equal(
+      secureStore.store.get(key),
+      'old-account-code',
+      'native failure still retains old data, but it is masked'
+    );
+  });
+  test(`${kind} refuses enabling when durable credential block admission fails`, async (t) => {
+    t.mock.method(mmkv.mmkvInstance, 'set', () => {
+      throw new Error('MMKV unavailable');
+    });
+    const enabled =
+      kind === 'translator'
+        ? state().enableWithPasscode('valid-code')
+        : state().enableCouncilWithPasscode('valid-code');
+    assert.equal(enabled, false);
+    assert.notEqual(state().mode, kind === 'translator' ? 'translator' : 'scripture_council');
+    assert.deepEqual(secureStore.calls, []);
+  });
+  test(`${kind} retained native value after resolved delete remains blocked on restore`, async (t) => {
+    const enable = (code: string) =>
+      kind === 'translator'
+        ? state().enableWithPasscode(code)
+        : state().enableCouncilWithPasscode(code);
+    assert.equal(enable('old-account-code'), true);
+    await flushSecureStore();
+    t.mock.method(secureStore.store, 'delete', () => false);
+    state().resetForSignOut();
+    await flushSecureStore();
+    secureStore.state.failure = new Error('new write unavailable');
+    assert.equal(enable('new-account-code'), true);
+    await flushSecureStore();
+    secureStore.state.failure = null;
+    useTranslatorReviewStore.setState(
+      kind === 'translator' ? { accessPasscode: null } : { councilPasscode: null }
+    );
+    await (kind === 'translator' ? hydrateTranslatorReviewPasscode() : hydrateCouncilPasscode());
+    assert.equal(kind === 'translator' ? state().accessPasscode : state().councilPasscode, null);
+  });
+}
+
+for (const kind of ['translator', 'council'] as const) {
+  const key = kind === 'translator' ? PASSCODE_KEY : 'everybible.feedback.councilPasscode';
+  const block = `feedback-credential-block:${key}`;
+  test(`${kind} successful native save confirms readback and unblocks fresh hydration`, async () => {
+    const enable = (code: string) =>
+      kind === 'translator'
+        ? state().enableWithPasscode(code)
+        : state().enableCouncilWithPasscode(code);
+    assert.equal(enable('fresh-code'), true);
+    assert.equal(mmkv.store.get(block), '1');
+    await flushSecureStore();
+    assert.equal(mmkv.store.has(block), false);
+    useTranslatorReviewStore.setState(
+      kind === 'translator' ? { accessPasscode: null } : { councilPasscode: null }
+    );
+    await (kind === 'translator' ? hydrateTranslatorReviewPasscode() : hydrateCouncilPasscode());
+    assert.equal(
+      kind === 'translator' ? state().accessPasscode : state().councilPasscode,
+      'fresh-code'
+    );
+  });
+  test(`${kind} resolved write retaining an older value cannot clear its hydration block`, async (t) => {
+    const enable = (code: string) =>
+      kind === 'translator'
+        ? state().enableWithPasscode(code)
+        : state().enableCouncilWithPasscode(code);
+    assert.equal(enable('old-code'), true);
+    await flushSecureStore();
+    t.mock.method(secureStore.store, 'set', () => secureStore.store);
+    assert.equal(enable('new-code'), true);
+    await flushSecureStore();
+    assert.equal(mmkv.store.get(block), '1');
+    useTranslatorReviewStore.setState(
+      kind === 'translator' ? { accessPasscode: null } : { councilPasscode: null }
+    );
+    await (kind === 'translator' ? hydrateTranslatorReviewPasscode() : hydrateCouncilPasscode());
+    assert.equal(kind === 'translator' ? state().accessPasscode : state().councilPasscode, null);
+  });
+  test(`${kind} older write confirmation cannot clear a newer failed deletion block`, async (t) => {
+    t.mock.method(console, 'warn', () => {});
+    const get = secureStore.store.get.bind(secureStore.store);
+    let first = true;
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const ready = new Promise<void>((r) => (started = r));
+    // The native write/read happen first; only delivery of that read result is delayed.
+    t.mock.method(secureStore.store, 'get', (readKey: string) => {
+      const value = get(readKey);
+      if (readKey === key && first) {
+        first = false;
+        started();
+        return gate.then(() => value) as unknown as string;
+      }
+      return value;
+    });
+    assert.equal(
+      kind === 'translator'
+        ? state().enableWithPasscode('old-code')
+        : state().enableCouncilWithPasscode('old-code'),
+      true
+    );
+    await ready;
+    secureStore.state.failure = new Error('delete unavailable');
+    state().resetForSignOut();
+    await flushSecureStore();
+    assert.equal(mmkv.store.get(block), '1');
+    release();
+    await flushSecureStore();
+    assert.equal(mmkv.store.get(block), '1');
+  });
+  test(`${kind} hydration admitted before sign-out cannot return an obsolete native read`, async (t) => {
+    t.mock.method(console, 'warn', () => {});
+    useTranslatorReviewStore.setState(
+      kind === 'translator'
+        ? { mode: 'translator', enabled: true, accessPasscode: null }
+        : { mode: 'scripture_council', councilPasscode: null }
+    );
+    secureStore.store.set(key, 'old-account-code');
+    const get = secureStore.store.get.bind(secureStore.store);
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const ready = new Promise<void>((r) => (started = r));
+    let first = true;
+    t.mock.method(secureStore.store, 'get', (readKey: string) => {
+      const value = get(readKey);
+      if (readKey === key && first) {
+        first = false;
+        started();
+        return gate.then(() => value) as unknown as string;
+      }
+      return value;
+    });
+    const hydration =
+      kind === 'translator' ? hydrateTranslatorReviewPasscode() : hydrateCouncilPasscode();
+    await ready;
+    secureStore.state.failure = new Error('native cleanup unavailable');
+    state().resetForSignOut();
+    await flushSecureStore();
+    // The new account rehydrates the same mode, without an entered credential.
+    useTranslatorReviewStore.setState(
+      kind === 'translator'
+        ? { mode: 'translator', enabled: true, accessPasscode: null }
+        : { mode: 'scripture_council', councilPasscode: null }
+    );
+    release();
+    await hydration;
+    assert.equal(kind === 'translator' ? state().accessPasscode : state().councilPasscode, null);
+    assert.equal(mmkv.store.get(block), '1');
+  });
+  test(`${kind} unreadable hydration protection fails closed without reading the native credential`, async (t) => {
+    useTranslatorReviewStore.setState(
+      kind === 'translator'
+        ? { mode: 'translator', enabled: true, accessPasscode: null }
+        : { mode: 'scripture_council', councilPasscode: null }
+    );
+    t.mock.method(mmkv.mmkvInstance, 'getString', () => {
+      throw new Error('MMKV unreadable');
+    });
+    await (kind === 'translator' ? hydrateTranslatorReviewPasscode() : hydrateCouncilPasscode());
+    assert.deepEqual(secureStore.calls, []);
+    assert.equal(kind === 'translator' ? state().accessPasscode : state().councilPasscode, null);
+  });
+}

@@ -1149,7 +1149,7 @@ test('getDatabase opens an installed translation from its own directory and cach
       name: 'web.db',
       directory: installedDirectory,
       path: `${installedDirectory}/web.db`,
-      options: { finalizeUnusedStatementsBeforeClosing: false },
+      options: { finalizeUnusedStatementsBeforeClosing: false, useNewConnection: true },
     },
   ]);
   assert.ok(
@@ -2328,4 +2328,349 @@ test('a verse added to a translation after a search is found once it is indexed'
 
   assert.deepEqual(verseRefs(await searchVerses('mxa', 'Melchizedek')), ['HEB 7:1']);
   assert.deepEqual(await searchVerses('mxb', 'Melchizedek'), []);
+});
+
+test('an old pack read error is not attributed to its healthy replacement', async () => {
+  const { getChapter, getDatabase, setBibleDatabaseSourceResolver, MissingInstalledDatabaseError } =
+    await loadModule();
+  const oldPath = seedInstalledPack('old-review');
+  const newPath = seedInstalledPack('new-review');
+  // Same translation, distinct candidate paths, just as catalog replacement activates.
+  writeSeedDatabase(newPath, {
+    verses: [
+      {
+        translationId: 'old-review',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 1,
+        text: 'Healthy replacement.',
+      },
+    ],
+  });
+  let current = installedSource('old-review', 'old-review.db');
+  setBibleDatabaseSourceResolver((id) => (id === 'old-review' ? current : null));
+  const old = await getDatabase('old-review');
+  const started = deferred();
+  const release = deferred();
+  sqliteFaults.beforeStatement = async (_id, sql) => {
+    if (sql.includes('AND book_id = ? AND chapter = ?')) {
+      started.resolve();
+      await release.promise;
+      throw new Error('Error code 11: database disk image is malformed');
+    }
+  };
+  const pending = getChapter('old-review', 'GEN', 1).catch((error) => error);
+  await started.promise;
+  current = installedSource('old-review', 'new-review.db');
+  const replacement = await getDatabase('old-review');
+  assert.notEqual(old, replacement);
+  resetRecorders();
+  release.resolve();
+  const error = await pending;
+  sqliteFaults.beforeStatement = null;
+  assert.ok(error instanceof MissingInstalledDatabaseError);
+  assert.equal(
+    error.localPath,
+    oldPath,
+    'only the database that actually failed may be classified damaged'
+  );
+  assert.equal(
+    closes.includes(newPath),
+    false,
+    'healthy replacement connection must survive old read failure'
+  );
+  assert.equal(
+    assertDefined((await getChapter('old-review', 'GEN', 1))[0], 'healthy replacement verse').text,
+    'Healthy replacement.'
+  );
+});
+
+test('superseded old-pack failure cannot break the current reader replacement load', async () => {
+  resetSqliteFaults();
+  const {
+    getChapter,
+    getDatabase,
+    invalidateInstalledBibleDatabaseAtPath,
+    setBibleDatabaseSourceResolver,
+  } = await loadModule();
+  const { loadReaderChapter } = await import('../../screens/bible/readerChapterLoader');
+  const oldPath = seedInstalledPack('reader-audit');
+  const newPath = `${installedDirectory}/reader-audit-new.db`;
+  writeSeedDatabase(newPath, {
+    verses: [
+      {
+        translationId: 'reader-audit',
+        bookId: 'GEN',
+        chapter: 1,
+        verse: 1,
+        text: 'Current reader text.',
+      },
+    ],
+  });
+  let current = installedSource('reader-audit', 'reader-audit.db');
+  setBibleDatabaseSourceResolver((id) => (id === 'reader-audit' ? current : null));
+  await getDatabase('reader-audit');
+  const oldHandleId = handleSequence;
+  const oldStarted = deferred(),
+    oldDelivery = deferred(),
+    newStarted = deferred(),
+    newDelivery = deferred();
+  sqliteFaults.beforeStatement = async (id, sql) => {
+    if (!sql.includes('AND book_id = ? AND chapter = ?')) return;
+    if (id === oldHandleId) {
+      oldStarted.resolve();
+      await oldDelivery.promise;
+      throw new Error('Error code 11: database disk image is malformed');
+    }
+    newStarted.resolve();
+    await newDelivery.promise;
+  };
+  let currentText = '';
+  let currentError: string | null = null;
+  const refs = { requestIdRef: { current: 0 }, prefetchTaskRef: { current: null } };
+  const load = {
+    ...refs,
+    translationId: 'reader-audit',
+    bookId: 'GEN',
+    chapter: 1,
+    translation: { hasText: true },
+    currentVerseCount: 0,
+    returnToPlanOnComplete: true,
+    getChapter,
+    prefetchNextChapter: async () => {},
+    runAfterInteractions: () => ({ cancel: () => {} }),
+    markChapterRead: () => {},
+    recoverMissingInstalledPack: async () => {},
+    setIsLoading: () => {},
+    setError: (value: string | null) => {
+      currentError = value;
+    },
+    setVerses: (verses: Verse[]) => {
+      currentText = verses[0]?.text ?? '';
+    },
+    setVersesChapterKey: () => {},
+    t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => key,
+  };
+  const oldLoad = loadReaderChapter(load);
+  await oldStarted.promise;
+  // Intentional deletion invalidates the old reader and old connection; reinstall
+  // registers a unique candidate, then a new current reader request starts.
+  refs.requestIdRef.current += 1;
+  await invalidateInstalledBibleDatabaseAtPath(oldPath);
+  current = installedSource('reader-audit', 'reader-audit-new.db');
+  const newLoad = loadReaderChapter(load);
+  await newStarted.promise;
+  resetRecorders();
+  oldDelivery.resolve();
+  await oldLoad;
+  newDelivery.resolve();
+  await newLoad;
+  sqliteFaults.beforeStatement = null;
+  assert.equal(currentError, null);
+  assert.equal(currentText, 'Current reader text.');
+  assert.equal(closes.includes(newPath), false);
+});
+
+test('installed reader initial load, Retry and search remain usable while bundled imports fail', async () => {
+  resetSqliteFaults();
+  const database = await loadModule();
+  const service = await import('./bibleService');
+  const { loadReaderChapter } = await import('../../screens/bible/readerChapterLoader');
+  const installedPath = seedInstalledPack('healthy-offline');
+  database.setBibleDatabaseSourceResolver((id) =>
+    id === 'healthy-offline' ? installedSource(id, 'healthy-offline.db') : null
+  );
+  resetRecorders();
+  const control = await database.getChapter('healthy-offline', 'GEN', 1);
+  assert.equal(
+    control[0]?.text,
+    'In the beginning.',
+    'installed SQLite is available before bundled warmup'
+  );
+  sqliteFaults.importAsset.push(
+    ...Array.from({ length: 4 }, () => new Error('ENOSPC: bundled asset copy failed'))
+  );
+  let text = '';
+  let error: string | null = null;
+  const load = {
+    requestIdRef: { current: 0 },
+    prefetchTaskRef: { current: null },
+    translationId: 'healthy-offline',
+    bookId: 'GEN',
+    chapter: 1,
+    translation: { hasText: true },
+    currentVerseCount: 0,
+    returnToPlanOnComplete: true,
+    getChapter: service.getChapter,
+    prefetchNextChapter: async () => {},
+    runAfterInteractions: () => ({ cancel: () => {} }),
+    markChapterRead: () => {},
+    recoverMissingInstalledPack: async () => {},
+    setIsLoading: () => {},
+    setError: (value: string | null) => {
+      error = value;
+    },
+    setVerses: (verses: Verse[]) => {
+      text = verses[0]?.text ?? '';
+    },
+    setVersesChapterKey: () => {},
+    t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => key,
+  };
+  await loadReaderChapter(load);
+  await loadReaderChapter(load); // Actual Retry invokes the same chapter loader again.
+  assert.equal(error, null, 'a usable installed Bible must not depend on bundled file replacement');
+  assert.equal(text, 'In the beginning.');
+  assert.equal(
+    (await service.searchBible('healthy-offline', 'beginning'))[0]?.text,
+    'In the beginning.'
+  );
+  assert.equal(existsSync(installedPath), true);
+  assert.equal(assetImports.length, 0, 'installed text must not attempt bundled asset writes');
+  await assert.rejects(service.getChapter('bsb', 'GEN', 1), /ENOSPC/);
+  await assert.rejects(service.getChapter('bsb', 'GEN', 1), /ENOSPC/);
+  assert.equal(
+    assetImports.length,
+    4,
+    'bundled first load and Retry still attempt normal recovery'
+  );
+});
+
+test('installed search does not initialize the unavailable bundled database', async () => {
+  resetSqliteFaults();
+  const database = await loadModule();
+  const service = await import('./bibleService');
+  const localPath = seedInstalledPack('offline-search');
+  database.setBibleDatabaseSourceResolver((id) =>
+    id === 'offline-search' ? installedSource(id, 'offline-search.db') : null
+  );
+  resetRecorders();
+  sqliteFaults.importAsset.push(new Error('ENOSPC: bundled asset copy failed'));
+  assert.equal(
+    (await service.searchBible('offline-search', 'beginning'))[0]?.text,
+    'In the beginning.'
+  );
+  assert.equal(assetImports.length, 0);
+  assert.equal(existsSync(localPath), true);
+});
+
+for (const state of ['missing', 'corrupt'] as const) {
+  test(`an installed ${state} pack retains its truthful error while bundled initialization is unavailable`, async () => {
+    resetSqliteFaults();
+    const database = await loadModule();
+    const service = await import('./bibleService');
+    const localPath = `${installedDirectory}/offline-${state}.db`;
+    if (state === 'corrupt') writeFileSync(localPath, Buffer.alloc(16_384, 0x5a));
+    database.setBibleDatabaseSourceResolver((id) =>
+      id === `offline-${state}` ? installedSource(id, `offline-${state}.db`) : null
+    );
+    resetRecorders();
+    sqliteFaults.importAsset.push(new Error('ENOSPC: bundled asset copy failed'));
+    await assert.rejects(service.getChapter(`offline-${state}`, 'GEN', 1), (error: unknown) => {
+      assert.ok(error instanceof database.MissingInstalledDatabaseError);
+      assert.equal(error.localPath, localPath);
+      assert.equal(error.reason, state);
+      return true;
+    });
+    assert.equal(assetImports.length, 0);
+  });
+}
+
+test('a selected installed source changed back to bundled still goes through bundled validation', async () => {
+  resetSqliteFaults();
+  const database = await loadModule();
+  const service = await import('./bibleService');
+  seedInstalledPack('fallback-review');
+  database.setBibleDatabaseSourceResolver((id) =>
+    id === 'fallback-review' ? installedSource(id, 'fallback-review.db') : null
+  );
+  let readinessChecks = 0;
+  database.setBibleTranslationReadinessResolver(async () => {
+    if (++readinessChecks === 2) database.setBibleDatabaseSourceResolver(null);
+  });
+  resetRecorders();
+  sqliteFaults.importAsset.push(
+    new Error('ENOSPC: bundled asset copy failed'),
+    new Error('ENOSPC: bundled asset copy failed')
+  );
+  try {
+    await assert.rejects(service.getChapter('fallback-review', 'GEN', 1), /ENOSPC/);
+    assert.equal(assetImports.length, 2);
+  } finally {
+    database.setBibleTranslationReadinessResolver(null);
+  }
+});
+
+test('shipped Nepali search verifies typed marks before LIMIT while retaining FTS ranking and prefixes', async () => {
+  resetSqliteFaults();
+  const path = `${installedDirectory}/shipped-nepali-search.db`;
+  copyFileSync(assetModulePath, path);
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  setBibleDatabaseSourceResolver((id) =>
+    id === 'npiulb' ? installedSource(id, 'shipped-nepali-search.db') : null
+  );
+
+  for (const term of ['येशू', 'येश']) {
+    const expected = searchEveryTranslationThenFilter(path, 'npiulb', term, 10_000)
+      .filter((row) => row[4].includes(term))
+      .slice(0, 50);
+    assert.equal(
+      expected.length,
+      50,
+      'the shipped text has enough valid matches to fill the limit'
+    );
+    const actual = await searchVerses('npiulb', term, 50);
+    assert.deepEqual(
+      verseKeys(actual),
+      expected,
+      'valid FTS matches keep their existing bm25 order'
+    );
+    assert.ok(actual.every((verse) => verse.text.includes(term)));
+    assert.deepEqual(
+      verseKeys(await searchVerses('npiulb', term, 1)),
+      expected.slice(0, 1),
+      'verification must happen before the SQL limit rather than dropping a false first result'
+    );
+    assert.equal(actual[0]?.bookId, 'JHN');
+    assert.equal(actual[0]?.chapter, 11);
+    assert.equal(actual[0]?.verse, 35);
+  }
+
+  const joinerResults = await searchVerses('npiulb', 'परमेश्वर', 50);
+  assert.equal(joinerResults.length, 50);
+  assert.ok(joinerResults.some((verse) => /\u200C|\u200D/u.test(verse.text)));
+  assert.ok(
+    joinerResults.every((verse) => verse.text.replace(/[\u200C\u200D]/gu, '').includes('परमेश्वर'))
+  );
+});
+
+test('indexed Bengali and Arabic search distinguishes typed marks without changing Latin accent folding', async () => {
+  const file = 'marked-search.db';
+  const path = `${installedDirectory}/${file}`;
+  writeSeedDatabase(path, {
+    verses: [
+      { translationId: 'marked', bookId: 'GEN', chapter: 1, verse: 1, text: 'নিল' },
+      { translationId: 'marked', bookId: 'GEN', chapter: 1, verse: 2, text: 'নীল আকাশ' },
+      { translationId: 'marked', bookId: 'GEN', chapter: 1, verse: 3, text: 'حِبّ' },
+      { translationId: 'marked', bookId: 'GEN', chapter: 1, verse: 4, text: 'حُبّ' },
+      { translationId: 'marked', bookId: 'GEN', chapter: 1, verse: 5, text: 'Trời yêu thế gian' },
+    ],
+  });
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  setBibleDatabaseSourceResolver((id) => (id === 'marked' ? installedSource(id, file) : null));
+  assert.deepEqual(
+    (await searchVerses('marked', 'নীল')).map((verse) => verse.verse),
+    [2]
+  );
+  assert.deepEqual(
+    (await searchVerses('marked', 'حُبّ')).map((verse) => verse.verse),
+    [4]
+  );
+  assert.deepEqual(
+    (await searchVerses('marked', 'troi')).map((verse) => verse.verse),
+    [5]
+  );
+  assert.deepEqual(
+    (await searchVerses('marked', 'Trời')).map((verse) => verse.verse),
+    [5]
+  );
 });

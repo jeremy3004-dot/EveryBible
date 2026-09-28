@@ -1,6 +1,7 @@
 import test, { after, before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  mockMmkvStorage,
   mockModule,
   mockReactNative,
   mockSecureStore,
@@ -18,6 +19,7 @@ const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 
 const keychain = mockSecureStore(mock);
 mockReactNative(mock, { os: 'ios' });
+mockMmkvStorage(mock);
 mockModule(mock, sourcePath('services/startup/publicRuntimeConfig.ts'), {
   publicRuntimeConfig: {
     EXPO_PUBLIC_SUPABASE_URL: `https://${PROJECT_REF}.supabase.co`,
