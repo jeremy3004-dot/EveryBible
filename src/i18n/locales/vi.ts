@@ -1494,10 +1494,86 @@ export const vi = {
       title: 'Nghe tiếng Chúa',
       description: 'Lắng nghe Chúa qua các tiên tri, Thi Thiên, Chúa Giê-su và Hội Thánh đầu tiên.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Mất mát',
+        description:
+          'Bảy ngày cho người đang đau buồn, từ Gióp và Ru-tơ đến lời hứa mọi giọt nước mắt sẽ được lau khô.',
+      },
+      stress: {
+        title: 'Căng thẳng',
+        description:
+          'Bảy ngày khi mọi thứ quá sức: sự chu cấp mỗi ngày, gánh nặng được sẻ chia và sự nghỉ ngơi thật.',
+      },
+      fear: {
+        title: 'Sợ hãi',
+        description:
+          'Bảy ngày với những người đối diện người khổng lồ, lửa và biển cả, và thấy Đức Chúa Trời ở bên.',
+      },
+      peace: {
+        title: 'Bình an',
+        description:
+          'Bảy ngày về sự bình an Chúa Giê-su ban: hòa thuận với Đức Chúa Trời, với người khác, và tin cậy yên tĩnh.',
+      },
+      depression: {
+        title: 'Trầm uất',
+        description:
+          'Bảy ngày với Thi Thiên và các tiên tri chân thật cho mùa tăm tối, và Đức Chúa Trời gặp bạn ở đó.',
+      },
+      hope: {
+        title: 'Hy vọng',
+        description:
+          'Bảy ngày về những lời hứa được giữ trọn, từ Áp-ra-ham và Giô-sép đến xương khô được sống lại.',
+      },
+      healing: {
+        title: 'Chữa lành',
+        description:
+          'Bảy ngày với Đức Chúa Trời chữa lành, từ Na-a-man và Ê-xê-chia đến sự chạm đến của Chúa Giê-su.',
+      },
+      anger: {
+        title: 'Giận dữ',
+        description:
+          'Bảy ngày với những câu chuyện về cơn giận, từ Ca-in đến Giô-na, và lòng thương xót đáp lại.',
+      },
+      anxiety: {
+        title: 'Lo âu',
+        description: 'Bảy ngày học tin cậy: dốc đổ lòng mình và để Đức Chúa Trời gìn giữ bạn.',
+      },
+      love: {
+        title: 'Tình yêu',
+        description:
+          'Bảy ngày về tình yêu không bao giờ buông tay của Đức Chúa Trời, và cách tình yêu ấy dạy ta yêu thương.',
+      },
+      patience: {
+        title: 'Kiên nhẫn',
+        description: 'Bảy ngày trông đợi Đức Chúa Trời cùng Áp-ra-ham, Nô-ê, Đa-vít và Ha-ba-cúc.',
+      },
+      doubt: {
+        title: 'Nghi ngờ',
+        description:
+          'Bảy ngày với những người từng chất vấn Đức Chúa Trời, từ Môi-se đến Thô-ma, và thấy Ngài thành tín.',
+      },
+      pride: {
+        title: 'Kiêu ngạo',
+        description:
+          'Bảy ngày về sự khiêm nhường: các vua kiêu ngạo bị hạ xuống, và Vua đầy tớ đã rửa chân.',
+      },
+      temptation: {
+        title: 'Cám dỗ',
+        description:
+          'Bảy ngày về việc đứng vững, với Chúa Giê-su trong đồng vắng, Giô-sép chạy trốn và Đa-vít sa ngã.',
+      },
+      family: {
+        title: 'Gia đình',
+        description:
+          'Bảy ngày về các gia đình trong Kinh Thánh, tan vỡ rồi được phục hồi, và gia đình của Đức Chúa Trời.',
+      },
+    },
     categoryChronological: 'Toàn bộ Kinh Thánh',
     categoryBookStudy: 'Học theo sách',
     categoryTopical: 'Theo chủ đề',
     categoryDevotional: 'Tĩnh nguyện',
+    categoryLifeSituations: 'Các mùa trong đời',
     timedChallenges: 'Thử thách đọc',
     bibleIn30Days: {
       title: 'Trọn bộ Kinh Thánh trong 30 ngày',

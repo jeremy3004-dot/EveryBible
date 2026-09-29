@@ -206,6 +206,7 @@ test('known categories use their translated heading; others are title-cased from
   assert.equal(getPlanCategoryLabel('chronological', t), 'readingPlans.categoryChronological');
   assert.equal(getPlanCategoryLabel('topical', t), 'readingPlans.categoryTopical');
   assert.equal(getPlanCategoryLabel('devotional', t), 'readingPlans.categoryDevotional');
+  assert.equal(getPlanCategoryLabel('life-situation', t), 'readingPlans.categoryLifeSituations');
   assert.equal(getPlanCategoryLabel('custom', t), 'Custom');
   assert.equal(getPlanCategoryLabel('new-testament-deep-dive', t), 'New Testament Deep Dive');
 });
@@ -226,5 +227,29 @@ test('the catalog groups rhythms apart and other plans by category, in catalog o
       ['other', ['loose']],
     ]
   );
-  assert.deepEqual(groupCatalogPlans([]), { dailyRhythmPlans: [], categories: [] });
+  assert.deepEqual(groups.lifeSituationPlans, []);
+  assert.deepEqual(groupCatalogPlans([]), {
+    dailyRhythmPlans: [],
+    lifeSituationPlans: [],
+    categories: [],
+  });
+});
+
+test('Seasons of life plans get their own group instead of a category row list', () => {
+  const grief = makePlan({ id: 'grief', category: 'life-situation', duration_days: 7 });
+  const fear = makePlan({ id: 'fear', category: 'life-situation', duration_days: 7 });
+  const groups = groupCatalogPlans([gospels, grief, kathisma, fear]);
+
+  assert.deepEqual(
+    groups.lifeSituationPlans.map((plan) => plan.id),
+    ['grief', 'fear']
+  );
+  assert.deepEqual(
+    groups.dailyRhythmPlans.map((plan) => plan.id),
+    ['kathisma']
+  );
+  assert.deepEqual(
+    groups.categories.map(({ category }) => category),
+    ['book-study']
+  );
 });

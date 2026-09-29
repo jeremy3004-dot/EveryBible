@@ -19,7 +19,10 @@ interface FindPlansSectionProps {
   today: Date;
 }
 
-/** The searchable catalog: Daily rhythms as a cover grid, every other category as rows. */
+/**
+ * The searchable catalog: Daily rhythms and Seasons of life as cover grids, every
+ * other category as rows.
+ */
 export function FindPlansSection({
   allPlans,
   userProgress,
@@ -30,7 +33,7 @@ export function FindPlansSection({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { searchQuery, setSearchQuery, filteredPlans } = usePlanCatalogSearch(allPlans);
-  const { dailyRhythmPlans, categories } = useMemo(
+  const { dailyRhythmPlans, lifeSituationPlans, categories } = useMemo(
     () => groupCatalogPlans(filteredPlans),
     [filteredPlans]
   );
@@ -66,6 +69,27 @@ export function FindPlansSection({
           />
           <View style={styles.rhythmGrid}>
             {dailyRhythmPlans.map((plan) => (
+              <RhythmCard
+                key={plan.id}
+                plan={plan}
+                progress={progressByPlanId.get(plan.id)}
+                today={today}
+                onPlanPress={onPlanPress}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {lifeSituationPlans.length > 0 ? (
+        <View style={styles.section}>
+          <SectionHeader
+            title={t('readingPlans.categoryLifeSituations')}
+            eyebrow={t('readingPlans.plansCount', { count: lifeSituationPlans.length })}
+            style={styles.sectionHeader}
+          />
+          <View style={styles.rhythmGrid}>
+            {lifeSituationPlans.map((plan) => (
               <RhythmCard
                 key={plan.id}
                 plan={plan}

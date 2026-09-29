@@ -1546,10 +1546,87 @@ export const fr = {
       description:
         'Écoutez Dieu à travers les prophètes, les psaumes, Jésus et l’Église primitive.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Deuil',
+        description:
+          'Sept jours pour traverser le deuil, de Job et Ruth jusqu’à la promesse que toute larme sera essuyée.',
+      },
+      stress: {
+        title: 'Surmenage',
+        description:
+          'Sept jours pour quand tout devient trop lourd : le pain quotidien, les fardeaux partagés et le vrai repos.',
+      },
+      fear: {
+        title: 'Peur',
+        description:
+          'Sept jours avec ceux qui ont affronté géants, feu et mer, et ont trouvé Dieu à leurs côtés.',
+      },
+      peace: {
+        title: 'Paix',
+        description:
+          'Sept jours sur la paix que Jésus donne : paix avec Dieu, paix avec les autres et confiance tranquille.',
+      },
+      depression: {
+        title: 'Déprime',
+        description:
+          'Sept jours de psaumes et de prophètes sincères pour les saisons sombres, et le Dieu qui vous y rejoint.',
+      },
+      hope: {
+        title: 'Espérance',
+        description:
+          'Sept jours de promesses tenues, d’Abraham et Joseph aux ossements desséchés qui revivent.',
+      },
+      healing: {
+        title: 'Guérison',
+        description:
+          'Sept jours avec le Dieu qui guérit, de Naaman et Ézéchias jusqu’au toucher de Jésus.',
+      },
+      anger: {
+        title: 'Colère',
+        description:
+          'Sept jours de récits sur la colère, de Caïn à Jonas, et la miséricorde qui y répond.',
+      },
+      anxiety: {
+        title: 'Anxiété',
+        description:
+          'Sept jours pour apprendre à faire confiance : épanchez votre cœur et laissez Dieu vous garder.',
+      },
+      love: {
+        title: 'Amour',
+        description:
+          'Sept jours sur l’amour de Dieu qui ne nous lâche jamais, et qui nous apprend à aimer.',
+      },
+      patience: {
+        title: 'Savoir attendre',
+        description: 'Sept jours à attendre Dieu avec Abraham, Noé, David et Habacuc.',
+      },
+      doubt: {
+        title: 'Doute',
+        description:
+          'Sept jours avec ceux qui ont questionné Dieu, de Moïse à Thomas, et l’ont trouvé fidèle.',
+      },
+      pride: {
+        title: 'Orgueil',
+        description:
+          'Sept jours sur l’humilité : des rois orgueilleux abaissés et le Roi serviteur qui a lavé des pieds.',
+      },
+      temptation: {
+        title: 'Tentation',
+        description:
+          'Sept jours pour tenir ferme, avec Jésus au désert, Joseph qui a fui et David qui est tombé.',
+      },
+      family: {
+        title: 'Famille',
+        description:
+          'Sept jours sur les familles de l’Écriture, déchirées puis restaurées, et la famille de Dieu.',
+      },
+    },
     categoryChronological: 'Toute la Bible',
     categoryBookStudy: 'Étude de livre',
     categoryTopical: 'Thématique',
     categoryDevotional: 'Dévotionnel',
+    categoryLifeSituations: 'Saisons de la vie',
     timedChallenges: 'Défis de lecture',
     bibleIn30Days: {
       title: 'Bible complète en 30 jours',

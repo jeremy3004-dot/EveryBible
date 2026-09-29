@@ -1512,10 +1512,87 @@ export const de = {
       description:
         'Höre Gottes Stimme in den Propheten, den Psalmen, bei Jesus und in der frühen Kirche.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Verlust',
+        description:
+          'Sieben Tage für die Trauer, von Hiob und Rut bis zur Verheißung, dass jede Träne abgewischt wird.',
+      },
+      stress: {
+        title: 'Überlastung',
+        description:
+          'Sieben Tage für Zeiten, in denen alles zu viel ist: tägliche Versorgung, geteilte Lasten und echte Ruhe.',
+      },
+      fear: {
+        title: 'Angst',
+        description:
+          'Sieben Tage mit Menschen, die Riesen, Feuer und Meer gegenüberstanden und Gott an ihrer Seite fanden.',
+      },
+      peace: {
+        title: 'Frieden',
+        description:
+          'Sieben Tage über den Frieden, den Jesus schenkt: Frieden mit Gott, mit anderen und stilles Vertrauen.',
+      },
+      depression: {
+        title: 'Niedergeschlagenheit',
+        description:
+          'Sieben Tage mit ehrlichen Psalmen und Propheten für dunkle Zeiten und dem Gott, der dir dort begegnet.',
+      },
+      hope: {
+        title: 'Hoffnung',
+        description:
+          'Sieben Tage gehaltener Verheißungen, von Abraham und Josef bis zu dürren Gebeinen, die wieder leben.',
+      },
+      healing: {
+        title: 'Heilung',
+        description:
+          'Sieben Tage mit dem Gott, der heilt, von Naaman und Hiskia bis zur Berührung Jesu.',
+      },
+      anger: {
+        title: 'Zorn',
+        description:
+          'Sieben Tage mit Geschichten über Zorn, von Kain bis Jona, und der Barmherzigkeit, die darauf antwortet.',
+      },
+      anxiety: {
+        title: 'Sorgen',
+        description:
+          'Sieben Tage, um Vertrauen zu lernen: Schütte dein Herz aus und lass Gott dich bewahren.',
+      },
+      love: {
+        title: 'Liebe',
+        description:
+          'Sieben Tage über die Liebe Gottes, die niemals loslässt, und wie sie uns lieben lehrt.',
+      },
+      patience: {
+        title: 'Geduld',
+        description: 'Sieben Tage des Wartens auf Gott mit Abraham, Noah, David und Habakuk.',
+      },
+      doubt: {
+        title: 'Zweifel',
+        description:
+          'Sieben Tage mit Menschen, die Gott hinterfragten, von Mose bis Thomas, und ihn treu fanden.',
+      },
+      pride: {
+        title: 'Stolz',
+        description:
+          'Sieben Tage über Demut: stolze Könige, die gedemütigt wurden, und der dienende König, der Füße wusch.',
+      },
+      temptation: {
+        title: 'Versuchung',
+        description:
+          'Sieben Tage über das Standhalten, mit Jesus in der Wüste, Josef, der floh, und David, der fiel.',
+      },
+      family: {
+        title: 'Familie',
+        description:
+          'Sieben Tage über Familien in der Bibel, zerbrochen und wiederhergestellt, und die Familie Gottes.',
+      },
+    },
     categoryChronological: 'Die ganze Bibel',
     categoryBookStudy: 'Buchstudium',
     categoryTopical: 'Thematisch',
     categoryDevotional: 'Andacht',
+    categoryLifeSituations: 'Lebenszeiten',
     timedChallenges: 'Leseherausforderungen',
     bibleIn30Days: {
       title: 'Vollständige Bibel in 30 Tagen',

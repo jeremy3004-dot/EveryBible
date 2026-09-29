@@ -247,6 +247,168 @@ def gospels_month():  # four lamps kept burning through the month, one for each 
   return ''.join(f'<g transform="translate({x} {y}) scale(1.2)">{lamp(c)}</g>'
                  for x, y, c in [(880, 700, EMBER), (1520, 700, OCHRE), (880, 1180, SAND), (1520, 1180, STONE)])
 
+# ---- Seasons of life: one shape cut down the middle. The left half is how it
+# feels, the right half is the answer the plan's readings give. Heads carry the
+# feelings that live in your thoughts; hearts, clay jars, round windows,
+# doorways and a house carry the rest, so the set is not a row of faces.
+import random
+LIGHT, STONE_LIGHT, NIGHT = '#F5F1EA', '#CFC4B2', '#2A1813'
+SHAPES = {
+  'head': ('M1060 1420 C1040 1260 950 1110 975 900 C1000 680 1150 560 1310 575 C1450 590 1490 720 1478 830 '
+           'L1535 935 L1482 955 L1492 1010 L1470 1040 L1482 1090 C1482 1140 1430 1165 1375 1160 L1365 1420 Z'),
+  'heart': ('M1200 1420 C900 1200 760 1000 780 820 C800 650 960 580 1080 620 C1140 640 1180 690 1200 740 '
+            'C1220 690 1260 640 1320 620 C1440 580 1600 650 1620 820 C1640 1000 1500 1200 1200 1420 Z'),
+  'jar': ('M1080 520 H1320 V580 C1320 620 1290 640 1290 680 C1480 760 1560 900 1540 1080 C1520 1280 1400 1420 1200 1420 '
+          'C1000 1420 880 1280 860 1080 C840 900 920 760 1110 680 C1110 640 1080 620 1080 580 Z'),
+  'circle': 'M780 950 A420 420 0 1 0 1620 950 A420 420 0 1 0 780 950 Z',
+  'arch': arch(880, 500, 640, 1420),
+  'house': 'M820 1420 V900 L1200 540 L1580 900 V1420 Z',
+}
+HEAD_MID = 1235
+
+def cut(shape, back, front, line_color=SAND):
+  mid = HEAD_MID if shape == 'head' else 1200
+  return (f'<defs><clipPath id="sh"><path d="{SHAPES[shape]}"/></clipPath><clipPath id="bk"><rect width="{mid}" height="1800"/></clipPath>'
+          f'<clipPath id="fr"><rect x="{mid}" width="{2400 - mid}" height="1800"/></clipPath></defs>'
+          f'<g clip-path="url(#sh)"><g clip-path="url(#bk)">{back}</g><g clip-path="url(#fr)">{front}</g>'
+          f'<line x1="{mid}" y1="400" x2="{mid}" y2="1450" stroke="{line_color}" stroke-width="8"/></g>')
+
+def fill(c):
+  return f'<rect width="2400" height="1800" fill="{c}"/>'
+
+def stroke(x1, y1, x2, y2, c, w=10, o=1):
+  return f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{c}" stroke-width="{w}" stroke-linecap="round" stroke-opacity="{o}"/>'
+
+def scatter_stars(seed, n, box):
+  r, s = random.Random(seed), ''
+  for _ in range(n):
+    s += f'<circle cx="{r.uniform(box[0], box[2]):.0f}" cy="{r.uniform(box[1], box[3]):.0f}" r="{r.choice([5, 7, 9, 12, 15])}" fill="{SAND}" fill-opacity="{r.uniform(.35, 1):.2f}"/>'
+  return s
+
+def crescent(cx, cy, r):
+  return (f'<defs><mask id="moon-cut"><rect width="2400" height="1800" fill="white"/><circle cx="{cx + r*0.55:.0f}" cy="{cy - r*0.4:.0f}" r="{r*0.85:.0f}" fill="black"/></mask></defs>'
+          f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{SAND}" mask="url(#moon-cut)"/>')
+
+def half_sun(cx, cy, r, rays):
+  s = f'<defs><clipPath id="above-horizon"><rect width="2400" height="{cy}"/></clipPath></defs><circle cx="{cx}" cy="{cy}" r="{r}" fill="{SAND}" clip-path="url(#above-horizon)"/>'
+  for i in range(rays):
+    a = math.radians(180 + (i + 1) * 180 / (rays + 1))
+    s += stroke(round(cx + (r + 40)*math.cos(a)), round(cy + (r + 40)*math.sin(a)), round(cx + (r + 120)*math.cos(a)), round(cy + (r + 120)*math.sin(a)), SAND, 12)
+  return s
+
+def wavy(x0, x1, y0, rows, c, amp0=0, grow=0, gap=50):
+  return ''.join(f'<polyline points="{" ".join(f"{x},{y0 + i*gap + (amp0 + i*grow)*math.sin(x/40):.0f}" for x in range(x0, x1 + 1, 10))}" '
+                 f'fill="none" stroke="{c}" stroke-width="7" stroke-linecap="round" stroke-opacity="{max(0.2, 0.8 - i*0.05):.2f}"/>' for i in range(rows))
+
+def still(x0, x1, y0, rows, c, gap=70):
+  return ''.join(stroke(x0, y0 + i*gap, x1, y0 + i*gap, c, 8, max(0.25, 0.75 - i*0.06)) for i in range(rows))
+
+def rain(x0, x1, c=DEEP, o=0.6):
+  return ''.join(stroke(x + 80, 480, x, 1440, c, 9, o) for x in range(x0, x1, 60))
+
+def knot(x0, y0, length, c, amp0, loops, width):
+  pts = []
+  for k in range(401):
+    s = k / 400
+    amp = amp0 * (1 - s) ** 1.3
+    pts.append(f'{x0 + length*0.55*s + amp*math.cos(2*math.pi*loops*s):.0f},{y0 + amp*math.sin(2*math.pi*loops*s):.0f}')
+  return f'<polyline points="{" ".join(pts)} {x0 + length:.0f},{y0}" fill="none" stroke="{c}" stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round"/>'
+
+def flame(cx, base, h, w, c):
+  return (f'<path d="M{cx} {base - h} C{cx + w*0.9} {base - h*0.5} {cx + w} {base - h*0.15} {cx + w*0.5} {base} '
+          f'L{cx - w*0.5} {base} C{cx - w} {base - h*0.15} {cx - w*0.9} {base - h*0.5} {cx} {base - h} Z" fill="{c}"/>')
+
+def kneeling(cx, base, c):  # a small robed figure bowed low, head down toward the ground
+  return (f'<g transform="rotate(24 {cx} {base})"><path d="{arch(cx - 100, base - 250, 200, base)}" fill="{c}"/>'
+          f'<circle cx="{cx}" cy="{base - 250 - 68}" r="66" fill="{c}"/></g>')
+
+def sprout(x, ground, top, c):
+  return (f'<path d="M{x} {ground} C{x - 10} {ground - 120} {x + 15} {top + 130} {x} {top}" fill="none" stroke="{c}" stroke-width="20" stroke-linecap="round"/>'
+          f'<path d="M{x + 2} {top + 100} C{x - 90} {top + 10} {x - 70} {top - 60} {x - 90} {top - 130} C{x - 10} {top - 80} {x + 20} {top - 10} {x + 2} {top + 100} Z" fill="{c}"/>'
+          f'<path d="M{x + 4} {top + 170} C{x + 80} {top + 80} {x + 140} {top + 90} {x + 180} {top + 30} C{x + 110} {top + 10} {x + 40} {top + 60} {x + 4} {top + 170} Z" fill="{c}"/>')
+
+def life_loss():  # night | morning
+  return cut('head', fill(DEEP) + scatter_stars(3, 10, (980, 640, 1230, 1300)) + crescent(1110, 880, 80),
+             fill(OCHRE) + f'<rect y="1100" width="2400" height="700" fill="{EMBER}"/>' + half_sun(1360, 1100, 100, 4))
+
+def life_stress():  # a jar crammed with stones | still water
+  stones = ''.join(f'<rect x="{x}" y="{y}" width="{w}" height="130" rx="60" fill="{c}"/>'
+                   for x, y, w, c in [(860, 1260, 330, STONE), (900, 1120, 280, STONE_LIGHT), (860, 980, 320, STONE), (920, 840, 260, STONE_LIGHT), (960, 700, 220, STONE)])
+  return cut('jar', fill(DEEP) + stones,
+             fill(SAND) + f'<rect y="1000" width="2400" height="800" fill="{OCHRE}"/>' + still(1210, 1560, 1070, 4, SAND))
+
+def life_fear():  # storm | a clearing over still water
+  return cut('arch', fill(STONE) + rain(760, 1300),
+             fill(SAND) + f'<circle cx="1360" cy="780" r="80" fill="{EMBER}"/>' + still(1210, 1540, 1080, 5, DEEP), DEEP)
+
+def life_peace():  # churning | still
+  return cut('circle', fill(EMBER) + wavy(760, 1210, 640, 12, SAND, amp0=30, grow=4, gap=65),
+             fill(SAND) + still(1210, 1640, 660, 12, DEEP, gap=65), DEEP)
+
+def life_depression():  # the pit | a ladder up to the light
+  rungs = ''.join(stroke(1300, y, 1420, y, SAND, 12) for y in range(760, 1420, 90))
+  return cut('head', fill(NIGHT) + f'<circle cx="1110" cy="1300" r="36" fill="{STONE}" fill-opacity="0.5"/>',
+             fill(OCHRE) + f'<circle cx="1360" cy="560" r="150" fill="{SAND}" fill-opacity="0.6"/>'
+             + stroke(1300, 660, 1300, 1440, SAND, 14) + stroke(1420, 660, 1420, 1440, SAND, 14) + rungs)
+
+def life_hope():  # a buried seed | a green shoot
+  return cut('circle', fill(NIGHT) + f'<ellipse cx="1040" cy="1200" rx="70" ry="44" fill="{OCHRE}"/>' + stroke(760, 1080, 1200, 1080, SAND, 6, .35),
+             fill(OCHRE) + f'<rect y="1080" width="2400" height="800" fill="{EMBER}"/>' + sprout(1380, 1080, 720, SAND))
+
+def life_healing():  # a cracked jar | mended with gold
+  crack = 'M960 760 L1060 880 L1030 1000 L1140 1100 L1230 1060 L1300 1180 L1270 1290 L1400 1380'
+  crack2 = 'M1140 640 L1180 740 L1290 800 L1370 920 L1520 940'
+  seams = lambda c, w: (f'<path d="{crack}" fill="none" stroke="{c}" stroke-width="{w}" stroke-linejoin="round"/>'
+                        f'<path d="{crack2}" fill="none" stroke="{c}" stroke-width="{w - 3}" stroke-linejoin="round"/>')
+  return cut('jar', fill(STONE) + seams(DEEP, 11), fill(SAND) + seams(OCHRE, 24))
+
+def life_anger():  # fire | embers cooling
+  embers = ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{OCHRE}" fill-opacity="{o}"/>'
+                   for x, y, r, o in [(1300, 1180, 46, .95), (1400, 1150, 36, .8), (1350, 1100, 26, .6), (1460, 1080, 22, .45)])
+  smoke = f'<path d="M1350 1040 C1310 980 1390 930 1350 860 C1310 800 1390 750 1360 680" fill="none" stroke="{STONE}" stroke-width="12" stroke-linecap="round" stroke-opacity="0.6"/>'
+  return cut('heart', fill(EMBER) + flame(1060, 1380, 700, 230, OCHRE) + flame(1060, 1380, 420, 130, SAND), fill(DEEP) + embers + smoke)
+
+def life_anxiety():  # tangled | straight
+  return cut('head', fill(OCHRE) + knot(990, 900, 245, INK, 100, 4, 11),
+             fill(SAND) + stroke(1220, 900, 1420, 900, INK, 11) + f'<circle cx="1420" cy="900" r="34" fill="{EMBER}"/>')
+
+def life_love():  # a heart of stone | a heart of flesh (Ezek 36:26)
+  grain = ''.join(stroke(*seg, DEEP, 7, .45) for seg in [(880, 800, 1000, 760), (960, 1000, 1120, 960), (1020, 1180, 1160, 1150), (900, 900, 960, 880)])
+  return cut('heart', fill(STONE) + grain,
+             fill(EMBER) + f'<path d="M1300 700 C1420 700 1520 780 1530 880" fill="none" stroke="{SAND}" stroke-width="18" stroke-linecap="round" stroke-opacity="0.8"/>')
+
+def life_patience():  # a bare winter branch | the same branch in blossom
+  branch = 'M860 1100 C1000 1080 1120 1050 1250 980 C1340 930 1420 890 1520 820'
+  twigs = [(1000, 1085, 980, 960), (1120, 1055, 1150, 940), (1260, 975, 1250, 1100), (1400, 900, 1450, 800)]
+  bare = f'<path d="{branch}" fill="none" stroke="{DEEP}" stroke-width="20" stroke-linecap="round"/>' + ''.join(stroke(*t, DEEP, 12) for t in twigs)
+  blossom = ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{EMBER}"/>' for x, y, r in [(1250, 1100, 36), (1300, 950, 28), (1450, 800, 38), (1400, 900, 26), (1500, 850, 24), (1350, 1010, 22), (1500, 760, 20)])
+  return cut('arch', fill(STONE) + bare, fill(SAND) + bare + blossom)
+
+def life_doubt():  # fog | a clear path
+  road = f'<path d="M1120 1440 L1440 1440 L1300 900 L1260 900 Z" fill="{EMBER}"/>' + stroke(960, 900, 1560, 900, DEEP, 6, .5)
+  fog = ''.join(f'<rect x="900" y="{y}" width="400" height="60" rx="30" fill="{SAND}" fill-opacity="0.6"/>' for y in range(700, 1440, 110))
+  return cut('head', fill(STONE) + road + fog, fill(SAND) + road + f'<circle cx="1330" cy="760" r="60" fill="{OCHRE}"/>', DEEP)
+
+def life_pride():  # a tall tower | kneeling low
+  tower = (f'<rect x="950" y="600" width="150" height="900" fill="{SAND}"/>'
+           + ''.join(f'<rect x="{950 + i*58}" y="545" width="34" height="70" fill="{SAND}"/>' for i in range(3))
+           + ''.join(f'<rect x="1005" y="{y}" width="40" height="64" rx="20" fill="{DEEP}"/>' for y in (720, 920, 1120)))
+  return cut('circle', fill(DEEP) + tower, fill(OCHRE) + kneeling(1400, 1240, SAND) + stroke(1210, 1242, 1640, 1242, SAND, 7, .7))
+
+def life_temptation():  # caged | set free
+  bars = ''.join(stroke(x, 480, x, 1440, STONE, 16) for x in range(940, 1200, 64))
+  bird = lambda x, y, w, sw, o: (f'<path d="M{x} {y} Q{x + w/4} {y - w/4} {x + w/2} {y} Q{x + 3*w/4} {y - w/4} {x + w} {y}" fill="none" '
+                                 f'stroke="{DEEP}" stroke-width="{sw}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="{o}"/>')
+  return cut('arch', fill(DEEP) + bars, fill(SAND) + bird(1250, 780, 260, 20, 1) + bird(1290, 980, 160, 14, .55))
+
+def life_family():  # scattered | gathered home
+  colors = [EMBER, OCHRE, LIGHT, DEEP, EMBER, OCHRE]
+  scattered = ''.join(f'<circle cx="{x}" cy="{y}" r="40" fill="{c}"/>'
+                      for (x, y), c in zip([(900, 1000), (1080, 1330), (960, 1240), (1130, 930), (1030, 1110), (880, 1350)], colors))
+  ring = ''.join(f'<circle cx="{1400 + 105*math.cos(math.radians(i*60 - 90)):.0f}" cy="{1150 + 105*math.sin(math.radians(i*60 - 90)):.0f}" r="40" fill="{STONE if c == LIGHT else c}"/>'
+                 for i, c in enumerate(colors))
+  return cut('house', fill(STONE) + scattered, fill('#E9DCC6') + ring, DEEP)
+
 # file name (existing cover key file) -> (ground, mark, plan)
 COVERS = {
   'lakeLandscape': ('V', year, 'Bible in 1 Year'),
@@ -276,6 +438,21 @@ COVERS = {
   'weekOfChrist': ('T', week_of_christ, 'Week of Christ'),
   'lordsPrayer': ('V', lords_prayer, "Lord's Prayer Week"),
   'gospelsMonthly': ('D', gospels_month, 'Gospels Monthly'),
+  'lifeLoss': ('D', life_loss, 'Seasons of life: Loss'),
+  'lifeStress': ('T', life_stress, 'Seasons of life: Stress'),
+  'lifeFear': ('V', life_fear, 'Seasons of life: Fear'),
+  'lifePeace': ('D', life_peace, 'Seasons of life: Peace'),
+  'lifeDepression': ('T', life_depression, 'Seasons of life: Depression'),
+  'lifeHope': ('D', life_hope, 'Seasons of life: Hope'),
+  'lifeHealing': ('D', life_healing, 'Seasons of life: Healing'),
+  'lifeAnger': ('V', life_anger, 'Seasons of life: Anger'),
+  'lifeAnxiety': ('T', life_anxiety, 'Seasons of life: Anxiety'),
+  'lifeLove': ('D', life_love, 'Seasons of life: Love'),
+  'lifePatience': ('D', life_patience, 'Seasons of life: Patience'),
+  'lifeDoubt': ('T', life_doubt, 'Seasons of life: Doubt'),
+  'lifePride': ('V', life_pride, 'Seasons of life: Pride'),
+  'lifeTemptation': ('T', life_temptation, 'Seasons of life: Temptation'),
+  'lifeFamily': ('D', life_family, 'Seasons of life: Family'),
 }
 
 GRAIN = ('<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>'

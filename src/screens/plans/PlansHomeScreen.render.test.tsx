@@ -888,14 +888,30 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
     topical: 'readingPlans.categoryTopical',
     devotional: 'readingPlans.categoryDevotional',
   };
-  const sequential = CATALOG.filter((plan) => !recurring.includes(plan.id));
+  // Seasons of life follows Daily rhythms as its own cover grid, not a row list.
+  const seasons = CATALOG.filter((plan) => plan.category === 'life-situation');
+  assert.equal(seasons.length, 15);
+  const seasonsSection = sectionOf(view, t('readingPlans.categoryLifeSituations'));
+  assert.ok(
+    within(seasonsSection).getByText(t('readingPlans.plansCount', { count: seasons.length }))
+  );
+  for (const plan of seasons) {
+    assert.ok(within(seasonsSection).getByRole('button', { name: t(plan.title_key) }), plan.id);
+  }
+
+  const sequential = CATALOG.filter(
+    (plan) => !recurring.includes(plan.id) && plan.category !== 'life-situation'
+  );
   const categories = [...new Set(sequential.map((plan) => plan.category ?? 'other'))];
   assert.deepEqual(
     view
       .getAllByRole('header')
       .map((node) => node.props.children)
       .slice(2),
-    categories.map((category) => t(categoryKeys[category]))
+    [
+      t('readingPlans.categoryLifeSituations'),
+      ...categories.map((category) => t(categoryKeys[category])),
+    ]
   );
   for (const category of categories) {
     const section = sectionOf(view, t(categoryKeys[category]));

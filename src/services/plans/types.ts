@@ -3,6 +3,7 @@ export type ReadingPlanCategory =
   | 'topical'
   | 'book-study'
   | 'devotional'
+  | 'life-situation'
   | 'custom';
 
 export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month' | 'calendar-day-of-week';
@@ -37,7 +38,22 @@ export type ReadingPlanCoverKey =
   | 'commonPrayerPsalter'
   | 'weekOfChrist'
   | 'lordsPrayer'
-  | 'gospelsMonthly';
+  | 'gospelsMonthly'
+  | 'lifeLoss'
+  | 'lifeStress'
+  | 'lifeFear'
+  | 'lifePeace'
+  | 'lifeDepression'
+  | 'lifeHope'
+  | 'lifeHealing'
+  | 'lifeAnger'
+  | 'lifeAnxiety'
+  | 'lifeLove'
+  | 'lifePatience'
+  | 'lifeDoubt'
+  | 'lifePride'
+  | 'lifeTemptation'
+  | 'lifeFamily';
 
 export interface ReadingPlan {
   id: string;

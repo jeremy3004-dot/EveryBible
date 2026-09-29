@@ -166,6 +166,7 @@ const CATEGORY_LABEL_KEYS: Record<string, string> = {
   'book-study': 'readingPlans.categoryBookStudy',
   topical: 'readingPlans.categoryTopical',
   devotional: 'readingPlans.categoryDevotional',
+  'life-situation': 'readingPlans.categoryLifeSituations',
 };
 
 /** A catalog category's heading; an unknown one is title-cased from its slug. */
@@ -181,6 +182,7 @@ export function getPlanCategoryLabel(category: string, t: TFunction): string {
 
 export interface CatalogPlanGroups {
   dailyRhythmPlans: ReadingPlan[];
+  lifeSituationPlans: ReadingPlan[];
   categories: { category: string; plans: ReadingPlan[] }[];
 }
 
@@ -189,14 +191,19 @@ export interface CatalogPlanGroups {
  *   • Recurring plans — the calendar-driven ones that repeat forever instead of
  *     running to an end date — are the featured "Daily rhythms" group and get the
  *     two-up cover grid, because their covers are the browse hook.
+ *   • "Seasons of life" plans get the same cover grid for the same reason: a
+ *     reader looks for the one that names how they feel.
  *   • Every other catalog category ("Chronological", "Book study", …) renders as a
  *     compact row list inside one paper card, so a long catalog stays scannable
  *     instead of turning into a wall of artwork. Categories keep catalog order.
  */
 export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
   const dailyRhythmPlans = plans.filter((plan) => isRecurringPlan(plan));
+  const lifeSituationPlans = plans.filter(
+    (plan) => !isRecurringPlan(plan) && plan.category === 'life-situation'
+  );
   const plansByCategory = plans
-    .filter((plan) => !isRecurringPlan(plan))
+    .filter((plan) => !isRecurringPlan(plan) && plan.category !== 'life-situation')
     .reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
       const category = plan.category ?? 'other';
       if (!acc[category]) acc[category] = [];
@@ -206,6 +213,7 @@ export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
 
   return {
     dailyRhythmPlans,
+    lifeSituationPlans,
     categories: Object.keys(plansByCategory).map((category) => ({
       category,
       plans: plansByCategory[category],

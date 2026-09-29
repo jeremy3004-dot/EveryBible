@@ -5,7 +5,7 @@ import type { ReadingPlanCoverKey, ReadingPlanEntry } from '../services/plans/ty
 test('bundled reading plans expose the bundled plans in sort order', async () => {
   const mod = await import('./readingPlans.generated');
 
-  assert.equal(mod.readingPlans.length, 27);
+  assert.equal(mod.readingPlans.length, 42);
   assert.deepEqual(
     mod.readingPlans.map((plan) => plan.slug),
     [
@@ -36,6 +36,21 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
       'great-commission-and-mission',
       'faith-and-obedience',
       'hearing-gods-voice',
+      'life-loss-7-days',
+      'life-stress-7-days',
+      'life-fear-7-days',
+      'life-peace-7-days',
+      'life-depression-7-days',
+      'life-hope-7-days',
+      'life-healing-7-days',
+      'life-anger-7-days',
+      'life-anxiety-7-days',
+      'life-love-7-days',
+      'life-patience-7-days',
+      'life-doubt-7-days',
+      'life-pride-7-days',
+      'life-temptation-7-days',
+      'life-family-7-days',
     ]
   );
 
@@ -276,5 +291,42 @@ test('the Common Prayer Psalter follows the 1662 monthly table, repeating day 30
   );
   assert.ok(
     entries.every((entry, index) => entries.findIndex((other) => other.id === entry.id) === index)
+  );
+});
+
+test('Seasons of life plans are seven days of at least two whole chapters, each with its own cover', async () => {
+  const mod = await import('./readingPlans.generated');
+  const plans = mod.readingPlans.filter((plan) => plan.category === 'life-situation');
+
+  assert.equal(plans.length, 15);
+  assert.equal(new Set(plans.map((plan) => plan.coverKey)).size, 15);
+  for (const plan of plans) {
+    assert.equal(plan.duration_days, 7, plan.id);
+    assert.equal(plan.scheduleMode, undefined, `${plan.id} runs from its start date`);
+    const entries: ReadingPlanEntry[] = mod.readingPlanEntriesByPlanId[plan.id];
+    for (let day = 1; day <= 7; day += 1) {
+      const dayEntries = entries.filter((entry) => entry.day_number === day);
+      const chapterCount = dayEntries.reduce(
+        (sum, entry) => sum + (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1,
+        0
+      );
+      assert.ok(chapterCount >= 2, `${plan.id} day ${day} has ${chapterCount} chapter(s)`);
+      assert.ok(
+        dayEntries.every((entry) => entry.verse_start == null && entry.verse_end == null),
+        `${plan.id} day ${day} reads whole chapters only`
+      );
+    }
+  }
+});
+
+test('back-to-back chapters of one book in a Seasons of life day read as one range', async () => {
+  const mod = await import('./readingPlans.generated');
+  const lossDay3 = mod.readingPlanEntriesByPlanId['life-loss-7-days'].filter(
+    (entry: ReadingPlanEntry) => entry.day_number === 3
+  );
+
+  assert.deepEqual(
+    lossDay3.map((entry: ReadingPlanEntry) => [entry.book, entry.chapter_start, entry.chapter_end]),
+    [['RUT', 1, 2]]
   );
 });

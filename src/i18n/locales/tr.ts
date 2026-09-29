@@ -1492,10 +1492,81 @@ export const tr = {
       title: 'Tanrı’nın Sesini Duymak',
       description: 'Tanrı’yı peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Kayıp',
+        description:
+          'Yas tutanlar için yedi gün: Eyüp ve Rut’tan her gözyaşının silineceği vaadine.',
+      },
+      stress: {
+        title: 'Stres',
+        description:
+          'Her şey fazla geldiğinde yedi gün: günlük rızk, paylaşılan yükler ve gerçek dinlenme.',
+      },
+      fear: {
+        title: 'Korku',
+        description: 'Devlerle, ateşle ve denizle yüzleşip Tanrı’yı yanında bulanlarla yedi gün.',
+      },
+      peace: {
+        title: 'Esenlik',
+        description:
+          'İsa’nın verdiği esenlik üzerine yedi gün: Tanrı’yla, insanlarla barış ve sessiz güven.',
+      },
+      depression: {
+        title: 'Keder',
+        description:
+          'Karanlık dönemler için dürüst mezmurlar ve peygamberlerle, sizi orada karşılayan Tanrı’yla yedi gün.',
+      },
+      hope: {
+        title: 'Umut',
+        description:
+          'Tutulan vaatlerle yedi gün: İbrahim ve Yusuf’tan yeniden dirilen kuru kemiklere.',
+      },
+      healing: {
+        title: 'Şifa',
+        description: 'Şifa veren Tanrı’yla yedi gün: Naaman ve Hizkiya’dan İsa’nın dokunuşuna.',
+      },
+      anger: {
+        title: 'Öfke',
+        description: 'Kayin’den Yunus’a öfke hikâyeleri ve ona karşılık veren merhametle yedi gün.',
+      },
+      anxiety: {
+        title: 'Kaygı',
+        description: 'Güvenmeyi öğrenmek için yedi gün: yüreğinizi dökün ve Tanrı sizi korusun.',
+      },
+      love: {
+        title: 'Sevgi',
+        description:
+          'Asla bırakmayan Tanrı sevgisi ve bize nasıl sevmeyi öğrettiği üzerine yedi gün.',
+      },
+      patience: {
+        title: 'Sabır',
+        description: 'İbrahim, Nuh, Davut ve Habakkuk’la birlikte Tanrı’yı beklemek için yedi gün.',
+      },
+      doubt: {
+        title: 'Şüphe',
+        description: 'Musa’dan Tomas’a Tanrı’yı sorgulayan ve O’nu sadık bulanlarla yedi gün.',
+      },
+      pride: {
+        title: 'Gurur',
+        description:
+          'Alçakgönüllülük üzerine yedi gün: alçaltılan gururlu krallar ve ayak yıkayan hizmetkâr Kral.',
+      },
+      temptation: {
+        title: 'Ayartılma',
+        description: 'Sağlam durmak üzerine yedi gün: çölde İsa, kaçan Yusuf ve düşen Davut.',
+      },
+      family: {
+        title: 'Aile',
+        description:
+          'Kutsal Yazılar’da dağılıp yeniden kavuşan aileler ve Tanrı’nın ailesi üzerine yedi gün.',
+      },
+    },
     categoryChronological: 'Kutsal Kitap’ın Tamamı',
     categoryBookStudy: 'Kitap çalışması',
     categoryTopical: 'Konulu',
     categoryDevotional: 'Adanmışlık',
+    categoryLifeSituations: 'Hayatın mevsimleri',
     timedChallenges: 'Zorlu okuma planları',
     bibleIn30Days: {
       title: '30 Günde Tam Kutsal Kitap',
