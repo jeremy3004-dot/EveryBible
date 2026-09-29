@@ -54,10 +54,10 @@ test('every folder AUTHORITATIVE.md tells you to upload exists with its listed f
     ...new Set(uploadSection.match(/`((?:ios\/)?[a-z0-9.-]+-\d{4}-\d{2}-\d{2})\/`/g)),
   ].map((quoted) => quoted.slice(1, -2));
   assert.deepEqual(folders.sort(), [
-    'google-play-2026-09-25',
+    'google-play-2026-09-29',
     'ios/ipad-129-2026-09-09',
-    'ios/iphone-65-2026-09-25',
-    'ios/iphone-69-2026-09-25',
+    'ios/iphone-65-2026-09-29',
+    'ios/iphone-69-2026-09-29',
   ]);
 
   const iphone = [
@@ -70,9 +70,9 @@ test('every folder AUTHORITATIVE.md tells you to upload exists with its listed f
     '07-listen.jpg',
   ];
   const expected: Record<string, string[]> = {
-    'ios/iphone-69-2026-09-25': iphone,
-    'ios/iphone-65-2026-09-25': iphone,
-    'google-play-2026-09-25': [...iphone, 'feature-graphic.png'].sort(),
+    'ios/iphone-69-2026-09-29': iphone,
+    'ios/iphone-65-2026-09-29': iphone,
+    'google-play-2026-09-29': [...iphone, 'feature-graphic.png'].sort(),
     'ios/ipad-129-2026-09-09': ['01-home.png', '02-bible.png', '03-gather.png', '04-plans.png'],
   };
   for (const folder of folders) {

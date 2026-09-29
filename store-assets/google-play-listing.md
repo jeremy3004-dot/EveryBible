@@ -81,7 +81,7 @@ https://everybible.app/privacy
 ## Screenshot Pack
 
 Folders and order are listed only in `store-metadata/screenshots/AUTHORITATIVE.md`
-(`google-play-2026-09-25/`, with its `feature-graphic.png`). The old red April set was
+(`google-play-2026-09-29/`, with its `feature-graphic.png`). The old red April set was
 retired; never upload it.
 
 Authoritative cross-store upload guide:

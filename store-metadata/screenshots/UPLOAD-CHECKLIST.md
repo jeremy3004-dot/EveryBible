@@ -14,6 +14,6 @@ Folders and order: `AUTHORITATIVE.md`.
 
 ## Google Play
 
-1. `npm run play:publish-listing` uploads `google-play-2026-09-25/` and the
+1. `npm run play:publish-listing` uploads `google-play-2026-09-29/` and the
    feature graphic. If the service account gets 403 on the listing, upload the
    same files by hand in Play Console > Store listing.

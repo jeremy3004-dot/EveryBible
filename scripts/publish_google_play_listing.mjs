@@ -124,7 +124,7 @@ async function main() {
   const iconPath = path.join(generatedRoot, 'icon-512.png');
   await sharp(path.resolve('assets/icon.png')).resize(512, 512).png().toFile(iconPath);
 
-  const screenshotsDir = path.resolve('store-metadata/screenshots/google-play-2026-09-25');
+  const screenshotsDir = path.resolve('store-metadata/screenshots/google-play-2026-09-29');
   const featureGraphicPath = path.join(screenshotsDir, 'feature-graphic.png');
   const screenshotFiles = [
     '01-begin.jpg',
