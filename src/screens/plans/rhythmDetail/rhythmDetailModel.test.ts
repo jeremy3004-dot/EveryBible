@@ -102,6 +102,7 @@ const viewModel = (overrides: Partial<RhythmSegmentViewModel>): RhythmSegmentVie
   entries: [],
   progress: null,
   currentDaySummary: null,
+  planDayCount: null,
   title: 'Psalm 63',
   ...overrides,
 });
@@ -218,6 +219,30 @@ test('a plan card reports today’s target and which day of the plan it is', () 
   assert.equal(copy.body, copy.progressLabel);
   assert.equal(copy.chapterCountLabel, 'readingPlans.chapterCount {"count":5}');
   assert.equal(copy.statusVariant, 'accent');
+});
+
+test('a monthly plan card counts this month’s days, not its 31-day catalogue length', () => {
+  const copy = getRhythmSegmentCardCopy(
+    viewModel({
+      segment: planSegment,
+      progress: progress('proverbs-31-days', false),
+      plan: {
+        id: 'proverbs-31-days',
+        slug: 'proverbs-31-days',
+        title_key: 'readingPlans.proverbs31.title',
+        description_key: null,
+        duration_days: 31,
+        category: null,
+        is_active: true,
+        sort_order: 1,
+        coverKey: 'dunes',
+        scheduleMode: 'calendar-day-of-month',
+      },
+      planDayCount: 30,
+    }),
+    t
+  );
+  assert.equal(copy.meta, 'readingPlans.dayOf {"current":3,"total":30}');
 });
 
 test('a finished plan card is marked completed in the success style', () => {

@@ -10,6 +10,7 @@ import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { getCurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
 import {
   getActivePlanDayNumber,
+  getPlanDayCount,
   isMultiSessionPlan,
   isRecurringPlan,
 } from '../../../services/plans/readingPlanModel';
@@ -66,7 +67,7 @@ export const ActivePlanCard = memo(function ActivePlanCard({
     listeningHistory,
     today,
   });
-  const progressRatio = getActivePlanProgressRatio(plan, currentDay);
+  const progressRatio = getActivePlanProgressRatio(plan, currentDay, today);
   const sessionStatus = isMultiSessionPlan(plan)
     ? formatSessionStatusSummary(currentDaySummary, t)
     : null;
@@ -75,7 +76,10 @@ export const ActivePlanCard = memo(function ActivePlanCard({
       ? getLocalizedSessionLabel(currentDaySummary.nextIncompleteSessionKey, t)
       : t('common.continue');
   const title = t(plan.title_key as Parameters<typeof t>[0]);
-  const dayOf = t('readingPlans.dayOf', { current: currentDay, total: plan.duration_days });
+  const dayOf = t('readingPlans.dayOf', {
+    current: currentDay,
+    total: getPlanDayCount(plan, today),
+  });
 
   return (
     <SwipeablePlanRow onDelete={() => onDeletePlan(plan.id)}>

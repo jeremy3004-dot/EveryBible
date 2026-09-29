@@ -6,10 +6,9 @@ import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { layout, spacing, typography } from '../../../design/system';
 import { AppCard } from '../../../components/ui';
 import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
-import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel';
+import { getActivePlanDayNumber, getPlanDayCount } from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { formatPlanProgressAnnouncement, formatPlanProgressTally } from '../planProgressTally';
-import { getPlanLedgerGridDayCount } from '../planLedgerGridModel';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { LedgerCells } from './LedgerCells';
 import { getLedgerCellStates } from './planDetailLedgerModel';
@@ -28,7 +27,7 @@ export function ProgressCard({ plan, progress, currentDaySummary, today }: Progr
   const { t } = useTranslation();
 
   // This month's length for a day-of-month plan, so September has no day-31 dot.
-  const totalDays = getPlanLedgerGridDayCount(plan, today);
+  const totalDays = getPlanDayCount(plan, today);
   const currentDay = currentDaySummary?.dayNumber ?? getActivePlanDayNumber(plan, progress, today);
   const isCurrentDayComplete = Boolean(currentDaySummary?.isComplete);
 

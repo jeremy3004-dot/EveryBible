@@ -6,7 +6,6 @@ import {
   PLAN_LEDGER_DENSE_GAP,
   PLAN_LEDGER_ROOMY_GAP,
   getPlanLedgerDotPaint,
-  getPlanLedgerGridDayCount,
   getPlanLedgerGridMetrics,
   getPlanLedgerGridRows,
 } from './planLedgerGridModel';
@@ -158,27 +157,4 @@ test('a missed day is struck through, so it is not told from a day to come by co
     Object.fromEntries(Object.entries(paint).map(([state, { slash }]) => [state, slash])),
     { done: false, missed: true, today: false, future: false }
   );
-});
-
-test('a day-of-month plan draws one dot per day of the current month', () => {
-  const monthly = { duration_days: 31, scheduleMode: 'calendar-day-of-month' as const };
-
-  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 8, 24)), 30);
-  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 9, 1)), 31);
-  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2026, 1, 10)), 28);
-  assert.equal(getPlanLedgerGridDayCount(monthly, new Date(2028, 1, 29)), 29);
-});
-
-test('sequential and weekly plans draw every plan day whatever the month', () => {
-  const september = new Date(2026, 8, 24);
-
-  assert.equal(getPlanLedgerGridDayCount({ duration_days: 365 }, september), 365);
-  assert.equal(
-    getPlanLedgerGridDayCount(
-      { duration_days: 7, scheduleMode: 'calendar-day-of-week' },
-      september
-    ),
-    7
-  );
-  assert.equal(getPlanLedgerGridDayCount({ duration_days: 31 }, new Date(2026, 1, 10)), 31);
 });

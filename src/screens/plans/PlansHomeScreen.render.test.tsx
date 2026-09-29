@@ -545,7 +545,7 @@ test('active plans split into Daily readings and Daily rhythms, each card announ
   // A recurring plan's day comes from the calendar: the 24th of the month.
   const proverbs = within(rhythms).getByRole('button', { name: titleOf(PROVERBS) });
   assert.deepEqual(proverbs.props.accessibilityValue, {
-    text: `${t('readingPlans.dayOf', { current: 24, total: 31 })}, 77%`,
+    text: `${t('readingPlans.dayOf', { current: 24, total: 30 })}, 80%`,
   });
 
   // A multi-session rhythm says which session is next and offers it.
@@ -582,8 +582,8 @@ test('an active single-session rhythm offers Continue and shows its percentage',
 
   const proverbs = view.getByRole('button', { name: titleOf(PROVERBS) });
   assert.ok(within(proverbs).getByText(t('common.continue')));
-  assert.ok(within(proverbs).getByText('77%'));
-  assert.ok(within(proverbs).getByText(t('readingPlans.dayOf', { current: 24, total: 31 })));
+  assert.ok(within(proverbs).getByText('80%'));
+  assert.ok(within(proverbs).getByText(t('readingPlans.dayOf', { current: 24, total: 30 })));
   const bar = within(proverbs).getByLabelText(t('readingPlans.progress'));
   assert.ok(bar);
 });
@@ -596,7 +596,7 @@ test('a rhythm left on screen overnight moves to the new day when the app comes 
       name: titleOf(PROVERBS),
     }).props.accessibilityValue;
   assert.deepEqual(proverbsDay(), {
-    text: `${t('readingPlans.dayOf', { current: 24, total: 31 })}, 77%`,
+    text: `${t('readingPlans.dayOf', { current: 24, total: 30 })}, 80%`,
   });
 
   // Suspended overnight with Plans still showing: the screen never loses focus.
@@ -606,7 +606,7 @@ test('a rhythm left on screen overnight moves to the new day when the app comes 
   await view.flush();
 
   assert.deepEqual(proverbsDay(), {
-    text: `${t('readingPlans.dayOf', { current: 25, total: 31 })}, 81%`,
+    text: `${t('readingPlans.dayOf', { current: 25, total: 30 })}, 83%`,
   });
 });
 
@@ -921,7 +921,7 @@ test('a rhythm card is a 16:10 framed cover; an enrolled one gets a success tick
   const proverbs = view.getByRole('button', { name: titleOf(PROVERBS) });
   const kathisma = view.getByRole('button', { name: titleOf(KATHISMA) });
   assert.deepEqual(proverbs.props.accessibilityValue, {
-    text: `${t('readingPlans.dayOf', { current: 24, total: 31 })}, ${t('readingPlans.enrolled')}`,
+    text: `${t('readingPlans.dayOf', { current: 24, total: 30 })}, ${t('readingPlans.enrolled')}`,
   });
   const cadence = `${t('readingPlans.morningLabel')} + ${t('readingPlans.eveningLabel')}`;
   assert.deepEqual(kathisma.props.accessibilityValue, { text: cadence });

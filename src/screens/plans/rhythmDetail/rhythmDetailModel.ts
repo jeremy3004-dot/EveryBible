@@ -5,6 +5,7 @@ import {
   getCurrentPlanDaySummary,
   shouldAutoplayPlanDayLaunch,
 } from '../../../services/plans/readingPlanActivity';
+import { getPlanDayCount } from '../../../services/plans/readingPlanModel';
 import { getLocalizedPassageTitle } from '../../../services/plans/rhythmLocalization';
 import { inferRhythmSlotFromTitle, RHYTHM_SLOT_META } from '../../../services/plans/rhythmSlots';
 import type {
@@ -27,6 +28,8 @@ export interface RhythmSegmentViewModel {
   entries: ReadingPlanEntry[];
   progress: UserReadingPlanProgress | null;
   currentDaySummary: ReturnType<typeof getCurrentPlanDaySummary> | null;
+  /** The plan's day count as of today (a monthly plan uses this month); null for a passage. */
+  planDayCount: number | null;
   title: string;
 }
 
@@ -94,6 +97,7 @@ export function buildRhythmSegmentViewModels({
       entries,
       progress,
       currentDaySummary,
+      planDayCount: segmentPlan ? getPlanDayCount(segmentPlan, today) : null,
       title: getSegmentTitle(segment, planTitleById, t),
     };
   });
@@ -242,7 +246,7 @@ export function getRhythmSegmentCardCopy(
     meta: isPlan
       ? t('readingPlans.dayOf', {
           current: segment.dayNumber,
-          total: item.plan?.duration_days ?? segment.dayNumber,
+          total: item.planDayCount ?? item.plan?.duration_days ?? segment.dayNumber,
         })
       : t('readingPlans.repeatablePassage', { defaultValue: 'Repeatable passage' }),
     chapterCountLabel: t('readingPlans.chapterCount', {

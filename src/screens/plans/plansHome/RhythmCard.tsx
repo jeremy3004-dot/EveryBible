@@ -7,7 +7,7 @@ import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { radius, spacing, typography } from '../../../design/system';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { useLargeText } from '../../../hooks/useLargeText';
-import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel';
+import { getActivePlanDayNumber, getPlanDayCount } from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { formatPlanCadenceLabel } from './plansHomeModel';
 import { PlanCover } from './PlanCover';
@@ -44,7 +44,7 @@ export const RhythmCard = memo(function RhythmCard({
   const dayLabel = progress
     ? t('readingPlans.dayOf', {
         current: getActivePlanDayNumber(plan, progress, today),
-        total: plan.duration_days,
+        total: getPlanDayCount(plan, today),
       })
     : null;
   // Enrolled rhythms lead with where you are; everything else leads with the
