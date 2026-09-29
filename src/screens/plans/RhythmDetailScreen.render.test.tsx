@@ -329,7 +329,7 @@ test('a rhythm left open overnight offers the new day of a calendar plan when th
   });
   assert.ok(result.success);
   const view = await renderDetail(result.rhythm!.id);
-  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 24, total: 31 })));
+  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 24, total: 30 })));
 
   // Suspended overnight on this screen: nothing refocuses it.
   harness.rn.AppState.emit('background');
@@ -337,7 +337,7 @@ test('a rhythm left open overnight offers the new day of a calendar plan when th
   harness.rn.AppState.emit('active');
   await view.flush();
 
-  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 25, total: 31 })));
+  assert.ok(view.getByText(t('readingPlans.dayOf', { current: 25, total: 30 })));
 });
 
 test("a plan card counts today's chapters already read against the day's target", async () => {

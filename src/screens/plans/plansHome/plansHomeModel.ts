@@ -1,5 +1,9 @@
 import type { TFunction } from 'i18next';
-import { isMultiSessionPlan, isRecurringPlan } from '../../../services/plans/readingPlanModel';
+import {
+  getPlanDayCount,
+  isMultiSessionPlan,
+  isRecurringPlan,
+} from '../../../services/plans/readingPlanModel';
 import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
 import type {
   PlanSessionKey,
@@ -75,14 +79,18 @@ export function splitActivePlanRows(rows: ActivePlanRow[]): {
 /**
  * How far through a plan the reader is. A plan that runs to an end counts the days
  * before today as done; a rhythm's day is the calendar's, so today itself counts.
+ * A monthly rhythm is measured against this month's days (see getPlanDayCount).
  */
-export function getActivePlanProgressRatio(plan: ReadingPlan, currentDay: number): number {
-  if (plan.duration_days <= 0) {
+export function getActivePlanProgressRatio(
+  plan: ReadingPlan,
+  currentDay: number,
+  today: Date
+): number {
+  const totalDays = getPlanDayCount(plan, today);
+  if (totalDays <= 0) {
     return 0;
   }
-  return isRecurringPlan(plan)
-    ? currentDay / plan.duration_days
-    : (currentDay - 1) / plan.duration_days;
+  return isRecurringPlan(plan) ? currentDay / totalDays : (currentDay - 1) / totalDays;
 }
 
 /**

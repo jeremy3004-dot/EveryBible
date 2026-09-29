@@ -1,9 +1,9 @@
 import {
   getActivePlanDayNumber,
+  getPlanDayCount,
   getVisibleCompletedEntryCount,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
-import { getPlanLedgerGridDayCount } from '../plans/planLedgerGridModel';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
 
 /** Enough to fill a swipe past the screen edge without making Home a catalogue. */
@@ -60,7 +60,7 @@ export function selectHomePlanShelf({
     return {
       kind: 'mine',
       items: mine.map(({ plan, progress }) => {
-        const totalDays = getPlanLedgerGridDayCount(plan, today);
+        const totalDays = getPlanDayCount(plan, today);
         const completed = getVisibleCompletedEntryCount(plan, progress.completed_entries, today);
         return {
           plan,
@@ -90,7 +90,7 @@ export function selectHomePlanShelf({
       plan,
       progress: null,
       dayNumber: 0,
-      totalDays: getPlanLedgerGridDayCount(plan, today),
+      totalDays: getPlanDayCount(plan, today),
       fraction: 0,
     })),
   };

@@ -22,6 +22,7 @@ import {
   reconcileFetchedPlanProgress,
   resolvePlanLedgerDayState,
   getVisiblePlanDayNumbers,
+  getPlanDayCount,
 } from './readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from './types';
 
@@ -960,4 +961,26 @@ test('planCompletionPercent rounds to the nearest integer', () => {
 test('planCompletionPercent returns 0 when duration is zero or negative', () => {
   assert.equal(planCompletionPercent(10, 0), 0);
   assert.equal(planCompletionPercent(10, -5), 0);
+});
+
+// "Day 24 of N" and every progress bar count against this, so a monthly plan says 30
+// in September everywhere: Home, My Plans, the plan's page and a rhythm's cards.
+test('a day-of-month plan counts the days of the current month', () => {
+  const monthly = { duration_days: 31, scheduleMode: 'calendar-day-of-month' as const };
+
+  assert.equal(getPlanDayCount(monthly, new Date(2026, 8, 24)), 30);
+  assert.equal(getPlanDayCount(monthly, new Date(2026, 9, 1)), 31);
+  assert.equal(getPlanDayCount(monthly, new Date(2026, 1, 10)), 28);
+  assert.equal(getPlanDayCount(monthly, new Date(2028, 1, 29)), 29);
+});
+
+test('sequential and weekly plans count every plan day whatever the month', () => {
+  const september = new Date(2026, 8, 24);
+
+  assert.equal(getPlanDayCount({ duration_days: 365 }, september), 365);
+  assert.equal(
+    getPlanDayCount({ duration_days: 7, scheduleMode: 'calendar-day-of-week' }, september),
+    7
+  );
+  assert.equal(getPlanDayCount({ duration_days: 31 }, new Date(2026, 1, 10)), 31);
 });

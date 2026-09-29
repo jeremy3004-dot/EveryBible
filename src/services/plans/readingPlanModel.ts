@@ -147,6 +147,22 @@ export function isCalendarDayOfMonthPlan(plan?: Pick<ReadingPlan, 'scheduleMode'
   return plan?.scheduleMode === 'calendar-day-of-month';
 }
 
+/**
+ * How many days a plan has as of `today`: what every "Day N of X" and progress bar
+ * counts against. A day-of-month plan (Proverbs) is catalogued as 31 days, but this
+ * month may be shorter, and a day 31 in September does not exist to be read.
+ */
+export function getPlanDayCount(
+  plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
+  today: Date
+): number {
+  if (!isCalendarDayOfMonthPlan(plan)) {
+    return plan.duration_days;
+  }
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  return Math.min(plan.duration_days, daysInMonth);
+}
+
 export function isCalendarDayOfWeekPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null): boolean {
   return plan?.scheduleMode === 'calendar-day-of-week';
 }

@@ -128,9 +128,16 @@ test('active plans split into readings that end and calendar rhythms that repeat
 });
 
 test('a reading counts the days before today as done; a rhythm counts today too', () => {
-  assert.equal(getActivePlanProgressRatio(psalms, 4), 3 / 30);
-  assert.equal(getActivePlanProgressRatio(proverbs, 24), 24 / 31);
-  assert.equal(getActivePlanProgressRatio(makePlan({ duration_days: 0 }), 5), 0);
+  const september = new Date(2026, 8, 24);
+  assert.equal(getActivePlanProgressRatio(psalms, 4, september), 3 / 30);
+  assert.equal(getActivePlanProgressRatio(makePlan({ duration_days: 0 }), 5, september), 0);
+});
+
+test('a monthly rhythm measures progress against the days of this month', () => {
+  const monthly = { ...proverbs, scheduleMode: 'calendar-day-of-month' as const };
+  assert.equal(getActivePlanProgressRatio(monthly, 24, new Date(2026, 8, 24)), 24 / 30);
+  assert.equal(getActivePlanProgressRatio(monthly, 24, new Date(2026, 9, 24)), 24 / 31);
+  assert.equal(getActivePlanProgressRatio(monthly, 10, new Date(2026, 1, 10)), 10 / 28);
 });
 
 test('the header eyebrow counts active and completed plans and drops a zero half', () => {
