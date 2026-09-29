@@ -87,13 +87,14 @@ test('the sheet is titled with the reference alone, and screen readers hear it a
   assert.equal(view.queryByText(`${t('annotations.selected')}: John 3:16`), null);
 });
 
-// Tapping outside the sheet or the verse again closes it, so the sheet carries no
-// close button and, since it does not drag, no grab handle either.
-test('the sheet has no close button and no drag handle', async () => {
+// Tapping outside the sheet or the verse again closes it, and so does one close
+// button (see AnnotationActionSheet.render.test.tsx). It does not drag, so it has no
+// grab handle, and no separate Done button.
+test('the sheet has one close button and no drag handle', async () => {
   const { view } = await renderSheet();
 
   assert.equal(view.queryByRole('button', { name: t('common.done') }), null);
-  assert.equal(view.queryByRole('button', { name: t('interface.close') }), null);
+  assert.equal(view.getAllByRole('button', { name: t('interface.close') }).length, 1);
   const handles = view
     .queryAllByType('View')
     .filter((node) => flattenStyle(node.props.style)?.height === 4);

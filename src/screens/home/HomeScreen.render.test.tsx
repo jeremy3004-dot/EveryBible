@@ -68,6 +68,13 @@ mockModule(mock, sourcePath('components/gather/GatherIconBadge.tsx'), {
   GatherIconBadge: hostComponent('GatherIconBadge'),
 });
 
+// Share opens the reader's verse-picture editor; its extra faces load through expo-font's
+// native module, and here they are ready at once.
+mockModule(mock, sourcePath('screens/bible/reader/verseImage/verseImageFonts.ts'), {
+  useVerseImageFonts: () => true,
+  VERSE_IMAGE_FONT_SOURCES: {},
+});
+
 // ---- Services ----------------------------------------------------------------
 // The plan catalog is the real bundled data; a test can empty it.
 let catalog: ReadingPlan[] = bundledReadingPlans;
@@ -202,28 +209,77 @@ async function renderHome() {
 type HomeView = Awaited<ReturnType<typeof renderHome>>;
 
 /** Start the visible native callback without keeping an act scope open across native work. */
+/**
+ * The editor's share action itself. Its Share button calls this without returning the
+ * promise, so tests that race a share against navigation or a second tap hold it here.
+ */
+function editorShareAction(view: HomeView) {
+  const [sheet] = view.root.findAll(
+    (node) => typeof node.props.handleShareSelectedVerseImage === 'function'
+  );
+  assert.ok(sheet, 'the verse-picture editor is mounted');
+  return sheet.props.handleShareSelectedVerseImage as () => Promise<void>;
+}
+
 async function beginHomeShare(view: HomeView) {
+  const { editor } = await openShareEditor(view);
+  // Read while the editor is mounted; a closed Modal's node cannot be read.
+  const onDismiss = editor.props.onDismiss as () => void;
+  const share = editorShareAction(view);
   let operation!: Promise<void>;
   await act(async () => {
-    const onPress = view.getByRole('button', { name: t('groups.share') }).props
-      .onPress as () => Promise<void>;
-    operation = onPress();
+    operation = share();
   });
-  return { operation };
+  return { operation, onDismiss };
 }
 
-/** The on-screen hero lives in the ScrollView; the share capture is mounted beside it. */
+/** The editor Modal's iOS onDismiss, which the share waits for before presenting. */
+async function finishEditorDismissal(view: HomeView, onDismiss: () => void) {
+  await view.flush();
+  await act(async () => {
+    onDismiss();
+  });
+}
+
+/** The on-screen hero lives in the ScrollView. */
 function heroes(view: HomeView) {
   const [scroll] = view.queryAllByType('ScrollView');
-  const capture = view
-    .queryAllByType('View')
-    .find((node) => node.props.collapsable === false) as ReactTestInstance;
-  assert.ok(capture, 'the share capture target is mounted off-screen');
-  return { screen: within(scroll), share: within(capture), capture };
+  return { screen: within(scroll) };
 }
 
-/** The shared picture's label over the verse. */
-const verseEyebrow = (reference: string) => `${t('home.todaysScripture')} · ${reference}`;
+/** The open verse-picture editor, found by its title. */
+const findShareEditor = (view: HomeView) =>
+  view
+    .queryAllByType('Modal')
+    .find((node) => within(node).queryAllByText(t('bible.chooseVerseImageBackground')).length > 0);
+
+/** Share opens the reader's verse-picture editor; returns it and the picture it will share. */
+async function openShareEditor(view: HomeView) {
+  await view.press(heroes(view).screen.getByRole('button', { name: t('groups.share') }));
+  const editor = findShareEditor(view);
+  assert.ok(editor, 'the verse-picture editor is open');
+  const picture = within(editor)
+    .queryAllByType('View')
+    .find((node) => node.props.collapsable === false);
+  assert.ok(picture, 'the editor shows the picture it will share');
+  return { editor, picture: within(picture), pictureNode: picture };
+}
+
+/** Presses the editor's Share and lets its close finish, as iOS reports it. */
+async function shareFromEditor(view: HomeView, editor: ReactTestInstance) {
+  const { onDismiss } = editor.props as { onDismiss?: () => void };
+  await view.press(within(editor).getByRole('button', { name: t('groups.share') }));
+  await view.flush();
+  await act(async () => {
+    onDismiss?.();
+  });
+  await view.flush();
+}
+
+/** Thursday 17 September 2026, as the shared picture and text name the day. */
+const SHARE_DAY = 'Thursday, September 17';
+const shareTitle = `${t('home.verseOfTheDay')} · ${SHARE_DAY}`;
+
 /** On screen the weekday stands in for "Today's scripture" (TODAY is a Thursday). */
 const screenEyebrow = (reference: string, weekday = 'Thursday') => `${weekday} · ${reference}`;
 
@@ -339,10 +395,9 @@ test('Scripture borrowed from the bundled BSB is attributed to it on the hero an
   bibleStore.setState({ currentTranslation: 'npiulb' });
   dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
   const view = await renderHome();
-  const { screen, share } = heroes(view);
+  const { screen } = heroes(view);
 
   assert.ok(screen.getByText(screenEyebrow('John 3:16 · BSB')));
-  assert.ok(share.getByText(verseEyebrow('John 3:16 · BSB')));
   // Latin text keeps the Latin reading face even under a Devanagari translation.
   const { getReadingFontFamily } = await import('../../design/fonts');
   assert.equal(
@@ -350,11 +405,12 @@ test('Scripture borrowed from the bundled BSB is attributed to it on the hero an
     getReadingFontFamily('en')
   );
 
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
   sharing.available = false;
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  const { editor, picture } = await openShareEditor(view);
+  assert.ok(picture.getByText('John 3:16 · BSB'));
+  await shareFromEditor(view, editor);
   assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
-    message: `${t('home.verseOfTheDay')}\nJohn 3:16 · BSB\n\n${JOHN_3_16}`,
+    message: `${shareTitle}\nJohn 3:16 · BSB\n\n${JOHN_3_16}`,
   });
 });
 
@@ -488,15 +544,22 @@ test("the reader's own text carries no attribution", async () => {
   assert.equal(view.queryByText(/· BSB$/), null);
 });
 
-test('the shared verse image carries only the photograph and the Scripture', async () => {
+test("Share opens the verse-picture editor on today's photograph, verse, reference and date", async () => {
   const view = await renderHome();
-  const { screen, share } = heroes(view);
+  const { editor, picture, pictureNode } = await openShareEditor(view);
 
-  assert.ok(screen.getByText(screenEyebrow('John 3:16')));
-  assert.ok(share.getByText(JOHN_3_16));
-  assert.ok(share.getByText(verseEyebrow('John 3:16')));
-  assert.equal(share.queryByText(/^Thursday/), null, 'no day of the week');
-  assert.equal(share.queryAllByRole('button').length, 0, 'no controls');
+  assert.ok(picture.getByText(`"${JOHN_3_16}"`));
+  assert.ok(picture.getByText('John 3:16'));
+  assert.ok(picture.getByText(shareTitle), 'the picture names the day it was the verse of');
+  // The same editor as the reader's: font, colour and size can be changed.
+  for (const tab of ['font', 'color', 'size'] as const) {
+    assert.ok(within(editor).getByText(t(`bible.verseImage.tabs.${tab}`)));
+  }
+  // It opens on the hero's own photograph.
+  const { getHomeVerseBackground } = await import('../../data/homeVerseBackgrounds');
+  const [photo] = within(pictureNode).queryAllByType('ImageBackground');
+  assert.equal(photo?.props.source, getHomeVerseBackground(TODAY));
+  assert.deepEqual(sharing.captures, [], 'nothing is shared until Share is pressed');
 });
 
 test('the hero share control is an icon-only button named with the shared share label', async () => {
@@ -513,14 +576,13 @@ test('the hero share control is an icon-only button named with the shared share 
   assert.equal(view.getAllByRole('button', { name: t('groups.share') }).length, 1);
 });
 
-test('sharing captures the Scripture-only card as a PNG and opens the share sheet', async () => {
+test('sharing from the editor captures its picture as a PNG and opens the share sheet', async () => {
   const view = await renderHome();
-  const { capture } = heroes(view);
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  const { editor } = await openShareEditor(view);
+  await shareFromEditor(view, editor);
 
   assert.equal(sharing.captures.length, 1);
-  const [{ ref, options }] = sharing.captures;
-  assert.ok((ref as { current: unknown }).current, 'the capture target is mounted');
+  const [{ options }] = sharing.captures;
   assert.deepEqual(options, { format: 'png', quality: 1, result: 'tmpfile' });
   assert.deepEqual(sharing.sheets, [
     {
@@ -528,23 +590,23 @@ test('sharing captures the Scripture-only card as a PNG and opens the share shee
       options: { dialogTitle: t('groups.share'), mimeType: 'image/png' },
     },
   ]);
-  assert.equal(capture.props.pointerEvents, 'none');
   assert.deepEqual(harness.rn.__recorded.shares, []);
+  assert.equal(findShareEditor(view), undefined, 'the editor closes before the share sheet opens');
 });
 
-test('sharing falls back to the verse as text when images cannot be shared or captured', async () => {
-  const expectedMessage = `${t('home.verseOfTheDay')}\nJohn 3:16\n\n${JOHN_3_16}`;
+test('sharing falls back to the verse and its day as text when images cannot be shared or captured', async () => {
+  const expectedMessage = `${shareTitle}\nJohn 3:16\n\n${JOHN_3_16}`;
 
   sharing.available = false;
   const unavailable = await renderHome();
-  await unavailable.press(unavailable.getByRole('button', { name: t('groups.share') }));
+  await shareFromEditor(unavailable, (await openShareEditor(unavailable)).editor);
   assert.deepEqual(harness.rn.__recorded.shares, [{ message: expectedMessage }]);
   await unavailable.unmount();
 
   sharing.available = true;
   sharing.captureError = new Error('snapshot failed');
   const failing = await renderHome();
-  await failing.press(failing.getByRole('button', { name: t('groups.share') }));
+  await shareFromEditor(failing, (await openShareEditor(failing)).editor);
   assert.deepEqual(harness.rn.__recorded.shares.at(-1), { message: expectedMessage });
   assert.deepEqual(sharing.sheets, []);
 });
@@ -1185,6 +1247,7 @@ for (const releaseFails of [false, true]) {
     const view = await renderHome();
     const { operation: first } = await beginHomeShare(view);
     let fresh: Promise<void> | undefined;
+    let freshDismiss: () => void = () => {};
     try {
       await oldEntry;
       await act(async () => {
@@ -1192,16 +1255,18 @@ for (const releaseFails of [false, true]) {
         harness.navigation.emit('focus');
       });
       await view.flush();
-      const button = view.getByRole('button', { name: t('groups.share') });
+      const button = heroes(view).screen.getByRole('button', { name: t('groups.share') });
       assert.notEqual(button.props.disabled, true, 'refocusing permits a fresh request');
-      fresh = (await beginHomeShare(view)).operation;
+      const freshShare = await beginHomeShare(view);
+      fresh = freshShare.operation;
+      freshDismiss = freshShare.onDismiss;
       await freshEntry;
       await act(async () => {
         finishOld();
         await first;
       });
       assert.equal(
-        view.getByRole('button', { name: t('groups.share') }).props.disabled,
+        heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
         true,
         'stale finally cannot clear the fresh pending request'
       );
@@ -1209,6 +1274,9 @@ for (const releaseFails of [false, true]) {
       assert.deepEqual(sharing.sheets, []);
       await act(async () => {
         finishFresh();
+      });
+      await finishEditorDismissal(view, freshDismiss);
+      await act(async () => {
         await fresh;
       });
       assert.deepEqual(
@@ -1223,9 +1291,10 @@ for (const releaseFails of [false, true]) {
     } finally {
       finishOld();
       finishFresh();
+      // Unmounting releases a share still waiting on the editor's close.
+      await view.unmount();
       await first;
       await fresh;
-      await view.unmount();
     }
   });
 }
@@ -1245,8 +1314,9 @@ test('two Home share taps before a render claim only one native preparation', as
     });
   };
   const view = await renderHome();
-  const onPress = view.getByRole('button', { name: t('groups.share') }).props
-    .onPress as () => Promise<void>;
+  const { editor } = await openShareEditor(view);
+  const onDismiss = editor.props.onDismiss as () => void;
+  const onPress = editorShareAction(view);
   let first: Promise<void> | undefined;
   let second: Promise<void> | undefined;
   try {
@@ -1259,6 +1329,9 @@ test('two Home share taps before a render claim only one native preparation', as
     assert.equal(checks, 1);
     await act(async () => {
       finish();
+    });
+    await finishEditorDismissal(view, onDismiss);
+    await act(async () => {
       await first;
       await second;
     });
@@ -1266,12 +1339,10 @@ test('two Home share taps before a render claim only one native preparation', as
     assert.equal(sharing.sheets.length, 1);
     assert.deepEqual(sharing.releases, []);
   } finally {
-    await act(async () => {
-      finish();
-      await first;
-      await second;
-    });
+    finish();
     await view.unmount();
+    await first;
+    await second;
   }
 });
 
@@ -1300,15 +1371,18 @@ test('a Home capture completed after unmount is released without presenting', as
 test('a current image sharing error retains the handed-off file and falls back to text', async () => {
   sharing.shareError = new Error('native image share failed');
   const view = await renderHome();
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  await shareFromEditor(view, (await openShareEditor(view)).editor);
   assert.equal(sharing.sheets.length, 1);
   assert.deepEqual(harness.rn.__recorded.shares, [
     {
-      message: `${t('home.verseOfTheDay')}\nJohn 3:16\n\n${JOHN_3_16}`,
+      message: `${shareTitle}\nJohn 3:16\n\n${JOHN_3_16}`,
     },
   ]);
   assert.deepEqual(sharing.releases, [], 'the URI was already handed to native sharing');
-  assert.notEqual(view.getByRole('button', { name: t('groups.share') }).props.disabled, true);
+  assert.notEqual(
+    heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
+    true
+  );
   await view.unmount();
 });
 
@@ -1318,10 +1392,13 @@ test('a current text sharing failure leaves the Home share control ready for ret
     throw new Error('native text share failed');
   });
   const view = await renderHome();
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  await shareFromEditor(view, (await openShareEditor(view)).editor);
   assert.deepEqual(sharing.sheets, []);
   assert.deepEqual(sharing.releases, []);
-  assert.notEqual(view.getByRole('button', { name: t('groups.share') }).props.disabled, true);
+  assert.notEqual(
+    heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
+    true
+  );
   await view.unmount();
 });
 
@@ -1400,18 +1477,19 @@ test('borrowed Scripture follows fallback abbreviation and language changes', as
   dailyScripture = verseOf({ fallbackTranslationId: 'bsb' });
   const view = await renderHome();
   await replaceTranslations(['bsb'], { abbreviation: 'NEW', language: 'Nepali' });
-  const { screen, share } = heroes(view);
+  const { screen } = heroes(view);
   assert.ok(screen.getByText(screenEyebrow('John 3:16 · NEW')));
-  assert.ok(share.getByText(verseEyebrow('John 3:16 · NEW')));
   const { getReadingFontFamily } = await import('../../design/fonts');
   assert.equal(
     flattenStyle(screen.getByText(JOHN_3_16).props.style)?.fontFamily,
     getReadingFontFamily('Nepali')
   );
   sharing.available = false;
-  await view.press(view.getByRole('button', { name: t('groups.share') }));
+  const { editor, picture } = await openShareEditor(view);
+  assert.ok(picture.getByText('John 3:16 · NEW'));
+  await shareFromEditor(view, editor);
   assert.deepEqual(harness.rn.__recorded.shares.at(-1), {
-    message: `${t('home.verseOfTheDay')}\nJohn 3:16 · NEW\n\n${JOHN_3_16}`,
+    message: `${shareTitle}\nJohn 3:16 · NEW\n\n${JOHN_3_16}`,
   });
 });
 
@@ -1424,9 +1502,10 @@ for (const fallbackId of ['bsb', 'unknown-source']) {
     dailyScripture = verseOf({ fallbackTranslationId: fallbackId });
     const view = await renderHome();
     const label = fallbackId === 'bsb' ? 'BSB' : 'UNKNOWN-SOURCE';
-    const { screen, share } = heroes(view);
+    const { screen } = heroes(view);
     assert.ok(screen.getByText(screenEyebrow(`John 3:16 · ${label}`)));
-    assert.ok(share.getByText(verseEyebrow(`John 3:16 · ${label}`)));
+    const { picture } = await openShareEditor(view);
+    assert.ok(picture.getByText(`John 3:16 · ${label}`));
     const { getReadingFontFamily } = await import('../../design/fonts');
     assert.equal(
       flattenStyle(screen.getByText(JOHN_3_16).props.style)?.fontFamily,

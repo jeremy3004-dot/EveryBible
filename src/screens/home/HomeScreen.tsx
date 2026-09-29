@@ -8,7 +8,6 @@ import {
   ScrollView,
   InteractionManager,
   useWindowDimensions,
-  Share,
   AppState,
   type AppStateStatus,
   type LayoutChangeEvent,
@@ -44,7 +43,14 @@ import {
   FOUNDATION_TITLE_KEYS,
   gatherFoundations,
 } from '../../data/gatherFoundations';
-import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
+import {
+  getHomeVerseBackground,
+  HOME_VERSE_BACKGROUND_SOURCES,
+} from '../../data/homeVerseBackgrounds';
+import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
+import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
+import { VerseImageShareSheet } from '../bible/reader/VerseImageShareSheet';
+import { useVerseImageShare } from '../bible/reader/useVerseImageShare';
 import { getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomePlanShelf } from './homePlanShelfModel';
 import { HomePlanShelf } from './HomePlanShelf';
@@ -79,6 +85,13 @@ import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 
+/** Records a failed verse-of-the-day share. The crash queue loads only when something failed. */
+function reportHomeVerseShareFailure(error: unknown) {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('home.shareImage', error))
+    .catch(() => undefined);
+}
+
 // The hero is a photograph in both scopes, so its foreground cannot come from
 // theme tokens — light ink on a dark scrim is the only readable pairing on the
 // vellum scope too. These are the literal on-photo values the design spec names.
@@ -109,7 +122,6 @@ const HERO_ACTION_OVERHANG = 9;
  * sheet. The shared image is the photograph and the Scripture only — the date,
  * the greeting and the reader's own name stay on their device.
  */
-type HomeHeroVariant = 'screen' | 'share';
 
 /** Gap between the status bar and the date eyebrow over the photograph. */
 const HERO_TOP_PADDING = 14;
@@ -164,30 +176,21 @@ export function HomeScreen() {
   const bottomTabBarHeight = tabBar.height;
   const [dailyScripture, setDailyScripture] = useState<DailyScripture | null>(null);
   const [isLoadingVerse, setIsLoadingVerse] = useState(true);
+  // Sharing opens the reader's verse-picture editor on today's verse and photograph.
   const [isSharingVerse, setIsSharingVerse] = useState(false);
-  const shareMountedRef = useRef(false);
-  const shareFocusedRef = useRef(false);
-  const verseShareRequestRef = useRef<object | null>(null);
+  const [showVerseImageSheet, setShowVerseImageSheet] = useState(false);
+  // Null follows the day's own photograph; a pick in the editor holds until the next day.
+  const [verseImageBackgroundPick, setVerseImageBackgroundPick] = useState<{
+    index: number;
+    day: string;
+  } | null>(null);
+  const closeVerseImageShareRef = useRef<() => void>(() => {});
   useLayoutEffect(() => {
-    shareMountedRef.current = true;
-    shareFocusedRef.current = navigation.isFocused();
-    const invalidate = () => {
-      verseShareRequestRef.current = null;
-      setIsSharingVerse(false);
-    };
-    const unsubscribeBlur = navigation.addListener('blur', () => {
-      // Home freezes off-screen, so invalidate from the event without waiting for a render.
-      shareFocusedRef.current = false;
-      invalidate();
-    });
-    const unsubscribeFocus = navigation.addListener('focus', () => {
-      shareFocusedRef.current = true;
-      invalidate();
-    });
+    // Home freezes off-screen, so the editor closes from the event without waiting for a render.
+    const close = () => closeVerseImageShareRef.current();
+    const unsubscribeBlur = navigation.addListener('blur', close);
+    const unsubscribeFocus = navigation.addListener('focus', close);
     return () => {
-      shareMountedRef.current = false;
-      shareFocusedRef.current = false;
-      verseShareRequestRef.current = null;
       unsubscribeBlur();
       unsubscribeFocus();
     };
@@ -390,6 +393,16 @@ export function HomeScreen() {
     () => new Intl.DateTimeFormat(i18n.language, { weekday: 'long' }).format(new Date(clockMs)),
     [clockMs, i18n.language]
   );
+  // A shared verse travels without the page around it, so it carries the full date.
+  const shareDateLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+      }).format(new Date(clockMs)),
+    [clockMs, i18n.language]
+  );
 
   // ---- Reading ledger -------------------------------------------------------
   // The streak is the store's own count; the all-time total and the heatmap are
@@ -577,13 +590,32 @@ export function HomeScreen() {
           : t('home.verseAudioBody')
         : t('home.defaultVerse');
   const verseBackgroundSource = verseBackground;
+  const verseShareTitle = `${verseCardTitleLabel} · ${shareDateLabel}`;
   const verseShareMessage = buildHomeVerseShareMessage({
-    cardTitle: verseCardTitleLabel,
+    cardTitle: verseShareTitle,
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
-  // The shared picture keeps the "Today's scripture" label; on screen the weekday stands in.
-  const verseScriptureEyebrow = `${t('home.todaysScripture')} · ${verseShareReferenceLabel}`;
+  const verseDayKey = new Date(clockMs).toDateString();
+  const verseImageBackgroundIndex =
+    verseImageBackgroundPick?.day === verseDayKey
+      ? verseImageBackgroundPick.index
+      : getHomeVerseBackgroundIndex(new Date(clockMs), HOME_VERSE_BACKGROUND_SOURCES.length);
+  const verseImageBackground =
+    SHARE_VERSE_BACKGROUND_SOURCES[
+      verseImageBackgroundIndex % SHARE_VERSE_BACKGROUND_SOURCES.length
+    ] ?? verseBackground;
+  const { handleCloseVerseImageSheet, handleVerseImageSheetDismissed, shareVerseImage } =
+    useVerseImageShare({
+      shareText: verseShareMessage,
+      isSharingVerseImage: isSharingVerse,
+      setIsSharingVerseImage: setIsSharingVerse,
+      setShowVerseImageSheet,
+      verseImageSharePreviewRef: verseSharePreviewRef,
+      resetKey: verseDayKey,
+      reportFailure: reportHomeVerseShareFailure,
+    });
+  closeVerseImageShareRef.current = handleCloseVerseImageSheet;
   const verseScreenEyebrow = `${weekdayLabel} · ${verseShareReferenceLabel}`;
   // Scripture is content, not interface: it renders in the translation's own
   // language, so Lora is swapped for the platform serif on scripts it lacks.
@@ -671,90 +703,27 @@ export function HomeScreen() {
     />
   );
 
-  const handleShareVerseOfTheDay = async () => {
-    if (!shareMountedRef.current || !shareFocusedRef.current || verseShareRequestRef.current) {
-      return;
-    }
-    const request = {};
-    verseShareRequestRef.current = request;
-    const isCurrent = () =>
-      shareMountedRef.current &&
-      shareFocusedRef.current &&
-      verseShareRequestRef.current === request;
-
+  const handleShareVerseOfTheDay = () => {
     lightHaptic();
-    setIsSharingVerse(true);
-    let releaseUnsharedImage: (() => void) | null = null;
-
-    try {
-      const Sharing = await import('expo-sharing');
-      if (!isCurrent()) return;
-      const available = await Sharing.isAvailableAsync();
-      if (!isCurrent()) return;
-
-      if (available && verseSharePreviewRef.current) {
-        const { captureRef, releaseCapture } = await import('react-native-view-shot');
-        if (!isCurrent()) return;
-        const imageUri = await captureRef(verseSharePreviewRef, {
-          format: 'png',
-          quality: 1,
-          result: 'tmpfile',
-        });
-        releaseUnsharedImage = () => releaseCapture(imageUri);
-        if (!isCurrent()) return;
-
-        // A recipient may read the capture after sharing returns; only abandoned captures
-        // that never reached native sharing remain ours to release.
-        releaseUnsharedImage = null;
-        await Sharing.shareAsync(imageUri, {
-          dialogTitle: t('groups.share'),
-          mimeType: 'image/png',
-        });
-        return;
-      }
-
-      if (!isCurrent()) return;
-      await Share.share({ message: verseShareMessage });
-    } catch {
-      if (!isCurrent()) return;
-      try {
-        await Share.share({ message: verseShareMessage });
-      } catch {
-        // Ignore share errors.
-      }
-    } finally {
-      if (!isCurrent() && releaseUnsharedImage) {
-        try {
-          releaseUnsharedImage();
-        } catch {
-          // Best effort: temporary captures are also cleared when the app closes.
-        }
-      }
-      if (isCurrent()) {
-        verseShareRequestRef.current = null;
-        setIsSharingVerse(false);
-      }
-    }
+    setShowVerseImageSheet(true);
   };
 
-  const renderVerseOfTheDayCard = (variant: HomeHeroVariant) => {
-    const isScreenVariant = variant === 'screen';
-
+  const renderVerseOfTheDayCard = () => {
     return (
       <View
-        onLayout={isScreenVariant ? handleHeroLayout : undefined}
+        onLayout={handleHeroLayout}
         style={[
           styles.hero,
           {
             // minHeight, not height: a long verse or a large text size grows the
             // hero (and the photograph behind it) instead of shrinking the text.
-            minHeight: homeLayout.heroPhotoHeight + (isScreenVariant ? HERO_ACTION_OVERHANG : 0),
+            minHeight: homeLayout.heroPhotoHeight + HERO_ACTION_OVERHANG,
           },
         ]}
       >
         <ImageBackground
           source={verseBackgroundSource}
-          style={[styles.heroPhoto, isScreenVariant ? styles.heroPhotoOverhang : null]}
+          style={[styles.heroPhoto, styles.heroPhotoOverhang]}
           imageStyle={styles.heroPhotoImage}
           resizeMode="cover"
           accessible={false}
@@ -769,7 +738,7 @@ export function HomeScreen() {
         </ImageBackground>
 
         <View style={[styles.heroContent, { paddingTop: insets.top + HERO_TOP_PADDING }]}>
-          <View style={[styles.heroFooter, isScreenVariant ? null : styles.heroFooterCapture]}>
+          <View style={styles.heroFooter}>
             {isLoadingVerse && !dailyScripture ? (
               <View style={styles.heroPlaceholder}>
                 <View style={[styles.heroPlaceholderBar, styles.heroPlaceholderEyebrow]} />
@@ -778,9 +747,7 @@ export function HomeScreen() {
               </View>
             ) : (
               <>
-                <Text style={[styles.heroEyebrow, displayFont.regular]}>
-                  {isScreenVariant ? verseScreenEyebrow : verseScriptureEyebrow}
-                </Text>
+                <Text style={[styles.heroEyebrow, displayFont.regular]}>{verseScreenEyebrow}</Text>
                 <Text
                   style={[
                     styles.verseText,
@@ -795,48 +762,46 @@ export function HomeScreen() {
                 </Text>
               </>
             )}
-            {isScreenVariant ? (
-              <View style={styles.heroActionRow}>
-                {canListenToDailyScripture ? (
-                  <PressableScale
-                    onPress={handlePlayDailyAudio}
-                    pressEffect="translate"
-                    haptic="light"
-                    accessibilityRole="button"
-                    accessibilityLabel={t('bible.listen')}
-                    style={styles.heroPill}
-                  >
-                    <Play
-                      size={14}
-                      color={ON_PHOTO_PILL_INK}
-                      fill={ON_PHOTO_PILL_INK}
-                      strokeWidth={2}
-                    />
-                    <Text style={styles.heroPillLabel} numberOfLines={2}>
-                      {t('bible.listen')}
-                    </Text>
-                  </PressableScale>
-                ) : null}
+            <View style={styles.heroActionRow}>
+              {canListenToDailyScripture ? (
                 <PressableScale
-                  onPress={handleReadDailyScripture}
+                  onPress={handlePlayDailyAudio}
                   pressEffect="translate"
                   haptic="light"
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    dailyPassageLabel
-                      ? t('home.readPassage', { passage: dailyPassageLabel })
-                      : t('bible.read')
-                  }
+                  accessibilityLabel={t('bible.listen')}
                   style={styles.heroPill}
                 >
-                  <BookOpen size={15} color={ON_PHOTO_PILL_INK} strokeWidth={2} />
+                  <Play
+                    size={14}
+                    color={ON_PHOTO_PILL_INK}
+                    fill={ON_PHOTO_PILL_INK}
+                    strokeWidth={2}
+                  />
                   <Text style={styles.heroPillLabel} numberOfLines={2}>
-                    {t('bible.read')}
+                    {t('bible.listen')}
                   </Text>
                 </PressableScale>
-                {renderVerseShareButton()}
-              </View>
-            ) : null}
+              ) : null}
+              <PressableScale
+                onPress={handleReadDailyScripture}
+                pressEffect="translate"
+                haptic="light"
+                accessibilityRole="button"
+                accessibilityLabel={
+                  dailyPassageLabel
+                    ? t('home.readPassage', { passage: dailyPassageLabel })
+                    : t('bible.read')
+                }
+                style={styles.heroPill}
+              >
+                <BookOpen size={15} color={ON_PHOTO_PILL_INK} strokeWidth={2} />
+                <Text style={styles.heroPillLabel} numberOfLines={2}>
+                  {t('bible.read')}
+                </Text>
+              </PressableScale>
+              {renderVerseShareButton()}
+            </View>
           </View>
         </View>
       </View>
@@ -920,7 +885,7 @@ export function HomeScreen() {
         overScrollMode="always"
         contentInsetAdjustmentBehavior="never"
       >
-        {renderVerseOfTheDayCard('screen')}
+        {renderVerseOfTheDayCard()}
 
         <View style={styles.sheet}>
           {/* One dark card under the photograph: the streak, a day-by-day heatmap
@@ -1004,14 +969,23 @@ export function HomeScreen() {
         />
       ) : null}
 
-      <View
-        ref={verseSharePreviewRef}
-        collapsable={false}
-        pointerEvents="none"
-        style={[styles.sharePreviewMount, { width: screenWidth }]}
-      >
-        {renderVerseOfTheDayCard('share')}
-      </View>
+      <VerseImageShareSheet
+        handleSelectVerseImageBackground={(index) =>
+          setVerseImageBackgroundPick({ index, day: verseDayKey })
+        }
+        handleShareSelectedVerseImage={shareVerseImage}
+        handleVerseImageSheetDismissed={handleVerseImageSheetDismissed}
+        isSharingVerseImage={isSharingVerse}
+        selectedVerseImageBackground={verseImageBackground}
+        selectedVerseImageBackgroundIndex={verseImageBackgroundIndex}
+        selectedVerseReferenceLabel={verseShareReferenceLabel}
+        verseImageEyebrowLabel={verseShareTitle}
+        selectedVerseText={verseShareBodyText}
+        handleCloseVerseImageSheet={handleCloseVerseImageSheet}
+        showVerseImageSheet={showVerseImageSheet}
+        verseImageBackgroundCount={SHARE_VERSE_BACKGROUND_SOURCES.length}
+        verseImageSharePreviewRef={verseSharePreviewRef}
+      />
     </View>
   );
 }
@@ -1062,9 +1036,6 @@ const styles = StyleSheet.create({
   heroFooter: {
     marginTop: 'auto',
     gap: spacing.md,
-  },
-  heroFooterCapture: {
-    paddingBottom: spacing.xxl,
   },
   heroEyebrow: {
     ...typography.eyebrow,
@@ -1188,10 +1159,5 @@ const styles = StyleSheet.create({
   },
   chipTrackFill: {
     height: '100%',
-  },
-  sharePreviewMount: {
-    position: 'absolute',
-    left: -10000,
-    top: 0,
   },
 });

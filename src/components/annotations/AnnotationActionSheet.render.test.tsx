@@ -246,3 +246,19 @@ test('in note mode at large text the note field and Done stay pinned above the k
   await view.press(done);
   assert.deepEqual(notes, ['Remember this.']);
 });
+
+// A tap on the page closes the sheet, but that is easy to miss after opening it by
+// accident, so a close button sits beside the reference, at the sheet's top right.
+test('a close button beside the reference closes the sheet', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  let closed = 0;
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => (closed += 1))} />);
+
+  const close = view.getByRole('button', { name: t('interface.close') });
+  const title = view.getByRole('header', { name: `${t('annotations.selected')}: John 3:16` });
+  const [row] = hostAncestors(close).filter((node) => hostAncestors(title).includes(node));
+  assert.equal(flattenStyle(row?.props.style)?.flexDirection, 'row', 'shares a row with the title');
+
+  await view.press(close);
+  assert.equal(closed, 1);
+});

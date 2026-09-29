@@ -50,15 +50,25 @@ test('HomeScreen keeps sharing, the Bible database and broad barrels off its sta
     'HomeScreen should import the bible store directly on the startup path'
   );
 
+  // Home shares through the reader's verse-picture editor; its share flow owns the
+  // native modules and loads them on the Share press.
+  const shareFlow = readRelativeSource('../bible/reader/useVerseImageShare.ts');
+  for (const eager of ["from 'expo-sharing'", "from 'react-native-view-shot'"]) {
+    assert.equal(source.includes(eager), false, `HomeScreen should not import ${eager} eagerly`);
+    assert.equal(
+      shareFlow.includes(eager),
+      false,
+      `the share flow should not import ${eager} eagerly`
+    );
+  }
   assert.match(
-    source,
+    shareFlow,
     /const Sharing = await import\('expo-sharing'\);/,
-    'HomeScreen should lazy-load Expo Sharing only when the share button is pressed'
+    'the share flow should lazy-load Expo Sharing only when Share is pressed'
   );
-
   assert.match(
-    source,
+    shareFlow,
     /const \{ captureRef, releaseCapture \} = await import\('react-native-view-shot'\);/,
-    'HomeScreen should lazy-load react-native-view-shot only when the share button is pressed'
+    'the share flow should lazy-load react-native-view-shot only when Share is pressed'
   );
 });

@@ -28,6 +28,7 @@ export function VerseImageSharePreview({
   previewRef,
   backgroundSource,
   referenceLabel,
+  eyebrowLabel,
   selectedText,
   style = DEFAULT_VERSE_IMAGE_STYLE,
   onFitChange,
@@ -123,6 +124,25 @@ export function VerseImageSharePreview({
           style={styles.verseImagePreviewOverlay}
         />
         <View style={styles.verseImagePreviewContent}>
+          {eyebrowLabel ? (
+            <Text
+              style={[
+                styles.verseImagePreviewEyebrow,
+                {
+                  color: color.hex,
+                  textShadowColor: color.light
+                    ? 'rgba(0, 0, 0, 0.45)'
+                    : 'rgba(255, 255, 255, 0.45)',
+                },
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              allowFontScaling={false}
+            >
+              {eyebrowLabel}
+            </Text>
+          ) : null}
           <View style={styles.verseImagePreviewTextBox} onLayout={handleBoxLayout}>
             <Text
               style={verseStyle(fittedSize)}
@@ -176,6 +196,8 @@ export interface VerseImageSharePreviewProps {
   previewRef: RefObject<View | null>;
   backgroundSource: import('react-native').ImageSourcePropType;
   referenceLabel: string;
+  /** A line above the verse, e.g. "Verse of the day · Tuesday, 29 September"; omitted in the reader. */
+  eyebrowLabel?: string;
   selectedText: string;
   /** The chosen face, colour and size. */
   style?: VerseImageStyle;
@@ -207,6 +229,17 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     gap: spacing.md,
+  },
+  verseImagePreviewEyebrow: {
+    ...typography.label,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   verseImagePreviewTextBox: {
     flex: 1,

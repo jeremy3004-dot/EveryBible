@@ -226,3 +226,25 @@ test('the shared card draws at its own size, whatever the OS text size', async (
   assert.equal(view.getByText('"For God so loved the world"').props.allowFontScaling, false);
   assert.equal(view.getByText('John 3:16').props.allowFontScaling, false);
 });
+
+test('an eyebrow line sits above the verse when given, and the reader card has none', async () => {
+  const { VerseImageSharePreview } = await import('./VerseImageSharePreview');
+  const eyebrow = 'Verse of the Day · Tuesday, September 29';
+  const withEyebrow = await harness.render(
+    <VerseImageSharePreview
+      previewRef={createRef<View>()}
+      backgroundSource={{ uri: 'file:///background.jpg' }}
+      referenceLabel="John 3:16"
+      eyebrowLabel={eyebrow}
+      selectedText="For God so loved the world."
+    />
+  );
+  const line = withEyebrow.getByText(eyebrow);
+  const verse = withEyebrow.getAllByText('"For God so loved the world."')[0];
+  assert.ok(line && verse);
+  assert.equal(line.props.allowFontScaling, false, 'part of the fixed-size picture');
+  await withEyebrow.unmount();
+
+  const plain = await renderCard('For God so loved the world.');
+  assert.equal(plain.queryByText(eyebrow), null);
+});

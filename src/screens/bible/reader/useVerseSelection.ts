@@ -1,6 +1,6 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
-import { Alert, InteractionManager, Platform, Share, View } from 'react-native';
+import { Alert, Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../constants';
@@ -31,6 +31,7 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from '../readerAnnotationEdits';
+import { useVerseImageShare } from './useVerseImageShare';
 
 /** Records a failed verse-image share. The crash queue is loaded only when something failed. */
 function reportVerseImageShareFailure(error: unknown) {
@@ -237,144 +238,19 @@ export function useVerseSelection({
     setSelectedVerseImageBackgroundIndex(backgroundIndex);
   };
 
-  const verseImageSheetDismissedRef = useRef<(() => void) | null>(null);
-  const verseImageShareRequestRef = useRef<object | null>(null);
-  useEffect(() => {
-    verseImageShareRequestRef.current = null;
-    setIsSharingVerseImage(false);
-    setShowVerseImageSheet(false);
-    return () => {
-      verseImageShareRequestRef.current = null;
-      verseImageSheetDismissedRef.current?.();
-    };
-  }, [
-    bookId,
-    chapter,
-    currentTranslation,
-    selectedVerseShareText,
-    setIsSharingVerseImage,
-    setShowVerseImageSheet,
-  ]);
-
-  /** The image picker Modal's onDismiss (iOS reports the end of its close animation). */
-  const handleVerseImageSheetDismissed = () => {
-    verseImageSheetDismissedRef.current?.();
-  };
-
-  const handleCloseVerseImageSheet = () => {
-    verseImageShareRequestRef.current = null;
-    verseImageSheetDismissedRef.current?.();
-    setIsSharingVerseImage(false);
-    setShowVerseImageSheet(false);
-  };
-
-  // iOS presents a share sheet from the top view controller, which is the picker Modal until its
-  // fade-out ends. Presenting then fails ("… whose view is not in the window hierarchy") and the
-  // share promise never settles, so the share waits for the picker to be gone: its onDismiss on
-  // iOS (the only platform that reports one), the end of the close interaction on Android.
-  const closeVerseImageSheetAndWait = () =>
-    new Promise<void>((resolve) => {
-      let settled = false;
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      let interaction: ReturnType<typeof InteractionManager.runAfterInteractions> | undefined;
-      const complete = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        if (timeoutId) clearTimeout(timeoutId);
-        interaction?.cancel();
-        if (verseImageSheetDismissedRef.current === complete) {
-          verseImageSheetDismissedRef.current = null;
-        }
-        resolve();
-      };
-      verseImageSheetDismissedRef.current = complete;
-      if (Platform.OS !== 'ios') {
-        timeoutId = setTimeout(complete, 300);
-        interaction = InteractionManager.runAfterInteractions(complete);
-      }
-      setShowVerseImageSheet(false);
+  const { handleCloseVerseImageSheet, handleVerseImageSheetDismissed, shareVerseImage } =
+    useVerseImageShare({
+      shareText: selectedVerseShareText,
+      isSharingVerseImage,
+      setIsSharingVerseImage,
+      setShowVerseImageSheet,
+      verseImageSharePreviewRef,
+      resetKey: `${currentTranslation}:${bookId}:${chapter}`,
+      reportFailure: reportVerseImageShareFailure,
     });
 
   const handleShareSelectedVerseImage = async () => {
-    if (!selectedVerseShareText || isSharingVerseImage || verseImageShareRequestRef.current) {
-      return;
-    }
-    const request = {};
-    verseImageShareRequestRef.current = request;
-    const isCurrent = () => verseImageShareRequestRef.current === request;
-
-    setIsSharingVerseImage(true);
-    let releaseUnsharedImage: (() => void) | null = null;
-
-    try {
-      // The card is captured while the picker still shows it; the sheet is presented once it's gone.
-      let shareImage: (() => Promise<void>) | null = null;
-      try {
-        const Sharing = await import('expo-sharing');
-        if (!isCurrent()) return;
-
-        const available = await Sharing.isAvailableAsync();
-        if (!isCurrent()) return;
-        if (available && verseImageSharePreviewRef.current) {
-          const { captureRef, releaseCapture } = await import('react-native-view-shot');
-          if (!isCurrent()) return;
-          const imageUri = await captureRef(verseImageSharePreviewRef, {
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-          });
-          releaseUnsharedImage = () => releaseCapture(imageUri);
-          if (!isCurrent()) return;
-          shareImage = () => {
-            // The recipient may keep reading this file after native sharing returns.
-            releaseUnsharedImage = null;
-            return Sharing.shareAsync(imageUri, {
-              dialogTitle: t('groups.share'),
-              mimeType: 'image/png',
-            });
-          };
-        }
-      } catch (error) {
-        if (!isCurrent()) return;
-        reportVerseImageShareFailure(error);
-      }
-
-      await closeVerseImageSheetAndWait();
-      if (!isCurrent()) return;
-      // The spinner lives in the closed picker. A native sheet that never reports back must not
-      // leave it busy when the picker is opened again.
-      setIsSharingVerseImage(false);
-
-      if (shareImage) {
-        try {
-          // Both share sheets resolve when the user cancels; only a failure rejects.
-          await shareImage();
-          return;
-        } catch (error) {
-          if (!isCurrent()) return;
-          reportVerseImageShareFailure(error);
-        }
-      }
-
-      await Share.share({ message: selectedVerseShareText });
-    } catch (error) {
-      if (!isCurrent()) return;
-      reportVerseImageShareFailure(error);
-    } finally {
-      if (!isCurrent()) {
-        try {
-          releaseUnsharedImage?.();
-        } catch {
-          // Best-effort cleanup must not disturb a newer share request.
-        }
-      }
-      if (isCurrent()) {
-        verseImageShareRequestRef.current = null;
-        setIsSharingVerseImage(false);
-      }
-    }
+    await shareVerseImage();
   };
 
   const commitAnnotationEdits = async (edits: ReaderAnnotationEdits) => {

@@ -15,6 +15,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react-native';
+import { IconButton } from '../ui/IconButton';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getReadingFontFamily } from '../../design/fonts';
 import { motion, radius, shadows, spacing } from '../../design/system';
@@ -49,8 +51,9 @@ interface AnnotationActionSheetProps {
  * The reader's tray for the selected verses: highlight colours and verse actions,
  * or the note composer. Drawn inline over the reader, not in a modal, so the
  * Bible stays tappable around it: a tap on the page, or on the only selected verse
- * again, closes it, so it carries no close button (VoiceOver's escape gesture and
- * Android back close it too). Panels and state live in ./actionSheet.
+ * again, closes it, as do VoiceOver's escape gesture and Android back. A close button
+ * sits beside the reference too, for a tray opened by accident. Panels and state live
+ * in ./actionSheet.
  */
 function AnnotationActionSheetContent({
   referenceLabel,
@@ -118,19 +121,28 @@ function AnnotationActionSheetContent({
         style={[styles.overshootSkirt, { backgroundColor: colors.bibleSurface }]}
       />
 
-      <Text
-        accessibilityRole="header"
-        // Sighted readers see the dashed underline; a screen reader hears what the
-        // reference is.
-        accessibilityLabel={`${t('annotations.selected')}: ${sheet.referenceLabel}`}
-        style={[
-          styles.title,
-          titleFontFamily ? { fontFamily: titleFontFamily } : styles.titlePlatformWeight,
-          { color: colors.biblePrimaryText },
-        ]}
-      >
-        {sheet.referenceLabel}
-      </Text>
+      <View style={styles.header}>
+        <Text
+          accessibilityRole="header"
+          // Sighted readers see the dashed underline; a screen reader hears what the
+          // reference is.
+          accessibilityLabel={`${t('annotations.selected')}: ${sheet.referenceLabel}`}
+          style={[
+            styles.title,
+            titleFontFamily ? { fontFamily: titleFontFamily } : styles.titlePlatformWeight,
+            { color: colors.biblePrimaryText },
+          ]}
+        >
+          {sheet.referenceLabel}
+        </Text>
+        <IconButton
+          icon={X}
+          onPress={sheet.close}
+          size={CLOSE_BUTTON_SIZE}
+          iconSize={16}
+          accessibilityLabel={t('interface.close')}
+        />
+      </View>
 
       {sheet.mode === 'actions' ? (
         <SheetActions
@@ -186,6 +198,9 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
   );
 }
 
+// Small beside the title; IconButton grows its touch target back to 44pt.
+const CLOSE_BUTTON_SIZE = 32;
+
 // Deeper than the spring's few points of overshoot.
 const OVERSHOOT_SKIRT_HEIGHT = 48;
 
@@ -213,10 +228,16 @@ const styles = StyleSheet.create({
     top: '100%',
     height: OVERSHOOT_SKIRT_HEIGHT,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
   title: {
+    flex: 1,
     fontSize: 19,
     lineHeight: 25,
-    marginBottom: spacing.lg,
   },
   titlePlatformWeight: {
     fontWeight: '600',
