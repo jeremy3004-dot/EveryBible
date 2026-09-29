@@ -155,7 +155,6 @@ export const hi = {
     playVerseOfTheDay: 'आज का वचन चलाएँ',
     continueReading: 'पढ़ना जारी रखें',
     sharePrompt: 'प्रकाश फैलाएँ। आज किसी को प्रोत्साहित करें।',
-    plan: 'योजना',
     lessonChip: 'पाठ {{number}}',
     minutesLeft: '{{count}} मिनट शेष',
     percentComplete: '{{percent}}%',

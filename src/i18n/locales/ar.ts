@@ -538,7 +538,6 @@ export const ar = {
     playVerseOfTheDay: 'تشغيل آية اليوم',
     continueReading: 'مواصلة القراءة',
     sharePrompt: 'شارك النور. شجّع أحدهم اليوم.',
-    plan: 'خطة',
     lessonChip: 'الدرس {{number}}',
     minutesLeft: 'تبقى {{count}} دقيقة',
     percentComplete: '{{percent}}%',

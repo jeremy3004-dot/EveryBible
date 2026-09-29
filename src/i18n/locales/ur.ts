@@ -501,7 +501,6 @@ export const ur = {
     playVerseOfTheDay: 'آج کی آیت سنیں',
     continueReading: 'پڑھنا جاری رکھیں',
     sharePrompt: 'روشنی بانٹیں۔ آج کسی کی حوصلہ افزائی کریں۔',
-    plan: 'منصوبہ',
     lessonChip: 'سبق {{number}}',
     minutesLeft: '{{count}} منٹ باقی',
     percentComplete: '{{percent}}%',

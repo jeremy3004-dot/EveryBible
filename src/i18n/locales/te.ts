@@ -154,7 +154,6 @@ export const te = {
     playVerseOfTheDay: 'నేటి వచనాన్ని వినండి',
     continueReading: 'చదవడం కొనసాగించండి',
     sharePrompt: 'వెలుగును పంచుకోండి. ఈరోజు ఎవరినైనా ప్రోత్సహించండి.',
-    plan: 'ప్రణాళిక',
     lessonChip: 'పాఠం {{number}}',
     minutesLeft: 'ఇంకా {{count}} నిమి.',
     percentComplete: '{{percent}}%',

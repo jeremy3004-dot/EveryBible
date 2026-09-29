@@ -482,7 +482,6 @@ export const en = {
     playVerseOfTheDay: 'Play Verse of the Day',
     continueReading: 'Continue Reading',
     sharePrompt: 'Share light. Encourage someone today.',
-    plan: 'Plan',
     lessonChip: 'Lesson {{number}}',
     minutesLeft: '{{count}} min left',
     percentComplete: '{{percent}}%',

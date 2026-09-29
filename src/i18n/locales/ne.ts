@@ -153,7 +153,6 @@ export const ne = {
     playVerseOfTheDay: 'आजको पद बजाउनुहोस्',
     continueReading: 'पढाइ जारी राख्नुहोस्',
     sharePrompt: 'ज्योति बाँड्नुहोस्। आज कसैलाई प्रोत्साहन दिनुहोस्।',
-    plan: 'योजना',
     lessonChip: 'पाठ {{number}}',
     minutesLeft: '{{count}} मिनेट बाँकी',
     percentComplete: '{{percent}}%',

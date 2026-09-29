@@ -514,7 +514,6 @@ export const de = {
     playVerseOfTheDay: 'Vers des Tages abspielen',
     continueReading: 'Weiterlesen',
     sharePrompt: 'Teile Licht. Ermutige heute jemanden.',
-    plan: 'Plan',
     lessonChip: 'Lektion {{number}}',
     minutesLeft: '{{count}} Min. übrig',
     percentComplete: '{{percent}} %',

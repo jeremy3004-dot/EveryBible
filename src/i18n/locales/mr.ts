@@ -154,7 +154,6 @@ export const mr = {
     playVerseOfTheDay: 'आजचे वचन ऐका',
     continueReading: 'वाचन सुरू ठेवा',
     sharePrompt: 'प्रकाश वाटा. आज कोणाला तरी प्रोत्साहन द्या.',
-    plan: 'योजना',
     lessonChip: 'धडा {{number}}',
     minutesLeft: '{{count}} मिनिटे बाकी',
     percentComplete: '{{percent}}%',

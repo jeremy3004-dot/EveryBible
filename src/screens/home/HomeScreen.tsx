@@ -46,7 +46,8 @@ import {
 } from '../../data/gatherFoundations';
 import { getHomeVerseBackground } from '../../data/homeVerseBackgrounds';
 import { getHomeScreenLayout } from './homeLayoutModel';
-import { selectHomeContinuePlans } from './homeReadingPlansModel';
+import { selectHomePlanShelf } from './homePlanShelfModel';
+import { HomePlanShelf } from './HomePlanShelf';
 import { getHomeReadingStats } from './homeReadingStatsModel';
 import { HomeReadingHeatmap } from './HomeReadingHeatmap';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
@@ -62,12 +63,7 @@ import { getDailyScriptureReference } from '../../services/bible/dailyScripture'
 import { isChapterAudioCovered } from '../../services/bible/contentAvailability';
 import { getAudioAvailability } from '../../services/audio/audioAvailability';
 import { isRemoteAudioAvailable } from '../../services/audio/audioRemote';
-import {
-  getActivePlanDayNumber,
-  getVisibleCompletedEntryCount,
-} from '../../services/plans/readingPlanModel';
 import type { ReadingPlan } from '../../services/plans/types';
-import { getPlanLedgerGridDayCount } from '../plans/planLedgerGridModel';
 import { IconButton } from '../../components/ui/IconButton';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { getReadingFontFamily } from '../../design/fonts';
@@ -162,7 +158,7 @@ export function HomeScreen() {
     (reduceMotion ? FadeIn : FadeInDown).duration(motion.duration.base).delay(step * 60);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const tabBar = useTabBarHeight();
-  // The three chips sit side by side at normal sizes; at large text a third of
+  // The chips sit side by side at normal sizes; at large text a third of
   // the card held a word per line, so they stack.
   const { rowDirection: chipDirection, isLargeText } = useLargeText();
   const bottomTabBarHeight = tabBar.height;
@@ -369,36 +365,15 @@ export function HomeScreen() {
   const nextLessonTitle = nextLessonTitleKey
     ? t(nextLessonTitleKey as Parameters<typeof t>[0])
     : (nextLesson?.title ?? '');
-  const continuePlans = useMemo(
-    () => selectHomeContinuePlans(readingPlans, progressByPlanId, 2, new Date(clockMs)),
+  const planShelf = useMemo(
+    () =>
+      selectHomePlanShelf({
+        plans: readingPlans,
+        progressByPlanId,
+        today: new Date(clockMs),
+      }),
     [clockMs, progressByPlanId, readingPlans]
   );
-  const featuredPlanProgress = continuePlans[0];
-  const featuredPlan =
-    featuredPlanProgress?.plan ??
-    readingPlans.find((plan) => plan.id === 'proverbs-31-days') ??
-    readingPlans[0] ??
-    null;
-  const featuredPlanTitle = featuredPlan
-    ? t(featuredPlan.title_key as Parameters<typeof t>[0], {
-        defaultValue: featuredPlan.title_key,
-      })
-    : t('readingPlans.title');
-  const featuredPlanDay = featuredPlan
-    ? getActivePlanDayNumber(featuredPlan, featuredPlanProgress?.progress, new Date(clockMs))
-    : 0;
-  const featuredPlanDuration = featuredPlan
-    ? getPlanLedgerGridDayCount(featuredPlan, new Date(clockMs))
-    : 0;
-  const featuredPlanCompletedCount = featuredPlanProgress
-    ? getVisibleCompletedEntryCount(
-        featuredPlanProgress.plan,
-        featuredPlanProgress.progress.completed_entries,
-        new Date(clockMs)
-      )
-    : 0;
-  const featuredPlanFraction =
-    featuredPlanDuration > 0 ? featuredPlanCompletedCount / featuredPlanDuration : 0;
   const currentBookName = getTranslatedBookName(currentBook, t);
   const currentBookInfo = getBookById(currentBook);
   const hasContinuePassage = hasReaderHistory && currentBookInfo != null;
@@ -524,18 +499,17 @@ export function HomeScreen() {
     });
   };
 
-  const handleOpenPlan = () => {
-    lightHaptic();
-    if (!featuredPlan) {
-      navigation.navigate('Plans', { screen: 'PlansHome' });
-      return;
-    }
-
+  // The shelf's cards own their haptic; these only route.
+  const handleOpenPlan = (planId: string) => {
     navigation.navigate('Plans', {
       screen: 'PlanDetail',
-      params: { planId: featuredPlan.id },
+      params: { planId },
       initial: false,
     });
+  };
+
+  const handleBrowsePlans = () => {
+    navigation.navigate('Plans', { screen: 'PlansHome' });
   };
 
   const handleOpenGather = () => {
@@ -991,22 +965,6 @@ export function HomeScreen() {
                 accessibilityLabel: `${t('common.continue')} ${currentPassageLabel}`,
               })}
               {renderReadingChip({
-                label: t('home.plan'),
-                value:
-                  featuredPlanDuration > 0
-                    ? t('readingPlans.dayLabel', { day: featuredPlanDay })
-                    : t('readingPlans.browsePlans'),
-                fraction: featuredPlanFraction,
-                onPress: handleOpenPlan,
-                accessibilityLabel:
-                  featuredPlanDuration > 0
-                    ? `${featuredPlanTitle} · ${t('readingPlans.dayOf', {
-                        current: featuredPlanDay,
-                        total: featuredPlanDuration,
-                      })}`
-                    : t('readingPlans.browsePlans'),
-              })}
-              {renderReadingChip({
                 label: t('tabs.gather'),
                 value: t('home.lessonChip', { number: nextLessonIndex + 1 }),
                 fraction:
@@ -1025,6 +983,17 @@ export function HomeScreen() {
               })}
             </View>
           </Animated.View>
+
+          {planShelf.items.length > 0 ? (
+            <Animated.View entering={sectionEntering(1)}>
+              <HomePlanShelf
+                shelf={planShelf}
+                gutter={SHEET_GUTTER}
+                onOpenPlan={handleOpenPlan}
+                onBrowsePlans={handleBrowsePlans}
+              />
+            </Animated.View>
+          ) : null}
         </View>
       </ScrollView>
 

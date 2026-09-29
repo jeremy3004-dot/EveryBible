@@ -514,7 +514,6 @@ export const vi = {
     playVerseOfTheDay: 'Phát câu Kinh Thánh hôm nay',
     continueReading: 'Tiếp tục đọc',
     sharePrompt: 'Chia sẻ ánh sáng. Khích lệ ai đó hôm nay.',
-    plan: 'Kế hoạch',
     lessonChip: 'Bài học {{number}}',
     minutesLeft: '{{count}} phút còn lại',
     percentComplete: '{{percent}}%',

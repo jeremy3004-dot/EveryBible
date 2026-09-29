@@ -499,7 +499,6 @@ export const ja = {
     playVerseOfTheDay: '今日の聖句を再生',
     continueReading: '続きを読む',
     sharePrompt: '光を分かち合いましょう。今日、誰かを励ましましょう。',
-    plan: 'プラン',
     lessonChip: 'レッスン {{number}}',
     minutesLeft: '残り{{count}}分',
     percentComplete: '{{percent}}%',

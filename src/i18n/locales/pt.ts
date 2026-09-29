@@ -524,7 +524,6 @@ export const pt = {
     playVerseOfTheDay: 'Ouvir o versículo do dia',
     continueReading: 'Continuar lendo',
     sharePrompt: 'Compartilhe luz. Encoraje alguém hoje.',
-    plan: 'Plano',
     lessonChip: 'Lição {{number}}',
     minutesLeft: '{{count}} min restantes',
     percentComplete: '{{percent}}%',

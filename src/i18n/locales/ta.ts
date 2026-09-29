@@ -155,7 +155,6 @@ export const ta = {
     playVerseOfTheDay: 'இன்றைய வசனத்தை இயக்கு',
     continueReading: 'தொடர்ந்து வாசி',
     sharePrompt: 'ஒளியைப் பகிருங்கள். இன்று ஒருவரை ஊக்குவியுங்கள்.',
-    plan: 'திட்டம்',
     lessonChip: 'பாடம் {{number}}',
     minutesLeft: '{{count}} நிமிடம் மீதமுள்ளது',
     percentComplete: '{{percent}}%',

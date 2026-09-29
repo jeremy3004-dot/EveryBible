@@ -527,7 +527,6 @@ export const ru = {
     playVerseOfTheDay: 'Слушать стих дня',
     continueReading: 'Продолжить чтение',
     sharePrompt: 'Делитесь светом. Поддержите кого-нибудь сегодня.',
-    plan: 'План',
     lessonChip: 'Урок {{number}}',
     minutesLeft: 'Осталось {{count}} мин',
     percentComplete: '{{percent}}%',

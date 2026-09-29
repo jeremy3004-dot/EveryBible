@@ -755,16 +755,100 @@ test('the hero has no greeting, date or welcome line, only the weekday beside th
 
 // ---- Reading plans ------------------------------------------------------------
 
-test('the plan card resolves the featured recurring plan against today', async () => {
-  const onTheSeventeenth = await renderHome();
-  const plan = onTheSeventeenth.getByRole('button', { name: /· Day 17 of 30$/ });
-  assert.ok(within(plan).getByText(t('readingPlans.dayLabel', { day: 17 })));
-  assert.ok(within(plan).getByTestId('reading-chip-progress'));
-  await onTheSeventeenth.unmount();
+const planNamed = (id: string) => bundledReadingPlans.find((plan) => plan.id === id)!;
+const titleOf = (plan: ReadingPlan) => t(plan.title_key);
+const nodesWithTestId = (
+  view: { queryAllByType: (type: string) => ReactTestInstance[] },
+  id: string
+) => view.queryAllByType('View').filter((node) => node.props.testID === id);
+const shelfValue = (card: ReactTestInstance) =>
+  (card.props.accessibilityValue as { text?: string } | undefined)?.text;
 
-  setToday(new Date(2026, 8, 5, 9, 0, 0));
-  const onTheFifth = await renderHome();
-  assert.ok(onTheFifth.getByRole('button', { name: /· Day 5 of 30$/ }));
+function joinPlan(plan: ReadingPlan, overrides: Partial<UserReadingPlanProgress> = {}) {
+  const started_at = new Date(2026, 0, 1, 9).toISOString();
+  readingPlansStore.setState({
+    progressByPlanId: {
+      ...readingPlansStore.getState().progressByPlanId,
+      [plan.id]: {
+        id: `progress-${plan.id}`,
+        plan_id: plan.id,
+        started_at,
+        completed_entries: {},
+        current_day: 1,
+        is_completed: false,
+        completed_at: null,
+        synced_at: started_at,
+        ...overrides,
+      },
+    },
+  });
+}
+
+test('the reading card keeps Continue and Gather, and no longer a plan chip', async () => {
+  const view = await renderHome();
+
+  assert.equal(nodesWithTestId(view, 'reading-chip-progress').length, 2);
+  assert.equal(view.queryByText(t('readingPlans.browsePlans')), null);
+});
+
+test('with no plan joined, the shelf suggests plans to start', async () => {
+  const view = await renderHome();
+  const proverbs = planNamed('proverbs-31-days');
+
+  assert.ok(view.getByRole('button', { name: t('readingPlans.findPlans') }));
+  assert.equal(view.queryByRole('button', { name: t('readingPlans.myPlans') }), null);
+  const card = view.getByRole('button', { name: titleOf(proverbs) });
+  assert.equal(shelfValue(card), t('readingPlans.daysCount', { count: 31 }));
+  assert.equal(nodesWithTestId(view, 'plan-shelf-progress').length, 0);
+});
+
+test('tapping a cover opens that plan over the plans list', async () => {
+  const view = await renderHome();
+  await view.press(view.getByRole('button', { name: titleOf(planNamed('proverbs-31-days')) }));
+
+  assert.deepEqual(harness.navigation.calls, [
+    {
+      method: 'navigate',
+      args: [
+        'Plans',
+        { screen: 'PlanDetail', params: { planId: 'proverbs-31-days' }, initial: false },
+      ],
+    },
+  ]);
+});
+
+test('the shelf heading opens the plans list', async () => {
+  const view = await renderHome();
+  await view.press(view.getByRole('button', { name: t('readingPlans.findPlans') }));
+
+  assert.deepEqual(harness.navigation.calls, [
+    { method: 'navigate', args: ['Plans', { screen: 'PlansHome' }] },
+  ]);
+});
+
+test('a joined plan shows its day and progress, then a tile to find more', async () => {
+  const plan = planNamed('psalms-30-days');
+  catalog = [plan, planNamed('proverbs-31-days')];
+  joinPlan(plan, {
+    current_day: 4,
+    completed_entries: Object.fromEntries(
+      [1, 2, 3].map((day) => [getPlanCompletionEntryKey(plan, day, TODAY), TODAY.toISOString()])
+    ),
+  });
+  const view = await renderHome();
+
+  assert.ok(view.getByRole('button', { name: t('readingPlans.myPlans') }));
+  const card = view.getByRole('button', { name: titleOf(plan) });
+  assert.equal(shelfValue(card), t('readingPlans.dayOf', { current: 4, total: 30 }));
+  const bar = within(card).getByTestId('plan-shelf-progress');
+  assert.equal(flattenStyle(bar.props.style)?.width, '10%');
+  // Only joined plans are on the shelf; the suggestion is not.
+  assert.equal(view.queryByRole('button', { name: titleOf(planNamed('proverbs-31-days')) }), null);
+
+  await view.press(view.getByRole('button', { name: t('readingPlans.findPlans') }));
+  assert.deepEqual(harness.navigation.calls, [
+    { method: 'navigate', args: ['Plans', { screen: 'PlansHome' }] },
+  ]);
 });
 
 for (const [year, month, total] of [
@@ -772,73 +856,50 @@ for (const [year, month, total] of [
   [2028, 1, 29],
   [2026, 9, 31],
 ] as const) {
-  test(`the featured monthly plan uses ${total} days for its label and progress`, async () => {
+  test(`a joined monthly plan uses ${total} days for its label and progress`, async () => {
     const today = new Date(year, month, 17, 9);
     setToday(today);
-    const plan = bundledReadingPlans.find((candidate) => candidate.id === 'proverbs-31-days')!;
+    const plan = planNamed('proverbs-31-days');
     catalog = [plan];
-    const completed_entries = Object.fromEntries(
-      Array.from({ length: 14 }, (_, index) => [
-        getPlanCompletionEntryKey(plan, index + 1, today),
-        today.toISOString(),
-      ])
-    );
-    const started_at = new Date(year, month, 1, 9).toISOString();
-    readingPlansStore.setState({
-      progressByPlanId: {
-        [plan.id]: {
-          id: 'monthly-progress',
-          plan_id: plan.id,
-          started_at,
-          completed_entries,
-          current_day: 15,
-          is_completed: false,
-          completed_at: null,
-          synced_at: started_at,
-        },
-      },
+    joinPlan(plan, {
+      started_at: new Date(year, month, 1, 9).toISOString(),
+      current_day: 15,
+      completed_entries: Object.fromEntries(
+        Array.from({ length: 14 }, (_, index) => [
+          getPlanCompletionEntryKey(plan, index + 1, today),
+          today.toISOString(),
+        ])
+      ),
     });
     const view = await renderHome();
-    const card = view.getByRole('button', { name: new RegExp(`· Day 17 of ${total}$`) });
-    const bar = within(card).getByTestId('reading-chip-progress');
+    const card = view.getByRole('button', { name: titleOf(plan) });
+    assert.equal(shelfValue(card), t('readingPlans.dayOf', { current: 17, total }));
+    const bar = within(card).getByTestId('plan-shelf-progress');
     assert.equal(flattenStyle(bar.props.style)?.width, `${Math.round((14 / total) * 100)}%`);
   });
 }
 
-for (const [scheduleMode, total, day] of [
-  ['relative', 60, 1],
-  ['calendar-day-of-week', 7, 3],
-] as const) {
-  test(`the featured ${scheduleMode} plan keeps its full duration in February`, async () => {
-    setToday(new Date(2026, 1, 17, 9));
-    catalog = [{ ...bundledReadingPlans[0], scheduleMode, duration_days: total }];
-    const view = await renderHome();
-    const card = view.getByRole('button', { name: new RegExp(`· Day ${day} of ${total}$`) });
-    assert.ok(within(card).getByText(t('readingPlans.dayLabel', { day })));
-  });
-}
-
-test('tapping the plan chip opens that plan', async () => {
+test('a joined weekly plan keeps its seven days in February', async () => {
+  // Tuesday 17 February 2026: day 3 of a week that starts on Sunday.
+  setToday(new Date(2026, 1, 17, 9));
+  const plan = {
+    ...planNamed('psalms-30-days'),
+    scheduleMode: 'calendar-day-of-week' as const,
+    duration_days: 7,
+  };
+  catalog = [plan];
+  joinPlan(plan);
   const view = await renderHome();
-  await view.press(view.getByRole('button', { name: /· Day 17 of 30$/ }));
 
-  const [call] = harness.navigation.calls;
-  assert.equal(call.method, 'navigate');
-  assert.equal(call.args[0], 'Plans');
-  const target = call.args[1] as { screen: string; params: { planId: string }; initial?: boolean };
-  assert.equal(target.screen, 'PlanDetail');
-  assert.equal(target.initial, false, 'the plans list stays under the plan, so back returns there');
-  assert.ok(catalog.some((plan) => plan.id === target.params.planId));
+  const card = view.getByRole('button', { name: titleOf(plan) });
+  assert.equal(shelfValue(card), t('readingPlans.dayOf', { current: 3, total: 7 }));
 });
 
-test('with no plan to feature, the chip offers to browse plans', async () => {
+test('with an empty catalogue there is no shelf', async () => {
   catalog = [];
   const view = await renderHome();
 
-  await view.press(view.getByRole('button', { name: t('readingPlans.browsePlans') }));
-  assert.deepEqual(harness.navigation.calls, [
-    { method: 'navigate', args: ['Plans', { screen: 'PlansHome' }] },
-  ]);
+  assert.equal(view.queryByRole('button', { name: t('readingPlans.findPlans') }), null);
 });
 
 // ---- Gather and the reading ledger ----------------------------------------------
@@ -878,7 +939,7 @@ test('the Gather chip names the active foundation, its lesson count and the next
 const heatmapButton = (view: HomeView) =>
   view.getByRole('button', { name: new RegExp(`^${t('more.readingActivity')} · `) });
 
-test('one dark card holds the streak, the heatmap, then Continue, the plan and Gather', async () => {
+test('one dark card holds the streak, the heatmap, Continue and Gather, then the plan shelf', async () => {
   const view = await renderHome();
   const [scroll] = view.queryAllByType('ScrollView');
   const order = within(scroll)
@@ -888,9 +949,12 @@ test('one dark card holds the streak, the heatmap, then Continue, the plan and G
   const indexOf = (prefix: string) => order.findIndex((label) => label.startsWith(prefix));
   const heatmap = indexOf(`${t('more.readingActivity')} · `);
   const resume = indexOf(`${t('common.continue')} John 3`);
-  const plan = order.findIndex((label) => / · Day 17 of 30$/.test(label));
   const gather = indexOf(`${t('tabs.gather')} · `);
-  assert.ok(heatmap >= 0 && heatmap < resume && resume < plan && plan < gather, order.join(' | '));
+  const shelf = indexOf(t('readingPlans.findPlans'));
+  assert.ok(
+    heatmap >= 0 && heatmap < resume && resume < gather && gather < shelf,
+    order.join(' | ')
+  );
 
   // The card is the dark scope even on vellum.
   const { darkColors } = await import('../../contexts/ThemeContext');
@@ -967,8 +1031,8 @@ test('at accessibility sizes the chips stack and their values may wrap', async (
   const { DISPLAY_TEXT_MAX_FONT_SCALE } = await import('../../design/largeTextLayout');
   const layout = async () => {
     const view = await renderHome();
-    const value = view.getByText(t('readingPlans.dayLabel', { day: 17 }));
-    const chip = view.getByRole('button', { name: /· Day 17 of 30$/ });
+    const value = view.getByText('John 3');
+    const chip = view.getByRole('button', { name: `${t('common.continue')} John 3` });
     const row = hostAncestors(chip).find(
       (node) => flattenStyle(node.props.style)?.flexDirection !== undefined
     );

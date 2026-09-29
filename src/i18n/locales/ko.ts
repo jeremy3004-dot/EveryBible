@@ -498,7 +498,6 @@ export const ko = {
     playVerseOfTheDay: '오늘의 말씀 재생',
     continueReading: '계속 읽기',
     sharePrompt: '빛을 나누세요. 오늘 누군가를 격려하세요.',
-    plan: '계획',
     lessonChip: '레슨 {{number}}',
     minutesLeft: '{{count}}분 남음',
     percentComplete: '{{percent}}%',

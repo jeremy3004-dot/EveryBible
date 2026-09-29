@@ -532,7 +532,6 @@ export const fr = {
     playVerseOfTheDay: 'Écouter le verset du jour',
     continueReading: 'Continuer la lecture',
     sharePrompt: 'Partagez la lumière. Encouragez quelqu’un aujourd’hui.',
-    plan: 'Plan',
     lessonChip: 'Leçon {{number}}',
     minutesLeft: '{{count}} min restantes',
     percentComplete: '{{percent}} %',

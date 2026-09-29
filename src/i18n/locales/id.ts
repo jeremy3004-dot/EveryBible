@@ -511,7 +511,6 @@ export const id = {
     playVerseOfTheDay: 'Putar ayat hari ini',
     continueReading: 'Lanjutkan membaca',
     sharePrompt: 'Bagikan terang. Semangati seseorang hari ini.',
-    plan: 'Rencana',
     lessonChip: 'Pelajaran {{number}}',
     minutesLeft: 'Sisa {{count}} menit',
     percentComplete: '{{percent}}%',

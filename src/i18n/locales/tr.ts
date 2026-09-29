@@ -511,7 +511,6 @@ export const tr = {
     playVerseOfTheDay: 'Günün ayetini dinle',
     continueReading: 'Okumaya devam et',
     sharePrompt: 'Işığı paylaşın. Bugün birini yüreklendirin.',
-    plan: 'Plan',
     lessonChip: 'Ders {{number}}',
     minutesLeft: '{{count}} dk kaldı',
     percentComplete: '%{{percent}}',
