@@ -1,4 +1,5 @@
 import { bibleBooks } from '../constants/books';
+import { LIFE_SITUATION_PLANS } from './lifeSituationPlans';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
 import type { ReadingPlanCoverKey } from '../services/plans/types';
 import type { ReadingPlanScheduleMode } from '../services/plans/types';
@@ -1154,6 +1155,40 @@ const timedChallengeRecipes: TimedChallengeRecipe[] = [
   },
 ];
 
+// Seasons of life: a day's chapters run in reading order, and back-to-back
+// chapters of one book (Ruth 1, Ruth 2) become one ranged entry.
+const lifeSituationRecipes: VersePlanRecipe[] = LIFE_SITUATION_PLANS.map((plan, index) => ({
+  id: plan.id,
+  slug: plan.id,
+  title_key: `readingPlans.lifeSituations.${plan.key}.title`,
+  description_key: `readingPlans.lifeSituations.${plan.key}.description`,
+  duration_days: plan.days.length,
+  category: 'life-situation',
+  sort_order: 40 + index,
+  cover_key: plan.coverKey,
+  entries: plan.days.flatMap((chapters, dayIndex) => {
+    const entries: VersePlanRecipe['entries'] = [];
+    for (const [book, chapter] of chapters) {
+      const previous = entries[entries.length - 1];
+      if (
+        previous &&
+        previous.book === book &&
+        (previous.chapter_end ?? previous.chapter_start) === chapter - 1
+      ) {
+        previous.chapter_end = chapter;
+      } else {
+        entries.push({
+          day_number: dayIndex + 1,
+          book,
+          chapter_start: chapter,
+          chapter_end: null,
+        });
+      }
+    }
+    return entries;
+  }),
+}));
+
 const sequentialPlans = sequentialRecipes.map(buildSequentialPlan);
 const versePlans = verseRecipes.map(buildVersePlan);
 const topicalPlans = topicalRecipes.map(buildVersePlan);
@@ -1161,6 +1196,7 @@ const devotionalPlans = devotionalRecipes.map(buildVersePlan);
 const timedChallengePlans = timedChallengeRecipes.map(buildTimedChallengePlan);
 const weeklySessionPlans = weeklySessionRecipes.map(buildWeeklySessionPlan);
 const calendarRhythmPlans = calendarRhythmRecipes.map(buildVersePlan);
+const lifeSituationPlans = lifeSituationRecipes.map(buildVersePlan);
 
 export const readingPlans = [
   ...sequentialPlans,
@@ -1170,6 +1206,7 @@ export const readingPlans = [
   ...timedChallengePlans,
   ...weeklySessionPlans,
   ...calendarRhythmPlans,
+  ...lifeSituationPlans,
 ]
   .map((item) => item.plan)
   .sort((left, right) => left.sort_order - right.sort_order);
@@ -1182,6 +1219,7 @@ export const readingPlanEntries = [
   ...timedChallengePlans,
   ...weeklySessionPlans,
   ...calendarRhythmPlans,
+  ...lifeSituationPlans,
 ]
   .flatMap((item) => item.entries)
   .sort((left, right) => {

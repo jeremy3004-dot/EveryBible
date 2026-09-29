@@ -1491,10 +1491,87 @@ export const id = {
       title: 'Mendengar Suara Tuhan',
       description: 'Dengarkan suara Tuhan melalui para nabi, mazmur, Yesus, dan gereja mula-mula.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Duka',
+        description:
+          'Tujuh hari untuk berduka, dari Ayub dan Rut sampai janji bahwa setiap air mata akan dihapus.',
+      },
+      stress: {
+        title: 'Tekanan',
+        description:
+          'Tujuh hari saat semuanya terasa terlalu berat: pemeliharaan harian, beban yang dipikul bersama, dan istirahat sejati.',
+      },
+      fear: {
+        title: 'Ketakutan',
+        description:
+          'Tujuh hari bersama orang-orang yang menghadapi raksasa, api, dan laut, dan mendapati Tuhan di sisi mereka.',
+      },
+      peace: {
+        title: 'Damai',
+        description:
+          'Tujuh hari tentang damai yang Yesus berikan: damai dengan Allah, damai dengan sesama, dan percaya yang tenang.',
+      },
+      depression: {
+        title: 'Depresi',
+        description:
+          'Tujuh hari mazmur dan nubuat yang jujur untuk masa-masa gelap, dan Allah yang menjumpaimu di sana.',
+      },
+      hope: {
+        title: 'Pengharapan',
+        description:
+          'Tujuh hari janji yang ditepati, dari Abraham dan Yusuf sampai tulang-tulang kering yang hidup kembali.',
+      },
+      healing: {
+        title: 'Kesembuhan',
+        description:
+          'Tujuh hari bersama Allah yang menyembuhkan, dari Naaman dan Hizkia sampai sentuhan Yesus.',
+      },
+      anger: {
+        title: 'Kemarahan',
+        description:
+          'Tujuh hari kisah tentang kemarahan, dari Kain sampai Yunus, dan belas kasihan yang menjawabnya.',
+      },
+      anxiety: {
+        title: 'Kecemasan',
+        description:
+          'Tujuh hari belajar percaya: curahkan isi hatimu, dan biarkan Tuhan menjagamu.',
+      },
+      love: {
+        title: 'Kasih',
+        description:
+          'Tujuh hari tentang kasih Allah yang tidak pernah melepaskan, dan bagaimana kasih itu mengajar kita mengasihi.',
+      },
+      patience: {
+        title: 'Kesabaran',
+        description: 'Tujuh hari menanti Tuhan bersama Abraham, Nuh, Daud, dan Habakuk.',
+      },
+      doubt: {
+        title: 'Keraguan',
+        description:
+          'Tujuh hari bersama orang-orang yang mempertanyakan Allah, dari Musa sampai Tomas, dan mendapati-Nya setia.',
+      },
+      pride: {
+        title: 'Kesombongan',
+        description:
+          'Tujuh hari tentang kerendahan hati: raja-raja sombong direndahkan, dan Raja yang melayani dengan membasuh kaki.',
+      },
+      temptation: {
+        title: 'Pencobaan',
+        description:
+          'Tujuh hari tentang berdiri teguh, bersama Yesus di padang gurun, Yusuf yang lari, dan Daud yang jatuh.',
+      },
+      family: {
+        title: 'Keluarga',
+        description:
+          'Tujuh hari tentang keluarga dalam Kitab Suci, yang tercerai-berai dan dipulihkan, serta keluarga Allah.',
+      },
+    },
     categoryChronological: 'Seluruh Alkitab',
     categoryBookStudy: 'Studi kitab',
     categoryTopical: 'Tematik',
     categoryDevotional: 'Renungan',
+    categoryLifeSituations: 'Musim kehidupan',
     timedChallenges: 'Tantangan membaca',
     bibleIn30Days: {
       title: 'Alkitab Lengkap dalam 30 Hari',

@@ -1451,10 +1451,76 @@ export const ko = {
       title: '하나님의 음성 듣기',
       description: '선지자와 시편, 예수님과 초대교회를 통해 하나님의 음성에 귀 기울여 보세요.',
     },
+    lifeSituations: {
+      loss: {
+        title: '상실',
+        description: '욥과 룻에서 모든 눈물을 닦아 주실 약속까지, 슬픔 속에 있는 이를 위한 7일.',
+      },
+      stress: {
+        title: '스트레스',
+        description: '모든 것이 벅찰 때를 위한 7일: 날마다의 공급, 함께 지는 짐, 참된 쉼.',
+      },
+      fear: {
+        title: '두려움',
+        description: '거인과 불과 바다를 마주하고 곁에 계신 하나님을 만난 사람들과 함께하는 7일.',
+      },
+      peace: {
+        title: '평안',
+        description:
+          '예수님이 주시는 평안에 관한 7일: 하나님과의 화평, 이웃과의 화평, 잠잠한 신뢰.',
+      },
+      depression: {
+        title: '우울함',
+        description:
+          '어두운 시절을 위한 솔직한 시편과 선지서, 그곳에서 만나 주시는 하나님과 함께하는 7일.',
+      },
+      hope: {
+        title: '소망',
+        description: '아브라함과 요셉부터 다시 살아나는 마른 뼈까지, 지켜진 약속을 보는 7일.',
+      },
+      healing: {
+        title: '치유',
+        description: '나아만과 히스기야부터 예수님의 손길까지, 고치시는 하나님과 함께하는 7일.',
+      },
+      anger: {
+        title: '분노',
+        description: '가인부터 요나까지 분노에 관한 이야기와 그 분노에 답하는 자비를 보는 7일.',
+      },
+      anxiety: {
+        title: '불안',
+        description: '신뢰를 배우는 7일: 마음을 쏟아 놓고 하나님께서 지켜 주시도록 맡기세요.',
+      },
+      love: {
+        title: '사랑',
+        description: '결코 놓지 않으시는 하나님의 사랑과, 그 사랑이 가르쳐 주는 사랑에 관한 7일.',
+      },
+      patience: {
+        title: '인내',
+        description: '아브라함, 노아, 다윗, 하박국과 함께 하나님을 기다리는 7일.',
+      },
+      doubt: {
+        title: '의심',
+        description:
+          '모세부터 도마까지, 하나님께 질문하다 그분의 신실하심을 발견한 사람들과 함께하는 7일.',
+      },
+      pride: {
+        title: '교만',
+        description: '겸손에 관한 7일: 낮아진 교만한 왕들과, 제자들의 발을 씻기신 섬기는 왕.',
+      },
+      temptation: {
+        title: '유혹',
+        description: '굳게 서는 법에 관한 7일: 광야의 예수님, 도망친 요셉, 넘어진 다윗.',
+      },
+      family: {
+        title: '가족',
+        description: '깨어졌다가 회복된 성경 속 가정들과 하나님의 가족에 관한 7일.',
+      },
+    },
     categoryChronological: '성경 전체',
     categoryBookStudy: '책별 공부',
     categoryTopical: '주제별',
     categoryDevotional: '묵상',
+    categoryLifeSituations: '삶의 계절',
     timedChallenges: '읽기 챌린지',
     bibleIn30Days: {
       title: '30일 성경 통독',

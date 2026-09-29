@@ -1500,10 +1500,86 @@ export const en = {
       title: 'Hearing God’s Voice',
       description: 'Listen for God through the prophets, the psalms, Jesus, and the early church.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Loss',
+        description:
+          'Seven days for grieving, from Job and Ruth to the promise that every tear will be wiped away.',
+      },
+      stress: {
+        title: 'Stress',
+        description:
+          'Seven days for when it is all too much: daily provision, shared burdens, and real rest.',
+      },
+      fear: {
+        title: 'Fear',
+        description:
+          'Seven days with people who faced giants, fire, and the sea, and found God beside them.',
+      },
+      peace: {
+        title: 'Peace',
+        description:
+          'Seven days on the peace Jesus gives: peace with God, peace with others, and quiet trust.',
+      },
+      depression: {
+        title: 'Depression',
+        description:
+          'Seven days of honest psalms and prophets for dark seasons, and the God who meets you there.',
+      },
+      hope: {
+        title: 'Hope',
+        description:
+          'Seven days of promises kept, from Abraham and Joseph to dry bones that live again.',
+      },
+      healing: {
+        title: 'Healing',
+        description:
+          'Seven days with the God who heals, from Naaman and Hezekiah to the touch of Jesus.',
+      },
+      anger: {
+        title: 'Anger',
+        description:
+          'Seven days of stories about anger, from Cain to Jonah, and the mercy that answers it.',
+      },
+      anxiety: {
+        title: 'Anxiety',
+        description: 'Seven days of learning to trust: pour out your heart, and let God keep you.',
+      },
+      love: {
+        title: 'Love',
+        description:
+          'Seven days on the love of God that never lets go, and how it teaches us to love.',
+      },
+      patience: {
+        title: 'Patience',
+        description: 'Seven days of waiting on God with Abraham, Noah, David, and Habakkuk.',
+      },
+      doubt: {
+        title: 'Doubt',
+        description:
+          'Seven days with people who questioned God, from Moses to Thomas, and found Him faithful.',
+      },
+      pride: {
+        title: 'Pride',
+        description:
+          'Seven days on humility: proud kings brought low, and the servant King who washed feet.',
+      },
+      temptation: {
+        title: 'Temptation',
+        description:
+          'Seven days on standing firm, with Jesus in the wilderness, Joseph who ran, and David who fell.',
+      },
+      family: {
+        title: 'Family',
+        description:
+          'Seven days on families in Scripture, torn apart and restored, and the family of God.',
+      },
+    },
     categoryChronological: 'Whole Bible',
     categoryBookStudy: 'Book study',
     categoryTopical: 'Topical',
     categoryDevotional: 'Devotional',
+    categoryLifeSituations: 'Seasons of life',
     timedChallenges: 'Reading Challenges',
     bibleIn30Days: {
       title: 'Full Bible in 30 Days',

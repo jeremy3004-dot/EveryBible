@@ -1462,10 +1462,76 @@ export const ja = {
       title: '神の声を聞く',
       description: '預言者、詩篇、イエス、そして初代教会を通して神の声に耳を傾けます。',
     },
+    lifeSituations: {
+      loss: {
+        title: '喪失',
+        description:
+          '悲しみの中にある人へ。ヨブやルツから、すべての涙がぬぐわれる約束までの七日間。',
+      },
+      stress: {
+        title: 'ストレス',
+        description:
+          'すべてが重すぎるときに。日ごとの備え、分かち合う重荷、本当の休息を読む七日間。',
+      },
+      fear: {
+        title: '恐れ',
+        description: '巨人や火や海に向き合い、そばにおられる神を見いだした人々と歩む七日間。',
+      },
+      peace: {
+        title: '平安',
+        description: 'イエスが与える平安について。神との平和、人との和解、静かな信頼を学ぶ七日間。',
+      },
+      depression: {
+        title: '落ち込み',
+        description:
+          '暗い季節のための正直な詩編と預言者、そしてそこで出会ってくださる神との七日間。',
+      },
+      hope: {
+        title: '希望',
+        description: '守られた約束の七日間。アブラハムやヨセフから、再び生きる枯れた骨まで。',
+      },
+      healing: {
+        title: '癒やし',
+        description: '癒やす神と過ごす七日間。ナアマンやヒゼキヤから、イエスの触れる手まで。',
+      },
+      anger: {
+        title: '怒り',
+        description: 'カインからヨナまで、怒りの物語とそれに応える憐れみを読む七日間。',
+      },
+      anxiety: {
+        title: '不安',
+        description: '信頼することを学ぶ七日間。心を注ぎ出し、神に守っていただきましょう。',
+      },
+      love: {
+        title: '愛',
+        description: '決して離さない神の愛と、その愛が私たちに愛することを教える七日間。',
+      },
+      patience: {
+        title: '忍耐',
+        description: 'アブラハム、ノア、ダビデ、ハバククと共に神を待ち望む七日間。',
+      },
+      doubt: {
+        title: '疑い',
+        description: 'モーセからトマスまで、神に問いかけ、神の真実を見いだした人々との七日間。',
+      },
+      pride: {
+        title: '高ぶり',
+        description: '謙遜について学ぶ七日間。低くされた高慢な王たちと、弟子の足を洗った仕える王。',
+      },
+      temptation: {
+        title: '誘惑',
+        description: '堅く立つための七日間。荒れ野のイエス、逃げたヨセフ、倒れたダビデと共に。',
+      },
+      family: {
+        title: '家族',
+        description: '聖書の中で引き裂かれ、回復された家族と、神の家族について読む七日間。',
+      },
+    },
     categoryChronological: '聖書全体',
     categoryBookStudy: '書巻の学び',
     categoryTopical: 'テーマ別',
     categoryDevotional: 'デボーション',
+    categoryLifeSituations: '人生の季節',
     timedChallenges: '読書チャレンジ',
     bibleIn30Days: {
       title: '30日で聖書全巻',

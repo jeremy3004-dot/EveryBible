@@ -1428,10 +1428,73 @@ export const zh = {
       title: '聆听神的声音',
       description: '透过先知、诗篇、耶稣和早期教会，聆听神的声音。',
     },
+    lifeSituations: {
+      loss: {
+        title: '失落',
+        description: '七天的哀伤陪伴，从约伯与路得，到神擦去一切眼泪的应许。',
+      },
+      stress: {
+        title: '压力',
+        description: '七天给重担难当的你：日用的供应、彼此分担的重担，以及真正的安息。',
+      },
+      fear: {
+        title: '惧怕',
+        description: '七天与面对巨人、烈火和大海的人同行，他们发现神就在身旁。',
+      },
+      peace: {
+        title: '平安',
+        description: '七天默想耶稣所赐的平安：与神和好、与人和睦，并安静信靠。',
+      },
+      depression: {
+        title: '忧郁',
+        description: '七天读诚实的诗篇与先知书，陪你走过幽暗季节，神就在那里与你相遇。',
+      },
+      hope: {
+        title: '盼望',
+        description: '七天看神信守应许，从亚伯拉罕、约瑟到枯骨重新复活。',
+      },
+      healing: {
+        title: '医治',
+        description: '七天认识医治的神，从乃缦、希西家到耶稣的触摸。',
+      },
+      anger: {
+        title: '愤怒',
+        description: '七天读关于怒气的故事，从该隐到约拿，以及回应怒气的怜悯。',
+      },
+      anxiety: {
+        title: '忧虑',
+        description: '七天学习信靠：向神倾心吐意，让祂保守你。',
+      },
+      love: {
+        title: '爱',
+        description: '七天默想神永不放手的爱，以及这爱如何教我们去爱。',
+      },
+      patience: {
+        title: '忍耐',
+        description: '七天与亚伯拉罕、挪亚、大卫和哈巴谷一同等候神。',
+      },
+      doubt: {
+        title: '疑惑',
+        description: '七天与曾质问神的人同行，从摩西到多马，他们都发现神是信实的。',
+      },
+      pride: {
+        title: '骄傲',
+        description: '七天学习谦卑：骄傲的君王被降卑，仆人君王却为人洗脚。',
+      },
+      temptation: {
+        title: '试探',
+        description: '七天学习站立得稳：旷野中的耶稣、逃跑的约瑟和跌倒的大卫。',
+      },
+      family: {
+        title: '家庭',
+        description: '七天看圣经中破碎又复和的家庭，以及神的家。',
+      },
+    },
     categoryChronological: '整本圣经',
     categoryBookStudy: '书卷研读',
     categoryTopical: '主题',
     categoryDevotional: '灵修',
+    categoryLifeSituations: '人生季节',
     timedChallenges: '阅读挑战',
     bibleIn30Days: {
       title: '30 天读完整本圣经',

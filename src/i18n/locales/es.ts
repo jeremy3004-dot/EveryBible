@@ -1980,10 +1980,87 @@ export const es = {
       description:
         'Escucha a Dios a través de los profetas, los salmos, Jesús y la iglesia primitiva.',
     },
+    lifeSituations: {
+      loss: {
+        title: 'Duelo',
+        description:
+          'Siete días para el duelo, desde Job y Rut hasta la promesa de que toda lágrima será enjugada.',
+      },
+      stress: {
+        title: 'Estrés',
+        description:
+          'Siete días para cuando todo es demasiado: provisión diaria, cargas compartidas y verdadero descanso.',
+      },
+      fear: {
+        title: 'Miedo',
+        description:
+          'Siete días con personas que enfrentaron gigantes, fuego y el mar, y hallaron a Dios a su lado.',
+      },
+      peace: {
+        title: 'Paz',
+        description:
+          'Siete días sobre la paz que Jesús da: paz con Dios, paz con los demás y confianza serena.',
+      },
+      depression: {
+        title: 'Tristeza profunda',
+        description:
+          'Siete días de salmos y profetas sinceros para tiempos oscuros, y del Dios que te encuentra allí.',
+      },
+      hope: {
+        title: 'Esperanza',
+        description:
+          'Siete días de promesas cumplidas, desde Abraham y José hasta los huesos secos que vuelven a vivir.',
+      },
+      healing: {
+        title: 'Sanidad',
+        description:
+          'Siete días con el Dios que sana, desde Naamán y Ezequías hasta el toque de Jesús.',
+      },
+      anger: {
+        title: 'Ira',
+        description:
+          'Siete días de historias sobre la ira, desde Caín hasta Jonás, y la misericordia que le responde.',
+      },
+      anxiety: {
+        title: 'Ansiedad',
+        description:
+          'Siete días para aprender a confiar: derrama tu corazón y deja que Dios te guarde.',
+      },
+      love: {
+        title: 'Amor',
+        description:
+          'Siete días sobre el amor de Dios que nunca nos suelta, y cómo nos enseña a amar.',
+      },
+      patience: {
+        title: 'Paciencia',
+        description: 'Siete días esperando en Dios con Abraham, Noé, David y Habacuc.',
+      },
+      doubt: {
+        title: 'Dudas',
+        description:
+          'Siete días con personas que cuestionaron a Dios, desde Moisés hasta Tomás, y lo hallaron fiel.',
+      },
+      pride: {
+        title: 'Orgullo',
+        description:
+          'Siete días sobre la humildad: reyes orgullosos humillados y el Rey siervo que lavó pies.',
+      },
+      temptation: {
+        title: 'Tentación',
+        description:
+          'Siete días para mantenerse firme, con Jesús en el desierto, José que huyó y David que cayó.',
+      },
+      family: {
+        title: 'Familia',
+        description:
+          'Siete días sobre las familias en las Escrituras, rotas y restauradas, y la familia de Dios.',
+      },
+    },
     categoryChronological: 'Toda la Biblia',
     categoryBookStudy: 'Estudio de libro',
     categoryTopical: 'Temático',
     categoryDevotional: 'Devocional',
+    categoryLifeSituations: 'Etapas de la vida',
     timedChallenges: 'Desafíos de lectura',
     bibleIn30Days: {
       title: 'Biblia completa en 30 días',
