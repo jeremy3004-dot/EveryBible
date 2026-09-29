@@ -76,30 +76,35 @@ test('Latin text keeps Lora italic whatever language it is labelled', async () =
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, serifFamily(400, true));
 });
 
-test('the reference sits on an opaque chip it clears 4.5:1 against, in every text colour', async () => {
-  // The card's wash is translucent over a photo, so nothing drawn straight on it has a
-  // knowable contrast (an accent reference over a blue-grey photo was unreadable). The
-  // reference keeps an opaque backdrop of its own, in the chosen colour.
+test('the reference keeps the app’s own chip, whatever colour the verse is set in', async () => {
+  // The card's wash is translucent over a photo, so the reference keeps an opaque
+  // backdrop of its own: the page surface and ink of the current theme, as it was
+  // before the verse could be recoloured.
+  const { createThemeColors } = await import('../../../contexts/ThemeContext');
   const failures: string[] = [];
-  for (const color of VERSE_IMAGE_COLORS) {
-    const view = await renderCard('For God so loved the world', {
-      ...DEFAULT_VERSE_IMAGE_STYLE,
-      colorId: color.id,
-    });
-    const reference = view.getByText('John 3:16');
-    const text = flattenStyle(reference.props.style)?.color;
-    const backdrop = [reference, ...hostAncestors(reference)]
-      .map((node) => flattenStyle(node.props.style)?.backgroundColor)
-      .find((value) => value !== undefined);
-    if (typeof text !== 'string' || typeof backdrop !== 'string') {
-      failures.push(`${color.id}: reference ${String(text)} has no backdrop colour`);
-    } else if (!/^#[0-9a-f]{6}$/i.test(backdrop)) {
-      failures.push(`${color.id}: reference backdrop ${backdrop} is not opaque`);
-    } else if (contrastRatio(text, backdrop) < WCAG_AA_TEXT) {
-      failures.push(`${color.id}: ${contrastRatio(text, backdrop).toFixed(2)}:1`);
+  for (const theme of ['light', 'dark'] as const) {
+    harness.authStore.getState().setPreferences({ theme });
+    const palette = harness.authStore.getState().preferences.appearancePalette as never;
+    const expected = createThemeColors(theme, palette);
+    for (const color of VERSE_IMAGE_COLORS) {
+      const view = await renderCard('For God so loved the world', {
+        ...DEFAULT_VERSE_IMAGE_STYLE,
+        colorId: color.id,
+      });
+      const reference = view.getByText('John 3:16');
+      const text = flattenStyle(reference.props.style)?.color;
+      const backdrop = [reference, ...hostAncestors(reference)]
+        .map((node) => flattenStyle(node.props.style)?.backgroundColor)
+        .find((value) => value !== undefined);
+      if (text !== expected.biblePrimaryText || backdrop !== expected.bibleSurface) {
+        failures.push(`${theme}/${color.id}: ${String(text)} on ${String(backdrop)}`);
+      } else if (contrastRatio(text, backdrop) < WCAG_AA_TEXT) {
+        failures.push(`${theme}/${color.id}: ${contrastRatio(text, backdrop).toFixed(2)}:1`);
+      }
+      await view.unmount();
     }
-    await view.unmount();
   }
+  harness.authStore.getState().setPreferences({ theme: 'light' });
   assert.deepEqual(failures, []);
 });
 
@@ -225,26 +230,4 @@ test('the shared card draws at its own size, whatever the OS text size', async (
   // verse past its eight lines at accessibility sizes and cut the shared picture.
   assert.equal(view.getByText('"For God so loved the world"').props.allowFontScaling, false);
   assert.equal(view.getByText('John 3:16').props.allowFontScaling, false);
-});
-
-test('an eyebrow line sits above the verse when given, and the reader card has none', async () => {
-  const { VerseImageSharePreview } = await import('./VerseImageSharePreview');
-  const eyebrow = 'Verse of the Day · Tuesday, September 29';
-  const withEyebrow = await harness.render(
-    <VerseImageSharePreview
-      previewRef={createRef<View>()}
-      backgroundSource={{ uri: 'file:///background.jpg' }}
-      referenceLabel="John 3:16"
-      eyebrowLabel={eyebrow}
-      selectedText="For God so loved the world."
-    />
-  );
-  const line = withEyebrow.getByText(eyebrow);
-  const verse = withEyebrow.getAllByText('"For God so loved the world."')[0];
-  assert.ok(line && verse);
-  assert.equal(line.props.allowFontScaling, false, 'part of the fixed-size picture');
-  await withEyebrow.unmount();
-
-  const plain = await renderCard('For God so loved the world.');
-  assert.equal(plain.queryByText(eyebrow), null);
 });

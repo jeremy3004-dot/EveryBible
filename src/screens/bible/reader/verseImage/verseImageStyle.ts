@@ -1,4 +1,4 @@
-import { contrastRatio, WCAG_AA_TEXT } from '../../../../design/contrast';
+import { contrastRatio } from '../../../../design/contrast';
 import { serifFamily } from '../../../../design/fonts';
 import { VERSE_IMAGE_FONT_COVERAGE } from './verseImageFontCoverage.generated';
 
@@ -107,10 +107,6 @@ export const VERSE_IMAGE_COLORS: readonly VerseImageColor[] = (
   Object.keys(COLOR_HEXES) as VerseImageColorId[]
 ).map((id) => ({ id, hex: COLOR_HEXES[id], light: isLightColor(COLOR_HEXES[id]) }));
 
-/** The reference chip under light words, and under dark words. */
-const DARK_CHIP = '#1A1914';
-const LIGHT_CHIP = '#F6F1E7';
-
 /** Point sizes the size control offers, at the preview's width. */
 export const VERSE_IMAGE_SIZE = { min: 14, max: 64, initial: 24 } as const;
 /** The smallest a verse is set when it has to shrink to fit. */
@@ -185,25 +181,6 @@ export function getVerseImageScrim(color: VerseImageColor): [string, string] {
   return color.light
     ? ['rgba(10, 9, 7, 0.18)', 'rgba(10, 9, 7, 0.52)']
     : ['rgba(248, 244, 236, 0.30)', 'rgba(248, 244, 236, 0.66)'];
-}
-
-/**
- * The reference sits on an opaque chip: a translucent wash over a photo has no
- * knowable contrast (an accent reference once vanished on a blue-grey photo). The
- * chip follows the chosen colour and always clears 4.5:1: the words' colour on a dark
- * chip for light colours or a light chip for dark ones; a mid-tone that reaches 4.5:1
- * on neither (Rose) fills the chip itself, under black or white words.
- */
-export function getVerseImageReferenceChip(color: VerseImageColor): {
-  background: string;
-  text: string;
-} {
-  const tinted = { background: color.light ? DARK_CHIP : LIGHT_CHIP, text: color.hex };
-  if (contrastRatio(tinted.text, tinted.background) >= WCAG_AA_TEXT) return tinted;
-  return {
-    background: color.hex,
-    text: contrastRatio(BLACK, color.hex) >= contrastRatio(WHITE, color.hex) ? BLACK : WHITE,
-  };
 }
 
 /**

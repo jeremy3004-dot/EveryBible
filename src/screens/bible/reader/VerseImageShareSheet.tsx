@@ -47,8 +47,6 @@ export interface VerseImageShareSheetProps {
   selectedVerseImageBackground: ImageSourcePropType;
   selectedVerseImageBackgroundIndex: number;
   selectedVerseReferenceLabel: string;
-  /** Drawn above the verse on the picture (Home's day and title); the reader has none. */
-  verseImageEyebrowLabel?: string;
   selectedVerseText: string;
   handleCloseVerseImageSheet: () => void;
   showVerseImageSheet: boolean;
@@ -70,7 +68,6 @@ export function VerseImageShareSheet({
   selectedVerseImageBackground,
   selectedVerseImageBackgroundIndex,
   selectedVerseReferenceLabel,
-  verseImageEyebrowLabel,
   selectedVerseText,
   handleCloseVerseImageSheet,
   showVerseImageSheet,
@@ -367,7 +364,6 @@ export function VerseImageShareSheet({
               previewRef={verseImageSharePreviewRef}
               backgroundSource={selectedVerseImageBackground}
               referenceLabel={selectedVerseReferenceLabel}
-              eyebrowLabel={verseImageEyebrowLabel}
               selectedText={selectedVerseText}
               style={style}
               onFitChange={handleFitChange}

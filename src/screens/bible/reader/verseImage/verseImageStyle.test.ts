@@ -1,12 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WCAG_AA_TEXT, contrastRatio } from '../../../../design/contrast';
 import {
   canVerseImageFontDraw,
   getDrawableVerseImageFonts,
   getNextVerseImageFitSize,
   getVerseImageFontSample,
-  getVerseImageReferenceChip,
   VERSE_IMAGE_COLORS,
   VERSE_IMAGE_FONTS,
   VERSE_IMAGE_MIN_FIT_SIZE,
@@ -52,26 +50,6 @@ test('light words get a dark wash and dark words a light one', () => {
   assert.equal(light('sky'), true);
   assert.equal(light('navy'), false);
   assert.equal(light('crimson'), false);
-});
-
-// Mid-tones such as Rose reach 4.5:1 on neither a dark nor a light chip, so there the
-// chip takes the colour itself and the reference is set in black or white on it.
-test('a mid-tone colour fills the chip itself, with black or white words on it', () => {
-  const rose = VERSE_IMAGE_COLORS.find((color) => color.id === 'rose')!;
-  const chip = getVerseImageReferenceChip(rose);
-  assert.equal(chip.background, rose.hex);
-  assert.ok(['#000000', '#FFFFFF'].includes(chip.text));
-});
-
-test('the reference chip clears 4.5:1 in every text colour', () => {
-  for (const color of VERSE_IMAGE_COLORS) {
-    const chip = getVerseImageReferenceChip(color);
-    assert.match(chip.background, /^#[0-9A-F]{6}$/i, `${color.id}: an opaque chip`);
-    assert.ok(
-      contrastRatio(chip.text, chip.background) >= WCAG_AA_TEXT,
-      `${color.id}: ${contrastRatio(chip.text, chip.background).toFixed(2)}:1`
-    );
-  }
 });
 
 test('a verse that fits is left at its size', () => {

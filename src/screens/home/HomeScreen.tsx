@@ -393,16 +393,6 @@ export function HomeScreen() {
     () => new Intl.DateTimeFormat(i18n.language, { weekday: 'long' }).format(new Date(clockMs)),
     [clockMs, i18n.language]
   );
-  // A shared verse travels without the page around it, so it carries the full date.
-  const shareDateLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      }).format(new Date(clockMs)),
-    [clockMs, i18n.language]
-  );
 
   // ---- Reading ledger -------------------------------------------------------
   // The streak is the store's own count; the all-time total and the heatmap are
@@ -590,9 +580,8 @@ export function HomeScreen() {
           : t('home.verseAudioBody')
         : t('home.defaultVerse');
   const verseBackgroundSource = verseBackground;
-  const verseShareTitle = `${verseCardTitleLabel} · ${shareDateLabel}`;
   const verseShareMessage = buildHomeVerseShareMessage({
-    cardTitle: verseShareTitle,
+    cardTitle: verseCardTitleLabel,
     referenceLabel: verseShareReferenceLabel,
     bodyText: verseShareBodyText,
   });
@@ -979,7 +968,6 @@ export function HomeScreen() {
         selectedVerseImageBackground={verseImageBackground}
         selectedVerseImageBackgroundIndex={verseImageBackgroundIndex}
         selectedVerseReferenceLabel={verseShareReferenceLabel}
-        verseImageEyebrowLabel={verseShareTitle}
         selectedVerseText={verseShareBodyText}
         handleCloseVerseImageSheet={handleCloseVerseImageSheet}
         showVerseImageSheet={showVerseImageSheet}

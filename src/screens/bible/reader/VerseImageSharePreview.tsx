@@ -8,6 +8,7 @@ import {
   type NativeSyntheticEvent,
   type TextLayoutEventData,
 } from 'react-native';
+import { useTheme } from '../../../contexts/ThemeContext';
 import { radius, spacing, typography } from '../../../design/system';
 import type { RefObject } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +18,6 @@ import {
   getNextVerseImageFitSize,
   getVerseImageColor,
   getVerseImageFont,
-  getVerseImageReferenceChip,
   getVerseImageScrim,
   type VerseImageStyle,
 } from './verseImage/verseImageStyle';
@@ -28,7 +28,6 @@ export function VerseImageSharePreview({
   previewRef,
   backgroundSource,
   referenceLabel,
-  eyebrowLabel,
   selectedText,
   style = DEFAULT_VERSE_IMAGE_STYLE,
   onFitChange,
@@ -36,7 +35,9 @@ export function VerseImageSharePreview({
   const verseText = selectedText.trim();
   const shownText = `"${verseText || referenceLabel}"`;
   const color = getVerseImageColor(style.colorId);
-  const chip = getVerseImageReferenceChip(color);
+  // The reference keeps the app's own chip in every text colour: an opaque backdrop,
+  // since the wash over the photo is translucent.
+  const { colors } = useTheme();
   // Scripture is set in its own language: a face without glyphs for every character
   // (Devanagari, Arabic, and for some faces Cyrillic or Vietnamese) falls back to
   // Classic, and a verse even Classic cannot draw takes the platform serif, as in the
@@ -124,25 +125,6 @@ export function VerseImageSharePreview({
           style={styles.verseImagePreviewOverlay}
         />
         <View style={styles.verseImagePreviewContent}>
-          {eyebrowLabel ? (
-            <Text
-              style={[
-                styles.verseImagePreviewEyebrow,
-                {
-                  color: color.hex,
-                  textShadowColor: color.light
-                    ? 'rgba(0, 0, 0, 0.45)'
-                    : 'rgba(255, 255, 255, 0.45)',
-                },
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-              allowFontScaling={false}
-            >
-              {eyebrowLabel}
-            </Text>
-          ) : null}
           <View style={styles.verseImagePreviewTextBox} onLayout={handleBoxLayout}>
             <Text
               style={verseStyle(fittedSize)}
@@ -167,13 +149,16 @@ export function VerseImageSharePreview({
             ) : null}
           </View>
           <View
-            style={[styles.verseImagePreviewReferenceChip, { backgroundColor: chip.background }]}
+            style={[
+              styles.verseImagePreviewReferenceChip,
+              { backgroundColor: colors.bibleSurface },
+            ]}
           >
             <Text
               style={[
                 styles.verseImagePreviewReference,
                 {
-                  color: chip.text,
+                  color: colors.biblePrimaryText,
                   fontSize: REFERENCE_FONT_SIZE,
                   lineHeight: Math.round(REFERENCE_FONT_SIZE * 1.4),
                 },
@@ -196,8 +181,6 @@ export interface VerseImageSharePreviewProps {
   previewRef: RefObject<View | null>;
   backgroundSource: import('react-native').ImageSourcePropType;
   referenceLabel: string;
-  /** A line above the verse, e.g. "Verse of the day · Tuesday, 29 September"; omitted in the reader. */
-  eyebrowLabel?: string;
   selectedText: string;
   /** The chosen face, colour and size. */
   style?: VerseImageStyle;
@@ -229,17 +212,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     gap: spacing.md,
-  },
-  verseImagePreviewEyebrow: {
-    ...typography.label,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
   },
   verseImagePreviewTextBox: {
     flex: 1,

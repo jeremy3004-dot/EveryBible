@@ -276,9 +276,8 @@ async function shareFromEditor(view: HomeView, editor: ReactTestInstance) {
   await view.flush();
 }
 
-/** Thursday 17 September 2026, as the shared picture and text name the day. */
-const SHARE_DAY = 'Thursday, September 17';
-const shareTitle = `${t('home.verseOfTheDay')} · ${SHARE_DAY}`;
+/** The first line of the verse when it is shared as text. */
+const shareTitle = t('home.verseOfTheDay');
 
 /** On screen the weekday stands in for "Today's scripture" (TODAY is a Thursday). */
 const screenEyebrow = (reference: string, weekday = 'Thursday') => `${weekday} · ${reference}`;
@@ -544,13 +543,15 @@ test("the reader's own text carries no attribution", async () => {
   assert.equal(view.queryByText(/· BSB$/), null);
 });
 
-test("Share opens the verse-picture editor on today's photograph, verse, reference and date", async () => {
+test("Share opens the verse-picture editor on today's photograph, verse and reference", async () => {
   const view = await renderHome();
   const { editor, picture, pictureNode } = await openShareEditor(view);
 
   assert.ok(picture.getByText(`"${JOHN_3_16}"`));
   assert.ok(picture.getByText('John 3:16'));
-  assert.ok(picture.getByText(shareTitle), 'the picture names the day it was the verse of');
+  // Only the verse and its reference: no title or date line above it.
+  assert.equal(picture.queryByText(/^Verse of the Day/), null);
+  assert.equal(picture.queryByText(/Thursday/), null);
   // The same editor as the reader's: font, colour and size can be changed.
   for (const tab of ['font', 'color', 'size'] as const) {
     assert.ok(within(editor).getByText(t(`bible.verseImage.tabs.${tab}`)));
@@ -594,7 +595,7 @@ test('sharing from the editor captures its picture as a PNG and opens the share 
   assert.equal(findShareEditor(view), undefined, 'the editor closes before the share sheet opens');
 });
 
-test('sharing falls back to the verse and its day as text when images cannot be shared or captured', async () => {
+test('sharing falls back to the verse as text when images cannot be shared or captured', async () => {
   const expectedMessage = `${shareTitle}\nJohn 3:16\n\n${JOHN_3_16}`;
 
   sharing.available = false;
