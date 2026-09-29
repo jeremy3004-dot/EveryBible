@@ -1,57 +1,51 @@
 # Authoritative Store Screenshot Sets
 
-Use this file as the single source of truth for store screenshot uploads.
+This file is the single source of truth for store screenshot uploads. Upload
+only the folders listed here, in the order listed.
+
+The current look is the terracotta set captured on 2026-09-25: warm paper and
+dark-brown backgrounds, "EVERY BIBLE" eyebrow, serif headline with a terracotta
+second line. It was live on App Store versions 1.0.9 and 1.0.10.
 
 ## Apple App Store
 
-Upload both of these packs:
+| Slot                                           | Folder                      | Size      |
+| ---------------------------------------------- | --------------------------- | --------- |
+| `APP_IPHONE_67` (6.9"/6.7")                    | `ios/iphone-69-2026-09-25/` | 1320x2868 |
+| `APP_IPHONE_65` (6.5")                         | `ios/iphone-65-2026-09-25/` | 1242x2688 |
+| `APP_IPAD_PRO_3GEN_129` and `APP_IPAD_PRO_129` | `ios/ipad-129-2026-09-09/`  | 2048x2732 |
 
-- 6.7-inch: `store-metadata/screenshots/ios/iphone-67-2026-04-03/`
-- 6.5-inch: `store-metadata/screenshots/ios/iphone-65-2026-04-03/`
+iPhone order (same in both iPhone folders):
 
-Use the same seven files in the same order in both folders:
+1. `01-begin.jpg`
+2. `02-light-dark.jpg`
+3. `03-plans.jpg`
+4. `04-highlight.jpg`
+5. `05-gather.jpg`
+6. `06-language.jpg`
+7. `07-listen.jpg`
 
-1. `01-read-offline.png`
-2. `02-track-habit.png`
-3. `03-highlight-verses.png`
-4. `04-share-verse-cards.png`
-5. `05-save-notes.png`
-6. `06-grow-foundations.png`
-7. `07-find-wisdom.png`
+iPad order: `01-home.png`, `02-bible.png`, `03-gather.png`, `04-plans.png`.
+
+When creating a new App Store version, check every screenshot set on it
+(iPhone and both iPad slots). App Store Connect copies the previous version's
+screenshots forward, so a stale set in any slot will go live again.
 
 ## Google Play
 
-Upload only the seven-shot pack in:
+Folder: `google-play-2026-09-25/` (1080x2160 phone screenshots, same seven
+headlines and order as the iPhone set, as `.jpg`), plus
+`google-play-2026-09-25/feature-graphic.png`. `npm run play:publish-listing`
+reads this folder.
 
-- `store-metadata/screenshots/google-play/`
+## Retired — never upload
 
-Upload the matching feature graphic:
+The old red "READ THE BIBLE OFFLINE" / "TRACK YOUR READING HABIT" sets from
+March–April 2026 (maroon `#C0392B` background) were deleted from the repo on
+2026-09-29, together with the scripts that generated them, after they were
+re-uploaded to App Store version 1.0.11 by mistake. They must not come back:
+`scripts/storeScreenshots.test.ts` fails if any of their folders or file names
+reappear.
 
-- `store-metadata/screenshots/google-play/feature-graphic.png`
-
-Use these files in order:
-
-1. `01-read-offline.png`
-2. `02-track-habit.png`
-3. `03-highlight-verses.png`
-4. `04-share-verse-cards.png`
-5. `05-save-notes.png`
-6. `06-grow-foundations.png`
-7. `07-find-wisdom.png`
-
-## Console Checklist
-
-Before uploading, use:
-
-- `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
-
-## Source Rule
-
-The polished iOS 6.7-inch pack is the master source for all submission variants.
-
-- Master artwork: `store-metadata/screenshots/ios/iphone-67-2026-04-03/`
-- Derived App Store 6.5-inch pack: `store-metadata/screenshots/ios/iphone-65-2026-04-03/`
-- Derived Google Play pack: `store-metadata/screenshots/google-play/`
-- Derived Google Play feature graphic: `store-metadata/screenshots/google-play/feature-graphic.png`
-
-Do not upload older iOS root captures or the retired five-shot Google Play set.
+`ios/iphone-69-2026-08-28/` and `android/` are older designs kept for
+reference only. Do not upload them either.
