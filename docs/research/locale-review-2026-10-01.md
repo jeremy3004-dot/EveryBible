@@ -105,19 +105,27 @@ Findings by defect class:
   - leftover English (the verification tests pass)
   - right-to-left rendering in ar/ur
 
-## Open questions for a native speaker or the owner
+## Follow-up decisions
 
-These were left unchanged on purpose:
+The owner asked me to settle the open questions myself. These are the calls I made.
 
-- **te Harp** is వీణ (the Indian veena), in both the label and the description. The Telugu Bible's harp words clash with the separate Sitar sound. If you want it changed, use హార్ప్ in both places.
-- **ur Book of Common Prayer:** the file uses مشترکہ دعا کی کتاب, and the new keys were matched to it. The Church of Pakistan often says کتابِ دعائے عام. If that form is wanted, change it together with the `historicRoots` keys.
-- **fr Selah:** Louis Segond prints "Pause" in the Psalms. I kept _Sélah_, because a "Pause" button next to play/pause would be confusing.
-- **de Common Prayer Psalter title** is now 38 characters. If the card truncates it, use _Anglikanischer Psalter_.
-- **ru** could title the Lord's Prayer week with the familiar «Отче наш».
-- **pa Depression** is ਉਦਾਸੀ (sadness). ਮਾਯੂਸੀ is stronger.
-- **ne Cain:** an older Four Fields key (outside this scope) spells Cain काइन, while the new plan uses the Bible's कयिन.
-- **ja** spells Psalms 詩編 in 8 older keys while the book name is 詩篇. That needs a separate consistency pass.
-- **hi Temptation** is प्रलोभन. The Hindi Bible uses परीक्षा in the Lord's Prayer, but परीक्षा also means "exam".
+**Changed:**
+
+| Locale | Key                                          | Old                                    | New                       | Why                                                                                                                                          |
+| ------ | -------------------------------------------- | -------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| de     | `readingPlans.commonPrayerPsalter.title`     | Psalter nach dem Book of Common Prayer | Anglikanischer Psalter    | At 38 characters, the title could be cut off on the narrow two-line Home shelf cards. The description still names the Book of Common Prayer. |
+| ru     | `readingPlans.lordsPrayerWeek.title`         | Неделя молитвы Господней               | Неделя молитвы «Отче наш» | Russian readers know the prayer by its opening words. The description keeps «молитвой Господней».                                            |
+| ne     | `gather.wisdomLessons.anger.l1`              | काइनको …                               | कयिनको …                  | Cain now uses the Nepali Bible spelling, matching the new Anger plan. This is an older key, but the change is only for consistency.          |
+| ja     | 8 older daily-rhythm descriptions and titles | 詩編                                   | 詩篇                      | This matches the book name 詩篇 used elsewhere in ja.ts. Every Psalms reference in the app now uses one spelling.                            |
+
+**Kept, with the reason:**
+
+- **te Harp** stays వీణ. The Hindi label now uses the matching वीणा, which is the Bible word there. The Telugu Bible's own harp word would collide with the separate Sitar sound.
+- **ur Book of Common Prayer** stays مشترکہ دعا کی کتاب. That name is already used consistently in the file's older `historicRoots` strings, and switching would mean churning those too.
+- **fr Selah** stays _Sélah_. A button labelled "Pause" next to play/pause would be confusing.
+- **pa Depression** stays ਉਦਾਸੀ, the ordinary gentle word. ਮਾਯੂਸੀ means despair, which is a different idea.
+- **hi Temptation** stays प्रलोभन, because परीक्षा also reads as "exam".
+- **vi Lord's Prayer** and the **te Book of Common Prayer** name stay as they are. Both match their files and are understood.
 
 ## Verification
 

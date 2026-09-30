@@ -1383,7 +1383,7 @@ export const de = {
         'Lies die vorgesehenen Kathismata für Morgen und Abend an jedem Wochentag, Woche für Woche.',
     },
     commonPrayerPsalter: {
-      title: 'Psalter nach dem Book of Common Prayer',
+      title: 'Anglikanischer Psalter',
       description:
         'Bete jeden Monat alle 150 Psalmen, morgens und abends, nach der Ordnung des Book of Common Prayer.',
     },
