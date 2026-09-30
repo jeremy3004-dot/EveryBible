@@ -663,7 +663,7 @@ export const pt = {
         classic: 'Clássica',
         script: 'Cursiva',
         handwritten: 'Manuscrita',
-        block: 'Bloco',
+        block: 'Maiúsculas',
         slab: 'Slab',
         elegant: 'Elegante',
         typewriter: 'Máquina de escrever',
@@ -685,7 +685,7 @@ export const pt = {
         crimson: 'Carmesim',
         forest: 'Verde-floresta',
         navy: 'Azul-marinho',
-        ink: 'Tinta',
+        ink: 'Nanquim',
       },
       size: 'Tamanho do texto',
       sizeMaxed: 'Tamanho máximo: as palavras já preenchem toda a foto',
@@ -1582,7 +1582,7 @@ export const pt = {
       pride: {
         title: 'Orgulho',
         description:
-          'Sete dias sobre a humildade: reis orgulhosos humilhados e o Rei servo que lavou pés.',
+          'Sete dias sobre a humildade: reis orgulhosos humilhados e o Rei servo que lavou os pés.',
       },
       temptation: {
         title: 'Tentação',

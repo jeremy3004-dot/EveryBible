@@ -1,15 +1,19 @@
 # Every Bible - App Store Listing
 
 ## App Name (30 characters max)
+
 Every Bible
 
 ## Subtitle (30 characters max)
+
 Offline Bible & Audio
 
 ## Keywords (100 characters max)
+
 bible,audio bible,scripture,offline bible,devotional,christian,discipleship,verse,study,prayer
 
 ## Category
+
 Books (Primary)
 Reference (Secondary)
 
@@ -43,30 +47,24 @@ This release sharpens the Bible reading experience with improved highlights and 
 
 ## Screenshot Pack
 
-Use the upload-ready iOS sets in:
-- `store-metadata/screenshots/ios/iphone-67-2026-04-03/`
-- `store-metadata/screenshots/ios/iphone-65-2026-04-03/`
-
-Recommended order:
-1. `01-read-offline.png`
-2. `02-track-habit.png`
-3. `03-highlight-verses.png`
-4. `04-share-verse-cards.png`
-5. `05-save-notes.png`
-6. `06-grow-foundations.png`
-7. `07-find-wisdom.png`
+Folders and order are listed only in `store-metadata/screenshots/AUTHORITATIVE.md`
+(the terracotta 2026-09-25 set). The old red April sets were retired; never upload them.
 
 Authoritative cross-store upload guide:
+
 - `store-metadata/screenshots/AUTHORITATIVE.md`
 - `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
 
 ## Support URL
+
 https://everybible.app/support
 
 ## Privacy Policy URL
+
 https://everybible.app/privacy
 
 ## App Store Review Notes
+
 - No login required to use the app
 - Optional account creation for sync features
 - Uses Supabase for authentication and data sync
@@ -75,7 +73,9 @@ https://everybible.app/privacy
 - App Privacy: Usage Data (Product Interaction) for analytics includes minutes listened, sessions/time spent, chapter completion, playback progress, and engagement; not linked to identity. Account-linked sync data (reading progress, bookmarks, preferences) is disclosed separately.
 
 ## Age Rating
+
 4+ (No objectionable content)
 
 ## Copyright
+
 2024 Every Bible

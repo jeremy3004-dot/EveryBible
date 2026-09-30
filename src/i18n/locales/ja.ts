@@ -189,13 +189,13 @@ export const ja = {
       },
       'catholic-daytime-prayer': {
         title: 'カトリックの日中の祈り',
-        description: '短い詩編を通して神に立ち返る、簡潔な昼の時課です。',
+        description: '短い詩篇を通して神に立ち返る、簡潔な昼の時課です。',
         tradition: 'カトリック',
         historicRoots: '教会の祈り（時課）',
       },
       'catholic-evening-prayer': {
         title: 'カトリックの晩の祈り',
-        description: '詩編、感謝、マリアの賛歌で一日を結ぶ、晩課に倣った祈りです。',
+        description: '詩篇、感謝、マリアの賛歌で一日を結ぶ、晩課に倣った祈りです。',
         tradition: 'カトリック',
         historicRoots: '教会の祈り（時課）',
       },
@@ -219,19 +219,19 @@ export const ja = {
       },
       'anglican-morning-prayer': {
         title: '聖公会の朝の祈り',
-        description: '詩編と福音の教えで一日を備える、時課に沿った朝の祈りです。',
+        description: '詩篇と福音の教えで一日を備える、時課に沿った朝の祈りです。',
         tradition: '聖公会',
         historicRoots: '祈祷書',
       },
       'anglican-noonday-prayer': {
         title: '聖公会の昼の祈り',
-        description: '助けを求める詩編と命のパンの希望をもって祈る、短い昼の休息です。',
+        description: '助けを求める詩篇と命のパンの希望をもって祈る、短い昼の休息です。',
         tradition: '聖公会',
         historicRoots: '日々の祈り',
       },
       'anglican-evening-prayer': {
         title: '聖公会の夕の祈り',
-        description: '夕べの詩編とマリアの賛歌を用いる、伝統的な晩祷の流れです。',
+        description: '夕べの詩篇とマリアの賛歌を用いる、伝統的な晩祷の流れです。',
         tradition: '聖公会',
         historicRoots: '祈祷書',
       },
@@ -255,7 +255,7 @@ export const ja = {
       },
       'orthodox-vespers': {
         title: '正教会の晩課',
-        description: '創造の賛美、灯火の詩編、みことばをもってささげる夕べの祈りです。',
+        description: '創造の賛美、灯火の詩篇、みことばをもってささげる夕べの祈りです。',
         tradition: '正教会',
         historicRoots: '日々の晩課',
       },
@@ -272,14 +272,14 @@ export const ja = {
         historicRoots: '聖ベネディクトの戒律',
       },
       'benedictine-psalm-and-work': {
-        title: 'ベネディクト会の詩編と労働',
+        title: 'ベネディクト会の詩篇と労働',
         description: '祈り、働き、静かに従うことを一日につなげる、実践的な順序です。',
         tradition: 'ベネディクト会',
         historicRoots: '祈れ、働け',
       },
       'taize-evening-prayer': {
         title: 'テゼの夕の祈り',
-        description: '詩編、聖書朗読、静けさを中心に、歌と沈黙で過ごす夕べです。',
+        description: '詩篇、聖書朗読、静けさを中心に、歌と沈黙で過ごす夕べです。',
         tradition: 'テゼ',
         historicRoots: 'テゼの共同の祈り',
       },
@@ -628,7 +628,7 @@ export const ja = {
         color: '色',
         size: 'サイズ',
       },
-      tabsLabel: '写真を編集',
+      tabsLabel: '画像を編集',
       fonts: {
         classic: 'クラシック',
         script: 'スクリプト',
@@ -658,7 +658,7 @@ export const ja = {
         ink: '墨色',
       },
       size: '文字サイズ',
-      sizeMaxed: '最大サイズです：文字が写真いっぱいに広がっています',
+      sizeMaxed: '最大サイズです：文字が画像いっぱいに広がっています',
     },
     chooseVerseImageBackground: '背景を選ぶ',
     books: {
@@ -1349,7 +1349,7 @@ export const ja = {
     weekOfChrist: {
       title: 'キリストの一週間',
       description:
-        '一週間の各日にイエスの物語の一部を覚えます。日曜日は復活、水曜日は裏切り、金曜日は十字架です。',
+        '一週間の各日にイエスの物語の一部を思い起こします。日曜日は復活、水曜日は裏切り、金曜日は十字架です。',
     },
     lordsPrayerWeek: {
       title: '主の祈りの一週間',
@@ -1479,16 +1479,17 @@ export const ja = {
       },
       peace: {
         title: '平安',
-        description: 'イエスが与える平安について。神との平和、人との和解、静かな信頼を学ぶ七日間。',
+        description:
+          'イエスが与えてくださる平安について。神との平和、人との和解、静かな信頼を学ぶ七日間。',
       },
       depression: {
         title: '落ち込み',
         description:
-          '暗い季節のための正直な詩編と預言者、そしてそこで出会ってくださる神との七日間。',
+          '暗い季節のための正直な詩篇と預言者、そしてそこで出会ってくださる神との七日間。',
       },
       hope: {
         title: '希望',
-        description: '守られた約束の七日間。アブラハムやヨセフから、再び生きる枯れた骨まで。',
+        description: '守られた約束の七日間。アブラハムやヨセフから、よみがえる枯れた骨まで。',
       },
       healing: {
         title: '癒やし',
@@ -1504,7 +1505,7 @@ export const ja = {
       },
       love: {
         title: '愛',
-        description: '決して離さない神の愛と、その愛が私たちに愛することを教える七日間。',
+        description: '決して離さない神の愛と、その愛によって愛することを学ぶ七日間。',
       },
       patience: {
         title: '忍耐',
@@ -1520,7 +1521,7 @@ export const ja = {
       },
       temptation: {
         title: '誘惑',
-        description: '堅く立つための七日間。荒れ野のイエス、逃げたヨセフ、倒れたダビデと共に。',
+        description: '堅く立つための七日間。荒野のイエス、逃げたヨセフ、倒れたダビデと共に。',
       },
       family: {
         title: '家族',

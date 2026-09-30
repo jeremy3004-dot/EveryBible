@@ -876,7 +876,7 @@ export const de = {
     passageConfirm: 'Diesen Abschnitt wiederholen',
     soundLibraryFootnote:
       'Wird beim ersten Abspielen heruntergeladen und funktioniert danach offline',
-    soundNotDownloaded: 'Nicht heruntergeladen',
+    soundNotDownloaded: 'Noch nicht heruntergeladen',
     soundDownloading: 'Wird heruntergeladen',
     shareClip: 'Ausschnitt teilen',
     download: 'Herunterladen',
@@ -1383,7 +1383,7 @@ export const de = {
         'Lies die vorgesehenen Kathismata für Morgen und Abend an jedem Wochentag, Woche für Woche.',
     },
     commonPrayerPsalter: {
-      title: 'Psalter des Common Prayer',
+      title: 'Anglikanischer Psalter',
       description:
         'Bete jeden Monat alle 150 Psalmen, morgens und abends, nach der Ordnung des Book of Common Prayer.',
     },
@@ -1592,7 +1592,7 @@ export const de = {
     categoryBookStudy: 'Buchstudium',
     categoryTopical: 'Thematisch',
     categoryDevotional: 'Andacht',
-    categoryLifeSituations: 'Lebenszeiten',
+    categoryLifeSituations: 'Lebenslagen',
     timedChallenges: 'Leseherausforderungen',
     bibleIn30Days: {
       title: 'Vollständige Bibel in 30 Tagen',

@@ -1446,12 +1446,12 @@ export const zh = {
         description: '七天默想耶稣所赐的平安：与神和好、与人和睦，并安静信靠。',
       },
       depression: {
-        title: '忧郁',
+        title: '抑郁',
         description: '七天读诚实的诗篇与先知书，陪你走过幽暗季节，神就在那里与你相遇。',
       },
       hope: {
         title: '盼望',
-        description: '七天看神信守应许，从亚伯拉罕、约瑟到枯骨重新复活。',
+        description: '七天看神信守应许，从亚伯拉罕、约瑟到枯骨复生。',
       },
       healing: {
         title: '医治',

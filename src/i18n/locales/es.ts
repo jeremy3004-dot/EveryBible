@@ -665,9 +665,9 @@ export const es = {
       tabsLabel: 'Editar la foto',
       fonts: {
         classic: 'Clásica',
-        script: 'Cursiva',
+        script: 'Caligráfica',
         handwritten: 'Manuscrita',
-        block: 'Bloque',
+        block: 'Mayúsculas',
         slab: 'Slab',
         elegant: 'Elegante',
         typewriter: 'Máquina de escribir',
@@ -2043,7 +2043,7 @@ export const es = {
       pride: {
         title: 'Orgullo',
         description:
-          'Siete días sobre la humildad: reyes orgullosos humillados y el Rey siervo que lavó pies.',
+          'Siete días sobre la humildad: reyes orgullosos humillados y el Rey siervo que lavó los pies.',
       },
       temptation: {
         title: 'Tentación',
