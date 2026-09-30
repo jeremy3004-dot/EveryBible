@@ -31,6 +31,7 @@ import {
   buildPlanDayPlaybackSequenceEntries,
   shouldAutoplayPlanDayLaunch,
   resolvePlanDayPlaybackStartEntry,
+  isPlanDayResumingMidway,
 } from '../../services/plans/readingPlanActivity';
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import {
@@ -364,6 +365,28 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
     [currentDay, dayViewModels, todayViewModel]
   );
 
+  const todayOccurrenceKey =
+    todayViewModel && plan && isRecurringPlan(plan)
+      ? getLedgerDayCompletionKey(plan, todayViewModel.dayNumber, today)
+      : undefined;
+  // Selected (not read through getPlanDayResume in render) so Today's button
+  // re-renders when the reader saves or clears the day's resume point.
+  const todayResume = useReadingPlansStore((state) =>
+    todayViewModel
+      ? state.getPlanDayResume(planId, todayViewModel.dayNumber, todayOccurrenceKey)
+      : null
+  );
+  const isTodayResuming = useMemo(() => {
+    if (!todayViewModel) return false;
+    const { dayNumber, launchSessionKey } = todayViewModel;
+    const plannedDayEntries = entriesByDay.get(dayNumber) ?? [];
+    const dayEntries =
+      launchSessionKey && multiSessionPlan
+        ? plannedDayEntries.filter((entry) => entry.session_key === launchSessionKey)
+        : plannedDayEntries;
+    return isPlanDayResumingMidway(dayEntries, todayResume);
+  }, [entriesByDay, multiSessionPlan, todayResume, todayViewModel]);
+
   const todaySubtitle = useMemo(() => {
     if (!todayViewModel) return null;
     if (currentDaySummary && currentDaySummary.targetChapterCount > 1) {
@@ -453,6 +476,7 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
               isFuture={todayViewModel.isFuture}
               isNext={todayViewModel.isNext}
               subtitle={todaySubtitle}
+              isResuming={isTodayResuming}
               audioAvailable={audioAvailable}
               sessionActions={todayViewModel.sessionActions}
               onPress={handleOpenChapter}

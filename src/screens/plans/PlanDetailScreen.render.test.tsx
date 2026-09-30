@@ -229,7 +229,7 @@ test('explicit Read overrides the listen preference without autoplay and preserv
   store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
   const view = await renderPlan(PSALMS);
 
-  await view.press(view.getByRole('button', { name: t('bible.read') }));
+  await view.press(view.getByRole('button', { name: t('common.continue') }));
 
   assert.deepEqual(lastReaderLaunch(), {
     bookId: 'PSA',
@@ -291,6 +291,28 @@ test('a saved resume point reopens the day on that chapter, still queuing the wh
   const reader = lastReaderLaunch();
   assert.equal(reader.chapter, chapters[2]);
   assert.equal(reader.playbackSequenceEntries.length, chapters.length);
+});
+
+test("today's button says Continue only while a saved chapter would skip the day's opening", async () => {
+  const store = await enroll(PSALMS, { current_day: 3 });
+  const chapters = chaptersOf(PSALMS, 3);
+  const view = await renderPlan(PSALMS);
+  assert.ok(view.getByRole('button', { name: t('bible.read') }));
+
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: t('common.continue') }));
+  assert.equal(view.queryByRole('button', { name: t('bible.read') }), null);
+
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[0]);
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: t('bible.read') }));
+
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  await view.flush();
+  store.getState().clearPlanDayResume(PSALMS, 3);
+  await view.flush();
+  assert.ok(view.getByRole('button', { name: t('bible.read') }));
 });
 
 for (const fixture of [

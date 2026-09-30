@@ -22,6 +22,7 @@ import {
   getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
+  isPlanDayResumingMidway,
   isPlanDaySatisfied,
   mergeTodayCompletedChapterActivity,
   resolvePlanDayPlaybackStartEntry,
@@ -284,6 +285,16 @@ test('resolvePlanDayPlaybackStartEntry resumes from the saved chapter when it be
     bookId: 'GEN',
     chapter: 1,
   });
+});
+
+test("isPlanDayResumingMidway is true only when the saved chapter is past the day's first", () => {
+  const dayOneEntries = dayEntries.filter((entry) => entry.day_number === 1);
+
+  assert.equal(isPlanDayResumingMidway(dayOneEntries, { bookId: 'GEN', chapter: 3 }), true);
+  assert.equal(isPlanDayResumingMidway(dayOneEntries, { bookId: 'GEN', chapter: 1 }), false);
+  assert.equal(isPlanDayResumingMidway(dayOneEntries, { bookId: 'PSA', chapter: 1 }), false);
+  assert.equal(isPlanDayResumingMidway(dayOneEntries, null), false);
+  assert.equal(isPlanDayResumingMidway([], { bookId: 'GEN', chapter: 3 }), false);
 });
 
 test('getScheduledPlanDayDateKey offsets each scheduled day from the plan start date', () => {
