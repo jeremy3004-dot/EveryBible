@@ -701,7 +701,7 @@ export const ar = {
         lavender: 'لافندر',
         sky: 'سماوي',
         mint: 'نعناعي',
-        sage: 'مريمي',
+        sage: 'أخضر مريمي',
         rose: 'وردي غامق',
         crimson: 'قرمزي',
         forest: 'أخضر الغابة',
@@ -882,7 +882,7 @@ export const ar = {
     repeatOptionOff: 'إيقاف',
     repeatOptionChapter: 'الإصحاح',
     repeatOptionBook: 'السفر',
-    repeatOptionPassage: 'مقطع',
+    repeatOptionPassage: 'المقطع',
     repeatPassageHint: 'يفتح اختيار المقطع',
     passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
     passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
@@ -1418,7 +1418,7 @@ export const ar = {
     weekOfChrist: {
       title: 'أسبوع المسيح',
       description:
-        'يتذكّر كل يوم من أيام الأسبوع جزءًا من قصة يسوع: القيامة يوم الأحد، والخيانة يوم الأربعاء، والصليب يوم الجمعة.',
+        'في كل يوم من أيام الأسبوع نتذكّر جزءًا من قصة يسوع: القيامة يوم الأحد، والخيانة يوم الأربعاء، والصليب يوم الجمعة.',
     },
     lordsPrayerWeek: {
       title: 'أسبوع الصلاة الربانية',
@@ -1540,7 +1540,8 @@ export const ar = {
       },
       depression: {
         title: 'الكآبة',
-        description: 'سبعة أيام من مزامير وأنبياء صادقين لأوقات الظلمة، ومع الله الذي يلاقيك هناك.',
+        description:
+          'سبعة أيام مع مزامير وأنبياء يتكلمون بصدق عن أوقات الظلمة، ومع الله الذي يلاقيك هناك.',
       },
       hope: {
         title: 'الرجاء',
@@ -1553,7 +1554,7 @@ export const ar = {
       },
       anger: {
         title: 'الغضب',
-        description: 'سبعة أيام من قصص عن الغضب، من قايين إلى يونان، والرحمة التي تجيب عليه.',
+        description: 'سبعة أيام من قصص عن الغضب، من قايين إلى يونان، والرحمة التي تقابله.',
       },
       anxiety: {
         title: 'القلق',

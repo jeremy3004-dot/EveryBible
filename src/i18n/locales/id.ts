@@ -642,7 +642,7 @@ export const id = {
         color: 'Warna',
         size: 'Ukuran',
       },
-      tabsLabel: 'Edit foto',
+      tabsLabel: 'Edit gambar',
       fonts: {
         classic: 'Klasik',
         script: 'Kursif',
@@ -672,7 +672,7 @@ export const id = {
         ink: 'Tinta',
       },
       size: 'Ukuran teks',
-      sizeMaxed: 'Ukuran maksimal: kata-kata sudah memenuhi seluruh foto',
+      sizeMaxed: 'Ukuran maksimal: kata-kata sudah memenuhi seluruh gambar',
     },
     chooseVerseImageBackground: 'Pilih latar belakang',
     books: {
@@ -1366,12 +1366,12 @@ export const id = {
     commonPrayerPsalter: {
       title: 'Mazmur Doa Umum',
       description:
-        'Berdoalah dengan seluruh 150 Mazmur setiap bulan, pagi dan malam, menurut Buku Doa Umum.',
+        'Berdoalah dengan seluruh 150 Mazmur setiap bulan, pagi dan malam, sesuai pembagian dalam Buku Doa Umum.',
     },
     weekOfChrist: {
       title: 'Pekan Kristus',
       description:
-        'Setiap hari dalam sepekan mengingat satu bagian kisah Yesus: Kebangkitan pada hari Minggu, pengkhianatan pada hari Rabu, salib pada hari Jumat.',
+        'Setiap hari dalam sepekan mengingat satu bagian kisah Yesus: Kebangkitan pada hari Minggu, pengkhianatan pada hari Rabu, Salib pada hari Jumat.',
     },
     lordsPrayerWeek: {
       title: 'Pekan Doa Bapa Kami',
@@ -1515,7 +1515,7 @@ export const id = {
       depression: {
         title: 'Depresi',
         description:
-          'Tujuh hari mazmur dan nubuat yang jujur untuk masa-masa gelap, dan Allah yang menjumpaimu di sana.',
+          'Tujuh hari bersama mazmur dan para nabi yang jujur untuk masa-masa gelap, dan Allah yang menjumpai Anda di sana.',
       },
       hope: {
         title: 'Pengharapan',
@@ -1535,12 +1535,12 @@ export const id = {
       anxiety: {
         title: 'Kecemasan',
         description:
-          'Tujuh hari belajar percaya: curahkan isi hatimu, dan biarkan Tuhan menjagamu.',
+          'Tujuh hari belajar percaya: curahkan isi hati Anda, dan biarkan Tuhan menjaga Anda.',
       },
       love: {
         title: 'Kasih',
         description:
-          'Tujuh hari tentang kasih Allah yang tidak pernah melepaskan, dan bagaimana kasih itu mengajar kita mengasihi.',
+          'Tujuh hari tentang kasih Allah yang tidak pernah melepaskan kita, dan bagaimana kasih itu mengajar kita mengasihi.',
       },
       patience: {
         title: 'Kesabaran',

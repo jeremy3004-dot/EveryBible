@@ -628,7 +628,7 @@ export const ja = {
         color: '色',
         size: 'サイズ',
       },
-      tabsLabel: '写真を編集',
+      tabsLabel: '画像を編集',
       fonts: {
         classic: 'クラシック',
         script: 'スクリプト',
@@ -658,7 +658,7 @@ export const ja = {
         ink: '墨色',
       },
       size: '文字サイズ',
-      sizeMaxed: '最大サイズです：文字が写真いっぱいに広がっています',
+      sizeMaxed: '最大サイズです：文字が画像いっぱいに広がっています',
     },
     chooseVerseImageBackground: '背景を選ぶ',
     books: {
@@ -1349,7 +1349,7 @@ export const ja = {
     weekOfChrist: {
       title: 'キリストの一週間',
       description:
-        '一週間の各日にイエスの物語の一部を覚えます。日曜日は復活、水曜日は裏切り、金曜日は十字架です。',
+        '一週間の各日にイエスの物語の一部を思い起こします。日曜日は復活、水曜日は裏切り、金曜日は十字架です。',
     },
     lordsPrayerWeek: {
       title: '主の祈りの一週間',
@@ -1479,16 +1479,17 @@ export const ja = {
       },
       peace: {
         title: '平安',
-        description: 'イエスが与える平安について。神との平和、人との和解、静かな信頼を学ぶ七日間。',
+        description:
+          'イエスが与えてくださる平安について。神との平和、人との和解、静かな信頼を学ぶ七日間。',
       },
       depression: {
         title: '落ち込み',
         description:
-          '暗い季節のための正直な詩編と預言者、そしてそこで出会ってくださる神との七日間。',
+          '暗い季節のための正直な詩篇と預言者、そしてそこで出会ってくださる神との七日間。',
       },
       hope: {
         title: '希望',
-        description: '守られた約束の七日間。アブラハムやヨセフから、再び生きる枯れた骨まで。',
+        description: '守られた約束の七日間。アブラハムやヨセフから、よみがえる枯れた骨まで。',
       },
       healing: {
         title: '癒やし',
@@ -1504,7 +1505,7 @@ export const ja = {
       },
       love: {
         title: '愛',
-        description: '決して離さない神の愛と、その愛が私たちに愛することを教える七日間。',
+        description: '決して離さない神の愛と、その愛によって愛することを学ぶ七日間。',
       },
       patience: {
         title: '忍耐',
@@ -1520,7 +1521,7 @@ export const ja = {
       },
       temptation: {
         title: '誘惑',
-        description: '堅く立つための七日間。荒れ野のイエス、逃げたヨセフ、倒れたダビデと共に。',
+        description: '堅く立つための七日間。荒野のイエス、逃げたヨセフ、倒れたダビデと共に。',
       },
       family: {
         title: '家族',

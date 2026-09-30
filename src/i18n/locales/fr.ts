@@ -676,9 +676,9 @@ export const fr = {
         classic: 'Classique',
         script: 'Cursive',
         handwritten: 'Manuscrite',
-        block: 'Bloc',
+        block: 'Capitales',
         slab: 'Slab',
-        elegant: 'Élégant',
+        elegant: 'Élégante',
         typewriter: 'Machine à écrire',
         modern: 'Moderne',
       },
@@ -1609,7 +1609,7 @@ export const fr = {
       pride: {
         title: 'Orgueil',
         description:
-          'Sept jours sur l’humilité : des rois orgueilleux abaissés et le Roi serviteur qui a lavé des pieds.',
+          'Sept jours sur l’humilité : des rois orgueilleux abaissés et le Roi serviteur qui a lavé les pieds.',
       },
       temptation: {
         title: 'Tentation',

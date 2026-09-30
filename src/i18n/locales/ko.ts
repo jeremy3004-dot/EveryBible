@@ -628,7 +628,7 @@ export const ko = {
         color: '색상',
         size: '크기',
       },
-      tabsLabel: '사진 편집',
+      tabsLabel: '이미지 편집',
       fonts: {
         classic: '클래식',
         script: '필기체',
@@ -658,7 +658,7 @@ export const ko = {
         ink: '잉크색',
       },
       size: '텍스트 크기',
-      sizeMaxed: '최대 크기입니다: 글자가 사진을 가득 채웠어요',
+      sizeMaxed: '최대 크기입니다: 글자가 이미지를 가득 채웠습니다',
     },
     chooseVerseImageBackground: '배경을 선택하세요',
     books: {
@@ -1492,7 +1492,7 @@ export const ko = {
       },
       love: {
         title: '사랑',
-        description: '결코 놓지 않으시는 하나님의 사랑과, 그 사랑이 가르쳐 주는 사랑에 관한 7일.',
+        description: '결코 놓지 않으시는 하나님의 사랑과, 그 사랑으로 사랑하는 법을 배우는 7일.',
       },
       patience: {
         title: '인내',
