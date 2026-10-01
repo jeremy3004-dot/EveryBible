@@ -726,7 +726,7 @@ export function HomeScreen() {
       iconSize={16}
       variant="onPhoto"
       disabled={isSharingVerse}
-      accessibilityLabel={t('groups.share')}
+      accessibilityLabel={t('home.shareVerseOfTheDay')}
       style={styles.heroShareButton}
     />
   );

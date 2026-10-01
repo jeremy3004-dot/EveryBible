@@ -509,6 +509,7 @@ export const id = {
       'Ayat hari ini tersedia dalam bentuk audio, sehingga Anda dapat mendengarkannya bahkan sebelum teks tertulis ditambahkan.',
     playSectionOfTheDay: 'Putar bagian hari ini',
     playVerseOfTheDay: 'Putar ayat hari ini',
+    shareVerseOfTheDay: 'Bagikan ayat hari ini',
     continueReading: 'Lanjutkan membaca',
     sharePrompt: 'Bagikan terang. Semangati seseorang hari ini.',
     lessonChip: 'Pelajaran {{number}}',
@@ -673,6 +674,7 @@ export const id = {
       },
       size: 'Ukuran teks',
       sizeMaxed: 'Ukuran maksimal: kata-kata sudah memenuhi seluruh gambar',
+      backgroundOption: 'Latar belakang {{position}} dari {{total}}',
     },
     chooseVerseImageBackground: 'Pilih latar belakang',
     books: {

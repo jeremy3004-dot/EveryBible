@@ -499,6 +499,7 @@ export const ur = {
       'آج کی آیت فی الحال آڈیو میں دستیاب ہے، اس لیے تحریری متن شامل ہونے سے پہلے ہی آپ اسے سن سکتے ہیں۔',
     playSectionOfTheDay: 'آج کا حصہ سنیں',
     playVerseOfTheDay: 'آج کی آیت سنیں',
+    shareVerseOfTheDay: 'آج کی آیت شیئر کریں',
     continueReading: 'پڑھنا جاری رکھیں',
     sharePrompt: 'روشنی بانٹیں۔ آج کسی کی حوصلہ افزائی کریں۔',
     lessonChip: 'سبق {{number}}',
@@ -662,6 +663,7 @@ export const ur = {
       },
       size: 'تحریر کا سائز',
       sizeMaxed: 'زیادہ سے زیادہ سائز: الفاظ نے پوری تصویر بھر دی ہے',
+      backgroundOption: 'پس منظر {{position}} از {{total}}',
     },
     chooseVerseImageBackground: 'پس منظر منتخب کریں',
     books: {

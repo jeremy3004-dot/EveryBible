@@ -256,7 +256,7 @@ const findShareEditor = (view: HomeView) =>
 
 /** Share opens the reader's verse-picture editor; returns it and the picture it will share. */
 async function openShareEditor(view: HomeView) {
-  await view.press(heroes(view).screen.getByRole('button', { name: t('groups.share') }));
+  await view.press(heroes(view).screen.getByRole('button', { name: t('home.shareVerseOfTheDay') }));
   const editor = findShareEditor(view);
   assert.ok(editor, 'the verse-picture editor is open');
   const picture = within(editor)
@@ -581,18 +581,18 @@ test("Share opens the verse-picture editor on today's photograph, verse and refe
   assert.deepEqual(sharing.captures, [], 'nothing is shared until Share is pressed');
 });
 
-test('the hero share control is an icon-only button named with the shared share label', async () => {
+test('the hero share control is an icon-only button named for the verse of the day', async () => {
   const view = await renderHome();
   const { screen } = heroes(view);
 
-  const shareButton = screen.getByRole('button', { name: t('groups.share') });
+  const shareButton = screen.getByRole('button', { name: t('home.shareVerseOfTheDay') });
   assert.equal(textContent(shareButton), '', 'icon only');
   assert.equal(within(shareButton).queryAllByType('LucideIcon').length, 1);
   // It closes the hero action row, after the read action.
   const actionRow = assertDefined(hostAncestors(shareButton)[0], 'actionRow');
   const actions = within(actionRow).getAllByRole('button');
   assert.equal(actions.at(-1), shareButton);
-  assert.equal(view.getAllByRole('button', { name: t('groups.share') }).length, 1);
+  assert.equal(view.getAllByRole('button', { name: t('home.shareVerseOfTheDay') }).length, 1);
 });
 
 test('sharing from the editor captures its picture as a PNG and opens the share sheet', async () => {
@@ -1393,7 +1393,9 @@ for (const releaseFails of [false, true]) {
         harness.navigation.emit('focus');
       });
       await view.flush();
-      const button = heroes(view).screen.getByRole('button', { name: t('groups.share') });
+      const button = heroes(view).screen.getByRole('button', {
+        name: t('home.shareVerseOfTheDay'),
+      });
       assert.notEqual(button.props.disabled, true, 'refocusing permits a fresh request');
       const freshShare = await beginHomeShare(view);
       fresh = freshShare.operation;
@@ -1404,7 +1406,8 @@ for (const releaseFails of [false, true]) {
         await first;
       });
       assert.equal(
-        heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
+        heroes(view).screen.getByRole('button', { name: t('home.shareVerseOfTheDay') }).props
+          .disabled,
         true,
         'stale finally cannot clear the fresh pending request'
       );
@@ -1518,7 +1521,7 @@ test('a current image sharing error retains the handed-off file and falls back t
   ]);
   assert.deepEqual(sharing.releases, [], 'the URI was already handed to native sharing');
   assert.notEqual(
-    heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
+    heroes(view).screen.getByRole('button', { name: t('home.shareVerseOfTheDay') }).props.disabled,
     true
   );
   await view.unmount();
@@ -1534,7 +1537,7 @@ test('a current text sharing failure leaves the Home share control ready for ret
   assert.deepEqual(sharing.sheets, []);
   assert.deepEqual(sharing.releases, []);
   assert.notEqual(
-    heroes(view).screen.getByRole('button', { name: t('groups.share') }).props.disabled,
+    heroes(view).screen.getByRole('button', { name: t('home.shareVerseOfTheDay') }).props.disabled,
     true
   );
   await view.unmount();

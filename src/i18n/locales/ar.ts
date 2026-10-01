@@ -536,6 +536,7 @@ export const ar = {
       'آية اليوم متاحة حاليًا في شكل صوتي، لذا يمكنك الاستماع حتى قبل إضافة النص المكتوب.',
     playSectionOfTheDay: 'تشغيل قسم اليوم',
     playVerseOfTheDay: 'تشغيل آية اليوم',
+    shareVerseOfTheDay: 'مشاركة آية اليوم',
     continueReading: 'مواصلة القراءة',
     sharePrompt: 'شارك النور. شجّع أحدهم اليوم.',
     lessonChip: 'الدرس {{number}}',
@@ -710,6 +711,7 @@ export const ar = {
       },
       size: 'حجم النص',
       sizeMaxed: 'بلغ الحجم أقصاه: الكلمات تملأ الصورة بالكامل',
+      backgroundOption: 'الخلفية {{position}} من {{total}}',
     },
     chooseVerseImageBackground: 'اختر خلفية',
     books: {

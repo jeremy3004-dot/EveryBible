@@ -512,6 +512,7 @@ export const vi = {
       'Câu Kinh Thánh hôm nay hiện có ở dạng âm thanh, nên bạn có thể nghe ngay cả khi phần chữ chưa được thêm vào.',
     playSectionOfTheDay: 'Phát phân đoạn hôm nay',
     playVerseOfTheDay: 'Phát câu Kinh Thánh hôm nay',
+    shareVerseOfTheDay: 'Chia sẻ câu Kinh Thánh hôm nay',
     continueReading: 'Tiếp tục đọc',
     sharePrompt: 'Chia sẻ ánh sáng. Khích lệ ai đó hôm nay.',
     lessonChip: 'Bài học {{number}}',
@@ -675,6 +676,7 @@ export const vi = {
       },
       size: 'Kích cỡ chữ',
       sizeMaxed: 'Kích cỡ tối đa: chữ đã lấp đầy toàn bộ hình ảnh',
+      backgroundOption: 'Nền {{position}} trên {{total}}',
     },
     chooseVerseImageBackground: 'Chọn ảnh nền',
     books: {

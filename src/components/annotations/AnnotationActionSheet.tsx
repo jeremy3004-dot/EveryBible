@@ -1,4 +1,8 @@
+import { useEffect, useRef } from 'react';
 import {
+  AccessibilityInfo,
+  findNodeHandle,
+  InteractionManager,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -90,6 +94,16 @@ function AnnotationActionSheetContent({
   // The reference is the title, set like a citation in the reading serif (the
   // platform serif for scripts Lora cannot draw).
   const titleFontFamily = getReadingFontFamily(i18n.language, 600);
+  // The tray is inline, so VoiceOver's cursor would otherwise stay on the verse
+  // that was tapped. Move it to the title once the tray has mounted.
+  const titleRef = useRef<Text>(null);
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      const node = titleRef.current ? findNodeHandle(titleRef.current) : null;
+      if (node) AccessibilityInfo.setAccessibilityFocus(node);
+    });
+    return () => task.cancel();
+  }, []);
   const entering = reduceMotion
     ? FadeIn.duration(motion.duration.base)
     : SlideInDown.springify()
@@ -123,6 +137,7 @@ function AnnotationActionSheetContent({
 
       <View style={styles.header}>
         <Text
+          ref={titleRef}
           accessibilityRole="header"
           // Sighted readers see the dashed underline; a screen reader hears what the
           // reference is.
@@ -188,6 +203,10 @@ export function AnnotationActionSheet(props: AnnotationActionSheetProps) {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       pointerEvents="box-none"
+      // While the tray is open it is the only thing VoiceOver reads; the verses
+      // behind it stay tappable for sighted readers. iOS only: Android has no
+      // equivalent without hiding the reader's own subtree from its parent.
+      accessibilityViewIsModal={props.visible && Platform.OS === 'ios'}
       // The reader draws under the status bar, so the overlay starts below it;
       // the keyboard's padding then takes room from the sheet, which shrinks
       // and scrolls instead of pushing its title off the top.

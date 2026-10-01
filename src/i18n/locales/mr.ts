@@ -152,6 +152,7 @@ export const mr = {
       'आजचे वचन सध्या ऑडिओ स्वरूपात उपलब्ध आहे, त्यामुळे लिखित मजकूर जोडण्यापूर्वीच तुम्ही ते ऐकू शकता.',
     playSectionOfTheDay: 'आजचा भाग ऐका',
     playVerseOfTheDay: 'आजचे वचन ऐका',
+    shareVerseOfTheDay: 'आजचे वचन शेअर करा',
     continueReading: 'वाचन सुरू ठेवा',
     sharePrompt: 'प्रकाश वाटा. आज कोणाला तरी प्रोत्साहन द्या.',
     lessonChip: 'धडा {{number}}',
@@ -315,6 +316,7 @@ export const mr = {
       },
       size: 'मजकुराचा आकार',
       sizeMaxed: 'कमाल आकार: शब्दांनी संपूर्ण चित्र भरले आहे',
+      backgroundOption: '{{total}} पैकी {{position}} क्रमांकाची पार्श्वभूमी',
     },
     chooseVerseImageBackground: 'पार्श्वभूमी निवडा',
     books: {

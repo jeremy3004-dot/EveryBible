@@ -530,6 +530,7 @@ export const fr = {
       'Le verset d’aujourd’hui est actuellement disponible sous forme audio, vous pouvez donc l’écouter avant même que le texte écrit ne soit ajouté.',
     playSectionOfTheDay: 'Écouter la section du jour',
     playVerseOfTheDay: 'Écouter le verset du jour',
+    shareVerseOfTheDay: 'Partager le verset du jour',
     continueReading: 'Continuer la lecture',
     sharePrompt: 'Partagez la lumière. Encouragez quelqu’un aujourd’hui.',
     lessonChip: 'Leçon {{number}}',
@@ -702,6 +703,7 @@ export const fr = {
       },
       size: 'Taille du texte',
       sizeMaxed: 'Taille maximale : le texte remplit toute la photo',
+      backgroundOption: 'Arrière-plan {{position}} sur {{total}}',
     },
     chooseVerseImageBackground: 'Choisissez un arrière-plan',
     books: {

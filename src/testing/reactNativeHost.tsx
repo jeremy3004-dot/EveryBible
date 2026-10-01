@@ -362,6 +362,10 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
   const base = createReactNativeStub(options);
   const shares: unknown[] = [];
   const announcements: string[] = [];
+  // Props of the host element each `setAccessibilityFocus` landed on, resolved
+  // through the `findNodeHandle` call that preceded it.
+  const focusRequests: Array<Record<string, unknown> | undefined> = [];
+  let lastHandledProps: Record<string, unknown> | undefined;
   const actionSheets: Array<{ options: unknown; callback: unknown }> = [];
   const backHandlers = new Set<() => boolean | null | undefined>();
 
@@ -412,7 +416,9 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
       announceForAccessibility: (message: string) => {
         announcements.push(message);
       },
-      setAccessibilityFocus: () => {},
+      setAccessibilityFocus: () => {
+        focusRequests.push(lastHandledProps);
+      },
     },
     Share: {
       share: async (content: unknown) => {
@@ -461,9 +467,12 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
     },
     Vibration: { vibrate: () => {}, cancel: () => {} },
     ToastAndroid: { show: () => {}, SHORT: 0, LONG: 1 },
-    findNodeHandle: () => 1,
+    findNodeHandle: (node?: { __props?: Record<string, unknown> } | null) => {
+      lastHandledProps = node?.__props;
+      return 1;
+    },
     processColor: (color: unknown) => color,
-    __recorded: { ...base.__recorded, shares, announcements, actionSheets },
+    __recorded: { ...base.__recorded, shares, announcements, focusRequests, actionSheets },
   };
 }
 
@@ -494,7 +503,7 @@ export function createHostNodeMock(
     (...args: unknown[]) => {
       calls?.push({ type, method: name, args, props: element.props as Record<string, unknown> });
     };
-  return Object.fromEntries(
+  const methods = Object.fromEntries(
     [
       'focus',
       'blur',
@@ -511,4 +520,6 @@ export function createHostNodeMock(
       'flashScrollIndicators',
     ].map((name) => [name, method(name)])
   );
+  // Lets `findNodeHandle` tell a test which element a handle was taken from.
+  return Object.defineProperty(methods, '__props', { value: element.props, enumerable: false });
 }

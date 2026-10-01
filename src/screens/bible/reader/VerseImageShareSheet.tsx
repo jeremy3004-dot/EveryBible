@@ -121,7 +121,10 @@ export function VerseImageShareSheet({
             key={`${index}`}
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={`${t('bible.chooseVerseImageBackground')} ${index + 1}`}
+            accessibilityLabel={t('bible.verseImage.backgroundOption', {
+              position: index + 1,
+              total: SHARE_VERSE_BACKGROUND_SOURCES.length,
+            })}
             hitSlop={8}
             style={({ pressed }) => [
               styles.verseImageBackgroundButton,
@@ -233,6 +236,8 @@ export function VerseImageShareSheet({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={t(`bible.verseImage.colors.${color.id}`)}
+            // The cell is an eighth of the row, a hair under 44pt on a 390pt screen.
+            hitSlop={{ left: 4, right: 4 }}
             style={styles.verseImageSwatchCell}
             onPress={() => setStyle((current) => ({ ...current, colorId: color.id }))}
           >

@@ -99,6 +99,8 @@ export const ActivePlanCard = memo(function ActivePlanCard({
             .filter(Boolean)
             .join(', '),
         }}
+        // The label replaces the card's text, so the visible "Continue" is spoken here.
+        accessibilityHint={ctaLabel}
         // Delete is otherwise only reachable by swiping the row.
         accessibilityActions={[{ name: 'delete', label: t('common.delete') }]}
         onAccessibilityAction={(event) => {

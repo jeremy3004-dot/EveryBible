@@ -391,6 +391,7 @@ export function installRenderHarness(
     text.fontScale = 1;
     rn.__recorded.alerts.length = 0;
     rn.__recorded.announcements.length = 0;
+    rn.__recorded.focusRequests.length = 0;
     rn.__recorded.shares.length = 0;
     hostRenderLog.length = 0;
     authStore.setState(authStore.getInitialState(), true);

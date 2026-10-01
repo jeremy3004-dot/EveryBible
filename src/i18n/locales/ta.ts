@@ -153,6 +153,7 @@ export const ta = {
       'இன்றைய வசனம் தற்போது ஆடியோ வடிவில் கிடைக்கிறது; எழுத்து வடிவம் சேர்க்கப்படும் முன்பே நீங்கள் கேட்கலாம்.',
     playSectionOfTheDay: 'இன்றைய பகுதியை இயக்கு',
     playVerseOfTheDay: 'இன்றைய வசனத்தை இயக்கு',
+    shareVerseOfTheDay: 'இன்றைய வசனத்தைப் பகிர்',
     continueReading: 'தொடர்ந்து வாசி',
     sharePrompt: 'ஒளியைப் பகிருங்கள். இன்று ஒருவரை ஊக்குவியுங்கள்.',
     lessonChip: 'பாடம் {{number}}',
@@ -319,6 +320,7 @@ export const ta = {
       },
       size: 'எழுத்து அளவு',
       sizeMaxed: 'அதிகபட்ச அளவு: வார்த்தைகள் படம் முழுவதையும் நிறைத்துவிட்டன',
+      backgroundOption: '{{total}} இல் {{position}}வது பின்னணி',
     },
     chooseVerseImageBackground: 'பின்னணியைத் தேர்ந்தெடுங்கள்',
     books: {

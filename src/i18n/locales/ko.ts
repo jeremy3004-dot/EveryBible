@@ -496,6 +496,7 @@ export const ko = {
       '오늘의 말씀은 지금 오디오로 제공되어, 글로 된 본문이 추가되기 전에도 들을 수 있습니다.',
     playSectionOfTheDay: '오늘의 본문 재생',
     playVerseOfTheDay: '오늘의 말씀 재생',
+    shareVerseOfTheDay: '오늘의 말씀 공유',
     continueReading: '계속 읽기',
     sharePrompt: '빛을 나누세요. 오늘 누군가를 격려하세요.',
     lessonChip: '레슨 {{number}}',
@@ -659,6 +660,7 @@ export const ko = {
       },
       size: '텍스트 크기',
       sizeMaxed: '최대 크기입니다: 글자가 이미지를 가득 채웠습니다',
+      backgroundOption: '배경 {{position}}/{{total}}',
     },
     chooseVerseImageBackground: '배경을 선택하세요',
     books: {
