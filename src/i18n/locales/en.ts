@@ -1500,6 +1500,19 @@ export const en = {
       title: 'Hearing God’s Voice',
       description: 'Listen for God through the prophets, the psalms, Jesus, and the early church.',
     },
+    churchYear: {
+      heading: 'Church year',
+      advent: {
+        title: 'Advent',
+        description:
+          'From the first Sunday of Advent to Christmas Eve: a week each of hope, peace, joy, and love, from the prophets’ promises to the angel’s visit to Mary.',
+      },
+      christmas: {
+        title: 'The Twelve Days of Christmas',
+        description:
+          'From Christmas Day to 5 January: the birth of Jesus, the Word made flesh, and the wise men who followed the star.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Loss',

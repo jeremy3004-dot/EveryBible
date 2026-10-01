@@ -676,9 +676,9 @@ export const fr = {
         classic: 'Classique',
         script: 'Cursive',
         handwritten: 'Manuscrite',
-        block: 'Bloc',
+        block: 'Capitales',
         slab: 'Slab',
-        elegant: 'Élégant',
+        elegant: 'Élégante',
         typewriter: 'Machine à écrire',
         modern: 'Moderne',
       },
@@ -1546,6 +1546,19 @@ export const fr = {
       description:
         'Écoutez Dieu à travers les prophètes, les psaumes, Jésus et l’Église primitive.',
     },
+    churchYear: {
+      heading: 'Année liturgique',
+      advent: {
+        title: 'Avent',
+        description:
+          'Du premier dimanche de l’Avent à la veille de Noël : une semaine d’espérance, une de paix, une de joie, puis une d’amour, des promesses des prophètes à la visite de l’ange à Marie.',
+      },
+      christmas: {
+        title: 'Les douze jours de Noël',
+        description:
+          'Du jour de Noël au 5 janvier : la naissance de Jésus, la Parole faite chair et les mages qui ont suivi l’étoile.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Deuil',
@@ -1609,7 +1622,7 @@ export const fr = {
       pride: {
         title: 'Orgueil',
         description:
-          'Sept jours sur l’humilité : des rois orgueilleux abaissés et le Roi serviteur qui a lavé des pieds.',
+          'Sept jours sur l’humilité : des rois orgueilleux abaissés et le Roi serviteur qui a lavé les pieds.',
       },
       temptation: {
         title: 'Tentation',

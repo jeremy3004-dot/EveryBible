@@ -645,14 +645,14 @@ export const ur = {
       colors: {
         white: 'سفید',
         cream: 'کریمی',
-        sand: 'ریتلا',
+        sand: 'ریتیلا',
         gold: 'سنہری',
         amber: 'عنبری',
         coral: 'مرجانی',
         blush: 'ہلکا گلابی',
         lavender: 'لیوینڈر',
         sky: 'آسمانی',
-        mint: 'پودینہ رنگ',
+        mint: 'پودینہ سبز',
         sage: 'خاکی سبز',
         rose: 'گہرا گلابی',
         crimson: 'قرمزی',
@@ -843,8 +843,8 @@ export const ur = {
     passageRangeInChapter: '{{book}} {{chapter}}:{{startVerse}}–{{endVerse}}',
     passageRange: '{{book}} {{startChapter}}:{{startVerse}}–{{endChapter}}:{{endVerse}}',
     passagePickerTitle: 'کوئی حصہ دہرائیں',
-    passageFrom: 'سے',
-    passageTo: 'تک',
+    passageFrom: 'کہاں سے',
+    passageTo: 'کہاں تک',
     passageFromChapter: 'ابتدائی باب',
     passageFromVerse: 'ابتدائی آیت',
     passageToChapter: 'آخری باب',
@@ -1352,9 +1352,9 @@ export const ur = {
         'ہفتے کے ہر دن کے لیے مقررہ صبح و شام کے زبور کے حصے پڑھیں، اور ہر ہفتے دہرائیں۔',
     },
     commonPrayerPsalter: {
-      title: 'عام دعا کی کتاب کی زبور',
+      title: 'مشترکہ دعا کی کتاب کے زبور',
       description:
-        'عام دعا کی کتاب کی ترتیب کے مطابق ہر مہینے صبح و شام تمام 150 مزامیر سے دعا کریں۔',
+        'مشترکہ دعا کی کتاب کی ترتیب کے مطابق ہر مہینے صبح و شام تمام 150 زبور دعا کے طور پر پڑھیں۔',
     },
     weekOfChrist: {
       title: 'مسیح کا ہفتہ',
@@ -1472,6 +1472,19 @@ export const ur = {
       title: 'خدا کی آواز سننا',
       description: 'نبیوں، زبور، یسوع اور ابتدائی کلیسیا کے ذریعے خدا کی آواز سنیں۔',
     },
+    churchYear: {
+      heading: 'کلیسیائی سال',
+      advent: {
+        title: 'آمد کا موسم',
+        description:
+          'آمد کے پہلے اتوار سے کرسمس سے پہلے کی شام تک: اُمید، سلامتی، خوشی اور محبت کا ایک ایک ہفتہ، نبیوں کے وعدوں سے لے کر مریم کے پاس فرشتے کے آنے تک۔',
+      },
+      christmas: {
+        title: 'کرسمس کے بارہ دن',
+        description:
+          'کرسمس کے دن سے 5 جنوری تک: یسوع کی پیدائش، مجسم ہونے والا کلام، اور ستارے کے پیچھے آنے والے مجوسی۔',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'غم',
@@ -1481,7 +1494,7 @@ export const ur = {
       stress: {
         title: 'ذہنی دباؤ',
         description:
-          'جب سب کچھ حد سے بڑھ جائے، اُس وقت کے لیے سات دن: روز کی فراہمی، مل کر اُٹھایا گیا بوجھ، اور سچا آرام۔',
+          'جب سب کچھ حد سے بڑھ جائے، اُس وقت کے لیے سات دن: روز کی روٹی، مل کر اُٹھایا گیا بوجھ، اور سچا آرام۔',
       },
       fear: {
         title: 'خوف',

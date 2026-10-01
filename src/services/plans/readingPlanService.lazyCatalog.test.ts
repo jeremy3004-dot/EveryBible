@@ -42,6 +42,6 @@ test('listing plans loads the catalog and returns every bundled plan', async () 
 
   assert.equal(isCatalogLoaded(), true);
   assert.equal(result.success, true);
-  assert.equal(result.data?.length, 42);
+  assert.equal(result.data?.length, 44);
   assert.equal(result.data?.[0]?.id, 'bible-in-1-year');
 });

@@ -1373,12 +1373,12 @@ export const vi = {
     weekOfChrist: {
       title: 'Tuần của Đấng Christ',
       description:
-        'Mỗi ngày trong tuần ghi nhớ một phần câu chuyện của Chúa Giê-xu: Chủ nhật là sự Phục sinh, thứ Tư là sự phản bội, thứ Sáu là thập tự giá.',
+        'Mỗi ngày trong tuần ghi nhớ một phần câu chuyện của Chúa Giê-su: Chủ nhật là sự Phục sinh, thứ Tư là sự phản bội, thứ Sáu là thập tự giá.',
     },
     lordsPrayerWeek: {
       title: 'Tuần Lời Cầu Nguyện Chúa Dạy',
       description:
-        'Mỗi ngày cầu nguyện bằng Lời Cầu Nguyện Chúa Dạy, rồi đọc một đoạn giúp mở rộng một câu trong đó.',
+        'Mỗi ngày cầu nguyện bằng Lời Cầu Nguyện Chúa Dạy, rồi đọc một đoạn Kinh Thánh giúp hiểu sâu hơn một câu trong bài cầu nguyện ấy.',
     },
     gospelsMonthly: {
       title: 'Các sách Phúc Âm mỗi tháng',
@@ -1494,6 +1494,19 @@ export const vi = {
       title: 'Nghe tiếng Chúa',
       description: 'Lắng nghe Chúa qua các tiên tri, Thi Thiên, Chúa Giê-su và Hội Thánh đầu tiên.',
     },
+    churchYear: {
+      heading: 'Lịch Hội Thánh',
+      advent: {
+        title: 'Mùa Vọng',
+        description:
+          'Từ Chủ nhật thứ nhất Mùa Vọng đến đêm trước Giáng Sinh: mỗi tuần một chủ đề hy vọng, bình an, vui mừng và yêu thương, từ lời hứa của các tiên tri đến lúc thiên sứ đến thăm Ma-ri.',
+      },
+      christmas: {
+        title: 'Mười hai ngày Giáng Sinh',
+        description:
+          'Từ ngày Giáng Sinh đến ngày 5 tháng 1: sự giáng sinh của Chúa Giê-su, Ngôi Lời trở nên xác thịt, và các nhà thông thái theo ngôi sao.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Mất mát',
@@ -1513,12 +1526,12 @@ export const vi = {
       peace: {
         title: 'Bình an',
         description:
-          'Bảy ngày về sự bình an Chúa Giê-su ban: hòa thuận với Đức Chúa Trời, với người khác, và tin cậy yên tĩnh.',
+          'Bảy ngày về sự bình an Chúa Giê-su ban: bình an với Đức Chúa Trời, hòa thuận với người khác, và sự tin cậy lặng yên.',
       },
       depression: {
-        title: 'Trầm uất',
+        title: 'Trầm cảm',
         description:
-          'Bảy ngày với Thi Thiên và các tiên tri chân thật cho mùa tăm tối, và Đức Chúa Trời gặp bạn ở đó.',
+          'Bảy ngày với những lời Thi Thiên và tiên tri thẳng thắn cho mùa tăm tối, và Đức Chúa Trời, Đấng gặp bạn ở đó.',
       },
       hope: {
         title: 'Hy vọng',
@@ -1528,12 +1541,12 @@ export const vi = {
       healing: {
         title: 'Chữa lành',
         description:
-          'Bảy ngày với Đức Chúa Trời chữa lành, từ Na-a-man và Ê-xê-chia đến sự chạm đến của Chúa Giê-su.',
+          'Bảy ngày với Đức Chúa Trời chữa lành, từ Na-a-man và Ê-xê-chia đến cái chạm tay của Chúa Giê-su.',
       },
       anger: {
         title: 'Giận dữ',
         description:
-          'Bảy ngày với những câu chuyện về cơn giận, từ Ca-in đến Giô-na, và lòng thương xót đáp lại.',
+          'Bảy ngày với những câu chuyện về cơn giận, từ Ca-in đến Giô-na, và lòng thương xót đáp lại cơn giận ấy.',
       },
       anxiety: {
         title: 'Lo âu',

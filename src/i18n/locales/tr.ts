@@ -1375,11 +1375,12 @@ export const tr = {
     weekOfChrist: {
       title: 'Mesih’in Haftası',
       description:
-        'Haftanın her günü İsa’nın öyküsünün bir bölümünü anar: Pazar günü diriliş, çarşamba ihanet, cuma çarmıh.',
+        'Haftanın her gününde İsa’nın öyküsünden bir bölüm anılır: pazar günü diriliş, çarşamba ihanet, cuma çarmıh.',
     },
     lordsPrayerWeek: {
       title: 'Rab’bin Duası Haftası',
-      description: 'Her gün Rab’bin Duası’nı edin, sonra onun bir satırını açan bir bölüm okuyun.',
+      description:
+        'Her gün Rab’bin Duası’yla dua edin, sonra duanın bir satırını açıklayan bir bölüm okuyun.',
     },
     gospelsMonthly: {
       title: 'Her Ay İnciller',
@@ -1492,6 +1493,19 @@ export const tr = {
       title: 'Tanrı’nın Sesini Duymak',
       description: 'Tanrı’yı peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin.',
     },
+    churchYear: {
+      heading: 'Kilise yılı',
+      advent: {
+        title: 'Advent Dönemi',
+        description:
+          'Advent’in ilk pazarından Noel arifesine kadar: umut, esenlik, sevinç ve sevgi için birer hafta; peygamberlerin vaatlerinden meleğin Meryem’i ziyaretine.',
+      },
+      christmas: {
+        title: 'Noel’in on iki günü',
+        description:
+          'Noel gününden 5 Ocak’a kadar: İsa’nın doğuşu, insan olan Söz ve yıldızın ardından gelen bilge adamlar.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Kayıp',
@@ -1501,7 +1515,7 @@ export const tr = {
       stress: {
         title: 'Stres',
         description:
-          'Her şey fazla geldiğinde yedi gün: günlük rızk, paylaşılan yükler ve gerçek dinlenme.',
+          'Her şey fazla geldiğinde yedi gün: gündelik ekmek, paylaşılan yükler ve gerçek dinlenme.',
       },
       fear: {
         title: 'Korku',
@@ -1513,7 +1527,7 @@ export const tr = {
           'İsa’nın verdiği esenlik üzerine yedi gün: Tanrı’yla, insanlarla barış ve sessiz güven.',
       },
       depression: {
-        title: 'Keder',
+        title: 'Depresyon',
         description:
           'Karanlık dönemler için dürüst mezmurlar ve peygamberlerle, sizi orada karşılayan Tanrı’yla yedi gün.',
       },
@@ -1532,7 +1546,8 @@ export const tr = {
       },
       anxiety: {
         title: 'Kaygı',
-        description: 'Güvenmeyi öğrenmek için yedi gün: yüreğinizi dökün ve Tanrı sizi korusun.',
+        description:
+          'Güvenmeyi öğrenmek için yedi gün: yüreğinizi dökün ve bırakın Tanrı sizi korusun.',
       },
       love: {
         title: 'Sevgi',

@@ -2,7 +2,9 @@ import type { ImageSourcePropType } from 'react-native';
 import type { ReadingPlan, ReadingPlanCoverKey } from './types';
 
 const COVER_ASSETS: Record<string, ImageSourcePropType> = {
+  advent: require('../../../assets/plans/covers/advent.png'),
   canyon: require('../../../assets/plans/covers/canyon.png'),
+  christmas: require('../../../assets/plans/covers/christmas.png'),
   commonPrayerPsalter: require('../../../assets/plans/covers/commonPrayerPsalter.png'),
   desert: require('../../../assets/plans/covers/desert.png'),
   dunes: require('../../../assets/plans/covers/dunes.png'),

@@ -628,7 +628,7 @@ export const ko = {
         color: '색상',
         size: '크기',
       },
-      tabsLabel: '사진 편집',
+      tabsLabel: '이미지 편집',
       fonts: {
         classic: '클래식',
         script: '필기체',
@@ -658,7 +658,7 @@ export const ko = {
         ink: '잉크색',
       },
       size: '텍스트 크기',
-      sizeMaxed: '최대 크기입니다: 글자가 사진을 가득 채웠어요',
+      sizeMaxed: '최대 크기입니다: 글자가 이미지를 가득 채웠습니다',
     },
     chooseVerseImageBackground: '배경을 선택하세요',
     books: {
@@ -1451,6 +1451,19 @@ export const ko = {
       title: '하나님의 음성 듣기',
       description: '선지자와 시편, 예수님과 초대교회를 통해 하나님의 음성에 귀 기울여 보세요.',
     },
+    churchYear: {
+      heading: '교회력',
+      advent: {
+        title: '대림절',
+        description:
+          '대림절 첫째 주일부터 성탄 전야까지, 소망과 평화와 기쁨과 사랑을 한 주씩 묵상하며 선지자들의 약속부터 천사가 마리아를 찾아온 이야기까지 읽습니다.',
+      },
+      christmas: {
+        title: '성탄절 열두 날',
+        description:
+          '성탄절부터 1월 5일까지, 예수님의 탄생과 육신이 되신 말씀, 별을 따라온 동방박사들을 읽습니다.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: '상실',
@@ -1492,7 +1505,7 @@ export const ko = {
       },
       love: {
         title: '사랑',
-        description: '결코 놓지 않으시는 하나님의 사랑과, 그 사랑이 가르쳐 주는 사랑에 관한 7일.',
+        description: '결코 놓지 않으시는 하나님의 사랑과, 그 사랑으로 사랑하는 법을 배우는 7일.',
       },
       patience: {
         title: '인내',

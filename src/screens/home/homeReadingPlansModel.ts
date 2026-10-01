@@ -1,6 +1,7 @@
 import {
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
+  isPlanInSeason,
   isRecurringPlan,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
@@ -28,9 +29,13 @@ const parseTimestamp = (value: string | null | undefined): number | null => {
  *
  * A recurring rhythm (Proverbs by day of month, the weekly Kathisma) has one
  * reading per calendar day, so today is done once today's day is ticked. A
- * sequential plan can be read ahead, so any day ticked today counts.
+ * sequential plan can be read ahead, so any day ticked today counts. Advent
+ * joined in October has nothing due until its first Sunday.
  */
 function isReadToday({ plan, progress }: HomeContinuePlan, today: Date): boolean {
+  if (!isPlanInSeason(plan, today)) {
+    return true;
+  }
   if (isRecurringPlan(plan)) {
     const todayKey = getPlanCompletionEntryKey(
       plan,

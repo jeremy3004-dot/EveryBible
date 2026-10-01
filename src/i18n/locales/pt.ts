@@ -663,7 +663,7 @@ export const pt = {
         classic: 'Clássica',
         script: 'Cursiva',
         handwritten: 'Manuscrita',
-        block: 'Bloco',
+        block: 'Maiúsculas',
         slab: 'Slab',
         elegant: 'Elegante',
         typewriter: 'Máquina de escrever',
@@ -685,7 +685,7 @@ export const pt = {
         crimson: 'Carmesim',
         forest: 'Verde-floresta',
         navy: 'Azul-marinho',
-        ink: 'Tinta',
+        ink: 'Nanquim',
       },
       size: 'Tamanho do texto',
       sizeMaxed: 'Tamanho máximo: as palavras já preenchem toda a foto',
@@ -1520,6 +1520,19 @@ export const pt = {
       title: 'Ouvindo a voz de Deus',
       description: 'Ouça a Deus por meio dos profetas, dos salmos, de Jesus e da igreja primitiva.',
     },
+    churchYear: {
+      heading: 'Ano litúrgico',
+      advent: {
+        title: 'Advento',
+        description:
+          'Do primeiro domingo do Advento até a véspera de Natal: uma semana de esperança, uma de paz, uma de alegria e uma de amor, das promessas dos profetas à visita do anjo a Maria.',
+      },
+      christmas: {
+        title: 'Os doze dias de Natal',
+        description:
+          'Do dia de Natal até 5 de janeiro: o nascimento de Jesus, o Verbo que se fez carne e os magos que seguiram a estrela.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Luto',
@@ -1582,7 +1595,7 @@ export const pt = {
       pride: {
         title: 'Orgulho',
         description:
-          'Sete dias sobre a humildade: reis orgulhosos humilhados e o Rei servo que lavou pés.',
+          'Sete dias sobre a humildade: reis orgulhosos humilhados e o Rei servo que lavou os pés.',
       },
       temptation: {
         title: 'Tentação',

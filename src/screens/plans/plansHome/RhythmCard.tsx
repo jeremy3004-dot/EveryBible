@@ -7,9 +7,14 @@ import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { radius, spacing, typography } from '../../../design/system';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { useLargeText } from '../../../hooks/useLargeText';
-import { getActivePlanDayNumber, getPlanDayCount } from '../../../services/plans/readingPlanModel';
+import {
+  getActivePlanDayNumber,
+  getPlanDayCount,
+  getPlanSeason,
+  isPlanInSeason,
+} from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
-import { formatPlanCadenceLabel } from './plansHomeModel';
+import { formatPlanCadenceLabel, formatPlanSeasonDates } from './plansHomeModel';
 import { PlanCover } from './PlanCover';
 import { RHYTHM_COVER_ASPECT } from './plansHomeStyles';
 
@@ -32,7 +37,7 @@ export const RhythmCard = memo(function RhythmCard({
   onPlanPress,
 }: RhythmCardProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const displayFont = useDisplayFont();
   // Two rhythm cards to a row leaves ~150pt per title; at large text sizes that
   // is a word per line, so each card takes the full row instead.
@@ -41,16 +46,23 @@ export const RhythmCard = memo(function RhythmCard({
 
   const isEnrolled = progress !== undefined;
   const cadence = formatPlanCadenceLabel(plan, t);
-  const dayLabel = progress
-    ? t('readingPlans.dayOf', {
-        current: getActivePlanDayNumber(plan, progress, today),
-        total: getPlanDayCount(plan, today),
-      })
-    : null;
+  const season = getPlanSeason(plan, today);
+  const seasonDates = season ? formatPlanSeasonDates(season, i18n.language) : null;
+  const dayLabel =
+    progress && isPlanInSeason(plan, today)
+      ? t('readingPlans.dayOf', {
+          current: getActivePlanDayNumber(plan, progress, today),
+          total: getPlanDayCount(plan, today),
+        })
+      : null;
   // Enrolled rhythms lead with where you are; everything else leads with the
-  // cadence the plan actually runs on ("MORNING + EVENING").
+  // cadence the plan actually runs on ("MORNING + EVENING"), or for Advent and
+  // Christmas the dates it runs this year ("29 NOV – 24 DEC").
   const metaLabel =
-    cadence ?? dayLabel ?? t('readingPlans.daysCount', { count: plan.duration_days });
+    cadence ??
+    dayLabel ??
+    seasonDates ??
+    t('readingPlans.daysCount', { count: plan.duration_days });
   const title = t(plan.title_key as Parameters<typeof t>[0], { defaultValue: plan.title_key });
 
   return (

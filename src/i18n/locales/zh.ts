@@ -1428,6 +1428,18 @@ export const zh = {
       title: '聆听神的声音',
       description: '透过先知、诗篇、耶稣和早期教会，聆听神的声音。',
     },
+    churchYear: {
+      heading: '教会年历',
+      advent: {
+        title: '降临期',
+        description:
+          '从降临期第一个主日到平安夜：盼望、平安、喜乐、爱各一周，从先知的应许读到天使向马利亚报信。',
+      },
+      christmas: {
+        title: '圣诞十二日',
+        description: '从圣诞节到1月5日：耶稣的降生、道成肉身，以及跟随星星而来的博士。',
+      },
+    },
     lifeSituations: {
       loss: {
         title: '失落',
@@ -1446,12 +1458,12 @@ export const zh = {
         description: '七天默想耶稣所赐的平安：与神和好、与人和睦，并安静信靠。',
       },
       depression: {
-        title: '忧郁',
+        title: '抑郁',
         description: '七天读诚实的诗篇与先知书，陪你走过幽暗季节，神就在那里与你相遇。',
       },
       hope: {
         title: '盼望',
-        description: '七天看神信守应许，从亚伯拉罕、约瑟到枯骨重新复活。',
+        description: '七天看神信守应许，从亚伯拉罕、约瑟到枯骨复生。',
       },
       healing: {
         title: '医治',

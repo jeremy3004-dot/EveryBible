@@ -3,6 +3,7 @@ import {
   getPlanDayCount,
   isMultiSessionPlan,
   isRecurringPlan,
+  type PlanSeason,
 } from '../../../services/plans/readingPlanModel';
 import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
 import type {
@@ -130,6 +131,14 @@ export function getLocalizedSessionLabel(sessionKey: PlanSessionKey, t: TFunctio
   });
 }
 
+/** "29 Nov – 24 Dec": the dates a seasonal plan runs this year, in the in-app language. */
+export function formatPlanSeasonDates({ start, dayCount }: PlanSeason, locale?: string): string {
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + dayCount - 1);
+  const format = (date: Date) =>
+    date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
+  return `${format(start)} – ${format(end)}`;
+}
+
 /** "Morning + Evening" for a multi-session plan; null for any other. */
 export function formatPlanCadenceLabel(plan: ReadingPlan, t: TFunction): string | null {
   if (!isMultiSessionPlan(plan) || !plan.sessionOrder?.length) {
@@ -175,6 +184,7 @@ const CATEGORY_LABEL_KEYS: Record<string, string> = {
   topical: 'readingPlans.categoryTopical',
   devotional: 'readingPlans.categoryDevotional',
   'life-situation': 'readingPlans.categoryLifeSituations',
+  'church-year': 'readingPlans.churchYear.heading',
 };
 
 /** A catalog category's heading; an unknown one is title-cased from its slug. */
@@ -189,6 +199,7 @@ export function getPlanCategoryLabel(category: string, t: TFunction): string {
 }
 
 export interface CatalogPlanGroups {
+  churchYearPlans: ReadingPlan[];
   dailyRhythmPlans: ReadingPlan[];
   lifeSituationPlans: ReadingPlan[];
   categories: { category: string; plans: ReadingPlan[] }[];
@@ -196,6 +207,8 @@ export interface CatalogPlanGroups {
 
 /**
  * Section layout rule for Find plans:
+ *   • "Church year" plans (Advent, Christmas) come first as a cover grid: they are
+ *     dated to their season, and a reader looks for them by name.
  *   • Recurring plans — the calendar-driven ones that repeat forever instead of
  *     running to an end date — are the featured "Daily rhythms" group and get the
  *     two-up cover grid, because their covers are the browse hook.
@@ -206,11 +219,13 @@ export interface CatalogPlanGroups {
  *     instead of turning into a wall of artwork. Categories keep catalog order.
  */
 export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
-  const dailyRhythmPlans = plans.filter((plan) => isRecurringPlan(plan));
-  const lifeSituationPlans = plans.filter(
+  const churchYearPlans = plans.filter((plan) => plan.category === 'church-year');
+  const rest = plans.filter((plan) => plan.category !== 'church-year');
+  const dailyRhythmPlans = rest.filter((plan) => isRecurringPlan(plan));
+  const lifeSituationPlans = rest.filter(
     (plan) => !isRecurringPlan(plan) && plan.category === 'life-situation'
   );
-  const plansByCategory = plans
+  const plansByCategory = rest
     .filter((plan) => !isRecurringPlan(plan) && plan.category !== 'life-situation')
     .reduce<Record<string, ReadingPlan[]>>((acc, plan) => {
       const category = plan.category ?? 'other';
@@ -220,6 +235,7 @@ export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
     }, {});
 
   return {
+    churchYearPlans,
     dailyRhythmPlans,
     lifeSituationPlans,
     categories: Object.keys(plansByCategory).map((category) => ({
