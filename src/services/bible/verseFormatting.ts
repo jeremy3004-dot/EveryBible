@@ -171,3 +171,54 @@ export const reconcileVerseFormattingWithText = (
 
   return recoveredProse ? { mode: formatting.mode, lines: rebuilt } : formatting;
 };
+
+// The bundled text carries a stray space before a closing quotation mark in about a hundred
+// BSB verses (John 3:3 "born again. ”") and a few npiulb ones, and the matching formatting
+// puts a closing quote on a line of its own (Matthew 2:6). Fixed at read time, like the prose
+// lead-ins above, so the 45 MB database is not rebuilt. A space after a quote is the
+// legitimate nested pair ("’ ”"), and a quote followed by a letter is an apostrophe or an
+// opening quote, so neither is touched.
+const STRAY_CLOSING_QUOTE_SPACE = /(?<=[^\s‘“’”]) +(?=[’”](?![\p{L}\p{N}]))/gu;
+const QUOTE_ONLY_LINE = /^[’”]+$/;
+const QUOTE_CHAR_AT_END = /[’”]$/;
+
+export const normalizeClosingQuoteSpacing = (text: string): string =>
+  typeof text === 'string' ? text.replace(STRAY_CLOSING_QUOTE_SPACE, '') : text;
+
+/**
+ * Remove the stray space before closing quotes inside each line and fold a line made only of
+ * closing quotes into the line before it. Returns the input untouched (same identity) when
+ * nothing needs fixing.
+ */
+export const normalizeVerseFormattingQuotes = (
+  formatting: VerseFormatting | undefined
+): VerseFormatting | undefined => {
+  if (!formatting) {
+    return formatting;
+  }
+
+  const lines: VerseFormattingLine[] = [];
+  let changed = false;
+
+  for (const line of formatting.lines) {
+    const text = normalizeClosingQuoteSpacing(line.text);
+    const previous = lines[lines.length - 1];
+    if (previous && QUOTE_ONLY_LINE.test(text)) {
+      // Keep the nested-pair space the verse text has ("’ ”") so the merged line still
+      // matches the text during reconcileVerseFormattingWithText.
+      const joiner = QUOTE_CHAR_AT_END.test(previous.text) ? ' ' : '';
+      lines[lines.length - 1] = { ...previous, text: `${previous.text}${joiner}${text}` };
+      changed = true;
+      continue;
+    }
+
+    if (text !== line.text) {
+      changed = true;
+      lines.push({ ...line, text });
+    } else {
+      lines.push(line);
+    }
+  }
+
+  return changed ? { mode: formatting.mode, lines } : formatting;
+};

@@ -17,7 +17,9 @@ import {
   type BibleDatabaseSource,
 } from './bibleDatabaseSources';
 import {
+  normalizeClosingQuoteSpacing,
   normalizeVerseFormatting,
+  normalizeVerseFormattingQuotes,
   reconcileVerseFormattingWithText,
   serializeVerseFormatting,
 } from './verseFormatting';
@@ -585,18 +587,7 @@ export async function getChapter(
     throw await toInstalledDatabaseReadError(database, error);
   }
 
-  return results.map((row) => ({
-    id: row.id,
-    bookId: row.book_id,
-    chapter: row.chapter,
-    verse: row.verse,
-    text: row.text,
-    heading: row.heading ?? undefined,
-    formatting: reconcileVerseFormattingWithText(
-      row.text,
-      normalizeVerseFormatting(row.formatting)
-    ),
-  }));
+  return results.map(toVerse);
 }
 
 type VerseRow = {
@@ -609,17 +600,20 @@ type VerseRow = {
   formatting: string | null;
 };
 
+// The cleaned text is what every consumer (reader, highlights, share) gets, so rendered lines
+// and verse text never disagree about the stray space before a closing quote.
 function toVerse(row: VerseRow): Verse {
+  const text = normalizeClosingQuoteSpacing(row.text);
   return {
     id: row.id,
     bookId: row.book_id,
     chapter: row.chapter,
     verse: row.verse,
-    text: row.text,
+    text,
     heading: row.heading ?? undefined,
     formatting: reconcileVerseFormattingWithText(
-      row.text,
-      normalizeVerseFormatting(row.formatting)
+      text,
+      normalizeVerseFormattingQuotes(normalizeVerseFormatting(row.formatting))
     ),
   };
 }
