@@ -45,7 +45,7 @@ import {
   isSyntacticallyValid,
   type Mutant,
 } from './mutation/mutants';
-import { buildReverseImportGraph, selectTests } from './mutation/testSelection';
+import { buildReverseImportGraph, rankTests, selectTests } from './mutation/testSelection';
 
 type Status = 'killed' | 'timeout' | 'survived' | 'uncovered' | 'equivalent' | 'invalid';
 
@@ -98,6 +98,8 @@ const CLONE_EXCLUDES = new Set([
 ]);
 const EQUIVALENTS_FILE = path.join(repoRoot, 'scripts', 'mutation-equivalents.json');
 const SOURCE_TEXT_TEST = /Source\.test\.tsx?$/;
+// How many tests further out are tried when the nearest leave code uncovered.
+const MAX_WIDER_TESTS = 40;
 
 function parseArgs(argv: string[]): Options {
   const options: Options = {
@@ -228,13 +230,15 @@ interface TestCoverage {
 
 // Runs every test once against the instrumented module, in parallel across
 // workers. A test that fails instrumented but passes plain (it reads the source
-// text) is assumed to reach everything; one that fails plain stops the run.
+// text) is assumed to reach everything; one that fails plain stops the run, or
+// with `strict` off is just left out.
 async function measureCoverage(
   relativeFile: string,
   original: string,
   instrumented: string,
   tests: string[],
-  workers: Worker[]
+  workers: Worker[],
+  strict = true
 ): Promise<Map<string, TestCoverage>> {
   for (const worker of workers) writeFileSync(path.join(worker.root, relativeFile), instrumented);
   const coverage = new Map<string, TestCoverage>();
@@ -262,7 +266,7 @@ async function measureCoverage(
     })
   );
   for (const worker of workers) writeFileSync(path.join(worker.root, relativeFile), original);
-  if (failing.length > 0) {
+  if (strict && failing.length > 0) {
     throw new Error(`Tests fail before mutation, fix them first:\n  ${failing.join('\n  ')}`);
   }
   return coverage;
@@ -275,12 +279,13 @@ async function mutateFile(
   equivalents: Record<string, string>
 ): Promise<{ results: MutantResult[]; tests: string[] }> {
   const original = readFileSync(path.join(repoRoot, relativeFile), 'utf8');
-  const tests = (
-    options.tests ??
-    selectTests(buildReverseImportGraph(repoRoot), path.join(repoRoot, relativeFile)).map((test) =>
-      path.relative(repoRoot, test.file)
-    )
-  ).filter((test) => options.includeSourceTests || options.tests || !SOURCE_TEXT_TEST.test(test));
+  const usable = (test: string) => options.includeSourceTests || !SOURCE_TEXT_TEST.test(test);
+  const ranked = options.tests
+    ? []
+    : rankTests(buildReverseImportGraph(repoRoot), path.join(repoRoot, relativeFile))
+        .map((test) => ({ ...test, file: path.relative(repoRoot, test.file) }))
+        .filter((test) => usable(test.file));
+  const tests = options.tests ?? selectTests(ranked).map((test) => test.file);
   let mutants = generateMutants(original, relativeFile);
   const generatedKeys = new Set(mutants.map((m) => m.key));
   const stale = Object.keys(equivalents).filter((key) => !generatedKeys.has(key));
@@ -319,6 +324,38 @@ async function mutateFile(
     const hits = coverage.get(test)?.hits;
     return hits === null || hits === undefined || hits.has(probeOf.get(mutant.id) ?? -1);
   };
+
+  // Code the nearest tests never reach may still be exercised further out (a model
+  // reached only through a screen's model, say): try the next tests out, once each,
+  // and keep the ones that reach an otherwise uncovered statement.
+  const unreached = () =>
+    new Set(
+      mutants
+        .filter((m) => !tests.some((test) => reaches(test, m)))
+        .map((m) => probeOf.get(m.id) ?? -1)
+    );
+  const missing = unreached();
+  const wider = ranked
+    .map((test) => test.file)
+    .filter((test) => !tests.includes(test))
+    .slice(0, MAX_WIDER_TESTS);
+  if (missing.size > 0 && wider.length > 0) {
+    const widerCoverage = await measureCoverage(
+      relativeFile,
+      original,
+      instrumented,
+      wider,
+      workers,
+      false
+    );
+    for (const [test, measured] of widerCoverage) {
+      if (measured.hits && [...missing].some((probe) => measured.hits?.has(probe))) {
+        coverage.set(test, measured);
+        tests.push(test);
+        console.log(`  + ${test} (reaches code the nearer tests do not)`);
+      }
+    }
+  }
   // Tests that killed a mutant move to the front: neighbouring mutants tend to
   // be killed by the same file.
   const order = [...tests];

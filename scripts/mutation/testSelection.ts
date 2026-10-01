@@ -68,40 +68,53 @@ export interface SelectedTest {
   distance: number;
 }
 
-/**
- * Tests that import the module directly, widened one import hop at a time while
- * fewer than `minimum` are found (a module only reached through a barrel or a
- * service facade has no direct tests).
- */
-export function selectTests(
+/** Every test that can reach the module within `maxDistance` import hops, nearest first. */
+export function rankTests(
   graph: Map<string, Set<string>>,
   target: string,
-  { minimum = 3, maxDistance = 4, maxTests = 60 } = {}
+  maxDistance = 4
 ): SelectedTest[] {
-  const distances = new Map<string, number>([[target, 0]]);
+  const seen = new Set<string>([target]);
   let frontier = [target];
   const found: SelectedTest[] = [];
   for (let distance = 1; distance <= maxDistance && frontier.length > 0; distance++) {
     const next: string[] = [];
     for (const file of frontier) {
       for (const importer of graph.get(file) ?? []) {
-        if (distances.has(importer)) continue;
-        distances.set(importer, distance);
+        if (seen.has(importer)) continue;
+        seen.add(importer);
         if (isTestFile(importer)) found.push({ file: importer, distance });
         else next.push(importer);
       }
     }
     frontier = next;
-    if (found.length >= minimum) break;
   }
   const stem = path.basename(target).replace(/\.tsx?$/, '');
   const namedAfterTarget = (file: string) => path.basename(file).startsWith(`${stem}.`);
-  return found
-    .sort(
-      (a, b) =>
-        Number(namedAfterTarget(b.file)) - Number(namedAfterTarget(a.file)) ||
-        a.distance - b.distance ||
-        a.file.localeCompare(b.file)
-    )
-    .slice(0, maxTests);
+  return found.sort(
+    (a, b) =>
+      Number(namedAfterTarget(b.file)) - Number(namedAfterTarget(a.file)) ||
+      a.distance - b.distance ||
+      a.file.localeCompare(b.file)
+  );
+}
+
+/**
+ * Tests that import the module directly, widened one import hop at a time while
+ * fewer than `minimum` are found (a module only reached through a barrel or a
+ * service facade has no direct tests). scripts/mutate.ts widens further, test by
+ * test, when these leave mutants uncovered.
+ */
+export function selectTests(
+  ranked: SelectedTest[],
+  { minimum = 3, maxTests = 60 } = {}
+): SelectedTest[] {
+  let cutoff = 0;
+  for (const test of [...ranked].sort((a, b) => a.distance - b.distance)) {
+    if (test.distance > cutoff && ranked.filter((t) => t.distance <= cutoff).length >= minimum) {
+      break;
+    }
+    cutoff = Math.max(cutoff, test.distance);
+  }
+  return ranked.filter((test) => test.distance <= cutoff).slice(0, maxTests);
 }
