@@ -613,3 +613,28 @@ test('taps delivered before the form re-renders start one sign-in, not several',
     ['goBack']
   );
 });
+
+// The close button and the system back gesture stay live during a sign-in. Finishing
+// afterwards used to dismiss again, and that goBack popped whatever lay under the modal.
+test('a sign-in that finishes after the screen was closed does not dismiss again', async () => {
+  const gate = deferred();
+  auth.gate = gate.promise;
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  const pending = (
+    view.getByRole('button', { name: t('auth.signIn') }).props.onPress as () => Promise<void>
+  )();
+  await view.flush();
+
+  await view.unmount();
+  await act(async () => {
+    gate.resolve();
+    await pending;
+  });
+
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    []
+  );
+});

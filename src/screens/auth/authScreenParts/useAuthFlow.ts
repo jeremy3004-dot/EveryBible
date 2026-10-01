@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -67,8 +67,22 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
   const [errors, setErrors] = useState<AuthFormErrors>({});
   const [verificationNotice, setVerificationNotice] = useState(false);
 
+  // Close and the system back gesture stay live during a sign-in. Once the screen is
+  // gone, finishing must not go back again: that would pop what lies under the modal.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const dismiss = () => {
     navigation.getParent()?.goBack();
+  };
+
+  const dismissWhenDone = () => {
+    if (isMountedRef.current) dismiss();
   };
 
   const changeMode = (nextMode: AuthScreenMode) => {
@@ -105,7 +119,7 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
     }
 
     await pullFromCloud(userId);
-    dismiss();
+    dismissWhenDone();
   };
 
   const showAuthFailure = (result: AuthResult, fallbackKey: string) => {
@@ -163,7 +177,7 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
         const userId = await hydrateLiveSession();
         if (userId) {
           await pullFromCloud(userId);
-          dismiss();
+          dismissWhenDone();
           return;
         }
 
