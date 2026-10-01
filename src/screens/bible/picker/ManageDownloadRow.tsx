@@ -70,6 +70,7 @@ export function ManageDownloadRow({
       accessibilityValue={{
         text: getManageRowAccessibilityValue({ state, progress, indeterminate, meta }, t),
       }}
+      accessibilityState={{ busy: state === 'busy' }}
       accessibilityActions={
         progress != null
           ? [{ name: 'cancelDownload', label: t('translations.cancelDownload') }]

@@ -18,7 +18,12 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { type ReactTestInstance } from 'react-test-renderer';
-import { flattenStyle, hostAncestors, within } from '../../testing/render';
+import {
+  flattenStyle,
+  hostAncestors,
+  isHiddenFromAccessibility,
+  within,
+} from '../../testing/render';
 import {
   BSB,
   GOSPEL_AUDIO,
@@ -342,13 +347,24 @@ test('the manage sheet reserves the safe area and sizes to the window after rota
   assert.equal(view.queryAllByType('Modal').length, 0, 'Android back closes the manage sheet');
 
   const reopened = await openManageSheet(view, BSB);
-  await view.press(
-    assertDefined(
-      within(reopened).getAllByRole('button', { name: t('interface.close') })[1],
-      "within(reopened).getAllByRole('button', { name: t('interf..."
-    )
-  );
+  await view.press(within(reopened).getByRole('button', { name: t('interface.close') }));
   assert.equal(view.queryAllByType('Modal').length, 0);
+});
+
+test('the manage sheet is a modal page: its backdrop is hidden and Close is spoken once', async () => {
+  const view = await renderPicker();
+  const sheet = await openManageSheet(view, BSB);
+
+  const backdrop = assertDefined(within(sheet).queryAllByType('TouchableOpacity')[0], 'backdrop');
+  assert.equal(isHiddenFromAccessibility(backdrop), true);
+  assert.equal(within(sheet).getAllByRole('button', { name: t('interface.close') }).length, 1);
+
+  const title = within(sheet).getByRole('header', { name: BSB.name });
+  const card = hostAncestors(title).find((node) => node.props.accessibilityViewIsModal === true);
+  assert.ok(card, 'the sheet card traps screen-reader focus');
+
+  await view.press(backdrop);
+  assert.equal(view.queryAllByType('Modal').length, 0, 'tapping outside still closes it');
 });
 
 test('the manage sheet for the current Bible offers pin, the installed text, and audio by collection and book', async () => {
@@ -419,12 +435,7 @@ test('audio rows appear only when the translation has known book coverage it can
     const sheet = await openManageSheet(view, translation);
     assert.equal(within(sheet).queryByRole('header', { name: t('bible.audioDownloads') }), null);
     assert.equal(within(sheet).queryByText(t('bible.byBook')), null, translation.name);
-    await view.press(
-      assertDefined(
-        within(sheet).getAllByRole('button', { name: t('interface.close') })[1],
-        "within(sheet).getAllByRole('button', { name: t('interface..."
-      )
-    );
+    await view.press(within(sheet).getByRole('button', { name: t('interface.close') }));
   }
 });
 
