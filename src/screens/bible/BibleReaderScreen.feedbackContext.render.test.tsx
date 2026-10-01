@@ -93,7 +93,7 @@ test('actual Next cannot attribute a closed John3 text and voice draft to John4'
     await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
     await view.flush();
     await view.press(view.getByRole('button', { name: t('common.cancel') }));
-    await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+    await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
     const params = reader.setParamsCalls().at(-1);
     assert.ok(params);
     await reader.navigateReader(view, params);

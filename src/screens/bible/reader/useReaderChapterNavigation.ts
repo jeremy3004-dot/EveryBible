@@ -316,7 +316,7 @@ export function useReaderChapterNavigation({
         : t('readingPlans.completeDayCta', {
             defaultValue: 'Complete day',
           })
-      : t('bible.nextChapterHint');
+      : t('audio.nextChapter');
   const readerBarNextAccessibilityHint =
     showPlanSessionChrome &&
     chapterSessionMode === 'read' &&
@@ -324,7 +324,7 @@ export function useReaderChapterNavigation({
       ? showPlanReadDockSessionCompletionCopy
         ? t('readingPlans.completeSessionHint')
         : t('readingPlans.completeDayHint')
-      : null;
+      : t('bible.nextChapterHint');
   const hasReaderBarNextChapter =
     showPlanSessionChrome && chapterSessionMode === 'read'
       ? hasNextChapter || hasPlanReadDockNextAction
