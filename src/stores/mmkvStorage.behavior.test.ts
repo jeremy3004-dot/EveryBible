@@ -202,3 +202,20 @@ test('a store action still succeeds when the unchanged-payload check cannot read
     'a failed comparison read falls through to the write'
   );
 });
+
+test('a failed write is retried by the next identical persist instead of being remembered as saved', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const { zustandStorage } = await load();
+  const { createJSONStorage } = await import('zustand/middleware');
+  const { createUnchangedStateStorage } = await import('./unchangedStateStorage');
+  const storage = createUnchangedStateStorage(
+    createJSONStorage<{ chapter: number }>(() => zustandStorage)!
+  );
+
+  faults.write = true;
+  storage.setItem('bible-storage', { state: { chapter: 3 }, version: 0 });
+  faults.write = false;
+  storage.setItem('bible-storage', { state: { chapter: 3 }, version: 0 });
+
+  assert.equal(backing.get('bible-storage'), '{"state":{"chapter":3},"version":0}');
+});
