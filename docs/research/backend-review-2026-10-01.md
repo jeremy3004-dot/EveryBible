@@ -4,11 +4,37 @@ Scope: `supabase/migrations`, `supabase/functions`. Static review of the repo at
 
 ## Limits of this review (read first)
 
-- The Supabase MCP tools (`get_advisors`, `list_migrations`, `execute_sql`, ...) were not
-  available to the worker that wrote this. No live advisor run and no `list_migrations` vs repo
-  comparison was done. Nothing below describes the live database. Re-run both before acting.
+- The static sections were written without live access. The live advisors were run afterwards
+  (see "Live advisors, 2026-10-01 07:30 UTC" below); the `list_migrations` vs repo comparison
+  was not done.
 - PGlite was not installed, so no `scripts/verify-*-sql.mjs` harness was run. No migration was
   added, so none was needed.
+
+## Live advisors, 2026-10-01 07:30 UTC
+
+Run read-only against project `ganmududzdzpruvdulkg`. Nothing needs a migration.
+
+Performance:
+
+- No unindexed foreign keys, no `auth_rls_initplan` (per-row `auth.uid()`), no duplicate indexes,
+  no multiple-permissive-policy findings.
+- 40 unused indexes (INFO). Most are on admin, moderation and groups tables that see little
+  traffic yet (groups sync is off in the app). Not worth dropping: they cover foreign keys and
+  admin queries that will run once those features are used.
+- 10 tables without a primary key: 9 are snapshots in the `backups` schema; the other is
+  `public.analytics_monthly_rollup`. Owner can drop old `backups.*` tables when no longer needed.
+- Auth server uses an absolute 10-connection pool; switch to a percentage strategy before any
+  instance upgrade (dashboard).
+
+Security:
+
+- 18 tables with RLS on and no policies (INFO): all are service-role-only tables (admin,
+  moderation, throttles, translator passcodes, backups). This denies client access, as intended.
+- 6 SECURITY DEFINER RPCs executable by `authenticated` (WARN): `create_group`,
+  `delete_my_account`, `join_group_by_code`, `leave_group`, `refresh_my_engagement`,
+  `report_prayer_request`. These are the app's intended RPCs and check `auth.uid()` inside.
+- Already-known owner items: leaked-password protection off, too few MFA options, `pg_net` in
+  `public` (needs a Supabase support ticket).
 
 ## Migrations (static)
 
