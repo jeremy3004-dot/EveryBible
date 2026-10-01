@@ -615,6 +615,29 @@ test('coming back to the app on the same day does not redraw the calendar cells'
   );
 });
 
+test('a few seconds of listening banked while the screen is open redraw no calendar cells', async () => {
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 9 * 60_000 } });
+  const view = await renderScreen();
+  const isDayCell = (props: Record<string, unknown>) =>
+    props.accessibilityRole === 'button' &&
+    typeof props.accessibilityLabel === 'string' &&
+    /^[A-Z][a-z]+day, [A-Z][a-z]+ \d+$/.test(props.accessibilityLabel);
+
+  const since = harness.renders.mark();
+  await act(async () => {
+    useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 9 * 60_000 + 30_000 } });
+  });
+  await view.flush();
+
+  assert.deepEqual(
+    harness.renders
+      .since(since)
+      .filter((entry) => entry.type === 'Pressable' && isDayCell(entry.props))
+      .map((entry) => entry.props.accessibilityLabel),
+    []
+  );
+});
+
 test('choosing a day re-renders only the two cells whose selection changed', async () => {
   const view = await renderScreen();
   const isDayCell = (props: Record<string, unknown>) =>
