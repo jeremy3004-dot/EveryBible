@@ -120,6 +120,8 @@ export interface LanguagePagesBuild {
   meta: LanguagePagesMeta;
   entries: LanguageIndexEntry[];
   shards: Record<string, LanguagePage>[];
+  /** Slug code of a language merged into another (see alternateIds) → the surviving page's slug. */
+  moved: Record<string, string>;
 }
 
 const collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
@@ -330,6 +332,25 @@ export function buildLanguagePages(
     seen.add(slug);
     slugs.set(language.id, slug);
   }
+  // A merged-away language's page URL ended in its own code; keep that code
+  // pointing at the language it was merged into. Codes a live page still uses
+  // or that two languages claim are left out rather than guessed.
+  const liveCodes = new Set(pageRecords.map((language) => languageCode(language)));
+  const movedClaims = new Map<string, Set<string>>();
+  for (const language of pageRecords) {
+    for (const alternateId of language.alternateIds ?? []) {
+      const code = languageCode({ id: alternateId });
+      if (!code || liveCodes.has(code)) continue;
+      movedClaims.set(code, (movedClaims.get(code) ?? new Set()).add(slugs.get(language.id)!));
+    }
+  }
+  const moved = Object.fromEntries(
+    [...movedClaims]
+      .filter(([, targets]) => targets.size === 1)
+      .map(([code, targets]) => [code, [...targets][0]])
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  );
+
   const languages = pageRecords.map((language) => ({
     ...language,
     name: normalizeLanguageName(language.name),
@@ -528,11 +549,13 @@ export function buildLanguagePages(
     },
     entries,
     shards,
+    moved,
   };
 }
 
 export const LANGUAGE_PAGES_META_FILE = 'meta.json';
 export const LANGUAGE_PAGES_INDEX_FILE = 'index.json.gz';
+export const LANGUAGE_PAGES_MOVED_FILE = 'moved.json';
 
 export function languageShardFile(shard: number): string {
   return `shard-${String(shard).padStart(2, '0')}.json.gz`;
@@ -543,6 +566,7 @@ export function languagePageFiles(build: LanguagePagesBuild): Record<string, unk
   return {
     [LANGUAGE_PAGES_META_FILE]: build.meta,
     [LANGUAGE_PAGES_INDEX_FILE]: { languages: build.entries },
+    [LANGUAGE_PAGES_MOVED_FILE]: build.moved,
     ...Object.fromEntries(build.shards.map((shard, index) => [languageShardFile(index), shard])),
   };
 }

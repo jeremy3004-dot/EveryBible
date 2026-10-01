@@ -2,7 +2,7 @@ import copy
 import unittest
 from types import SimpleNamespace
 
-from reconciliation import reconcile_records
+from reconciliation import correct_records, reconcile_records
 
 
 SOURCE_URL = "https://example.org/review/crosswalk"
@@ -151,6 +151,38 @@ class ReconciliationTests(unittest.TestCase):
             reconcile_records(value, [decision("language:a", ["language:b"])])
         self.assertEqual(value.records, before | {"language:b": {**before["language:b"], "iso6393": "aaa"}})
 
+    def test_duplicate_registry_codes_merge_only_when_the_decision_names_the_field(self):
+        # GRN sometimes issues two ROLV codes for one variety ("Ahousaht" and
+        # "Ahousaht."). A reviewed decision may fold them together, but only by
+        # naming rolvCode explicitly; the second code must stay recorded.
+        def fresh():
+            return builder({
+                "rolv:00001": record("rolv:00001", name="Ahousaht", rolv="00001", parent=None, iso="nuk"),
+                "el:dup": record("el:dup", name="Ahousaht.", rolv="00002", parent=None, iso="nuk"),
+            })
+
+        value = fresh()
+        with self.assertRaisesRegex(ValueError, "conflicting rolvCode"):
+            reconcile_records(value, [decision("rolv:00001", ["el:dup"])])
+
+        value = fresh()
+        with self.assertRaisesRegex(ValueError, "allowedCodeConflicts"):
+            reconcile_records(value, [{**decision("rolv:00001", ["el:dup"]), "allowedCodeConflicts": ["iso6393"]}])
+
+        value = fresh()
+        reconcile_records(value, [{**decision("rolv:00001", ["el:dup"]), "allowedCodeConflicts": ["rolvCode"]}])
+        merged = value.records["rolv:00001"]
+        self.assertEqual(merged["rolvCode"], "00001")
+        self.assertEqual(merged["alternateCodes"], {"rolvCode": ["00002"]})
+        self.assertEqual(merged["alternateIds"], ["el:dup"])
+        self.assertNotIn("el:dup", value.records)
+
+        value = fresh()
+        value.records["el:dup"]["glottocode"] = "abcd1234"
+        value.records["rolv:00001"]["glottocode"] = "wxyz9876"
+        with self.assertRaisesRegex(ValueError, "conflicting glottocode"):
+            reconcile_records(value, [{**decision("rolv:00001", ["el:dup"]), "allowedCodeConflicts": ["rolvCode"]}])
+
     def test_kind_mismatch_and_people_group_merges_fail_closed(self):
         value = builder({
             "language:a": record("language:a", kind="language"),
@@ -249,6 +281,40 @@ class ReconciliationTests(unittest.TestCase):
         self.assertEqual(value.glottolog_ids, maps_after_first)
         self.assertEqual(report["mergedGroups"], [])
         self.assertEqual(report["staleGroups"][0]["canonicalId"], "rolv:one")
+
+    def test_source_corrections_fix_named_fields_and_note_why(self):
+        # Every Language tagged "Romani, Balkan" with Roma's ISO code, so it sat
+        # in Indonesia. A reviewed correction fixes the row before merging.
+        value = builder({
+            "iso:rom": record("iso:rom", kind="language", iso="rom"),
+            "el:x": record("el:x", kind="language", name="Romani, Balkan", iso="rmm"),
+        })
+        value.records["el:x"]["location"] = {"latitude": -7.6, "longitude": 127.4}
+        value.records["el:x"]["locations"] = [value.records["el:x"]["location"]]
+        correct_records(value, [{
+            "id": "el:x",
+            "set": {"iso6393": "rmn", "parentId": "iso:rom", "location": None},
+            "rationale": "Mis-tagged with Roma (rmm)",
+            "evidence": [SOURCE_URL],
+        }])
+        fixed = value.records["el:x"]
+        self.assertEqual((fixed["iso6393"], fixed["parentId"], fixed["location"]), ("rmn", "iso:rom", None))
+        self.assertNotIn("locations", fixed)
+        self.assertIn("Source correction: Mis-tagged with Roma (rmm)", value.details["el:x"]["notes"])
+
+    def test_source_corrections_fail_closed(self):
+        value = builder({"el:x": record("el:x")})
+        before = copy.deepcopy(value.records)
+        for bad, message in (
+            ({"id": "el:missing", "set": {"iso6393": "abc"}}, "missing record"),
+            ({"id": "el:x", "set": {"name": "Renamed"}}, "cannot correct"),
+            ({"id": "el:x", "set": {}}, "non-empty"),
+            ({"id": "el:x", "set": {"iso6393": "abc"}, "evidence": []}, "evidence"),
+        ):
+            correction = {"rationale": "why", "evidence": [SOURCE_URL], **bad}
+            with self.assertRaisesRegex(ValueError, message):
+                correct_records(value, [correction])
+            self.assertEqual(value.records, before)
 
 
 if __name__ == "__main__":

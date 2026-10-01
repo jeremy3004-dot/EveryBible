@@ -163,6 +163,26 @@ test('only languages become pages, each with a unique, valid slug and title labe
   assert.equal(build.meta.shardCount, 4);
 });
 
+test('a language merged into another keeps its old URL code, pointing at the surviving page', () => {
+  // "Ruthenian" (el:dc83872a…) was merged into Rusyn; /languages/ruthenian-el-dc83872a
+  // was published, so its code now leads to the Rusyn page instead of a 404.
+  const build = buildLanguagePages(
+    atlas([
+      record({
+        id: 'iso:rue',
+        name: 'Rusyn',
+        iso6393: 'rue',
+        alternateIds: ['el:dc83872a-527f-4607-bd27-3f27edb9a213', 'glottolog:rusy1239', 'iso:aaa'],
+      }),
+      record({ id: 'iso:aaa', name: 'Aari', iso6393: 'aaa' }),
+    ]),
+    [],
+    4
+  );
+  assert.deepEqual(build.moved, { 'el-dc83872a': 'rusyn-rue', rusy1239: 'rusyn-rue' });
+  assert.deepEqual(languagePageFiles(build)['moved.json'], build.moved);
+});
+
 test('placeholder records from the project tracker are left out of pages, counts and sitemaps', () => {
   const placeholder = (id: string, name: string) =>
     record({ id, name, sourceIds: ['everylanguage'] });
@@ -621,6 +641,7 @@ test('committed macrolanguage pages show their members, never red while a member
   const thin = Object.values(pages).filter((page) =>
     isThinLanguage({ ...page, countryCodes: page.countries.map((country) => country.code) })
   );
-  assert.ok(thin.length > 600, `${thin.length} thin pages`);
+  // ~270 code-less copies of coded languages were merged on 2026-10-01; the rest remain.
+  assert.ok(thin.length > 300, `${thin.length} thin pages`);
   assert.ok(thin.every((page) => page.canonicalSlug !== page.slug || !page.indexable));
 });

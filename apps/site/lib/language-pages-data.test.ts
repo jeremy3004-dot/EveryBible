@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { getLanguageIndex, getLanguagePage, getLanguagePagesMeta } from './language-pages-data';
+import {
+  getLanguageIndex,
+  getLanguagePage,
+  getLanguagePagesMeta,
+  getMovedLanguageSlug,
+} from './language-pages-data';
 import { shouldPrerenderLanguage } from './language-pages';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -22,6 +27,14 @@ test('a language page is read from its shard by slug', async () => {
 test('unknown, malformed and prototype slugs are not found', async () => {
   for (const slug of ['not-a-language-zzz', '../meta', 'Yoruba-YOR', 'constructor', '__proto__']) {
     assert.equal(await getLanguagePage(slug, root), null, slug);
+  }
+});
+
+test('a merged-away language URL resolves to the surviving page by its code', async () => {
+  assert.equal(await getMovedLanguageSlug('ruthenian-el-dc83872a', root), 'rusyn-rue');
+  assert.equal(await getMovedLanguageSlug('anything-el-dc83872a', root), 'rusyn-rue');
+  for (const slug of ['not-a-language-zzz', 'yoruba-yor', '../moved', '__proto__', 'constructor']) {
+    assert.equal(await getMovedLanguageSlug(slug, root), null, slug);
   }
 });
 

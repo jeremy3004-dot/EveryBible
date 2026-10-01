@@ -421,7 +421,7 @@ def write_output(name, data, check):
 def main():
     from everylanguage import enrich_everylanguage
     from grn import enrich_grn
-    from reconciliation import reconcile_records
+    from reconciliation import correct_records, reconcile_records
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify the snapshots reproduce exactly without writing")
@@ -454,6 +454,11 @@ def main():
     builder.add_people_groups()
     enrich_everylanguage(builder, bundle)
     enrich_grn(builder, load_json(SOURCES / "grn-rolv-alternate-names-20260905.json"), load_json(SOURCES / "grn-mapapp-language-variety-index-20260905.json"))
+    corrections_path = ROOT / "data/language-atlas/record-corrections.json"
+    corrections = load_json(corrections_path)
+    if corrections.get("schemaVersion") != 1:
+        raise ValueError("Unsupported record correction schema")
+    correct_records(builder, corrections["corrections"])
     decisions_path = ROOT / "data/language-atlas/reconciliation-decisions.json"
     decisions = load_json(decisions_path)
     if decisions.get("schemaVersion") != 1:
@@ -466,6 +471,11 @@ def main():
         "file": str(decisions_path.relative_to(ROOT)),
         "sha256": hashlib.sha256(decisions_path.read_bytes()).hexdigest(),
         "reviewedAt": decisions["reviewedAt"],
+    }
+    builder.report["reconciliation"]["correctionFile"] = {
+        "file": str(corrections_path.relative_to(ROOT)),
+        "sha256": hashlib.sha256(corrections_path.read_bytes()).hexdigest(),
+        "corrected": [correction["id"] for correction in corrections["corrections"]],
     }
     index, details, report = builder.finish(sources, snapshot_date)
     retained_ids = {identity for record in index["records"]

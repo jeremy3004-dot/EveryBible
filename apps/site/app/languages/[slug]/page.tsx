@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import {
@@ -25,6 +25,7 @@ import {
   getLanguageIndex,
   getLanguagePage,
   getLanguagePagesMeta,
+  getMovedLanguageSlug,
 } from '../../../lib/language-pages-data';
 import { languagePagePath } from '../../../lib/language-slug';
 import { countryFlag } from '../../../lib/public-atlas-profile';
@@ -48,10 +49,18 @@ interface LanguageRouteProps {
   params: Promise<{ slug: string }>;
 }
 
+/** A language merged into another moves to that page; anything else is a 404. */
+async function redirectOrNotFound(slug: string): Promise<never> {
+  const moved = await getMovedLanguageSlug(slug);
+  if (moved) permanentRedirect(languagePagePath(moved));
+  notFound();
+}
+
 export async function generateMetadata({ params }: LanguageRouteProps): Promise<Metadata> {
-  const page = await getLanguagePage((await params).slug);
+  const { slug } = await params;
+  const page = await getLanguagePage(slug);
   // Without this the browser re-applies the homepage title and canonical over the 404.
-  if (!page) notFound();
+  if (!page) return redirectOrNotFound(slug);
   return languagePageMetadata(page);
 }
 
@@ -106,7 +115,7 @@ function ProjectSummary({ page }: { page: LanguagePage }) {
 export default async function LanguageDetailPage({ params }: LanguageRouteProps) {
   const { slug } = await params;
   const [page, meta] = await Promise.all([getLanguagePage(slug), getLanguagePagesMeta()]);
-  if (!page) notFound();
+  if (!page) return redirectOrNotFound(slug);
 
   const appBibles = bundledAppBibles(page.iso6393);
   const sources = meta.sources.filter((source) => page.sourceIds.includes(source.id));
