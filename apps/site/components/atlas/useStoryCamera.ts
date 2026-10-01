@@ -98,7 +98,9 @@ export function useStoryCamera(
       }
       if (now - last < SPIN_FRAME_MS) return;
       const center = map.getCenter();
-      map.setCenter([center.lng + ((now - last) / 1000) * STORY_SPIN_SPEED, center.lat]);
+      // The Earth turns west to east, so the land drifts right: the camera's
+      // longitude falls.
+      map.setCenter([center.lng - ((now - last) / 1000) * STORY_SPIN_SPEED, center.lat]);
       last = now;
     };
     frame = requestAnimationFrame(tick);
