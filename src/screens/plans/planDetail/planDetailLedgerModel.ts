@@ -9,6 +9,7 @@ import {
   formatPlanLedgerDayLabel,
   type CurrentPlanDaySummary,
 } from '../../../services/plans/readingPlanActivity';
+import { formatPlanMonthDay } from '../../../services/plans/planDateFormat';
 import {
   getDaySessionEntries,
   getPlanSeason,
@@ -177,7 +178,7 @@ export function getLedgerCellStates(
 
 /** Short cycle date for a ledger row ("7 Sep"), in the in-app language. */
 export function formatLedgerCycleDate(date: Date, locale?: string): string {
-  return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
+  return formatPlanMonthDay(date, locale);
 }
 
 /**
