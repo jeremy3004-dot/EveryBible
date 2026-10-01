@@ -5,8 +5,11 @@ import { createReactHookRuntime } from '../../../testing/reactHookRuntime';
 
 const runtime = createReactHookRuntime();
 mockModule(mock, 'react', runtime.react);
+// The latest focus effect, so a test can re-run it as if the tab regained focus.
+const focus: { current: () => void | (() => void) } = { current: () => {} };
 mockModule(mock, '@react-navigation/native', {
   useFocusEffect: (effect: () => void | (() => void)) => {
+    focus.current = effect;
     // Unit tests exercise the initial focused mount; real focus/blur lifecycle
     // coverage lives in ReadingActivityScreen.render.test.tsx.
     const useEffect = runtime.react.useEffect as (
@@ -123,4 +126,42 @@ test('another account never sees the previous account’s totals while its own l
   await view.commit();
   await settle();
   assert.deepEqual(view.rerender(), { total_chapters_read: 3 });
+});
+
+test('refocusing within a minute reuses the loaded summary instead of refetching', async () => {
+  mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  try {
+    const view = runtime.mount(useEngagementSummary, true, 'user-a');
+    await view.commit();
+    await settle();
+    assert.equal(service.calls.length, 2);
+
+    mock.timers.tick(59_000);
+    focus.current();
+    await settle();
+    assert.equal(service.calls.length, 2, 'fresh summary is reused');
+
+    mock.timers.tick(2_000);
+    focus.current();
+    await settle();
+    assert.deepEqual(service.calls.slice(2), ['refreshEngagement', 'getEngagementSummary']);
+    assert.deepEqual(view.rerender(), { total_chapters_read: 12 });
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('a fresh summary for one account does not suppress another account’s first load', async () => {
+  mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  try {
+    const view = runtime.mount(useEngagementSummary, true, 'user-a');
+    await view.commit();
+    await settle();
+    view.rerender(true, 'user-b');
+    await view.commit();
+    await settle();
+    assert.equal(service.calls.length, 4);
+  } finally {
+    mock.timers.reset();
+  }
 });
