@@ -1427,3 +1427,46 @@ test('legacy near-complete history still counts without a completion ledger and 
     1
   );
 });
+
+test('a rhythm leaves out a seasonal plan until its season opens', () => {
+  const planId = 'advent';
+  const buildSession = (today: Date) =>
+    buildRhythmReaderSession({
+      rhythm: {
+        id: 'audit',
+        title: 'Audit',
+        items: [
+          { id: 'item-advent', type: 'plan', planId },
+          {
+            id: 'item-passage',
+            type: 'passage',
+            title: 'Psalm 23',
+            bookId: 'PSA',
+            startChapter: 23,
+            endChapter: 23,
+          },
+        ],
+        createdAt: '',
+        updatedAt: '',
+      },
+      planEntriesById: readingPlanEntriesByPlanId,
+      progressByPlanId: { [planId]: makeProgress(planId) },
+      today,
+    });
+
+  // Advent 2026 opens on Sunday 29 November: in October it has nothing due, so the
+  // session must not queue day 1 or file a tick under a late-November date.
+  const october = buildSession(new Date(2026, 9, 1, 12));
+  assert.deepEqual(
+    october.sessionContext.segments.map((segment) => segment.itemId),
+    ['item-passage']
+  );
+  assert.equal(october.startSegment?.itemId, 'item-passage');
+
+  const december = buildSession(new Date(2026, 11, 1, 12));
+  assert.deepEqual(
+    december.sessionContext.segments.map((segment) => segment.itemId),
+    ['item-advent', 'item-passage']
+  );
+  assert.equal(december.startSegment?.occurrenceKey, '2026-12-01');
+});

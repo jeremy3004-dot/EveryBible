@@ -18,6 +18,7 @@ import {
   buildPlanSessionCompletionKey,
   getDaySessionEntries,
   getPlanCompletionEntryKey,
+  isPlanInSeason,
   isRecurringPlan,
   isMultiSessionPlan,
 } from './readingPlanModel';
@@ -290,6 +291,11 @@ export function buildRhythmReaderSession({
       }
 
       const plan = readingPlansById.get(planId);
+      // A seasonal plan before its first day has nothing due; queueing its day 1 would
+      // file the tick under a date weeks ahead.
+      if (!isPlanInSeason(plan, today)) {
+        continue;
+      }
       const dayNumber =
         plan && isRecurringPlan(plan)
           ? getActivePlanDayNumber(plan, progress, today)
