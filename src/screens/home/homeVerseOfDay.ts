@@ -29,12 +29,13 @@ export interface VerseOfDayLoadOptions {
 /**
  * Loads the verse of the day from the local Bible, never the network. Only the newest
  * request may write Scripture or settle the spinner, and a request superseded while
- * the Bible module loads never starts database work.
+ * the Bible module loads never starts database work. Resolves false only when the
+ * newest request failed, so a caller can retry; the Scripture on screen is left alone.
  */
 export async function loadVerseOfDay(
   load: VerseOfDayLoad,
   { allowInitialization = true, silent = false }: VerseOfDayLoadOptions = {}
-): Promise<void> {
+): Promise<boolean> {
   const { requestIdRef } = load;
   const requestId = ++requestIdRef.current;
   if (!silent) {
@@ -44,21 +45,22 @@ export async function loadVerseOfDay(
   try {
     if (!load.translation) {
       load.setDailyScripture(null);
-      return;
+      return true;
     }
 
     const { getDailyScripture } = await load.loadBibleService();
-    if (requestId !== requestIdRef.current) return;
+    if (requestId !== requestIdRef.current) return true;
     const scripture = await getDailyScripture(load.translation, load.audioAvailable, {
       allowInitialization,
     });
     if (requestId === requestIdRef.current) {
       load.setDailyScripture(scripture);
     }
+    return true;
   } catch (error) {
-    if (requestId === requestIdRef.current) {
-      console.error('Error loading verse of the day:', error);
-    }
+    if (requestId !== requestIdRef.current) return true;
+    console.error('Error loading verse of the day:', error);
+    return false;
   } finally {
     // A silent retry may supersede the initial load, so it must also settle its spinner.
     if (requestId === requestIdRef.current) {
@@ -67,8 +69,13 @@ export async function loadVerseOfDay(
   }
 }
 
+/** Wait before retrying a failed silent refresh, and how many retries one refresh gets. */
+export const VERSE_RETRY_DELAY_MS = 5_000;
+export const VERSE_MAX_RETRIES = 2;
+
 export interface VerseOfDayRefresh {
-  load: (options?: VerseOfDayLoadOptions) => Promise<void>;
+  /** Resolves false when the load failed, which arms a retry. */
+  load: (options?: VerseOfDayLoadOptions) => Promise<boolean | void>;
   requestIdRef: { current: number };
   appStateRef: { current: string };
   midnightTimerRef: { current: ReturnType<typeof setTimeout> | null };
@@ -91,9 +98,29 @@ export interface VerseOfDayRefresh {
  */
 export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
   const { midnightTimerRef, appStateRef } = refresh;
+  // A failed silent refresh would leave yesterday's verse under today's date, so it is
+  // retried a bounded number of times; the next foreground or midnight starts afresh.
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  };
+  const loadSilently = (retriesLeft: number) => {
+    void refresh.load({ silent: true }).then((loaded) => {
+      if (loaded !== false || retriesLeft === 0) return;
+      clearRetry();
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        loadSilently(retriesLeft - 1);
+      }, VERSE_RETRY_DELAY_MS);
+    });
+  };
   const refreshVerseOfDay = () => {
     refresh.onClockAdvance?.();
-    void refresh.load({ silent: true });
+    clearRetry();
+    loadSilently(VERSE_MAX_RETRIES);
   };
 
   const scheduleMidnightRefresh = () => {
@@ -144,6 +171,7 @@ export function startVerseOfDayRefresh(refresh: VerseOfDayRefresh): () => void {
     refresh.requestIdRef.current += 1;
     interactionHandle.cancel();
     subscription.remove();
+    clearRetry();
 
     if (midnightTimerRef.current) {
       clearTimeout(midnightTimerRef.current);
