@@ -184,6 +184,10 @@
     transform var(--duration-fast) var(--ease-standard);
 }
 
+[dir='rtl'] .home-rail__button svg {
+  transform: scaleX(-1);
+}
+
 .home-rail__button svg {
   width: 20px;
   height: 20px;

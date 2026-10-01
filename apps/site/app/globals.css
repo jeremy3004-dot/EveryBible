@@ -1189,3 +1189,135 @@ html.dark .site-header.site-header--overlay[data-scrolled] {
   color: white;
   filter: brightness(0.9);
 }
+
+/* Footer language switcher: a quiet disclosure of the 21 homepages. */
+.site-footer__languages {
+  margin-bottom: 24px;
+  font-size: var(--text-caption);
+}
+
+.site-footer__languages summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+}
+
+.site-footer__languages summary:hover {
+  color: hsl(var(--primary-deep));
+}
+
+.site-footer__languages ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-footer__languages a {
+  display: inline-block;
+  padding: 4px 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.site-footer__languages a:hover {
+  color: hsl(var(--primary-deep));
+}
+
+.site-footer__languages a[aria-current='page'] {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+/* Localized pages. Alte Haas Grotesk covers basic and Western European Latin
+   (es, fr, pt, de, id) and Archivo's latin subset the same, so those pages keep
+   the brand faces. Everything else falls to a system stack per script, set for
+   display, UI and label text together so a word never mixes two faces: Turkish
+   (ğ ş İ) and Vietnamese are outside both subsets, and Cyrillic, CJK, Arabic
+   and Indic scripts aren't covered at all. */
+:is(:lang(tr), :lang(vi), :lang(ru)) {
+  --font-display: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-ui: var(--font-display);
+  --font-mono: var(--font-display);
+  font-family: var(--font-ui);
+}
+
+:lang(zh) {
+  --font-display:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC',
+    system-ui, sans-serif;
+}
+
+:lang(ja) {
+  --font-display:
+    'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP',
+    'Noto Sans JP', system-ui, sans-serif;
+}
+
+:lang(ko) {
+  --font-display:
+    'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', 'Noto Sans KR', system-ui,
+    sans-serif;
+}
+
+:lang(ar) {
+  --font-display:
+    'Geeza Pro', 'Segoe UI', 'Noto Naskh Arabic', 'Noto Sans Arabic', system-ui, sans-serif;
+}
+
+:lang(ur) {
+  --font-display:
+    'Geeza Pro', 'Segoe UI', 'Noto Naskh Arabic', 'Noto Nastaliq Urdu', system-ui, sans-serif;
+}
+
+:is(:lang(hi), :lang(mr), :lang(ne)) {
+  --font-display:
+    'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Noto Sans Devanagari', 'Nirmala UI', system-ui,
+    sans-serif;
+}
+
+:lang(bn) {
+  --font-display:
+    'Kohinoor Bangla', 'Bangla Sangam MN', 'Noto Sans Bengali', 'Nirmala UI', system-ui, sans-serif;
+}
+
+:lang(pa) {
+  --font-display: 'Gurmukhi Sangam MN', 'Noto Sans Gurmukhi', 'Nirmala UI', system-ui, sans-serif;
+}
+
+:lang(te) {
+  --font-display:
+    'Kohinoor Telugu', 'Telugu Sangam MN', 'Noto Sans Telugu', 'Nirmala UI', system-ui, sans-serif;
+}
+
+:lang(ta) {
+  --font-display: 'Tamil Sangam MN', 'Noto Sans Tamil', 'Nirmala UI', system-ui, sans-serif;
+}
+
+:is(
+  :lang(zh),
+  :lang(ja),
+  :lang(ko),
+  :lang(ar),
+  :lang(ur),
+  :lang(hi),
+  :lang(mr),
+  :lang(ne),
+  :lang(bn),
+  :lang(pa),
+  :lang(te),
+  :lang(ta)
+) {
+  --font-ui: var(--font-display);
+  --font-mono: var(--font-display);
+  font-family: var(--font-ui);
+}
+
+/* No italic in scripts that have none, and no letter-spaced capitals. */
+:is(:lang(zh), :lang(ja), :lang(ko), :lang(ar), :lang(ur)) em {
+  font-style: normal;
+}

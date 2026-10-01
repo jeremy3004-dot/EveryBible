@@ -1144,6 +1144,25 @@
     ),
     linear-gradient(0deg, hsl(var(--background)) 0%, hsl(var(--background) / 0) 18%);
 }
+/* The stage stays dir=ltr for the map, so right-to-left pages (story copy on
+   the right) mirror the scrim by reading the page's direction from the section. */
+.public-atlas[data-dir='rtl'][data-mode='story'] .pa-stage::after {
+  background:
+    linear-gradient(
+      270deg,
+      hsl(var(--background) / 0.94) 0%,
+      hsl(var(--background) / 0.72) 26%,
+      hsl(var(--background) / 0.2) 44%,
+      hsl(var(--background) / 0) 58%
+    ),
+    linear-gradient(0deg, hsl(var(--background)) 0%, hsl(var(--background) / 0) 18%);
+}
+.pa-arrow {
+  display: inline-block;
+}
+[dir='rtl'] .pa-arrow {
+  transform: scaleX(-1);
+}
 
 .pa-segment,
 .pa-rail-actions .la-map-actions,
@@ -1503,7 +1522,7 @@
 }
 .pa-scroll-hint {
   position: absolute;
-  left: var(--pad-x);
+  inset-inline-start: var(--pad-x);
   bottom: 28px;
   display: flex;
   align-items: center;
@@ -1568,8 +1587,7 @@
 }
 .pa-sources-line {
   position: absolute;
-  left: var(--pad-x);
-  right: var(--pad-x);
+  inset-inline: var(--pad-x);
   bottom: 20px;
   margin: 0;
   font-size: 12px;
@@ -1656,7 +1674,8 @@
 /* Phones: the globe holds the top of the screen, the copy sits below it on
    a solid panel so dots never run behind the words. */
 @media (max-width: 760px) {
-  .public-atlas[data-mode='story'] .pa-stage::after {
+  .public-atlas[data-mode='story'] .pa-stage::after,
+  .public-atlas[data-dir='rtl'][data-mode='story'] .pa-stage::after {
     background: linear-gradient(
       0deg,
       hsl(var(--background)) 0%,
@@ -1701,7 +1720,7 @@
     font-size: 16px;
   }
   .pa-scroll-hint {
-    left: 16px;
+    inset-inline-start: 16px;
     bottom: 22px;
   }
   /* The last step stacks its sources line under the card, clear of the
@@ -1727,4 +1746,20 @@
   .pa-scroll-hint svg {
     animation: none;
   }
+}
+
+/* Letter-spacing pulls apart the joined letters of Arabic-script and Indic text. */
+.public-atlas:is(
+    :lang(ar),
+    :lang(ur),
+    :lang(hi),
+    :lang(mr),
+    :lang(ne),
+    :lang(bn),
+    :lang(pa),
+    :lang(te),
+    :lang(ta)
+  )
+  :is(.pa-eyebrow, .pa-step-eyebrow, .pa-scroll-hint, .pa-button) {
+  letter-spacing: normal;
 }

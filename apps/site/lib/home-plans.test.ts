@@ -1,8 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isChurchYearSeason, selectHomePlans, STARTER_PLAN_SLUGS } from './home-plans';
+import {
+  homePlanTitle,
+  isChurchYearSeason,
+  selectHomePlans,
+  STARTER_PLAN_SLUGS,
+} from './home-plans';
 import { getPlans } from './plan-pages';
+
+test('plan titles come from the app locale files, falling back to English with lang="en"', () => {
+  const plan = getPlans().find((candidate) => candidate.slug === 'advent');
+  assert.ok(plan);
+  assert.deepEqual(homePlanTitle(plan, 'en'), { title: plan.title });
+  const spanish = homePlanTitle(plan, 'es');
+  assert.notEqual(spanish.title, plan.title);
+  assert.equal(spanish.lang, undefined);
+  assert.deepEqual(homePlanTitle(plan, 'xx'), { title: plan.title, lang: 'en' });
+});
 
 const slugs = (today: Date) => selectHomePlans(getPlans(), today).plans.map((plan) => plan.slug);
 

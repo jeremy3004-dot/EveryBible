@@ -298,8 +298,8 @@ export function PublicLanguageAtlas({
     [mobile]
   );
   const storyPaddingValue = useMemo(
-    () => storyPadding(viewport.width, viewport.height, viewport.header),
-    [viewport]
+    () => storyPadding(viewport.width, viewport.height, viewport.header, copy.dir === 'rtl'),
+    [viewport, copy.dir]
   );
   const padding = exploring ? explorePadding : storyPaddingValue;
   const scene = storyScene(step);
@@ -448,6 +448,7 @@ export function PublicLanguageAtlas({
       ref={sectionRef}
       className={`public-atlas ${exploring && expanded ? 'public-atlas--expanded' : ''}`}
       data-mode={mode}
+      data-dir={copy.dir}
       data-step={step}
       data-mobile-panel={panel}
       data-project-focus={focusOurs}
@@ -455,6 +456,7 @@ export function PublicLanguageAtlas({
     >
       <div
         className="pa-stage"
+        dir="ltr"
         ref={stageRef}
         role={exploring ? 'dialog' : undefined}
         aria-modal={exploring || undefined}
@@ -490,8 +492,11 @@ export function PublicLanguageAtlas({
         )}
 
         {exploring && (
-          <button type="button" className="pa-exit" onClick={exitExplore}>
-            <span aria-hidden="true">←</span> {copy.explore.close}
+          <button type="button" className="pa-exit" dir={copy.dir} onClick={exitExplore}>
+            <span className="pa-arrow" aria-hidden="true">
+              ←
+            </span>{' '}
+            {copy.explore.close}
           </button>
         )}
 
@@ -516,6 +521,7 @@ export function PublicLanguageAtlas({
                 <input
                   ref={searchRef}
                   type="search"
+                  dir={copy.dir}
                   value={filters.query}
                   placeholder={copy.explore.searchPlaceholder}
                   onFocus={(event) => {

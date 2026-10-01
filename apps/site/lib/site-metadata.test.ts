@@ -5,6 +5,7 @@ import {
   buildHomeStructuredData,
   buildRobots,
   buildSitemap,
+  homeMetadata,
   pageMetadata,
   serializeJsonLd,
   SHARE_IMAGE,
@@ -50,8 +51,18 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   const lastModified = new Date('2026-09-24T00:00:00Z');
   const entries = buildSitemap(lastModified);
 
+  const homepages = entries.filter((entry) =>
+    /^https:\/\/everybible\.app\/[a-z]{2}$/.test(entry.url)
+  );
+  assert.equal(homepages.length, 20, 'one localized homepage per interface language');
+  const hreflang = entries[0].alternates?.languages ?? {};
+  assert.equal(Object.keys(hreflang).length, 22, '21 homepages plus x-default');
+  assert.equal(hreflang['x-default'], 'https://everybible.app/');
+  assert.equal(hreflang['zh-Hans'], 'https://everybible.app/zh');
+  assert.deepEqual(homepages[0].alternates?.languages, hreflang);
+
   assert.deepEqual(
-    entries.map((entry) => entry.url),
+    entries.slice(0, 10).map((entry) => entry.url),
     [
       'https://everybible.app/',
       'https://everybible.app/about',
@@ -68,6 +79,14 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   assert.ok(entries.every((entry) => entry.lastModified === lastModified));
   assert.equal(entries[0].priority, 1);
   assert.ok(!entries.some((entry) => entry.url.includes('/download')));
+});
+
+test('a localized homepage carries its own canonical, Open Graph locale and hreflang links', () => {
+  const metadata = homeMetadata('es', { title: 'Título', description: 'Descripción' });
+  assert.equal(metadata.alternates?.canonical, '/es');
+  assert.equal(metadata.openGraph?.locale, 'es_ES');
+  assert.equal(metadata.alternates?.languages?.['en'], '/');
+  assert.equal(metadata.alternates?.languages?.['zh-Hans'], '/zh');
 });
 
 test('robots allows the site, keeps crawlers out of the data API, and names every sitemap', () => {
