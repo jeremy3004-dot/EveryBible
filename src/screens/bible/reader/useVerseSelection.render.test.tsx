@@ -52,9 +52,9 @@ const VERSES: Verse[] = [
 
 async function mountSelection() {
   const { useVerseSelection } = await import('./useVerseSelection');
-  let captured: ReturnType<typeof useVerseSelection> | null = null;
+  const box: { result?: ReturnType<typeof useVerseSelection> } = {};
   const capture = (result: ReturnType<typeof useVerseSelection>) => {
-    captured = result;
+    box.result = result;
   };
   const selectedVerses = [16];
   function Probe() {
@@ -81,7 +81,7 @@ async function mountSelection() {
     return null;
   }
   const view = await harness.render(<Probe />);
-  const selection: ReturnType<typeof useVerseSelection> | null = captured;
+  const selection = box.result;
   assert.ok(selection);
   return { selection, view };
 }
