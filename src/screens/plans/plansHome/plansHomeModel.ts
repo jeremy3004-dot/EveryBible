@@ -240,9 +240,9 @@ export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
     churchYearPlans,
     dailyRhythmPlans,
     lifeSituationPlans,
-    categories: Object.keys(plansByCategory).map((category) => ({
+    categories: Object.entries(plansByCategory).map(([category, categoryPlans]) => ({
       category,
-      plans: plansByCategory[category],
+      plans: categoryPlans,
     })),
   };
 }

@@ -11,6 +11,9 @@
     "src/utils/**/*",
     "src/hooks/**/*",
     "src/constants/**/*",
-    "src/i18n/**/*"
+    "src/i18n/**/*",
+    "src/screens/learn/**/*",
+    "src/screens/plans/**/*",
+    "src/screens/more/**/*"
   ]
 }

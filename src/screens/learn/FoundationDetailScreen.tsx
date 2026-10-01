@@ -75,10 +75,12 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   }
 
   const isFoundation = foundationId.startsWith('foundation-');
-  const foundationTitle = FOUNDATION_TITLE_KEYS[foundation.id]
-    ? t(FOUNDATION_TITLE_KEYS[foundation.id])
-    : WISDOM_TITLE_KEYS[foundation.id]
-      ? t(WISDOM_TITLE_KEYS[foundation.id])
+  const foundationTitleKey = FOUNDATION_TITLE_KEYS[foundation.id];
+  const wisdomTitleKey = WISDOM_TITLE_KEYS[foundation.id];
+  const foundationTitle = foundationTitleKey
+    ? t(foundationTitleKey)
+    : wisdomTitleKey
+      ? t(wisdomTitleKey)
       : foundation.title;
   const completedCount = countCompletedLessons(completedIds, foundation.lessons);
   const totalLessons = foundation.lessons.length;
@@ -89,6 +91,10 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
   const nextFoundation = isFoundation
     ? gatherFoundations.find((f) => f.number === foundationNumber + 1)
     : null;
+  const descriptionKey = FOUNDATION_DESC_KEYS[foundation.id];
+  const nextFoundationTitleKey = nextFoundation
+    ? FOUNDATION_TITLE_KEYS[nextFoundation.id]
+    : undefined;
 
   const handleShareInvitation = async () => {
     try {
@@ -202,9 +208,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
         {'description' in foundation && !!foundation.description && (
           <View style={styles.descriptionSection}>
             <Text style={[styles.descriptionText, { color: colors.secondaryText }]}>
-              {FOUNDATION_DESC_KEYS[foundation.id]
-                ? t(FOUNDATION_DESC_KEYS[foundation.id])
-                : foundation.description}
+              {descriptionKey ? t(descriptionKey) : foundation.description}
             </Text>
           </View>
         )}
@@ -340,9 +344,7 @@ export function FoundationDetailScreen({ route, navigation }: FoundationDetailSc
                 {t('gather.upNext')}
               </Text>
               <Text style={[styles.upNextTitle, { color: colors.primaryText }]}>
-                {FOUNDATION_TITLE_KEYS[nextFoundation.id]
-                  ? t(FOUNDATION_TITLE_KEYS[nextFoundation.id])
-                  : nextFoundation.title}
+                {nextFoundationTitleKey ? t(nextFoundationTitleKey) : nextFoundation.title}
               </Text>
             </View>
 
