@@ -282,6 +282,14 @@ async function mutateFile(
     )
   ).filter((test) => options.includeSourceTests || options.tests || !SOURCE_TEXT_TEST.test(test));
   let mutants = generateMutants(original, relativeFile);
+  const generatedKeys = new Set(mutants.map((m) => m.key));
+  const stale = Object.keys(equivalents).filter((key) => !generatedKeys.has(key));
+  if (stale.length > 0) {
+    console.warn(
+      `  ${stale.length} entries in scripts/mutation-equivalents.json no longer match a mutant` +
+        ` (the code changed); re-check and remove them:\n    ${stale.join('\n    ')}`
+    );
+  }
   if (options.operators) mutants = mutants.filter((m) => options.operators?.has(m.operator));
   if (options.lines) {
     const [from, to] = options.lines;
