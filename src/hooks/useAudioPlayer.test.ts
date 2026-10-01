@@ -7102,3 +7102,25 @@ for (const nativePause of [false, true]) {
     }
   });
 }
+
+// Most sources publish no chapter duration (0). The native player reports the real one
+// while the chapter loads, and finishing the load must not wipe it: the scrubber is
+// disabled and the lock screen shows 0:00 / 0:00 until the next report.
+test('a chapter whose source publishes no duration keeps the duration the native player reported', async () => {
+  scenario.chapterAudio = async (translationId, bookId, chapter) => ({
+    url: `https://cdn.example/${translationId}/${bookId}/${chapter}.mp3`,
+    duration: 0,
+  });
+  const gate = deferPlayerOperation();
+  playerGates.set('load:https://cdn.example/bsb/GEN/1.mp3', gate.promise);
+  const player = mountPlayer();
+
+  const playing = player.api.playChapter('GEN', 1);
+  await settleUntil(() => playerCalls('loadAndPlay').length === 1);
+  emitStatus({ durationMillis: 420_000, isPlaying: true });
+  gate.resolve();
+  await playing;
+
+  assert.equal(store().duration, 420_000);
+  assert.equal(recorded.nowPlaying.at(-1)?.durationMs, 420_000);
+});
