@@ -179,6 +179,7 @@ function AnnotationActionSheetContent({
           noteText={sheet.noteText}
           onChangeNoteText={sheet.setNoteText}
           noteInputMaxHeight={getNoteInputMaxHeight(windowHeight)}
+          noteMaxLength={sheet.noteMaxLength}
           canAnnotate={canAnnotate}
           isSaving={sheet.isSaving}
           onCancel={sheet.cancelNote}
