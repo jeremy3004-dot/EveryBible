@@ -16,6 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
+import { useLargeText } from '../../../hooks/useLargeText';
 import { announceLiveRegionText } from '../../../utils/a11y';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../../data/shareVerseBackgrounds';
 import { Slider } from '../../../components/ui/Slider';
@@ -77,6 +79,7 @@ export function VerseImageShareSheet({
 }: VerseImageShareSheetProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const { isLargeText } = useLargeText();
   const [tab, setTab] = useState<EditorTab>('picture');
   const [style, setStyle] = useState<VerseImageStyle>(DEFAULT_VERSE_IMAGE_STYLE);
   const [isSizeCapped, setIsSizeCapped] = useState(false);
@@ -217,6 +220,7 @@ export function VerseImageShareSheet({
             <Text
               style={[styles.verseImageFontName, { color: colors.bibleSecondaryText }]}
               numberOfLines={2}
+              maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
             >
               {name}
             </Text>
@@ -262,6 +266,7 @@ export function VerseImageShareSheet({
       <View style={styles.verseImageSizeRow}>
         <Text
           style={[styles.verseImageSizeSmall, { color: colors.biblePrimaryText }]}
+          maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
           // Decorative: the slider itself is named.
           accessibilityElementsHidden
           importantForAccessibility="no"
@@ -285,6 +290,7 @@ export function VerseImageShareSheet({
         />
         <Text
           style={[styles.verseImageSizeLarge, { color: colors.biblePrimaryText }]}
+          maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
           // Decorative: the slider itself is named.
           accessibilityElementsHidden
           importantForAccessibility="no"
@@ -402,10 +408,17 @@ export function VerseImageShareSheet({
                     : renderSizePanel()}
             </View>
 
-            <View style={styles.verseImageSheetActions}>
+            <View
+              style={[
+                styles.verseImageSheetActions,
+                // Cancel and Share each get a half of the card; stacked, Share sits on top.
+                isLargeText ? styles.verseImageSheetActionsStacked : null,
+              ]}
+            >
               <TouchableOpacity
                 style={[
                   styles.verseImageSheetActionButton,
+                  isLargeText ? styles.verseImageSheetActionButtonStacked : null,
                   {
                     backgroundColor: colors.bibleElevatedSurface,
                     borderColor: colors.bibleDivider,
@@ -425,6 +438,7 @@ export function VerseImageShareSheet({
               <TouchableOpacity
                 style={[
                   styles.verseImageSheetActionButton,
+                  isLargeText ? styles.verseImageSheetActionButtonStacked : null,
                   styles.verseImageSheetShareButton,
                   {
                     backgroundColor: colors.accentPrimary,
@@ -527,7 +541,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   verseImageFontChip: {
-    width: 92,
+    // Grows with its name; a fixed width broke "Typewriter" mid-word at large text.
+    minWidth: 92,
+    maxWidth: 168,
     minHeight: 72,
     borderRadius: radius.lg,
     borderWidth: 1.5,
@@ -617,6 +633,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     paddingTop: spacing.xs,
   },
+  verseImageSheetActionsStacked: {
+    flexDirection: 'column-reverse',
+  },
   verseImageSheetActionButton: {
     flex: 1,
     minHeight: layout.minTouchTarget,
@@ -626,6 +645,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  // flex: 1 in a column of unknown height collapses to the minimum; size to the label.
+  verseImageSheetActionButtonStacked: {
+    flex: 0,
   },
   verseImageSheetShareButton: {
     minWidth: 132,

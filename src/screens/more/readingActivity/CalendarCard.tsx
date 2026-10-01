@@ -13,6 +13,7 @@ import {
 } from '../readingActivityCalendarModel';
 import { CalendarCell } from './CalendarCell';
 import { createCalendarStyles } from './calendarStyles';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { announceForAccessibility } from '../../../utils/a11y';
 import { describeCellState, formatMonthTitle } from './readingActivityScreenModel';
 
@@ -90,7 +91,12 @@ export function CalendarCard({
         accessibilityElementsHidden
       >
         {weekdayInitials.map((initial, index) => (
-          <Text key={`weekday-${index}`} style={[styles.weekday, displayFont.regular]}>
+          <Text
+            key={`weekday-${index}`}
+            // One column is about 42pt, the same slot as the capped day number below it.
+            maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
+            style={[styles.weekday, displayFont.regular]}
+          >
             {initial}
           </Text>
         ))}
