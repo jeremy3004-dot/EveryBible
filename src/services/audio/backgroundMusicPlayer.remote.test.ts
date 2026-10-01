@@ -90,6 +90,7 @@ const files = new Set<string>();
 const downloads: { from: string; to: string }[] = [];
 let releaseDownload: (() => void) | null = null;
 let holdDownloads = false;
+let downloadFailures = 0;
 let online = true;
 
 mockModule(mock, 'expo-file-system/legacy', {
@@ -104,6 +105,10 @@ mockModule(mock, sourcePath('services/audio/audioDownloadStorage.ts'), {
     fileExists: async (uri: string) => files.has(uri),
     downloadFile: async (from: string, to: string) => {
       downloads.push({ from, to });
+      if (downloadFailures > 0) {
+        downloadFailures -= 1;
+        throw new Error('network blip');
+      }
       if (holdDownloads) {
         await new Promise<void>((resolve) => {
           releaseDownload = resolve;
@@ -139,6 +144,7 @@ const RAIN = remoteOption('rain', 0.2);
 const SHORE = remoteOption('shore', 0.1);
 const RAIN_FILE = 'file:///docs/everybible-background-sounds/background-sounds/v1/rain.m4a';
 const FADE_DURATION_MS = 2500;
+const RETRY_DELAY_MS = 10_000;
 
 type PlayerModule = typeof import('./backgroundMusicPlayer');
 type CacheModule = typeof import('./backgroundSoundCache');
@@ -158,7 +164,7 @@ async function finishDownload(): Promise<void> {
   await flush();
 }
 
-mock.timers.enable({ apis: ['setInterval'] });
+mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
 
 before(async () => {
   const catalog = await import('./backgroundMusicCatalog');
@@ -184,6 +190,7 @@ beforeEach(async () => {
   createSources.length = 0;
   nextCreateFailure = null;
   holdDownloads = false;
+  downloadFailures = 0;
   online = true;
   // Forget what earlier tests put on disk.
   await cache.discard(RAIN);
@@ -341,4 +348,48 @@ test('Shuffle may pick a remote sound once it is downloaded, but not before', as
   assert.equal(candidates.includes('rain'), true);
   assert.equal(candidates.includes('shore'), false);
   assert.equal(candidates.includes('piano'), true);
+});
+
+test('a failed first download is retried once after a backoff, without another play command', async () => {
+  downloadFailures = 1;
+
+  await player.sync('rain', true);
+  await flush();
+  assert.deepEqual(createSources, []);
+  assert.equal(cache.getAvailability(RAIN), 'failed');
+
+  mock.timers.tick(RETRY_DELAY_MS);
+  await flush();
+  mock.timers.tick(FADE_DURATION_MS);
+
+  assert.equal(downloads.length, 2);
+  assert.deepEqual(createSources, [{ uri: RAIN_FILE }]);
+  assert.equal(sounds[0]?.volumes().at(-1), 0.2);
+});
+
+test('a failed download is retried only once, so a dead network does not loop forever', async () => {
+  downloadFailures = 5;
+
+  await player.sync('rain', true);
+  await flush();
+  for (let i = 0; i < 4; i++) {
+    mock.timers.tick(RETRY_DELAY_MS);
+    await flush();
+  }
+
+  assert.equal(downloads.length, 2);
+  assert.deepEqual(createSources, []);
+});
+
+test('a pending retry is dropped when the listener pauses', async () => {
+  downloadFailures = 1;
+  await player.sync('rain', true);
+  await flush();
+  await player.sync('rain', false);
+
+  mock.timers.tick(RETRY_DELAY_MS);
+  await flush();
+
+  assert.equal(downloads.length, 1);
+  assert.deepEqual(createSources, []);
 });
