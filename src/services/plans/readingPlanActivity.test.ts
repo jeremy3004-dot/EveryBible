@@ -21,6 +21,7 @@ import {
   getReadingPlanRhythmSummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
+  getPlanLedgerDayDate,
   getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
@@ -330,6 +331,24 @@ test('formatScheduledPlanDayLabel renders the scheduled day as a short calendar 
   assert.equal(formatScheduledPlanDayLabel(startedAt, 1), 'Dec 16');
   assert.equal(formatScheduledPlanDayLabel(startedAt, 2), 'Dec 17');
   assert.equal(formatScheduledPlanDayLabel(startedAt, 3), 'Dec 18');
+});
+
+test('the ledger keeps the enrolment date for days behind the reader and counts on from today', () => {
+  // Enrolled on 1 Sep, but on day 3 by 20 Sep: the reader fell behind.
+  const startedAt = new Date(2026, 8, 1, 12, 0, 0).toISOString();
+  const today = new Date(2026, 8, 20, 9, 0, 0);
+  const day = (dayNumber: number) =>
+    getPlanLedgerDayDate(startedAt, dayNumber, 3, today).toDateString();
+
+  assert.deepEqual(
+    [day(1), day(2), day(3), day(4)],
+    [
+      new Date(2026, 8, 1).toDateString(),
+      new Date(2026, 8, 2).toDateString(),
+      new Date(2026, 8, 20).toDateString(),
+      new Date(2026, 8, 21).toDateString(),
+    ]
+  );
 });
 
 test('labelling a year of plan days builds one date formatter, not one per day', (t) => {
@@ -893,6 +912,7 @@ test('getCurrentPlanDaySummary honors persisted recurring session completion whe
       complete: session.isComplete,
       completed: session.completedChapterCount,
       remaining: session.remainingChapterCount,
+      completedKeys: session.completedChapterKeys,
     })),
     [
       {
@@ -900,12 +920,14 @@ test('getCurrentPlanDaySummary honors persisted recurring session completion whe
         complete: true,
         completed: 13,
         remaining: 0,
+        completedKeys: Array.from({ length: 13 }, (_, index) => `PSA_${25 + index}`),
       },
       {
         key: 'evening',
         complete: false,
         completed: 0,
         remaining: 8,
+        completedKeys: [],
       },
     ]
   );
@@ -1539,4 +1561,426 @@ test('getCurrentPlanDaySummary reads a day summary from activity merged once by 
   const shared = getCurrentPlanDaySummary({ ...base, chaptersRead: {}, todayActivity });
 
   assert.deepEqual(shared, merged);
+});
+
+test('a one-chapter plan day starts at its only chapter', () => {
+  const entries = [makeEntry({ id: 'only', day_number: 1, book: 'JUD', chapter_start: 1 })];
+
+  assert.deepEqual(resolvePlanDayPlaybackStartEntry(entries), { bookId: 'JUD', chapter: 1 });
+  assert.deepEqual(resolvePlanDayPlaybackStartEntry(entries, { bookId: 'JUD', chapter: 1 }), {
+    bookId: 'JUD',
+    chapter: 1,
+  });
+});
+
+test('a passage with only one verse bound is still a slice of its chapter', () => {
+  // "Matthew 5:17 to the end" or "Matthew 6 up to verse 18": reading the chapter can't
+  // say the assigned verses were the ones read, and ticking the step can't mark it read.
+  const now = new Date(2026, 3, 7, 12);
+  const entries = [
+    makeEntry({ id: 'from-verse', day_number: 1, book: 'MAT', chapter_start: 5, verse_start: 17 }),
+    makeEntry({ id: 'whole', day_number: 1, book: 'PSA', chapter_start: 1 }),
+    makeEntry({ id: 'to-verse', day_number: 2, book: 'MAT', chapter_start: 6, verse_end: 18 }),
+  ];
+
+  assert.deepEqual(getPlanStepReadChapters(entries), [{ bookId: 'PSA', chapter: 1 }]);
+
+  const dayOne = buildPlanDayCompletionSummary(entries, 1, {
+    chaptersRead: {
+      MAT_5: new Date(2026, 3, 7, 8).getTime(),
+      PSA_1: new Date(2026, 3, 7, 9).getTime(),
+    },
+    listeningHistory: [],
+    now,
+  });
+  assert.deepEqual([dayOne.isComplete, dayOne.completedChapterKeys], [false, ['PSA_1']]);
+
+  const dayTwo = buildPlanDayCompletionSummary(entries, 2, {
+    chaptersRead: { MAT_6: new Date(2026, 3, 7, 8).getTime() },
+    listeningHistory: [],
+    now,
+  });
+  assert.deepEqual([dayTwo.isComplete, dayTwo.completedChapters], [false, 0]);
+});
+
+test('a rhythm queues a plan stored past its last day on that day, and one stored on day 0 on day 1', () => {
+  // A row can sit past the plan's end without the plan being finished (a day ticked
+  // ahead, or a row from a longer edition of the plan); the plan must not drop out.
+  const session = buildRhythmReaderSession({
+    rhythm: {
+      id: 'rhythm-days',
+      title: 'Days',
+      items: [
+        { id: 'item-one-day', type: 'plan', planId: 'plan-one-day' },
+        { id: 'item-plan-c', type: 'plan', planId: 'plan-c' },
+      ],
+      createdAt: '',
+      updatedAt: '',
+    },
+    planEntriesById: {
+      'plan-one-day': [
+        makeEntry({
+          id: 'one-day',
+          plan_id: 'plan-one-day',
+          day_number: 1,
+          book: 'JON',
+          chapter_start: 1,
+          chapter_end: 2,
+        }),
+      ],
+      'plan-c': assertDefined(rhythmPlanEntriesById['plan-c'], 'plan-c entries'),
+    },
+    progressByPlanId: {
+      'plan-one-day': makeProgress('plan-one-day', { current_day: 2 }),
+      'plan-c': makeProgress('plan-c', { current_day: 0 }),
+    },
+  });
+
+  assert.deepEqual(
+    session.sessionContext.segments.map((segment) => [
+      segment.planId,
+      segment.dayNumber,
+      segment.chapterKeys,
+    ]),
+    [
+      ['plan-one-day', 1, ['JON_1', 'JON_2']],
+      ['plan-c', 1, ['PSA_1']],
+    ]
+  );
+});
+
+test('a rhythm session lists every item and plan of the rhythm, finished plans included', () => {
+  const { sessionContext } = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+
+  assert.deepEqual(
+    {
+      type: sessionContext.type,
+      rhythmId: sessionContext.rhythmId,
+      title: sessionContext.title,
+      itemIds: sessionContext.itemIds,
+      planIds: sessionContext.planIds,
+    },
+    {
+      type: 'rhythm',
+      rhythmId: 'rhythm-1',
+      title: 'Morning rhythm',
+      itemIds: ['item-plan-a', 'item-passage', 'item-plan-b', 'item-plan-c'],
+      planIds: ['plan-a', 'plan-b', 'plan-c'],
+    }
+  );
+});
+
+test("a rhythm looks up a recurring plan's saved place under today's date and a fixed plan's under its day", () => {
+  const today = new Date(2026, 8, 12, 12);
+  const lookups: [string, number, string | undefined][] = [];
+  const build = (planId: string) =>
+    buildRhythmReaderSession({
+      rhythm: {
+        id: 'rhythm-resume',
+        title: 'Resume',
+        items: [{ id: 'item', type: 'plan', planId }],
+        createdAt: '',
+        updatedAt: '',
+      },
+      planEntriesById: readingPlanEntriesByPlanId,
+      progressByPlanId: { [planId]: makeProgress(planId, { current_day: 3 }) },
+      getPlanDayResume: (lookupPlanId, dayNumber, occurrenceKey) => {
+        lookups.push([lookupPlanId, dayNumber, occurrenceKey]);
+        return null;
+      },
+      today,
+    });
+
+  const recurring = build('proverbs-31-days').startSegment;
+  const fixed = build('psalms-30-days').startSegment;
+
+  assert.deepEqual(lookups, [
+    ['proverbs-31-days', 12, '2026-09-12'],
+    ['psalms-30-days', 3, undefined],
+  ]);
+  assert.deepEqual(
+    [recurring?.dayNumber, recurring?.occurrenceKey],
+    [12, '2026-09-12'],
+    'a recurring day is filed under its date'
+  );
+  assert.deepEqual(
+    [fixed?.dayNumber, fixed && 'occurrenceKey' in fixed],
+    [3, false],
+    'a fixed plan day carries no date'
+  );
+});
+
+test('a rhythm whose plans are all finished has nothing left to start', () => {
+  const finished = Object.fromEntries(
+    ['plan-a', 'plan-b', 'plan-c'].map((planId) => [
+      planId,
+      makeProgress(planId, { is_completed: true, completed_at: '2026-04-08T09:00:00.000Z' }),
+    ])
+  );
+  const session = buildRhythmReaderSession({
+    rhythm: { ...rhythm, items: rhythm.items.filter((item) => item.type === 'plan') },
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: finished,
+  });
+
+  assert.deepEqual(session.sessionContext.segments, []);
+  assert.equal(session.startSegment, null);
+  assert.equal(session.startEntry, null);
+  assert.deepEqual(getReadingPlanRhythmSummary({ rhythm, progressByPlanId: finished }), {
+    planCount: 3,
+    completedPlanCount: 3,
+    remainingPlanCount: 0,
+  });
+});
+
+test('a rhythm session moves past a plan finished since it was built and still owes a plan with no progress row', () => {
+  const { sessionContext } = buildRhythmReaderSession({
+    rhythm,
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+  const planAFinished = {
+    ...rhythmProgressByPlanId,
+    'plan-a': makeProgress('plan-a', { current_day: 3, is_completed: true }),
+  };
+
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(sessionContext, planAFinished)?.itemId,
+    'item-passage'
+  );
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(sessionContext, planAFinished, 'plan-a')?.itemId,
+    'item-passage'
+  );
+  assert.equal(
+    resolveFirstIncompleteRhythmSessionSegment(sessionContext, {})?.itemId,
+    'item-plan-a'
+  );
+});
+
+test("a preferred plan's chapter is looked for only inside that plan's own segment", () => {
+  const session = buildRhythmReaderSession({
+    rhythm: {
+      ...rhythm,
+      items: [
+        {
+          id: 'item-before',
+          type: 'passage',
+          title: 'Before',
+          bookId: 'PSA',
+          startChapter: 1,
+          endChapter: 3,
+        },
+        { id: 'item-plan-c', type: 'plan', planId: 'plan-c' },
+        {
+          id: 'item-after',
+          type: 'passage',
+          title: 'After',
+          bookId: 'PSA',
+          startChapter: 1,
+          endChapter: 1,
+        },
+      ],
+    },
+    planEntriesById: rhythmPlanEntriesById,
+    progressByPlanId: rhythmProgressByPlanId,
+  });
+  const lookup = (chapter: number, preferredDayNumber?: number | null) =>
+    resolvePlaybackSequenceIndex({
+      playbackSequenceEntries: session.playbackSequenceEntries,
+      bookId: 'PSA',
+      chapter,
+      session: session.sessionContext,
+      preferredPlanId: 'plan-c',
+      preferredDayNumber,
+    });
+
+  // Psalms 1-3, then plan-c's day 2 (Psalms 2-3), then Psalm 1 again.
+  assert.deepEqual(
+    session.playbackSequenceEntries.map((entry) => entry.chapter),
+    [1, 2, 3, 2, 3, 1]
+  );
+  assert.equal(lookup(2), 3, 'any day of the preferred plan');
+  assert.equal(lookup(3, 2), 4, "the preferred plan's second chapter");
+  assert.equal(lookup(2, 1), 1, 'another day of the plan is not in this session');
+  assert.equal(lookup(1, 2), 0, "the chapter right after the plan's segment is not the plan's");
+  assert.equal(
+    resolvePlaybackSequenceIndex({
+      playbackSequenceEntries: session.playbackSequenceEntries,
+      bookId: 'PSA',
+      chapter: 3,
+      session: null,
+      preferredPlanId: 'plan-c',
+    }),
+    2,
+    'without a session, the first occurrence'
+  );
+});
+
+test("today's activity keeps each chapter's latest read or completed listen, oldest first", () => {
+  const at = (hour: number) => new Date(2026, 3, 7, hour).getTime();
+
+  const activity = getTodayChapterActivity({
+    chaptersRead: { GEN_1: at(9), EXO_1: at(7), LEV_1: at(8) },
+    chaptersListened: { GEN_1: at(10), NUM_1: at(6) },
+    listeningHistory: [
+      makeListeningHistoryEntry({
+        id: 'LEV:1',
+        bookId: 'LEV',
+        chapter: 1,
+        listenedAt: at(11),
+        progress: 0.99,
+      }),
+      // An earlier listen does not replace a later read.
+      makeListeningHistoryEntry({
+        id: 'EXO:1',
+        bookId: 'EXO',
+        chapter: 1,
+        listenedAt: at(5),
+        progress: 1,
+      }),
+    ],
+    now: new Date(2026, 3, 7, 12),
+  });
+
+  assert.deepEqual(activity, [
+    { chapterKey: 'NUM_1', timestamp: at(6), source: 'listen', progress: 1 },
+    { chapterKey: 'EXO_1', timestamp: at(7), source: 'read', progress: null },
+    { chapterKey: 'GEN_1', timestamp: at(10), source: 'listen', progress: 1 },
+    { chapterKey: 'LEV_1', timestamp: at(11), source: 'listen', progress: 0.99 },
+  ]);
+});
+
+test('a day part-way read reports what is done and left, and no sessions for a single-session plan', () => {
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan(),
+    entries: dayEntries,
+    progress: makeProgress('plan-1', { started_at: new Date(2026, 3, 7, 7).toISOString() }),
+    chaptersRead: {
+      GEN_2: new Date(2026, 3, 7, 8).getTime(),
+      // Tomorrow's chapter read early is not part of today's count.
+      GEN_6: new Date(2026, 3, 7, 8, 30).getTime(),
+    },
+    listeningHistory: [
+      makeListeningHistoryEntry({
+        id: 'GEN:1',
+        bookId: 'GEN',
+        chapter: 1,
+        listenedAt: new Date(2026, 3, 7, 9).getTime(),
+        progress: 1,
+      }),
+    ],
+    today: new Date(2026, 3, 7, 12),
+  });
+
+  assert.deepEqual(summary, {
+    dayNumber: 1,
+    dateKey: '2026-04-07',
+    targetChapterKeys: ['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1'],
+    completedChapterKeys: ['GEN_2', 'GEN_1'],
+    targetChapterCount: 5,
+    completedChapterCount: 2,
+    remainingChapterCount: 3,
+    isComplete: false,
+    sessionSummaries: [],
+    totalSessionCount: 0,
+    completedSessionCount: 0,
+    nextIncompleteSessionKey: null,
+  });
+});
+
+test('a day ticked done counts all its chapters with nothing read today, under its date for a recurring plan', () => {
+  const today = new Date(2026, 3, 5, 12);
+  const outcome = (summary: ReturnType<typeof getCurrentPlanDaySummary>) => ({
+    completedChapterKeys: summary.completedChapterKeys,
+    completedChapterCount: summary.completedChapterCount,
+    remainingChapterCount: summary.remainingChapterCount,
+    isComplete: summary.isComplete,
+  });
+
+  const fixedDay = getCurrentPlanDaySummary({
+    entries: dayEntries,
+    progress: makeProgress('plan-1', { completed_entries: { '1': today.toISOString() } }),
+    chaptersRead: {},
+    listeningHistory: [],
+    dayNumber: 1,
+    today,
+  });
+  assert.deepEqual(outcome(fixedDay), {
+    completedChapterKeys: ['GEN_1', 'GEN_2', 'GEN_3', 'GEN_4', 'EXO_1'],
+    completedChapterCount: 5,
+    remainingChapterCount: 0,
+    isComplete: true,
+  });
+
+  const recurringDay = getCurrentPlanDaySummary({
+    plan: makePlan({
+      id: 'proverbs-31-days',
+      slug: 'proverbs-31-days',
+      scheduleMode: 'calendar-day-of-month',
+    }),
+    entries: [
+      makeEntry({
+        id: 'day-5',
+        plan_id: 'proverbs-31-days',
+        day_number: 5,
+        book: 'PRO',
+        chapter_start: 5,
+      }),
+    ],
+    progress: makeProgress('proverbs-31-days', {
+      completed_entries: { '2026-04-05': today.toISOString() },
+    }),
+    chaptersRead: {},
+    listeningHistory: [],
+    today,
+  });
+  assert.deepEqual(outcome(recurringDay), {
+    completedChapterKeys: ['PRO_5'],
+    completedChapterCount: 1,
+    remainingChapterCount: 0,
+    isComplete: true,
+  });
+});
+
+test('a multi-session day with every session read has no next session', () => {
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({ format: 'multi-session', sessionOrder: ['morning', 'evening'] }),
+    entries: [
+      makeEntry({
+        id: 'day-1-morning',
+        day_number: 1,
+        session_key: 'morning',
+        session_order: 1,
+        book: 'PSA',
+        chapter_start: 63,
+      }),
+      makeEntry({
+        id: 'day-1-evening',
+        day_number: 1,
+        session_key: 'evening',
+        session_order: 2,
+        book: 'LUK',
+        chapter_start: 1,
+      }),
+    ],
+    progress: makeProgress('plan-1'),
+    chaptersRead: {
+      PSA_63: new Date(2026, 3, 7, 8).getTime(),
+      LUK_1: new Date(2026, 3, 7, 20).getTime(),
+    },
+    listeningHistory: [],
+    dayNumber: 1,
+    today: new Date(2026, 3, 7, 21),
+  });
+
+  assert.deepEqual(
+    [summary.isComplete, summary.completedSessionCount, summary.totalSessionCount],
+    [true, 2, 2]
+  );
+  assert.equal(summary.nextIncompleteSessionKey, null);
 });

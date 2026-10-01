@@ -1,0 +1,348 @@
+{
+  "src/services/auth/authErrors.ts": [
+    {
+      "key": "relational-boundary|>|>=|error.code.length > 0",
+      "reason": "An empty code matches no case, so returning '' instead of null maps the same"
+    },
+    {
+      "key": "number-literal|0|1|error.code.length > 0",
+      "reason": "No mapped code is one character long, so a one-character code maps to the default either way"
+    },
+    {
+      "key": "string-literal|'EveryBible backend is not configured for this build yet.'|''|error: unknown = 'EveryBible backend is not configured for this build yet.'",
+      "reason": "The empty default message is replaced by the same text through the fallback"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();#1",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|'Sign in cancelled'|''|return authFailure('cancelled', error, 'Sign in cancelled');",
+      "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
+    }
+  ],
+  "src/services/plans/readingPlanActivity.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "With no chapters both later return paths already give null"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries[0] ?? null|playbackEntries[0]|return playbackEntries[0] ?? null;",
+      "reason": "The guard above ensures playbackEntries is not empty, so [0] is always defined"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0] ??\n    null|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0]|playbackEntries.find(",
+      "reason": "playbackEntries[0] is always defined, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "number-literal|0|1|return entries.reduce((maxDay, entry) => Math.max(maxDay, entry.day_number), 0);",
+      "reason": "Only differs when every entry's day_number is below 1, and then no day >= 1 matches either way"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);",
+      "reason": "Math.max(..., 1) floors the result, so a default of 0 or 1 gives the same day"
+    },
+    {
+      "key": "remove-statement|return totalDays > 0 ? totalDays : currentDay;|;|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "negate-condition|totalDays > 0|!(totalDays > 0)|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "number-literal|0|1|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;",
+      "reason": "Only differs when every entry has day_number <= 0; catalog days run 1..duration_days (readingPlans.integrity.test.ts)"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;",
+      "reason": "A plan with no entries is skipped anyway, because its day has no chapters"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[planId] ?? null|progressByPlanId[planId]|const progress = progressByPlanId[planId] ?? null;",
+      "reason": "undefined and null progress behave the same everywhere they are used"
+    },
+    {
+      "key": "logical-swap|&&||||plan && isRecurringPlan(plan)",
+      "reason": "For catalog fixed-length plans both day functions agree (duration_days equals the last entry day, enforced by the integrity test)"
+    },
+    {
+      "key": "nullish-drop-default|progress ?? undefined|progress|: getRhythmDayNumber(entries, progress ?? undefined);",
+      "reason": "getRhythmDayNumber reads progress only through ?., so null and undefined are the same"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;#4",
+      "reason": "Without the continue, a plan item gets no chapter range, no entries, and hits the next continue"
+    },
+    {
+      "key": "relational-boundary|<|<=|startSegment && startSegment.startIndex < playbackSequenceEntries.length",
+      "reason": "Every segment holds at least one entry, so startIndex < length always holds"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex] ??\n          null|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex]|? (playbackSequenceEntries",
+      "reason": "The entry at startIndex always exists, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries[startSegment.startIndex] ?? null|playbackSequenceEntries[startSegment.startIndex]|: (playbackSequenceEntries[startSegment.startIndex] ?? null)",
+      "reason": "The entry at startIndex always exists"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[segment.planId ?? '']?.is_completed ?? false|progressByPlanId[segment.planId ?? '']?.is_completed|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "!(undefined) and !(false) are both true"
+    },
+    {
+      "key": "nullish-drop-default|segment.planId ?? ''|segment.planId|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "Plan segments always carry a planId, so the fallback is never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "Plan segments always carry a planId, so the fallback key is never used"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;#1",
+      "reason": "Segments start at index >= 0, so a negative index finds no segment and returns null anyway"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || timestamp >= existing.timestamp) {",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || nextRecord.timestamp >= existing.timestamp) {",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    }
+  ],
+  "src/services/sync/syncMerge.ts": [
+    {
+      "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {",
+      "reason": "On equal timestamps the mutant assigns the same number the merged map already holds"
+    },
+    {
+      "key": "remove-statement|return right;|;|return right;",
+      "reason": "Differs only for an empty-string local lastReadDate, which the progress sanitizer turns into null first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return left > right ? left : right;",
+      "reason": "On equal date strings both branches return the same string"
+    },
+    {
+      "key": "number-literal|1|0|remoteChapter >= 1 &&",
+      "reason": "Chapter 0 is already rejected by the !remoteData.current_chapter guard on the next line"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|(localStamp === null ? Date.parse(remoteData.synced_at || '') : 0) ||",
+      "reason": "Date.parse('') and Date.parse('__mutant__') are both NaN, which falls through to 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|`${remoteData.current_book}_${remoteData.current_chapter}` >",
+      "reason": "On a same-position tie only positionSource flips, and no production code reads positionSource"
+    },
+    {
+      "key": "relational-boundary|>=|>|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|2|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|0|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "A bound built from an invalid now compares false against everything, so it clamps nothing, like no bound"
+    },
+    {
+      "key": "logical-swap||||&&|if (!bound || !Object.values(chapters).some(isAhead)) {",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return chapters;|;|return chapters;",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return localTime === null ? undefined : local;|;|return localTime === null ? undefined : local;",
+      "reason": "Remote stamps are pre-filtered by readRemoteFieldStamps; differs only for a local stamp at or before the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|const remoteUpdatedAt = remotePreferences.synced_at ?? null;",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    },
+    {
+      "key": "logical-swap|&&||||} else if (localTime !== null && remoteTime !== null) {",
+      "reason": "With one stamp present, x >= null answers like the else branch for any stamp after the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    }
+  ],
+  "src/stores/bible/textPackInstallModel.ts": [
+    {
+      "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0",
+      "reason": "A bytesTotal of 0 is falsy, so the && short-circuits before the comparison either way"
+    },
+    {
+      "key": "nullish-drop-default|progress.bytesDownloaded ?? 0|progress.bytesDownloaded|? clampPercent(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)",
+      "reason": "undefined / total is NaN, which clampPercent turns into the same 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|: progress.totalVerses > 0",
+      "reason": "0 / 0 is NaN, which clampPercent turns into the same 0 as the else branch"
+    },
+    {
+      "key": "number-literal|0|1|].filter((value): value is string => typeof value === 'string' && value.length > 0)",
+      "reason": "Pack paths are absolute file paths, never a single character"
+    }
+  ],
+  "src/stores/bible/textPackJournalRecovery.ts": [
+    {
+      "key": "number-literal|0|1|let stuckJournalPassAt = 0;",
+      "reason": "stuckJournalPassAt is only read once a stuck signature is set, which always sets it to Date.now() first"
+    },
+    {
+      "key": "equality-flip|===|!==|(completion.installOperationId === undefined && !latestJournal.installs[translationId])",
+      "reason": "Redundant clause: with no install entry and no install operation id, the first clause is already true; the mutant only removes a missing key"
+    }
+  ],
+  "src/stores/privateDataAdoption.ts": [
+    {
+      "key": "relational-boundary|>|>=|return candidate.updated_at > current.updated_at ? candidate : current;",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.updated_at > right.updated_at",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.created_at > right.created_at",
+      "reason": "Inside the branch where created_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|: left.id > right.id;",
+      "reason": "Ids are unique after the merge, so an annotation is only compared with itself, where the result is the same object"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {",
+      "reason": "A sort comparator only matters by its sign; 2 has the sign of 1"
+    },
+    {
+      "key": "number-literal|1|0|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {",
+      "reason": "V8's sort only tests compare < 0, so returning 0 instead of 1 sorts identically (checked on 60k random arrays)"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {#1",
+      "reason": "A sort comparator only matters by its sign; -2 has the sign of -1"
+    },
+    {
+      "key": "remove-statement|return annotation;|;|return annotation;#1",
+      "reason": "Unreachable: the loop above puts every active annotation's verse+type key in visibleByKey"
+    },
+    {
+      "key": "number-literal|0|1|merged[key] = Math.max(account[key] ?? 0, value);",
+      "reason": "Every ledger value is at least 1 (epoch timestamps, whole counts, whole-ms segments), so Math.max with 0 or 1 is the same"
+    },
+    {
+      "key": "relational-boundary|>|>=|(guest.lastReadDate === account.lastReadDate && guest.streakDays > account.streakDays));",
+      "reason": "On the same date with an equal streak both branches return the same streakDays and lastReadDate"
+    }
+  ],
+  "src/stores/privateDataScope.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;#2",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "nullish-drop-default|marker?.adoptingInto ?? null|marker?.adoptingInto|pendingAdoption = marker?.adoptingInto ?? null;",
+      "reason": "undefined and null pendingAdoption behave the same: saveOwner's undefined adoptingInto is dropped by JSON.stringify and ?? / === owner treat both as absent"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (unscoped.length > 0) {",
+      "reason": "Rewriting a marker that already scopes every store writes the same owner/clearGuest/adoptingInto back"
+    },
+    {
+      "key": "remove-statement|pendingAdoption = null;|;|pendingAdoption = null;",
+      "reason": "Unreachable: no code path writes a marker with both clearGuest and adoptingInto, so pendingAdoption is already null here"
+    },
+    {
+      "key": "remove-statement|activeOwner = owner;|;|activeOwner = owner;",
+      "reason": "Only a cache: the marker was just written with this owner, so the next resolve reads the same value"
+    },
+    {
+      "key": "number-literal|0|1|let droppedWrites = 0;",
+      "reason": "droppedWrites is only compared with its own earlier value"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|droppedWrites += 1;",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "number-literal|1|2|droppedWrites += 1;",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "remove-statement|return;|;|return;#1",
+      "reason": "zustand persist calls removeItem only from clearStorage(), never while a reload has writes suspended"
+    },
+    {
+      "key": "boolean-literal|true|false|store.setState(store.getInitialState(), true);",
+      "reason": "Every private store's initial state holds all of its keys, so replacing and merging it give the same state"
+    }
+  ],
+  "src/stores/progressStore.ts": [
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;",
+      "reason": "syncDebounceTimer only feeds clearTimeout, and clearing an already-cleared handle does nothing"
+    },
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;#1",
+      "reason": "Clearing a timer that already fired does nothing"
+    },
+    {
+      "key": "nullish-drop-default|state.chaptersByDate[yesterdayStr] ?? 0|state.chaptersByDate[yesterdayStr]|(state.chaptersByDate[yesterdayStr] ?? 0) > 0 ||",
+      "reason": "undefined > 0 and 0 > 0 are both false"
+    },
+    {
+      "key": "nullish-drop-default|state.listeningMsByDate[yesterdayStr] ?? 0|state.listeningMsByDate[yesterdayStr]|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;",
+      "reason": "undefined >= MIN_LISTENING_MS and 0 >= MIN_LISTENING_MS are both false"
+    },
+    {
+      "key": "number-literal|0|1|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;",
+      "reason": "1 >= MIN_LISTENING_MS (60,000) is false, as with 0"
+    },
+    {
+      "key": "remove-statement|lastSavedProgress = undefined;|;|lastSavedProgress = undefined;",
+      "reason": "Every successful load replaces the ledgers with fresh objects, so a stale write cache can never match; only an unreadable blob is affected, and no ledger data differs"
+    }
+  ],
+  "src/stores/readingPlans/planProgressModel.ts": [
+    {
+      "key": "nullish-drop-default|leftAt ?? ''|leftAt|.map((leftAt) => Date.parse(leftAt ?? ''))",
+      "reason": "Date.parse(undefined) and Date.parse('') are both NaN, which the filter drops"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|.map((leftAt) => Date.parse(leftAt ?? ''))",
+      "reason": "Date.parse('__mutant__') is NaN like Date.parse(''), which the filter drops"
+    },
+    {
+      "key": "number-literal|0|1|const now = new Date(Math.max(Date.now(), notBeforeMs ?? 0)).toISOString();",
+      "reason": "Date.now() is always above 1, so Math.max ignores either floor"
+    }
+  ]
+}

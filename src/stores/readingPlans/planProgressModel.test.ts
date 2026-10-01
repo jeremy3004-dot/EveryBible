@@ -8,6 +8,7 @@ import {
   completeRecurringDay,
   completeSession,
   createProgressRecord,
+  getRejoinNotBeforeMs,
   removePlanDayResumeEntries,
   removePlanFromCollections,
   replaceProgressCollections,
@@ -53,6 +54,19 @@ test('a new enrolment starts no earlier than the leave it follows', () => {
     { ...progress, started_at: '', synced_at: '' },
     row('plan-a', { id: 'reading-plan-progress-plan-a', started_at: '', synced_at: '' })
   );
+});
+
+test('a re-join starts 1 ms after the latest of the leaves it follows, or anytime with none', () => {
+  assert.equal(
+    getRejoinNotBeforeMs('2026-09-02T00:00:00.000Z', '2026-09-01T00:00:00.000Z'),
+    Date.parse('2026-09-02T00:00:00.000Z') + 1
+  );
+  assert.equal(
+    getRejoinNotBeforeMs(undefined, '2026-09-01T00:00:00.000Z'),
+    Date.parse('2026-09-01T00:00:00.000Z') + 1
+  );
+  assert.equal(getRejoinNotBeforeMs(undefined, 'not a date'), undefined);
+  assert.equal(getRejoinNotBeforeMs(), undefined);
 });
 
 test('storing a row enrols the plan once and keeps completedPlanIds in step with it', () => {
@@ -254,4 +268,57 @@ test('re-ticking a recurring dated entry keeps its first completion time', () =>
   );
 
   assert.deepEqual(progress.completed_entries, { '2026-08-20': EARLIER });
+});
+
+test('a non-final session with no known next session stays on the session just read', () => {
+  const progress = completeSession(
+    row('plan-a'),
+    2,
+    'morning',
+    { ...sessionOptions, nextSessionKey: undefined },
+    NOW
+  );
+
+  assert.equal(progress.current_session, 'morning');
+});
+
+test('a session ticked on a row stored before sessions existed starts its session map', () => {
+  const legacy = row('plan-a');
+  delete (legacy as Partial<ReadingPlanProgress>).completed_sessions;
+
+  const progress = completeSession(legacy, 2, 'morning', sessionOptions, NOW);
+
+  assert.deepEqual(progress.completed_sessions, { '2:morning': NOW });
+});
+
+test('a recurring plan ticking a session stays on that day, never before day 1', () => {
+  const recurring = { ...sessionOptions, advanceDayOnCompletion: false };
+
+  assert.equal(completeSession(row('plan-a'), 1, 'morning', recurring, NOW).current_day, 1);
+  assert.equal(completeSession(row('plan-a'), 0, 'morning', recurring, NOW).current_day, 1);
+});
+
+test('a fixed-length plan ticking a session never sits before day 1', () => {
+  const progress = completeSession(
+    row('plan-a', { current_day: 0 }),
+    0,
+    'morning',
+    sessionOptions,
+    NOW
+  );
+
+  assert.equal(progress.current_day, 1);
+});
+
+test('a finished plan whose row lost its finish time gets one when a session is read again', () => {
+  const existing = row('plan-a', {
+    completed_entries: { '1': 'x', '2': 'x' },
+    current_day: 3,
+    is_completed: true,
+    completed_at: null,
+  });
+
+  const progress = completeSession(existing, 1, 'morning', sessionOptions, NOW);
+
+  assert.deepEqual([progress.is_completed, progress.completed_at], [true, NOW]);
 });

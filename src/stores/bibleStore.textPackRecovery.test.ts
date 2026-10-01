@@ -218,6 +218,46 @@ test('finishing an interrupted deletion also retires the install it interrupted'
   assert.deepEqual(Object.keys(readJournal().deletions), ['stuck']);
 });
 
+test('a deletion that also removed the previously installed pack still owns the install it interrupted', async () => {
+  // deleteTranslation journals the installed pack alongside the pending install's paths, so
+  // the deletion lists more files than the install it captured.
+  const installedPath = 'file:///translations/del1.db';
+  withTranslations([
+    makeRuntimeTranslation({
+      id: 'del1',
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: installedPath,
+      activeTextPackVersion: '3',
+    }),
+  ]);
+  const entry = installEntry('del1');
+  seedJournal({
+    installs: [entry],
+    deletions: [
+      {
+        operationId: 'del1:del',
+        translationId: 'del1',
+        paths: [installedPath, entry.finalPath, entry.stagingPath, entry.rollbackPath],
+        updatedAt: 1,
+      },
+    ],
+  });
+  doubles.cloud.recover = async () => 'current';
+
+  await reconcile();
+
+  assert.deepEqual(doubles.cloud.recoverCalls, []);
+  assert.deepEqual(installFields('del1'), {
+    isDownloaded: false,
+    installState: 'remote-only',
+    textPackLocalPath: null,
+    activeTextPackVersion: null,
+  });
+  assert.deepEqual(readJournal().installs, {});
+  assert.deepEqual(Object.keys(readJournal().deletions), ['stuck']);
+});
+
 test('an install started while an interrupted deletion was being finished is kept', async () => {
   seedJournal({
     deletions: [
@@ -479,6 +519,7 @@ test('an install that fails validation stays journaled and leaves the translatio
 
 test('an install whose pack cannot be read back is walked back to its prior state', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'ins1' })]);
+  const translationsBefore = useBibleStore.getState().translations;
   seedJournal({ installs: [installEntry('ins1')] });
   doubles.cloud.recover = async () => 'current';
   doubles.database.readbackBookId = 'EXO';
@@ -491,6 +532,8 @@ test('an install whose pack cannot be read back is walked back to its prior stat
     textPackLocalPath: null,
     activeTextPackVersion: null,
   });
+  // Only the failed translation is walked back; every other row is left as it was.
+  assert.deepEqual(useBibleStore.getState().translations, translationsBefore);
   assert.equal(readJournal().installs.ins1?.operationId, 'ins1:op');
 });
 
@@ -628,6 +671,41 @@ test('legacy discovery leaves a usable install, an absent pack and an unrecovera
   assert.deepEqual(['usable', 'absent', 'nothing'].map(installFields), before);
 });
 
+test('a legacy pack is recovered when only one of its two files is on disk', async () => {
+  withTranslations([
+    makeRuntimeTranslation({ id: 'solo' }),
+    makeRuntimeTranslation({ id: 'aside' }),
+  ]);
+  doubles.cloud.paths = legacyPathsFor(['solo', 'aside']);
+  // `solo` never had a rollback beside it; `aside` was killed after moving its pack aside.
+  doubles.fileSystem.setFile(packPaths('solo').rollbackPath, { exists: false, size: 0 });
+  doubles.fileSystem.setFile(packPaths('aside').finalPath, { exists: false, size: 0 });
+  doubles.cloud.recover = async (paths) => {
+    if (!paths.finalPath.includes('aside')) return 'current-without-rollback';
+    // Recovery moves the set-aside pack back into place.
+    doubles.fileSystem.setFile(paths.finalPath, { exists: true, size: 4096 });
+    return 'previous';
+  };
+
+  await reconcile();
+
+  assert.deepEqual(doubles.cloud.recoverCalls, [packPaths('solo'), packPaths('aside')]);
+  assert.deepEqual(['solo', 'aside'].map(installFields), [
+    {
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: packPaths('solo').finalPath,
+      activeTextPackVersion: '3',
+    },
+    {
+      isDownloaded: true,
+      installState: 'installed',
+      textPackLocalPath: packPaths('aside').finalPath,
+      activeTextPackVersion: '1',
+    },
+  ]);
+});
+
 test('a legacy pack is versioned from the previous install, or the catalog, once recovered', async () => {
   withTranslations([
     makeRuntimeTranslation({ id: 'prev' }),
@@ -665,6 +743,7 @@ test('a legacy pack is versioned from the previous install, or the catalog, once
 
 test('a legacy pack that fails validation is not adopted and is retried next launch', async () => {
   withTranslations([makeRuntimeTranslation({ id: 'leg1' })]);
+  const translationsBefore = useBibleStore.getState().translations;
   doubles.cloud.paths = legacyPathsFor(['leg1']);
   doubles.cloud.recover = async () => 'current';
   doubles.database.readbackBookId = 'EXO';
@@ -677,6 +756,8 @@ test('a legacy pack that fails validation is not adopted and is retried next lau
     textPackLocalPath: null,
     activeTextPackVersion: null,
   });
+  // Only the failed translation is walked back; every other row is left as it was.
+  assert.deepEqual(useBibleStore.getState().translations, translationsBefore);
   assert.deepEqual(
     warnings.filter((args) => args[1] === 'leg1').map((args) => args[0]),
     ['[Bible] Legacy text pack recovery is pending:']
