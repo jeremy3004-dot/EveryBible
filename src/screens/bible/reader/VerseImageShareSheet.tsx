@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import type { ImageSourcePropType } from 'react-native';
-import { useCallback, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type RefObject } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { announceLiveRegionText } from '../../../utils/a11y';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../../data/shareVerseBackgrounds';
 import { Slider } from '../../../components/ui/Slider';
 import { TabSwitch } from '../../../components/ui/TabSwitch';
@@ -92,6 +93,11 @@ export function VerseImageShareSheet({
     : 'classic';
   // Each chip shows a word from the verse, so the sample is in the verse's own script.
   const fontSample = getVerseImageFontSample(selectedVerseText);
+  // The hint under the slider is a live region, which VoiceOver ignores.
+  const isSizeMaxedShown = isSizeCapped && activeTab === 'size';
+  useEffect(() => {
+    if (isSizeMaxedShown) announceLiveRegionText(t('bible.verseImage.sizeMaxed'));
+  }, [isSizeMaxedShown, t]);
   const tabs: { key: EditorTab; label: string }[] = [
     { key: 'picture', label: t('bible.verseImage.tabs.picture') },
     ...(canChooseFont ? [{ key: 'font' as const, label: t('bible.verseImage.tabs.font') }] : []),
@@ -207,7 +213,7 @@ export function VerseImageShareSheet({
             </Text>
             <Text
               style={[styles.verseImageFontName, { color: colors.bibleSecondaryText }]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {name}
             </Text>
@@ -515,7 +521,7 @@ const styles = StyleSheet.create({
   },
   verseImageFontChip: {
     width: 92,
-    height: 72,
+    minHeight: 72,
     borderRadius: radius.lg,
     borderWidth: 1.5,
     alignItems: 'center',

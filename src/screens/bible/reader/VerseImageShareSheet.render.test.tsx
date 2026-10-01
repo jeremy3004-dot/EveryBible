@@ -4,7 +4,12 @@ import { createRef } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import type { View } from 'react-native';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
-import { flattenStyle, hostAncestors, installRenderHarness } from '../../../testing/render';
+import {
+  flattenStyle,
+  hostAncestors,
+  installRenderHarness,
+  within,
+} from '../../../testing/render';
 import { serifFamily } from '../../../design/fonts';
 
 // The picture editor the reader opens from a verse's Image action.
@@ -148,6 +153,23 @@ test('pushing the size past what fits says the words already fill the picture', 
   await view.fire(measure(), 'onTextLayout', linesOf(measure(), 2));
 
   assert.ok(view.getByText(t('bible.verseImage.sizeMaxed')));
+  // A live region is Android-only; VoiceOver has to be told.
+  assert.deepEqual(harness.rn.__recorded.announcements, [t('bible.verseImage.sizeMaxed')]);
+});
+
+test('a font chip grows with its name at large text rather than clipping it', async () => {
+  harness.setFontScale(2);
+  const { view, tab } = await renderSheet();
+  await view.press(tab('font'));
+
+  const chip = view.getByRole('button', { name: t('bible.verseImage.fonts.handwritten') });
+  const style = flattenStyle(chip.props.style);
+  assert.equal(style?.height, undefined, 'a fixed height would clip the scaled name');
+  assert.ok(Number(style?.minHeight) >= 72);
+  assert.equal(
+    within(chip).getByText(t('bible.verseImage.fonts.handwritten')).props.numberOfLines,
+    2
+  );
 });
 
 test('a Russian verse is offered only the faces that have Cyrillic, sampled with its own word', async () => {
