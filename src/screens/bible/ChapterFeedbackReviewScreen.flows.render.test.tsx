@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
+import { mockModule, sourcePath } from '../../testing/mockModules';
 import { renderedText } from '../../testing/render';
 import {
   concern,
@@ -15,6 +16,11 @@ import { assertDefined } from '../../utils/assertDefined';
 // Filters, paging, bulk review, failures and playback edges of the translator's
 // chapter feedback list.
 const fixture = installFeedbackReviewFixture(mock);
+// Whether the device reports being offline when a load fails.
+const connectivity = { offline: false };
+mockModule(mock, sourcePath('utils/connectivity.ts'), {
+  isDeviceOffline: async () => connectivity.offline,
+});
 const { harness, t, calls, responders, renderReview, visibleSheet, listenButton } = fixture;
 
 type View = Awaited<ReturnType<typeof renderReview>>;
@@ -252,6 +258,25 @@ test('a failed load says so instead of "no feedback yet", and Retry loads again'
   assert.ok(view.getByText('The name is misspelled'));
   assert.equal(view.queryByRole('button', { name: t('common.retry') }), null);
   assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+});
+
+test('offline, a failed load says the reader is offline, announces it once, and keeps Retry', async () => {
+  connectivity.offline = true;
+  try {
+    responders.fetch = async () => ({ success: false });
+    const view = await renderReview();
+
+    assert.ok(view.getByText(t('common.offlineTryAgain')));
+    assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+    assert.deepEqual(
+      announcements().filter((text) => text === t('common.offlineTryAgain')),
+      [t('common.offlineTryAgain')]
+    );
+    assert.equal(announcements().includes(t('common.somethingWentWrong')), false);
+    assert.ok(view.getByRole('button', { name: t('common.retry') }));
+  } finally {
+    connectivity.offline = false;
+  }
 });
 
 test('a passcode that does not open this translation shows what it does open', async () => {
