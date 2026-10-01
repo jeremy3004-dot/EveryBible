@@ -5,6 +5,8 @@ import {
   HOME_SCREEN_BASE_HEIGHT,
   HOME_SCREEN_BASE_WIDTH,
   HOME_STATS_COMPACT_LAYOUT_WIDTH,
+  HERO_SCRIM_DEFAULT_LOCATIONS,
+  getHeroScrimLocations,
   getHomeScreenLayout,
   getHomeScreenScale,
   shouldUseCompactHomeStatsLayout,
@@ -90,4 +92,27 @@ test('the reading size grows the verse, not the photograph it sits on', () => {
   assert.equal(large.heroPhotoHeight, medium.heroPhotoHeight);
   assert.equal(large.greetingFontSize, medium.greetingFontSize);
   assert.ok(large.verseTextFontSize > medium.verseTextFontSize);
+});
+
+test('the hero scrim keeps a point-sized fade at the foot however tall the hero grows', () => {
+  assert.deepEqual(getHeroScrimLocations(null, 39), HERO_SCRIM_DEFAULT_LOCATIONS);
+
+  const fadeLength = (photoHeight: number) => {
+    const locations = getHeroScrimLocations(photoHeight, 39);
+    return (1 - (locations[3] ?? 0)) * photoHeight;
+  };
+  for (const photoHeight of [340, 430, 700, 1200]) {
+    assert.ok(Math.abs(fadeLength(photoHeight) - 39) < 1e-9);
+  }
+});
+
+test('the hero scrim stops stay ordered even on a hero barely taller than the fade', () => {
+  for (const photoHeight of [45, 60, 120, 340, 2000]) {
+    const locations = getHeroScrimLocations(photoHeight, 39);
+    assert.equal(locations[0], 0);
+    assert.equal(locations[4], 1);
+    for (let i = 1; i < locations.length; i++) {
+      assert.ok((locations[i] ?? 0) >= (locations[i - 1] ?? 0), `stop ${i} at ${photoHeight}`);
+    }
+  }
 });

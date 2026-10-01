@@ -645,8 +645,8 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     assert.equal(flattenStyle(photo.props.imageStyle)?.opacity, undefined);
     const scrim = assertDefined(screen.queryAllByType('LinearGradient')[0], 'scrim');
     assert.deepEqual(scrim.props.colors, [
-      'rgba(12, 11, 9, 0.42)',
-      'rgba(12, 11, 9, 0.05)',
+      'rgba(12, 11, 9, 0.55)',
+      'rgba(12, 11, 9, 0.1)',
       'rgba(12, 11, 9, 0.35)',
       'rgba(12, 11, 9, 0.72)',
       background,
@@ -656,6 +656,39 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     assert.equal(flattenStyle(screen.getByText(JOHN_3_16).props.style)?.color, '#FDFAF5');
     await view.unmount();
   }
+});
+
+test('the scrim fades to the page below the verse text, wherever the hero grows to', async () => {
+  const view = await renderHome();
+  const { screen } = heroes(view);
+  const eyebrow = screen.getByText(screenEyebrow('John 3:16'));
+  const hero = hostAncestors(eyebrow).find((node) => node.props.onLayout) as ReactTestInstance;
+  const actionRow = assertDefined(
+    hostAncestors(screen.getByText(t('bible.read'))).find((node) => node.props.onLayout),
+    'action row'
+  );
+  const locations = () =>
+    assertDefined(screen.queryAllByType('LinearGradient')[0], 'scrim').props.locations as number[];
+  const layout = (node: ReactTestInstance, height: number) =>
+    view.fire(node, 'onLayout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } });
+
+  await layout(actionRow, 36);
+  await layout(hero, 500);
+  // 500 less the 9pt overhang is the photograph; the fade is the 36pt pills, the
+  // 12pt gap above them, less the 9pt hanging past the photograph.
+  const photo = 491;
+  const fadeStart = (photo - (36 + 12 - 9)) / photo;
+  assert.ok(Math.abs((locations()[3] ?? 0) - fadeStart) < 1e-9);
+
+  // Large text: a much taller hero keeps the same point-sized fade at its foot.
+  await layout(hero, 900);
+  const tall = locations();
+  assert.ok(Math.abs((tall[3] ?? 0) - (891 - 39) / 891) < 1e-9);
+  assert.ok((tall[3] ?? 0) > 0.95, 'the fade no longer climbs behind the verse');
+
+  // Wrapped pills push the verse up, and the fade with it.
+  await layout(actionRow, 76);
+  assert.ok(Math.abs((locations()[3] ?? 0) - (891 - 79) / 891) < 1e-9);
 });
 
 // ---- Listen -------------------------------------------------------------------

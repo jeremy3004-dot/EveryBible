@@ -52,7 +52,7 @@ import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelec
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
 import { VerseImageShareSheet } from '../bible/reader/VerseImageShareSheet';
 import { useVerseImageShare } from '../bible/reader/useVerseImageShare';
-import { getHomeScreenLayout } from './homeLayoutModel';
+import { getHeroScrimLocations, getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomePlanShelf } from './homePlanShelfModel';
 import { HomePlanShelf } from './HomePlanShelf';
 import { getHomeReadingStats } from './homeReadingStatsModel';
@@ -98,22 +98,21 @@ function reportHomeVerseShareFailure(error: unknown) {
 // theme tokens — light ink on a dark scrim is the only readable pairing on the
 // vellum scope too. These are the literal on-photo values the design spec names.
 const ON_PHOTO_INK = '#FDFAF5';
-const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.82)';
+const ON_PHOTO_EYEBROW = 'rgba(253, 250, 245, 0.94)';
 const ON_PHOTO_PILL_FILL = 'rgba(253, 250, 245, 0.92)';
 const ON_PHOTO_PILL_INK = '#1A1914';
 const ON_PHOTO_PLACEHOLDER = 'rgba(253, 250, 245, 0.18)';
 const ON_PHOTO_TEXT_SHADOW = 'rgba(0, 0, 0, 0.25)';
 
 // The scrim darkens the top for the greeting, opens up over the horizon, then
-// closes down again under the verse. Its final stop is the page colour, so the
+// closes down again under the verse (getHeroScrimLocations). Its final stop is the page colour, so the
 // photograph dissolves into the sheet instead of ending on a hard edge.
 const HERO_SCRIM_STOPS = [
-  'rgba(12, 11, 9, 0.42)',
-  'rgba(12, 11, 9, 0.05)',
+  'rgba(12, 11, 9, 0.55)',
+  'rgba(12, 11, 9, 0.1)',
   'rgba(12, 11, 9, 0.35)',
   'rgba(12, 11, 9, 0.72)',
 ] as const;
-const HERO_SCRIM_LOCATIONS = [0, 0.28, 0.55, 0.78, 1] as const;
 
 // The action pills hang slightly past the photograph's lower edge. The scrim has
 // already dissolved to the page colour there, so the overlap is invisible and
@@ -218,6 +217,11 @@ export function HomeScreen() {
   }, [photoLeavesStatusBarAt]);
   const handleHeroLayout = useCallback((event: LayoutChangeEvent) => {
     setHeroHeight(event.nativeEvent.layout.height);
+  }, []);
+  // The pills wrap and grow with the OS text size; the verse ends above them.
+  const [heroActionRowHeight, setHeroActionRowHeight] = useState<number | null>(null);
+  const handleHeroActionRowLayout = useCallback((event: LayoutChangeEvent) => {
+    setHeroActionRowHeight(event.nativeEvent.layout.height);
   }, []);
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -623,6 +627,12 @@ export function HomeScreen() {
   // Scripture is content, not interface: it renders in the translation's own
   // language, so Lora is swapped for the platform serif on scripts it lacks.
   const verseFontFamily = getReadingFontFamily(dailyTextTranslation?.language);
+  // The page-colour fade starts where the verse text ends: the pills' height plus
+  // the footer gap, less the part of that which hangs past the photograph.
+  const heroScrimLocations = getHeroScrimLocations(
+    heroHeight === null ? null : heroHeight - HERO_ACTION_OVERHANG,
+    (heroActionRowHeight ?? HERO_PILL_HEIGHT) + spacing.md - HERO_ACTION_OVERHANG
+  );
   const heroScrimColors = useMemo(
     () => [...HERO_SCRIM_STOPS, colors.background] as const,
     [colors.background]
@@ -733,7 +743,7 @@ export function HomeScreen() {
         >
           <LinearGradient
             colors={heroScrimColors}
-            locations={HERO_SCRIM_LOCATIONS}
+            locations={heroScrimLocations}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.heroScrim}
@@ -765,7 +775,7 @@ export function HomeScreen() {
                 </Text>
               </>
             )}
-            <View style={styles.heroActionRow}>
+            <View style={styles.heroActionRow} onLayout={handleHeroActionRowLayout}>
               {canListenToDailyScripture ? (
                 <PressableScale
                   onPress={handlePlayDailyAudio}
@@ -1042,6 +1052,9 @@ const styles = StyleSheet.create({
   heroEyebrow: {
     ...typography.eyebrow,
     color: ON_PHOTO_EYEBROW,
+    textShadowColor: ON_PHOTO_TEXT_SHADOW,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   verseText: {
     color: ON_PHOTO_INK,
