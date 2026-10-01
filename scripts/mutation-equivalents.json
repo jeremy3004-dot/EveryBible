@@ -413,6 +413,88 @@
       "reason": "pullReadingPlansFromCloud's own isCurrent check runs before any request and returns the same stale result"
     }
   ],
+  "src/stores/authStore.ts": [
+    {
+      "key": "number-literal|0|1|let authChangesApplied = 0;",
+      "reason": "authChangesApplied is only compared with its own earlier value"
+    },
+    {
+      "key": "logical-swap||||&&|if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "remove-statement|return {};|;|return {};",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "number-literal|0|1|authGeneration: 0,",
+      "reason": "authGeneration is only compared with values read from it earlier, never with a constant"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const previousUserId = get().user?.uid ?? null;#2",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|(get().user?.uid ?? null) === previousUserId && get().authGeneration === generation;",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "remove-statement|return;|;|if (!isCurrent()) return;#1",
+      "reason": "services/auth signOut(isCurrent) re-checks the same isCurrent first; the later check only lets through the SIGNED_OUT reset the handler already applied"
+    },
+    {
+      "key": "number-literal|0|1|get().user === null && get().authGeneration === generation + (previousUserId ? 1 : 0);",
+      "reason": "From a guest start the generation only moves when the uid changes, so the user cannot be null after exactly one bump"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const endingUserId = get().user?.uid ?? null;",
+      "reason": "endingUserId is only read as a truthiness test, and undefined and null are both falsy"
+    },
+    {
+      "key": "remove-statement|recoverySignOutRequest = null;|;|recoverySignOutRequest = null;",
+      "reason": "recoverySignOutRequest is only compared in the finally of the signOut that just assigned it"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|reconcileUserBoundary: (userId, previousUserId = get().user?.uid ?? null) => {",
+      "reason": "undefined and null previousUserId are both falsy everywhere applyAuthBoundaryEffects reads it"
+    },
+    {
+      "key": "relational-boundary|<|<=|return version < 4",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "number-literal|4|5|return version < 4",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "logical-swap|&&||||const restoreFailed = 'restoreFailed' in restored && restored.restoreFailed === true;",
+      "reason": "getCurrentSession only includes restoreFailed with the value true, so the key test and the value test agree"
+    },
+    {
+      "key": "remove-statement|stopRestoreRetry();|;|stopRestoreRetry();",
+      "reason": "resetRestoreRetryForTests is a test-only seam with no production caller"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (restoreRetryListener || restoreRetriesUsed >= RESTORE_RETRY_LIMIT) return;",
+      "reason": "scheduleRestoreRetry runs at most once per process, while restoreRetriesUsed is still 0"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    }
+  ],
   "src/stores/bible/textPackInstallModel.ts": [
     {
       "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0",
