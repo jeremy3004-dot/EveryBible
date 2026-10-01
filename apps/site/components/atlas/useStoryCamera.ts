@@ -25,6 +25,11 @@ const HANDLERS = [
    languages sit north of the equator. */
 const STORY_LATITUDE = 18;
 
+const SPIN_FRAME_MS = 66;
+/* Phone-sized maps keep a still globe (it still eases between steps) and
+   skip the lean-in on the app step, which would crop Africa. */
+const PHONE_WIDTH = 760;
+
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
@@ -68,9 +73,9 @@ export function useStoryCamera(
     const latitude = scene.center?.[1] ?? STORY_LATITUDE;
     map.easeTo({
       center: scene.center ?? [map.getCenter().lng, latitude],
-      // On a phone the globe is already small; leaning in would crop Africa.
       zoom:
-        globeFitZoom(width, height, latitude) + (canvas.clientWidth > 760 ? scene.zoomBoost : 0),
+        globeFitZoom(width, height, latitude) +
+        (canvas.clientWidth > PHONE_WIDTH ? scene.zoomBoost : 0),
       bearing: 0,
       pitch: 0,
       padding,
@@ -80,6 +85,10 @@ export function useStoryCamera(
 
   useEffect(() => {
     if (!map || !active || !running || !storyScene(step).spin || reducedMotion()) return;
+    // Every turn re-projects ~26k dots (≈35 ms a frame on a laptop), so the
+    // globe only turns where there is power to spare, and at 15 fps: slow
+    // enough that each step moves the dots about a pixel.
+    if (map.getCanvas().clientWidth <= PHONE_WIDTH) return;
     let frame = 0;
     let last = 0;
     const tick = (now: number) => {
@@ -89,10 +98,13 @@ export function useStoryCamera(
         last = 0;
         return;
       }
-      if (last) {
-        const center = map.getCenter();
-        map.setCenter([center.lng + ((now - last) / 1000) * STORY_SPIN_SPEED, center.lat]);
+      if (!last) {
+        last = now;
+        return;
       }
+      if (now - last < SPIN_FRAME_MS) return;
+      const center = map.getCenter();
+      map.setCenter([center.lng + ((now - last) / 1000) * STORY_SPIN_SPEED, center.lat]);
       last = now;
     };
     frame = requestAnimationFrame(tick);
