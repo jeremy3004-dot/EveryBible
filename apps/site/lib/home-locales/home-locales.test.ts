@@ -34,6 +34,10 @@ const SAME_AS_ENGLISH_ALLOWED = new Set<string>([
 ]);
 /** A locale may share at most this many other strings with English. */
 const MAX_SAME_AS_ENGLISH = 3;
+/* Words that are genuinely spelled the same in a language, not left untranslated. */
+const COGNATES: Partial<Record<string, ReadonlySet<string>>> = {
+  fr: new Set(['nav.bible', 'nav.plans', 'nav.mission', 'nav.menu']),
+};
 
 interface Leaf {
   path: string;
@@ -100,7 +104,10 @@ for (const { code, copy } of HOME_LOCALES) {
 
   test(`${code}: is translated, not copied from English`, () => {
     const same = copyLeaves(copy).filter(
-      (leaf) => leaf.value === english.get(leaf.path) && !SAME_AS_ENGLISH_ALLOWED.has(leaf.path)
+      (leaf) =>
+        leaf.value === english.get(leaf.path) &&
+        !SAME_AS_ENGLISH_ALLOWED.has(leaf.path) &&
+        !COGNATES[code]?.has(leaf.path)
     );
     assert.ok(
       same.length <= MAX_SAME_AS_ENGLISH,
