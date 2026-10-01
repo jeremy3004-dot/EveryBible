@@ -1,11 +1,15 @@
 import test, { afterEach, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { act } from 'react-test-renderer';
-import { mockMmkvStorage } from '../../testing/mockModules';
+import { mockMmkvStorage, mockModule } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
+mockModule(mock, createRequire(import.meta.url).resolve('expo-constants'), {
+  default: { default: { nativeBuildVersion: '468', expoConfig: { version: '1.0.12' } } },
+});
 const t = (key: string) => harness.i18n.t(key);
 // The real on-device crash log, backed by in-memory MMKV.
 const mmkv = mockMmkvStorage(mock).store;
@@ -86,7 +90,7 @@ test('a malformed stored row is dropped instead of breaking the screen', async (
   assert.equal(view.queryByText('Unrenderable date'), null);
 });
 
-test('share exports every log with its UTC timestamp, kind and stack', async () => {
+test('share exports every log with its UTC timestamp, kind and stack, under the build and OS', async () => {
   seedLogs([
     { message: 'Handled', isFatal: false, timestamp: Date.UTC(2026, 8, 1, 12) },
     { message: 'Boom', isFatal: true, timestamp: Date.UTC(2026, 8, 2, 8), stack: 'at root' },
@@ -99,6 +103,7 @@ test('share exports every log with its UTC timestamp, kind and stack', async () 
     {
       message: [
         t('settings.diagnostics.exportHeader'),
+        `Every Bible 1.0.12 (468), ${harness.rn.Platform.OS} ${harness.rn.Platform.Version}`,
         '',
         '[2026-09-02T08:00:00.000Z] FATAL: Boom\nat root',
         '',
