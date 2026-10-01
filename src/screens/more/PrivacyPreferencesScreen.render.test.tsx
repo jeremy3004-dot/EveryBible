@@ -4,6 +4,7 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { flattenStyle, installRenderHarness } from '../../testing/render';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
 
@@ -105,15 +106,20 @@ test('the secure-code form sits in a keyboard-avoiding, tap-through scroll with 
   assert.equal(avoider.props.behavior, 'padding', 'iOS pads above the keyboard');
 
   const [scroll] = view.queryAllByType('ScrollView');
-  assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
-  assert.ok(isInside(scroll, avoider));
+  assert.equal(assertDefined(scroll, 'scroll').props.keyboardShouldPersistTaps, 'handled');
+  assert.ok(isInside(assertDefined(scroll, 'scroll'), avoider));
   for (const input of view.queryAllByType('TextInput')) {
-    assert.ok(isInside(input, scroll), 'every code input scrolls inside the avoided area');
+    assert.ok(
+      isInside(input, assertDefined(scroll, 'scroll')),
+      'every code input scrolls inside the avoided area'
+    );
     assert.equal(input.props.keyboardType, 'number-pad');
     assert.equal(input.props.secureTextEntry, true);
   }
   const { spacing } = await import('../../design/system');
-  const bottom = Number(flattenStyle(scroll.props.contentContainerStyle)?.paddingBottom);
+  const bottom = Number(
+    flattenStyle(assertDefined(scroll, 'scroll').props.contentContainerStyle)?.paddingBottom
+  );
   assert.ok(bottom >= spacing.xxl, `the code card can scroll fully clear (got ${bottom})`);
 });
 

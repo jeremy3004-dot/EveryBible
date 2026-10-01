@@ -12,6 +12,7 @@ import {
   shiftMonth,
   summarizeDayChapters,
 } from './readingActivityCalendarModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 const day = (dateKey: string, chapterCount: number): ReadingActivityDaySummary => ({
   dateKey,
@@ -49,10 +50,10 @@ test('the reading calendar grid runs Monday-first', () => {
 
   assert.equal(grid.monthKey, '2026-09');
   assert.equal(grid.leadingCount, 1);
-  assert.equal(grid.cells[0].dateKey, '2026-08-31');
-  assert.equal(grid.cells[0].inMonth, false);
-  assert.equal(grid.cells[1].dateKey, '2026-09-01');
-  assert.equal(grid.cells[1].inMonth, true);
+  assert.equal(assertDefined(grid.cells[0], 'grid.cells[0]').dateKey, '2026-08-31');
+  assert.equal(assertDefined(grid.cells[0], 'grid.cells[0]').inMonth, false);
+  assert.equal(assertDefined(grid.cells[1], 'grid.cells[1]').dateKey, '2026-09-01');
+  assert.equal(assertDefined(grid.cells[1], 'grid.cells[1]').inMonth, true);
 
   // Leading days only. Trailing days of the next month are never drawn, so the
   // final row stops on the 30th and the grid is 1 + 30 cells over 5 rows.
@@ -134,7 +135,7 @@ test('the legend counts read days against days elapsed in the month on screen', 
     today: new Date(2026, 8, 8),
   });
   assert.equal(leadingRead.readDays, 0);
-  assert.equal(leadingRead.cells[0].state, 'read');
+  assert.equal(assertDefined(leadingRead.cells[0], 'leadingRead.cells[0]').state, 'read');
 });
 
 test('month navigation lands on the first of the neighbouring month', () => {

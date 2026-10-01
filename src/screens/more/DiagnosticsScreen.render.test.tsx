@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { mockMmkvStorage } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -129,8 +130,8 @@ test('clearing asks first and deletes the logs only once confirmed', async () =>
 
   await view.press(view.getByText(t('settings.diagnostics.clear')));
   const [confirm] = harness.rn.__recorded.alerts;
-  assert.equal(confirm.title, t('settings.diagnostics.clearTitle'));
-  const buttons = confirm.buttons as AlertButton[];
+  assert.equal(assertDefined(confirm, 'confirm').title, t('settings.diagnostics.clearTitle'));
+  const buttons = assertDefined(confirm, 'confirm').buttons as AlertButton[];
   assert.deepEqual(
     buttons.map((button) => button.style),
     ['cancel', 'destructive']
@@ -139,7 +140,7 @@ test('clearing asks first and deletes the logs only once confirmed', async () =>
   assert.ok(mmkv.has(CRASH_LOG_KEY));
 
   await act(async () => {
-    buttons[1].onPress?.();
+    assertDefined(buttons[1], 'buttons[1]').onPress?.();
   });
 
   assert.equal(view.queryByText('Handled'), null);

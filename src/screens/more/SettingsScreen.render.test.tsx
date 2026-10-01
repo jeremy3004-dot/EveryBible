@@ -13,6 +13,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Why the OS keeps the in-app reminder from appearing, if it does.
 let reminderBlock: 'needs-permission' | 'blocked' | null = null;
@@ -335,9 +336,9 @@ test('refusing the permission from the notice explains itself and schedules noth
   await view.press(view.getByRole('button', { name: t('settings.allowNotifications') }));
 
   const [alert] = harness.rn.__recorded.alerts;
-  assert.equal(alert.title, t('settings.permissionRequired'));
+  assert.equal(assertDefined(alert, 'alert').title, t('settings.permissionRequired'));
   assert.deepEqual(
-    (alert.buttons as Array<{ text: string }>).map((button) => button.text),
+    (assertDefined(alert, 'alert').buttons as Array<{ text: string }>).map((button) => button.text),
     [t('common.cancel'), t('common.settings')]
   );
   assert.deepEqual(reminders.calls, []);
@@ -865,10 +866,15 @@ test('at large text the font-size stepper and the offline status sit under their
 
   const fontTitle = view.getByText(t('settings.fontSize'));
   assert.ok(
-    within(hostAncestors(fontTitle)[0]).getByRole('button', { name: t('learn.increaseTextSize') }),
+    within(assertDefined(hostAncestors(fontTitle)[0], 'hostAncestors(fontTitle)[0]')).getByRole(
+      'button',
+      { name: t('learn.increaseTextSize') }
+    ),
     'the stepper left the title a word per line beside it'
   );
-  const fontValue = within(hostAncestors(fontTitle)[0])
+  const fontValue = within(
+    assertDefined(hostAncestors(fontTitle)[0], 'hostAncestors(fontTitle)[0]')
+  )
     .queryAllByType('Text')
     .find((node) => flattenStyle(node.props.style)?.minWidth !== undefined);
   assert.ok(fontValue, 'the size name');
@@ -879,7 +885,9 @@ test('at large text the font-size stepper and the offline status sit under their
   assert.equal(fontValue.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
 
   const offlineTitle = view.getByText(t('settings.downloadForOffline'));
-  const available = within(hostAncestors(offlineTitle)[0]).getByText(t('common.available'));
+  const available = within(
+    assertDefined(hostAncestors(offlineTitle)[0], 'hostAncestors(offlineTitle)[0]')
+  ).getByText(t('common.available'));
   assert.equal(available.props.numberOfLines, undefined);
 });
 
@@ -1000,12 +1008,28 @@ test('every Settings switch uses the shared higher-contrast track colours', asyn
   const switches = view.queryAllByType('Switch');
   assert.ok(switches.length >= 3);
   const [first] = switches;
-  assert.ok(first.props.trackColor.true && first.props.trackColor.false);
-  assert.notEqual(first.props.trackColor.true, first.props.trackColor.false);
-  assert.equal(first.props.ios_backgroundColor, first.props.trackColor.false);
+  assert.ok(
+    assertDefined(first, 'first').props.trackColor.true &&
+      assertDefined(first, 'first').props.trackColor.false
+  );
+  assert.notEqual(
+    assertDefined(first, 'first').props.trackColor.true,
+    assertDefined(first, 'first').props.trackColor.false
+  );
+  assert.equal(
+    assertDefined(first, 'first').props.ios_backgroundColor,
+    assertDefined(first, 'first').props.trackColor.false
+  );
   for (const control of switches) {
-    assert.deepEqual(control.props.trackColor, first.props.trackColor, 'same track colours');
-    assert.equal(control.props.ios_backgroundColor, first.props.ios_backgroundColor);
+    assert.deepEqual(
+      control.props.trackColor,
+      assertDefined(first, 'first').props.trackColor,
+      'same track colours'
+    );
+    assert.equal(
+      control.props.ios_backgroundColor,
+      assertDefined(first, 'first').props.ios_backgroundColor
+    );
   }
   assert.ok(
     switches.some((control) => control.props.accessibilityLabel === t('settings.translatorAccess'))
@@ -1285,21 +1309,23 @@ test('a refused notification permission explains itself, and a blocked one offer
 
   await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
   const [denied] = harness.rn.__recorded.alerts;
-  assert.equal(denied.title, t('settings.permissionRequired'));
+  assert.equal(assertDefined(denied, 'denied').title, t('settings.permissionRequired'));
   assert.deepEqual(
-    (denied.buttons as Array<{ text: string }>).map((button) => button.text),
+    (assertDefined(denied, 'denied').buttons as Array<{ text: string }>).map(
+      (button) => button.text
+    ),
     [t('common.ok')]
   );
 
   reminders.permission = 'blocked';
   await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', true);
-  const blocked = harness.rn.__recorded.alerts[1];
+  const blocked = assertDefined(harness.rn.__recorded.alerts[1], 'harness.rn.__recorded.alerts[1]');
   const buttons = blocked.buttons as Array<{ text: string; onPress?: () => void }>;
   assert.deepEqual(
     buttons.map((button) => button.text),
     [t('common.cancel'), t('common.settings')]
   );
-  buttons[1].onPress?.();
+  assertDefined(buttons[1], 'buttons[1]').onPress?.();
   assert.deepEqual(harness.rn.__recorded.openedUrls, ['app-settings:']);
   assert.equal(harness.authStore.getState().preferences.notificationsEnabled, false);
   assert.deepEqual(reminders.calls, []);
@@ -1375,12 +1401,16 @@ test('clearing the cache asks first, then clears only device caches', async () =
 
   await view.press(view.getByRole('button', { name: t('settings.clearCache') }));
   const [confirm] = harness.rn.__recorded.alerts;
-  assert.equal(confirm.title, t('settings.clearCache'));
+  assert.equal(assertDefined(confirm, 'confirm').title, t('settings.clearCache'));
   assert.deepEqual(cacheClears, [], 'nothing cleared before confirming');
 
-  const buttons = confirm.buttons as Array<{ text: string; style?: string; onPress?: () => void }>;
-  assert.equal(buttons[1].style, 'destructive');
-  buttons[1].onPress?.();
+  const buttons = assertDefined(confirm, 'confirm').buttons as Array<{
+    text: string;
+    style?: string;
+    onPress?: () => void;
+  }>;
+  assert.equal(assertDefined(buttons[1], 'buttons[1]').style, 'destructive');
+  assertDefined(buttons[1], 'buttons[1]').onPress?.();
   assert.deepEqual(cacheClears, [1]);
   assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('settings.cacheClearedSuccess'));
 });
