@@ -133,6 +133,7 @@ test('a cancel during a plain download is honoured once the transfer returns', a
     isTextPackDownloadCancelled,
   } = await loadModule();
   let accepted: boolean | null = null;
+  const phases: string[] = [];
   duringDownload = () => {
     accepted = cancelActiveCatalogTextPackDownload('plaincancel');
   };
@@ -142,11 +143,38 @@ test('a cancel during a plain download is honoured once the transfer returns', a
       translationId: 'plaincancel',
       downloadUrl: 'https://media.example.test/plaincancel.db',
       expectedVerseCount: 3,
+      onPhase: (phase) => phases.push(phase),
     }),
     (error: unknown) => isTextPackDownloadCancelled(error)
   );
 
   assert.equal(accepted, true, 'there is no native handle, but the cancel is still accepted');
+  assert.deepEqual(phases, [], 'the cancelled pack never enters verification');
   assert.equal(existsSync(`${translationsDirectory}/plaincancel.db`), false);
   assert.equal(existsSync(`${translationsDirectory}/plaincancel.staging.db`), false);
+});
+
+test('a plain transfer that fails after the cancel was accepted is reported as cancelled', async () => {
+  const {
+    cancelActiveCatalogTextPackDownload,
+    downloadCatalogTextPack,
+    isTextPackDownloadCancelled,
+  } = await loadModule();
+  const progress: string[] = [];
+  duringDownload = () => {
+    cancelActiveCatalogTextPackDownload('plainfail');
+    throw new Error('The network connection was lost.');
+  };
+
+  await assert.rejects(
+    downloadCatalogTextPack({
+      translationId: 'plainfail',
+      downloadUrl: 'https://media.example.test/plainfail.db',
+      expectedVerseCount: 3,
+      onProgress: ({ phase }) => progress.push(phase),
+    }),
+    (error: unknown) => isTextPackDownloadCancelled(error),
+    'the user cancelled, so the caller is not told the download failed'
+  );
+  assert.deepEqual(progress, ['fetching']);
 });

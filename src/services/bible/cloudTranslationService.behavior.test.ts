@@ -149,12 +149,18 @@ const resumable = {
   started: null as (() => void) | null,
   /** Native progress callbacks fired once the transfer is allowed to proceed. */
   progressEvents: [] as { totalBytesWritten: number; totalBytesExpectedToWrite: number }[],
+  /** Delivers a native progress callback for the current transfer while it is still held. */
+  emitProgress: null as
+    | ((progress: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void)
+    | null,
   cancelError: null as Error | null,
 };
 const fileSystemFaults = {
   failMove: null as ((from: string, to: string) => boolean) | null,
   failDelete: null as ((path: string) => boolean) | null,
   failMakeDirectory: null as Error | null,
+  /** Runs right after an existence check, before the caller acts on its answer. */
+  afterInfo: null as ((path: string) => void) | null,
   unreadableBytes: false,
 };
 const fileSystemCalls: string[] = [];
@@ -178,21 +184,30 @@ mockModule(mock, 'expo-file-system/legacy', {
   documentDirectory,
   EncodingType: { Base64: 'base64', UTF8: 'utf8' },
   getInfoAsync: async (path: string) => {
-    if (!existsSync(path)) {
-      return { exists: false, uri: path };
-    }
-    const stats = statSync(path);
-    return { exists: true, uri: path, size: stats.size, isDirectory: stats.isDirectory() };
+    const info = existsSync(path)
+      ? (() => {
+          const stats = statSync(path);
+          return { exists: true, uri: path, size: stats.size, isDirectory: stats.isDirectory() };
+        })()
+      : { exists: false, uri: path };
+    fileSystemFaults.afterInfo?.(path);
+    return info;
   },
-  makeDirectoryAsync: async (path: string) => {
+  // Like expo-file-system on both platforms: without `intermediates`, creating a folder that
+  // already exists (or whose parent is missing) throws.
+  makeDirectoryAsync: async (path: string, options?: { intermediates?: boolean }) => {
     fileSystemCalls.push(`makeDirectory:${path}`);
     if (fileSystemFaults.failMakeDirectory) throw fileSystemFaults.failMakeDirectory;
-    mkdirSync(path, { recursive: true });
+    mkdirSync(path, { recursive: options?.intermediates === true });
   },
-  deleteAsync: async (path: string) => {
+  // Like expo-file-system: without `idempotent`, deleting a file that is not there throws.
+  deleteAsync: async (path: string, options?: { idempotent?: boolean }) => {
     fileSystemCalls.push(`delete:${path}`);
     if (fileSystemFaults.failDelete?.(path)) {
       throw new Error('native delete failed');
+    }
+    if (!existsSync(path) && options?.idempotent !== true) {
+      throw new Error(`File '${path}' could not be deleted because it could not be found.`);
     }
     rmSync(path, { force: true, recursive: true });
   },
@@ -212,25 +227,28 @@ mockModule(mock, 'expo-file-system/legacy', {
       totalBytesWritten: number;
       totalBytesExpectedToWrite: number;
     }) => void
-  ) => ({
-    downloadAsync: async () => {
-      if (resumable.enabled) {
-        await new Promise<void>((resolve) => {
-          resumable.resolve = resolve;
-          resumable.started?.();
-        });
-      }
-      for (const event of resumable.progressEvents) {
-        onNativeProgress?.(event);
-      }
-      if (resumable.cancelled) return undefined;
-      return fakeDownload(url, path);
-    },
-    cancelAsync: async () => {
-      resumable.cancelled = true;
-      if (resumable.cancelError) throw resumable.cancelError;
-    },
-  }),
+  ) => {
+    resumable.emitProgress = (progress) => onNativeProgress?.(progress);
+    return {
+      downloadAsync: async () => {
+        if (resumable.enabled) {
+          await new Promise<void>((resolve) => {
+            resumable.resolve = resolve;
+            resumable.started?.();
+          });
+        }
+        for (const event of resumable.progressEvents) {
+          onNativeProgress?.(event);
+        }
+        if (resumable.cancelled) return undefined;
+        return fakeDownload(url, path);
+      },
+      cancelAsync: async () => {
+        resumable.cancelled = true;
+        if (resumable.cancelError) throw resumable.cancelError;
+      },
+    };
+  },
   readAsStringAsync: async (path: string, options?: { position?: number; length?: number }) => {
     base64Reads.push({ path, position: options?.position, length: options?.length });
     if (fileSystemFaults.unreadableBytes) return 'not base64 at all!%';
@@ -281,9 +299,11 @@ afterEach(() => {
   resumable.resolve = null;
   resumable.started = null;
   resumable.progressEvents = [];
+  resumable.emitProgress = null;
   resumable.cancelError = null;
   fileSystemFaults.failMove = null;
   fileSystemFaults.failDelete = null;
+  fileSystemFaults.afterInfo = null;
   fileSystemFaults.unreadableBytes = false;
   base64Reads.length = 0;
   sqliteFaults.failOpen = false;
@@ -307,7 +327,11 @@ test('downloadCatalogTextPack installs a downloaded pack and reports progress', 
 
   assert.equal(installedPath, packPath('catalog'));
   assert.equal(readVerseCount(installedPath), 3);
-  assert.deepEqual(progress.phases, ['fetching', 'indexing', 'complete']);
+  assert.deepEqual(progress.entries, [
+    { phase: 'fetching', versesDownloaded: 0, totalVerses: 3 },
+    { phase: 'indexing', versesDownloaded: 3, totalVerses: 3 },
+    { phase: 'complete', versesDownloaded: 3, totalVerses: 3 },
+  ]);
   assert.ok(fileSystemCalls.includes('download:https://media.example.test/catalog.db'));
 });
 
@@ -332,7 +356,16 @@ test('cancelActiveCatalogTextPackDownload prevents a late native completion from
   cancelActiveCatalogTextPackDownload();
   resumable.resolve?.();
 
-  await assert.rejects(promise, (error: unknown) => isTextPackDownloadCancelled(error));
+  await assert.rejects(promise, (error: unknown) => {
+    assert.ok(isTextPackDownloadCancelled(error));
+    assert.ok(error instanceof Error);
+    assert.deepEqual(
+      { name: error.name, message: error.message },
+      { name: 'TextPackDownloadCancelledError', message: 'Text pack download was cancelled.' },
+      'the cancellation names itself in logs and crash reports'
+    );
+    return true;
+  });
   assert.equal(existsSync(packPath('cancelled')), false);
 });
 
@@ -530,18 +563,23 @@ test('downloadCatalogTextPack rejects a pack with fewer verses than the catalog 
   );
 });
 
-test('downloadCatalogTextPack still requires at least one verse when no count is declared', async () => {
+test('downloadCatalogTextPack still requires at least one verse when no count, or zero, is declared', async () => {
   const { downloadCatalogTextPack } = await loadModule();
   download.bytes = buildPackBytes({ verses: 0 });
 
-  await assert.rejects(
-    () =>
-      downloadCatalogTextPack({
-        translationId: 'noverses',
-        downloadUrl: 'https://media.example.test/noverses.db',
-      }),
-    /incomplete \(0\/1 verses\)/
-  );
+  for (const expectedVerseCount of [undefined, 0]) {
+    await assert.rejects(
+      () =>
+        downloadCatalogTextPack({
+          translationId: 'noverses',
+          downloadUrl: 'https://media.example.test/noverses.db',
+          expectedVerseCount,
+        }),
+      /incomplete \(0\/1 verses\)/,
+      `declared count: ${expectedVerseCount}`
+    );
+    assert.equal(existsSync(packPath('noverses')), false);
+  }
 });
 
 test('downloadCatalogTextPack restores the previous install when activation fails', async () => {
@@ -617,6 +655,79 @@ test('downloadCatalogTextPack refuses to run while a previous rollback is still 
     fileSystemCalls.filter((call) => call.startsWith('move:')),
     [],
     'nothing is moved while an unrecovered backup exists'
+  );
+});
+
+test('replacing an installed pack retires the old generation and every sidecar it had', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('replaced'), buildPackBytes({ verses: 2 }));
+  for (const suffix of ['-journal', '-shm', '-wal']) {
+    writeFileSync(`${packPath('replaced')}${suffix}`, `old pack ${suffix}`);
+  }
+
+  const installedPath = await downloadCatalogTextPack({
+    translationId: 'replaced',
+    downloadUrl: 'https://media.example.test/replaced.db',
+    expectedVerseCount: 3,
+  });
+
+  // Checked before anything opens the new pack: opening it lets SQLite tidy stray sidecars away
+  // (or, were the old journal hot, replay it onto the new pack).
+  assert.deepEqual(
+    readdirSync(translationsDirectory).filter((entry) => entry.startsWith('replaced')),
+    ['replaced.db'],
+    'no old sidecar sits beside the new pack, and no backup is left to block the next update'
+  );
+  assert.equal(readVerseCount(installedPath), 3);
+});
+
+test('a failure setting the installed pack aside leaves it installed and usable', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  writeFileSync(packPath('setaside'), buildPackBytes({ verses: 2 }));
+  writeFileSync(`${packPath('setaside')}-wal`, 'installed wal');
+  fileSystemFaults.failMove = (_from, to) => to === `${packPath('setaside')}.rollback`;
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'setaside',
+        downloadUrl: 'https://media.example.test/setaside.db',
+        expectedVerseCount: 3,
+      }),
+    /native move failed/
+  );
+
+  // Read the sidecar first: opening the database checkpoints and removes it.
+  assert.equal(readFileSync(`${packPath('setaside')}-wal`, 'utf8'), 'installed wal');
+  assert.equal(readVerseCount(packPath('setaside')), 2);
+});
+
+test('a failed first-install activation leaves nothing at the install path', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  // A native move that copies part of the pack before it fails (a cross-volume move that ran
+  // out of space), with no earlier install to restore.
+  fileSystemFaults.failMove = (from, to) => {
+    if (from !== stagingPath('firstinstall')) return false;
+    writeFileSync(to, 'the first bytes of a copy that never finished');
+    return true;
+  };
+
+  await assert.rejects(
+    () =>
+      downloadCatalogTextPack({
+        translationId: 'firstinstall',
+        downloadUrl: 'https://media.example.test/firstinstall.db',
+        expectedVerseCount: 3,
+      }),
+    /native move failed/
+  );
+
+  assert.deepEqual(
+    readdirSync(translationsDirectory).filter((entry) => entry.startsWith('firstinstall')),
+    [],
+    'no partial pack is left where the app would open it'
   );
 });
 
@@ -792,6 +903,8 @@ test('downloadCatalogTextPack reports native byte progress and omits an unknown 
   const { downloadCatalogTextPack } = await loadModule();
   const progress = collectProgress();
   resumable.progressEvents = [
+    { totalBytesWritten: 0, totalBytesExpectedToWrite: 0 },
+    { totalBytesWritten: 1, totalBytesExpectedToWrite: 1 },
     { totalBytesWritten: 512, totalBytesExpectedToWrite: 2048 },
     { totalBytesWritten: 900, totalBytesExpectedToWrite: -1 },
   ];
@@ -803,23 +916,15 @@ test('downloadCatalogTextPack reports native byte progress and omits an unknown 
     onProgress: progress.onProgress,
   });
 
+  const fetching = { phase: 'fetching', versesDownloaded: 0, totalVerses: 3 };
   assert.deepEqual(
     progress.entries.filter((entry) => entry.bytesDownloaded !== undefined),
     [
-      {
-        phase: 'fetching',
-        versesDownloaded: 0,
-        totalVerses: 3,
-        bytesDownloaded: 512,
-        bytesTotal: 2048,
-      },
-      {
-        phase: 'fetching',
-        versesDownloaded: 0,
-        totalVerses: 3,
-        bytesDownloaded: 900,
-        bytesTotal: undefined,
-      },
+      // A zero or negative total is "unknown"; any positive total, however small, is passed on.
+      { ...fetching, bytesDownloaded: 0, bytesTotal: undefined },
+      { ...fetching, bytesDownloaded: 1, bytesTotal: 1 },
+      { ...fetching, bytesDownloaded: 512, bytesTotal: 2048 },
+      { ...fetching, bytesDownloaded: 900, bytesTotal: undefined },
     ]
   );
 });
@@ -844,10 +949,19 @@ test('cancelActiveCatalogTextPackDownload cancels only the named translation and
   await transfer.started;
 
   assert.equal(cancelActiveCatalogTextPackDownload('someone-else'), false);
+  const nativeStoppedByOtherCancel = resumable.cancelled;
   assert.equal(cancelActiveCatalogTextPackDownload('named'), true);
+  const nativeStoppedByCancel = resumable.cancelled;
+  // Released before asserting, so a failure here cannot leave the transfer's stall timer running.
   transfer.release();
 
   await assert.rejects(promise, (error: unknown) => isTextPackDownloadCancelled(error));
+  assert.equal(nativeStoppedByOtherCancel, false, 'cancelling another translation leaves it');
+  assert.equal(
+    nativeStoppedByCancel,
+    true,
+    'the native transfer is told to stop, not left downloading in the background'
+  );
   assert.deepEqual(
     progress.phases,
     ['fetching'],
@@ -934,6 +1048,50 @@ test('time the app spent suspended in the background does not count as a stall',
   const error = await outcome;
   assert.ok(error instanceof Error);
   assert.equal(resumable.cancelled, true);
+});
+
+test('a stall timer that fires up to 5 s late still fails the transfer', async (t) => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const transfer = holdNextTransfer();
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+
+  const outcome = downloadCatalogTextPack({
+    translationId: 'barelylate',
+    downloadUrl: 'https://media.example.test/barelylate.db',
+    expectedVerseCount: 3,
+  }).then(
+    () => null,
+    (error: unknown) => error
+  );
+  await transfer.started;
+
+  // The 30 s timer runs with the clock already at 35 s: exactly the 5 s of allowed slack.
+  t.mock.timers.tick(35_000);
+
+  assert.equal(resumable.cancelled, true, 'normal scheduling lag is not a suspended app');
+  assert.match(String(await outcome), /Translation download stalled: no data received/);
+});
+
+test('bytes that keep arriving keep a slow transfer alive past 30 s', async (t) => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const transfer = holdNextTransfer();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'trickle',
+    downloadUrl: 'https://media.example.test/trickle.db',
+    expectedVerseCount: 3,
+  });
+  await transfer.started;
+
+  for (let second = 20; second <= 80; second += 20) {
+    t.mock.timers.tick(20_000);
+    resumable.emitProgress?.({ totalBytesWritten: second * 100, totalBytesExpectedToWrite: 0 });
+  }
+  assert.equal(resumable.cancelled, false, 'no 30 s passed without bytes');
+
+  transfer.release();
+  assert.equal(readVerseCount(await promise), 3);
 });
 
 test('a transfer the native layer abandons on its own is reported as cancelled, not as an error', async () => {
@@ -1050,7 +1208,9 @@ test('a cancel that arrives once activation has begun is refused and the install
 test('waitForActiveCatalogTextPackDownload resolves at once when nothing is downloading', async () => {
   const { waitForActiveCatalogTextPackDownload } = await loadModule();
 
-  assert.equal(await waitForActiveCatalogTextPackDownload('idle'), undefined);
+  const waiting = waitForActiveCatalogTextPackDownload('idle');
+  assert.ok(waiting instanceof Promise, 'callers can chain on the wait, as its type promises');
+  assert.equal(await waiting, undefined);
 });
 
 test('waitForActiveCatalogTextPackDownload settles quietly once a failing download finishes', async () => {
@@ -1240,7 +1400,7 @@ const assertWorkingPackKept = (translationId: string, verses = 2): void => {
 test('every error answer, and a redirect the transport did not follow, keeps the installed pack', async () => {
   const { downloadCatalogTextPack } = await loadModule();
 
-  for (const status of [301, 302, 404, 410, 500, 502]) {
+  for (const status of [199, 300, 301, 302, 404, 410, 500, 502]) {
     installWorkingPack('statuses');
     download.status = status;
 
@@ -1255,6 +1415,22 @@ test('every error answer, and a redirect the transport did not follow, keeps the
       `HTTP ${status}`
     );
     assertWorkingPackKept('statuses');
+  }
+});
+
+test('any 2xx answer with a valid pack installs it', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+
+  for (const status of [201, 299]) {
+    download.status = status;
+
+    const installedPath = await downloadCatalogTextPack({
+      translationId: `success${status}`,
+      downloadUrl: `https://media.example.test/success${status}.db`,
+      expectedVerseCount: 3,
+    });
+
+    assert.equal(readVerseCount(installedPath), 3, `HTTP ${status}`);
   }
 });
 
@@ -1324,6 +1500,27 @@ test('a translations folder that cannot be created fails the download and releas
     expectedVerseCount: 3,
   });
   assert.equal(readVerseCount(installedPath), 3);
+});
+
+test('two first downloads that both find the translations folder missing both install', async () => {
+  const { downloadCatalogTextPack } = await loadModule();
+  rmSync(translationsDirectory, { recursive: true, force: true });
+
+  // Both check for the folder before either creates it; the second create finds it there.
+  const installed = await Promise.all(
+    ['racefirst', 'racesecond'].map((translationId) =>
+      downloadCatalogTextPack({
+        translationId,
+        downloadUrl: `https://media.example.test/${translationId}.db`,
+        expectedVerseCount: 3,
+      })
+    )
+  );
+
+  assert.deepEqual(
+    installed.map((path) => readVerseCount(path)),
+    [3, 3]
+  );
 });
 
 test('a truncated pack with no declared checksum is rejected by the database check', async () => {
@@ -1471,12 +1668,50 @@ test('a download retried after a failure installs, with nothing left over from t
   );
 });
 
+/**
+ * What a process killed mid-write leaves on disk: a database file with some pages already
+ * rewritten, and the hot rollback journal holding their originals. SQLite replays that journal
+ * onto whatever database file it finds beside it on the next open.
+ */
+function buildKilledWriteFiles(): { main: Buffer; journal: Buffer } {
+  const path = `${root}/killed-${Math.random().toString(36).slice(2)}.db`;
+  writeFileSync(path, buildPackBytes({ translationId: 'killed', verses: 400 }));
+  const database = new DatabaseSync(path);
+  try {
+    // A one-page cache makes SQLite spill rewritten pages into the file mid-transaction, after
+    // writing and syncing the journal: the state a kill at that moment leaves.
+    database.exec('PRAGMA cache_size = 1');
+    database.exec('BEGIN');
+    database.exec("UPDATE verses SET text = text || ' rewritten by a write that never finished'");
+    return { main: readFileSync(path), journal: readFileSync(`${path}-journal`) };
+  } finally {
+    database.exec('ROLLBACK');
+    database.close();
+    rmSync(path, { force: true });
+  }
+}
+
 test('a partial staging file left by a download killed with the app is replaced by the next one', async () => {
   const { downloadCatalogTextPack } = await loadModule();
   mkdirSync(translationsDirectory, { recursive: true });
-  const whole = buildPackBytes({ translationId: 'killed' });
-  writeFileSync(stagingPath('killed'), whole.subarray(0, 100));
-  writeFileSync(`${stagingPath('killed')}-journal`, 'hot journal from the killed process');
+  const killed = buildKilledWriteFiles();
+
+  // The fixture's journal really is hot: beside a fresh pack, SQLite replays it and the fresh
+  // pack no longer reads as itself.
+  const probePath = `${root}/hot-journal-probe.db`;
+  writeFileSync(probePath, download.bytes);
+  writeFileSync(`${probePath}-journal`, killed.journal);
+  const probeVerses = (() => {
+    try {
+      return readVerseCount(probePath);
+    } catch (error) {
+      return String(error);
+    }
+  })();
+  assert.notEqual(probeVerses, 3);
+
+  writeFileSync(stagingPath('killed'), killed.main);
+  writeFileSync(`${stagingPath('killed')}-journal`, killed.journal);
 
   const installedPath = await downloadCatalogTextPack({
     translationId: 'killed',
@@ -1484,13 +1719,13 @@ test('a partial staging file left by a download killed with the app is replaced 
     expectedVerseCount: 3,
   });
 
-  assert.equal(readVerseCount(installedPath), 3);
-  assert.equal(existsSync(stagingPath('killed')), false);
   assert.equal(
-    existsSync(`${stagingPath('killed')}-journal`),
-    false,
-    'a hot journal left beside the partial file would be replayed onto the fresh download'
+    readVerseCount(installedPath),
+    3,
+    'the hot journal left beside the partial file is never replayed onto the fresh download'
   );
+  assert.equal(existsSync(stagingPath('killed')), false);
+  assert.equal(existsSync(`${stagingPath('killed')}-journal`), false);
 });
 
 // ─── Journaled (operation-scoped) installs ────────────────────────────────────
@@ -1571,6 +1806,30 @@ test('validateCatalogTextPack verifies the checksum and returns the first verse 
   );
 });
 
+test('validateCatalogTextPack holds a pack to the declared verse count, and to at least one verse', async () => {
+  const { validateCatalogTextPack } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const writePack = (name: string, verses: number): string => {
+    const path = `${translationsDirectory}/${name}.db`;
+    writeFileSync(path, buildPackBytes({ translationId: name, verses }));
+    return path;
+  };
+  const single = writePack('single', 1);
+  const firstVerse = { translationId: 'single', bookId: 'GEN', chapter: 1 };
+
+  assert.deepEqual(await validateCatalogTextPack(single), firstVerse, 'no declared count');
+  assert.deepEqual(await validateCatalogTextPack(single, 1), firstVerse, 'one declared verse');
+  await assert.rejects(
+    validateCatalogTextPack(writePack('short', 3), 9),
+    /incomplete \(3\/9 verses\)/
+  );
+  await assert.rejects(
+    validateCatalogTextPack(writePack('emptyzero', 0), 0),
+    /incomplete \(0\/1 verses\)/,
+    'a declared count of zero still requires a verse'
+  );
+});
+
 test('validateCatalogTextPack fails closed on an empty file with a declared checksum', async () => {
   const { validateCatalogTextPack } = await loadModule();
   mkdirSync(translationsDirectory, { recursive: true });
@@ -1601,6 +1860,26 @@ test('deleteCatalogTextPackArtifacts removes a database and every sidecar that e
     false,
     'a sidecar that never existed is not deleted'
   );
+});
+
+test('deleteCatalogTextPackArtifacts tolerates a sidecar that vanishes after it was found', async () => {
+  const { deleteCatalogTextPackArtifacts } = await loadModule();
+  mkdirSync(translationsDirectory, { recursive: true });
+  const path = `${translationsDirectory}/closing.db`;
+  for (const suffix of ['', '-shm', '-wal']) {
+    writeFileSync(`${path}${suffix}`, 'bytes');
+  }
+  // SQLite removes -wal and -shm when the reader's last connection to the pack closes, which can
+  // land between the existence check and the delete.
+  fileSystemFaults.afterInfo = (checked) => {
+    if (checked.endsWith('-shm') || checked.endsWith('-wal')) rmSync(checked, { force: true });
+  };
+
+  await deleteCatalogTextPackArtifacts(path);
+
+  for (const suffix of ['', '-journal', '-shm', '-wal']) {
+    assert.equal(existsSync(`${path}${suffix}`), false, `${suffix || 'main'} gone`);
+  }
 });
 
 // ─── Interrupted-install recovery ─────────────────────────────────────────────
@@ -1644,24 +1923,85 @@ test('recoverInterruptedCatalogTextPack rejects when the surviving replacement i
   assert.equal(readVerseCount(paths.rollbackPath), 3);
 });
 
-test('recoverInterruptedCatalogTextPack quarantines a sidecar both generations claim', async () => {
+test('recoverInterruptedCatalogTextPack quarantines every sidecar both generations claim', async () => {
   const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
   const paths = getCatalogTextPackPaths('ambiguous');
   mkdirSync(translationsDirectory, { recursive: true });
   writeFileSync(paths.rollbackPath, buildPackBytes({ translationId: 'ambiguous' }));
-  // -shm is ignored by a rollback-journal database, so neither copy disturbs validation.
-  writeFileSync(`${paths.rollbackPath}-shm`, 'rollback shm');
-  writeFileSync(`${paths.finalPath}-shm`, 'final shm');
+  // SQLite leaves all three alone while it validates a rollback-journal database: a journal
+  // whose first byte is zero is not hot, an empty -wal holds no frames, and -shm is unused.
+  const rollbackSidecars = {
+    '-journal': Buffer.concat([Buffer.alloc(1), Buffer.from('rollback journal')]),
+    '-shm': Buffer.from('rollback shm'),
+    '-wal': Buffer.alloc(0),
+  };
+  for (const [suffix, bytes] of Object.entries(rollbackSidecars)) {
+    writeFileSync(`${paths.rollbackPath}${suffix}`, bytes);
+    writeFileSync(`${paths.finalPath}${suffix}`, `final ${suffix}`);
+  }
 
   assert.equal(await recoverInterruptedCatalogTextPack(paths), 'previous');
 
-  const quarantined = readdirSync(translationsDirectory).filter(
-    (entry) => entry.startsWith('ambiguous.db.recovery-orphan-') && entry.endsWith('-shm')
+  const entries = readdirSync(translationsDirectory).filter((entry) =>
+    entry.startsWith('ambiguous.')
   );
-  assert.equal(quarantined.length, 1);
-  assert.equal(readFileSync(`${translationsDirectory}/${quarantined[0]}`, 'utf8'), 'final shm');
-  assert.equal(readFileSync(`${paths.finalPath}-shm`, 'utf8'), 'rollback shm');
+  for (const [suffix, bytes] of Object.entries(rollbackSidecars)) {
+    const quarantined = entries.filter(
+      (entry) => entry.startsWith('ambiguous.db.recovery-orphan-') && entry.endsWith(suffix)
+    );
+    assert.equal(quarantined.length, 1, `the final path's ${suffix} is quarantined`);
+    assert.equal(
+      readFileSync(`${translationsDirectory}/${quarantined[0]}`, 'utf8'),
+      `final ${suffix}`
+    );
+    assert.deepEqual(
+      readFileSync(`${paths.finalPath}${suffix}`),
+      bytes,
+      `the rollback's ${suffix} is back beside its database`
+    );
+  }
+  assert.equal(
+    entries.some((entry) => entry.startsWith('ambiguous.db.rollback')),
+    false,
+    'nothing of the rollback set is left behind to block the next update'
+  );
   assert.equal(readVerseCount(paths.finalPath), 3);
+});
+
+/** A WAL-mode pack whose verses are all still in its write-ahead log, as an open reader leaves it. */
+function buildWalPackFiles(translationId: string): { main: Buffer; wal: Buffer } {
+  const path = `${root}/wal-${Math.random().toString(36).slice(2)}.db`;
+  const database = new DatabaseSync(path);
+  try {
+    database.exec('PRAGMA journal_mode = WAL');
+    database.exec('PRAGMA wal_autocheckpoint = 0');
+    database.exec(
+      'CREATE TABLE verses (translation_id TEXT, book_id TEXT, chapter INTEGER, verse INTEGER, text TEXT)'
+    );
+    const insert = database.prepare('INSERT INTO verses VALUES (?, ?, ?, ?, ?)');
+    for (let verse = 1; verse <= 3; verse += 1) {
+      insert.run(translationId, 'GEN', 1, verse, `Verse ${verse}`);
+    }
+    // Copied while the connection is open, before closing checkpoints the log into the main file.
+    return { main: readFileSync(path), wal: readFileSync(`${path}-wal`) };
+  } finally {
+    database.close();
+    for (const suffix of ['', '-shm', '-wal']) rmSync(`${path}${suffix}`, { force: true });
+  }
+}
+
+test('recoverInterruptedCatalogTextPack validates the rollback pack together with its write-ahead log', async () => {
+  const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
+  const paths = getCatalogTextPackPaths('walrecovery');
+  mkdirSync(translationsDirectory, { recursive: true });
+  const pack = buildWalPackFiles('walrecovery');
+  // Activation moved the main file aside, and the app was killed before its -wal followed. The
+  // main file alone has no verses table yet: every verse is still in the log.
+  writeFileSync(paths.rollbackPath, pack.main);
+  writeFileSync(`${paths.finalPath}-wal`, pack.wal);
+
+  assert.equal(await recoverInterruptedCatalogTextPack(paths), 'previous');
+  assert.equal(readVerseCount(paths.finalPath), 3, 'the verses still in the log are kept');
   assert.equal(existsSync(paths.rollbackPath), false);
 });
 
@@ -1682,18 +2022,25 @@ test('recoverInterruptedCatalogTextPack leaves orphaned rollback sidecars in pla
 test('recoverInterruptedCatalogTextPack discards an abandoned staging download and its sidecars', async () => {
   const { getCatalogTextPackPaths, recoverInterruptedCatalogTextPack } = await loadModule();
   const main = getCatalogTextPackPaths('abandonedmain');
-  const sidecarOnly = getCatalogTextPackPaths('abandonedsidecar');
   mkdirSync(translationsDirectory, { recursive: true });
   writeFileSync(main.stagingPath, 'partial');
   writeFileSync(`${main.stagingPath}-wal`, 'partial wal');
-  writeFileSync(`${sidecarOnly.stagingPath}-journal`, 'partial journal');
 
   assert.equal(await recoverInterruptedCatalogTextPack(main), 'none');
-  assert.equal(await recoverInterruptedCatalogTextPack(sidecarOnly), 'none');
-
   assert.equal(existsSync(main.stagingPath), false);
   assert.equal(existsSync(`${main.stagingPath}-wal`), false);
-  assert.equal(existsSync(`${sidecarOnly.stagingPath}-journal`), false);
+
+  for (const suffix of ['-journal', '-shm', '-wal']) {
+    const sidecarOnly = getCatalogTextPackPaths(`abandoned${suffix.slice(1)}`);
+    writeFileSync(`${sidecarOnly.stagingPath}${suffix}`, `partial ${suffix}`);
+
+    assert.equal(await recoverInterruptedCatalogTextPack(sidecarOnly), 'none');
+    assert.equal(
+      existsSync(`${sidecarOnly.stagingPath}${suffix}`),
+      false,
+      `a lone staging ${suffix} is discarded`
+    );
+  }
 });
 
 test('recoverInterruptedCatalogTextPack still reports its result when staging cleanup fails', async () => {
