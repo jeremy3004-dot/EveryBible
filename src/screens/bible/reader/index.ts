@@ -40,5 +40,6 @@ export * from './useReaderScrollChrome';
 export * from './useReaderScrollTargets';
 export * from './useReaderSwipeNavigation';
 export * from './useReaderTabBarMotion';
+export * from './useReaderTranslation';
 export * from './useStableChapterPresentation';
 export * from './useVerseSelection';

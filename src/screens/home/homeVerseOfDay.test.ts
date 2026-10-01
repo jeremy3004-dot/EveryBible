@@ -293,6 +293,88 @@ test("midnight and each return to the foreground advance Home's clock, not the f
   h.cleanup();
 });
 
+// A load script: each call to load() consumes the next outcome (false = the source threw).
+function retryHarness(outcomes: boolean[]) {
+  const loads: (VerseOfDayLoadOptions | undefined)[] = [];
+  let appStateListener: ((next: string) => void) | null = null;
+  const cleanup = startVerseOfDayRefresh({
+    load: async (options) => {
+      loads.push(options);
+      return outcomes.shift() ?? true;
+    },
+    requestIdRef: { current: 0 },
+    appStateRef: { current: 'active' },
+    midnightTimerRef: { current: null },
+    addAppStateListener: (listener) => {
+      appStateListener = listener;
+      return { remove: () => undefined };
+    },
+    runAfterInteractions: () => ({ cancel: () => undefined }),
+    msUntilNextLocalMidnight: () => 3_600_000,
+  });
+  return { cleanup, loads, emitAppState: (next: string) => appStateListener?.(next) };
+}
+
+const flushMicrotasks = async () => {
+  for (let turn = 0; turn < 5; turn += 1) await Promise.resolve();
+};
+
+test('a silent refresh that fails is retried once after a short backoff', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = retryHarness([false, true]);
+
+  h.emitAppState('background');
+  h.emitAppState('active');
+  await flushMicrotasks();
+  assert.equal(h.loads.length, 1);
+  mock.timers.tick(10_000);
+  await flushMicrotasks();
+  assert.deepEqual(h.loads, [{ silent: true }, { silent: true }], 'today verse is requested again');
+  mock.timers.tick(20_000);
+  await flushMicrotasks();
+  assert.equal(h.loads.length, 2, 'a successful retry stops retrying');
+  h.cleanup();
+});
+
+test('retries are bounded when the source keeps failing', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = retryHarness([false, false, false, false, false]);
+
+  h.emitAppState('background');
+  h.emitAppState('active');
+  for (let step = 0; step < 6; step += 1) {
+    mock.timers.tick(10_000);
+    await flushMicrotasks();
+  }
+  assert.equal(h.loads.length, 3, 'one attempt plus a bounded number of retries');
+  h.cleanup();
+});
+
+test('cleanup cancels a pending retry', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const h = retryHarness([false, true]);
+
+  h.emitAppState('background');
+  h.emitAppState('active');
+  await flushMicrotasks();
+  h.cleanup();
+  mock.timers.tick(60_000);
+  await flushMicrotasks();
+  assert.equal(h.loads.length, 1);
+});
+
+test('loadVerseOfDay reports whether the verse loaded, and a failure keeps the old verse', async () => {
+  const h = home();
+  const shown = scripture('yesterday');
+  h.state.scripture = shown;
+  const loading = h.load({ silent: true });
+  await h.settleModuleLoads();
+  assertDefined(h.scriptureRequests[0], 'h.scriptureRequests[0]').reject(new Error('db busy'));
+
+  assert.equal(await loading, false);
+  assert.equal(h.state.scripture, shown, 'the card is never blanked');
+});
+
 test('cleanup stops the timer, the listener and the pending load', () => {
   mock.timers.enable({ apis: ['setTimeout'] });
   const h = refreshHarness('active', 5_000);

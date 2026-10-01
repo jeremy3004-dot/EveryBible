@@ -108,6 +108,7 @@ import {
   useReaderScrollChrome,
   useReaderScrollTargets,
   useReaderTabBarMotion,
+  useReaderTranslation,
   useStableChapterPresentation,
   useVerseSelection,
 } from './reader';
@@ -267,12 +268,10 @@ export function BibleReaderScreen() {
     (state) => state.setPreferredChapterLaunchMode
   );
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
-  // Only the current translation: another translation's download progress or
-  // catalog refresh replaces its own row in `translations`, which must not
-  // re-render the whole reader.
-  const currentTranslationInfo = useBibleStore((state) =>
-    state.translations.find((translation) => translation.id === state.currentTranslation)
-  );
+  // Only the current translation, minus its download job: another translation's
+  // progress or catalog refresh, and this one's own progress ticks, must not re-render
+  // the whole reader.
+  const currentTranslationInfo = useReaderTranslation();
   const downloadAudioForBook = useBibleStore((state) => state.downloadAudioForBook);
   const setPlaybackSequence = useAudioStore((state) => state.setPlaybackSequence);
   const setAudioReturnTarget = useAudioStore((state) => state.setAudioReturnTarget);

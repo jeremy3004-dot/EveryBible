@@ -77,6 +77,34 @@ export function ChapterSelectorScreen() {
   );
 
   const book = getBookById(bookId);
+
+  // FlashList re-renders its rows only when extraData changes by reference, so carry
+  // exactly what a tile paints or does: a fresh object each render redrew every row on
+  // any parent update, while omitting chaptersRead left a newly read chapter untouched.
+  const gridExtraData = useMemo(
+    () => ({
+      colors,
+      continueChapter: book
+        ? buildBookHubPresentation({ book, chaptersRead, currentBookId, currentChapter })
+            .continueChapter
+        : null,
+      chaptersRead,
+      itemSize,
+      preferredChapterLaunchMode,
+      t,
+    }),
+    [
+      book,
+      chaptersRead,
+      colors,
+      currentBookId,
+      currentChapter,
+      itemSize,
+      preferredChapterLaunchMode,
+      t,
+    ]
+  );
+
   if (!book) {
     return (
       <SafeAreaView
@@ -226,10 +254,7 @@ export function ChapterSelectorScreen() {
         estimatedItemSize={itemSize + CHAPTER_GRID_ROW_GAP}
         contentContainerStyle={listContentStyle}
         showsVerticalScrollIndicator={false}
-        extraData={{
-          colors,
-          continueChapter: bookHubPresentation.continueChapter,
-        }}
+        extraData={gridExtraData}
         ListHeaderComponent={
           <View style={styles.headerContent}>
             <View style={styles.headerRow}>
