@@ -109,7 +109,7 @@ const portionInput = () => ({
   isCurrentAudioChapter: true,
   resetFollowAlongClamp: () => {},
   seekTo: async () => {},
-  status: 'paused' as const,
+  status: 'paused' as 'paused' | 'loading' | 'playing',
   togglePlayPause: async () => {},
 });
 const draft = () => ({ ...asset, durationMs: 60_000 });
