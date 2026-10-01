@@ -8,7 +8,11 @@ import {
   EVERYBIBLE_TERMS_PATH,
 } from './site-links';
 
+export type SiteNavigationKey = 'atlas' | 'bible' | 'plans' | 'app' | 'mission' | 'give';
+
 export interface SiteNavigationItem {
+  /** Key into `HomeCopy['nav']`, so the header can localize the label. */
+  key: SiteNavigationKey;
   label: string;
   href: string;
 }
@@ -34,12 +38,12 @@ export interface MobileTabItem {
 }
 
 export const siteNavigation: SiteNavigationItem[] = [
-  { label: 'Language atlas', href: '/' },
-  { label: 'Bible', href: '/bible' },
-  { label: 'Plans', href: '/plans' },
-  { label: 'The app', href: '/#app' },
-  { label: 'Mission', href: '/about' },
-  { label: 'Give', href: '/give' },
+  { key: 'atlas', label: 'Language atlas', href: '/#explore' },
+  { key: 'bible', label: 'Bible', href: '/bible' },
+  { key: 'plans', label: 'Plans', href: '/plans' },
+  { key: 'app', label: 'The app', href: '/#app' },
+  { key: 'mission', label: 'Mission', href: '/about' },
+  { key: 'give', label: 'Give', href: '/give' },
 ];
 
 export const appStoreScreenshots: AppStoreScreenshot[] = [
