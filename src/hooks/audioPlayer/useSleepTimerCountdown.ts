@@ -50,11 +50,21 @@ export function useSleepTimerCountdown({
     if (sleepTimerEndTime && isRunning) {
       // The end time moves on every resume; re-anchor the countdown now rather
       // than showing the stale pre-pause clock for up to a second.
+      // Only the whole minutes left are shown, and this runs inside the reader: keep
+      // the previous clock reading while the minute is unchanged, so the one-second
+      // tick re-renders the screen once a minute rather than every second.
+      const advanceClock = (now: number) =>
+        setSleepTimerNow((previous) =>
+          sleepTimerRemainingMinutes(sleepTimerEndTime, previous, null) ===
+          sleepTimerRemainingMinutes(sleepTimerEndTime, now, null)
+            ? previous
+            : now
+        );
       // eslint-disable-next-line react-hooks/set-state-in-effect -- re-anchors the countdown clock
-      setSleepTimerNow(Date.now());
+      advanceClock(Date.now());
       sleepTimerRef.current = setInterval(() => {
         const now = Date.now();
-        setSleepTimerNow(now);
+        advanceClock(now);
         // Read the live end time: a pause freezes the timer in the store before
         // this effect re-runs, and a frozen timer must not expire.
         if (hasSleepTimerExpired(useAudioStore.getState().sleepTimerEndTime, now)) {
