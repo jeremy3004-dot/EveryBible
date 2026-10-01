@@ -141,6 +141,14 @@ test('a monthly rhythm measures progress against the days of this month', () => 
   assert.equal(getActivePlanProgressRatio(monthly, 10, new Date(2026, 1, 10)), 10 / 28);
 });
 
+test('a seasonal plan shows no progress until its season opens', () => {
+  const advent = makePlan({ duration_days: 28, scheduleMode: 'calendar-advent' });
+  // Advent 2026 runs 29 Nov to 24 Dec (26 days).
+  assert.equal(getActivePlanProgressRatio(advent, 1, new Date(2026, 9, 1)), 0);
+  assert.equal(getActivePlanProgressRatio(advent, 1, new Date(2026, 11, 26)), 0);
+  assert.equal(getActivePlanProgressRatio(advent, 13, new Date(2026, 11, 11)), 13 / 26);
+});
+
 test('the header eyebrow counts active and completed plans and drops a zero half', () => {
   const counts = (activeCount: number, completedCount: number, catalogSize = 12) => ({
     activeCount,

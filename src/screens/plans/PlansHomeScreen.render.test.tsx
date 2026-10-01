@@ -588,6 +588,16 @@ test('an active single-session rhythm offers Continue and shows its percentage',
   assert.ok(bar);
 });
 
+test('an Advent plan joined before its season shows its dates and no progress, not a day', async () => {
+  await seed(progressRow('advent', { started_at: '2026-09-21T09:00:00.000Z' }));
+  const view = await renderHome();
+
+  const advent = view.getByRole('button', { name: titleOf('advent') });
+  assert.match(advent.props.accessibilityValue.text, /^[^,]+ – [^,]+, 0%$/);
+  assert.ok(within(advent).getByText('0%'));
+  assert.equal(within(advent).queryByText(/readingPlans\.dayOf/), null);
+});
+
 test('a rhythm left on screen overnight moves to the new day when the app comes back', async () => {
   await seed(progressRow(PROVERBS, { started_at: '2026-09-21T09:00:00.000Z' }));
   const view = await renderHome();

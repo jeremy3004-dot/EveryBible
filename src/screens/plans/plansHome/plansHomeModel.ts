@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import {
   getPlanDayCount,
   isMultiSessionPlan,
+  isPlanInSeason,
   isRecurringPlan,
   type PlanSeason,
 } from '../../../services/plans/readingPlanModel';
@@ -88,7 +89,8 @@ export function getActivePlanProgressRatio(
   today: Date
 ): number {
   const totalDays = getPlanDayCount(plan, today);
-  if (totalDays <= 0) {
+  // Advent joined in October has not begun: its waiting day 1 is not a day done.
+  if (totalDays <= 0 || !isPlanInSeason(plan, today)) {
     return 0;
   }
   return isRecurringPlan(plan) ? currentDay / totalDays : (currentDay - 1) / totalDays;
