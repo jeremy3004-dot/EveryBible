@@ -1,4 +1,30 @@
 {
+  "src/services/auth/authErrors.ts": [
+    {
+      "key": "relational-boundary|>|>=|error.code.length > 0",
+      "reason": "An empty code matches no case, so returning '' instead of null maps the same"
+    },
+    {
+      "key": "number-literal|0|1|error.code.length > 0",
+      "reason": "No mapped code is one character long, so a one-character code maps to the default either way"
+    },
+    {
+      "key": "string-literal|'EveryBible backend is not configured for this build yet.'|''|error: unknown = 'EveryBible backend is not configured for this build yet.'",
+      "reason": "The empty default message is replaced by the same text through the fallback"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();#1",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|'Sign in cancelled'|''|return authFailure('cancelled', error, 'Sign in cancelled');",
+      "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
+    }
+  ],
   "src/stores/privateDataScope.ts": [
     {
       "key": "remove-statement|return null;|;|return null;",
