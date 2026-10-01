@@ -428,6 +428,8 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
       sharedAction: 'sharedAction',
       dismissedAction: 'dismissedAction',
     },
+    // react-test-renderer batches inside act(), which the harness wraps every update in.
+    unstable_batchedUpdates: <T,>(callback: () => T) => callback(),
     InteractionManager: {
       runAfterInteractions: (task?: () => void) => {
         let cancelled = false;

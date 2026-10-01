@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing } from 'react-native';
+import { useEffect, useSyncExternalStore } from 'react';
+import { AccessibilityInfo, Animated, Easing, unstable_batchedUpdates } from 'react-native';
 
 // Mid-point of the pulse, held while the OS asks for reduced motion.
 const STILL_OPACITY = 0.5;
@@ -50,24 +50,50 @@ function releasePulse() {
   if (subscribers === 0) pulseLoop?.stop();
 }
 
+// The OS reduce-motion setting as last read, shared by every bar: one query and one
+// listener per skeleton instead of one per bar. Each bar's own answer used to re-render
+// the app tree separately (the old architecture does not batch updates made outside
+// events), ~20 passes for one chapter skeleton.
+let reduceMotionSetting: boolean | null = null;
+const reduceMotionListeners = new Set<() => void>();
+let reduceMotionSubscription: { remove: () => void } | null = null;
+
+function setReduceMotionSetting(enabled: boolean) {
+  if (enabled === reduceMotionSetting) return;
+  reduceMotionSetting = enabled;
+  unstable_batchedUpdates(() => reduceMotionListeners.forEach((listener) => listener()));
+}
+
+function subscribeToReduceMotion(listener: () => void) {
+  if (reduceMotionListeners.size === 0) {
+    // Read again for each skeleton, in case the setting changed while none was mounted.
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduceMotionSetting)
+      .catch(() => setReduceMotionSetting(reduceMotionSetting ?? false));
+    reduceMotionSubscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotionSetting
+    );
+  }
+  reduceMotionListeners.add(listener);
+  return () => {
+    reduceMotionListeners.delete(listener);
+    if (reduceMotionListeners.size === 0) {
+      reduceMotionSubscription?.remove();
+      reduceMotionSubscription = null;
+    }
+  };
+}
+
+const getReduceMotionSetting = () => reduceMotionSetting;
+
 /**
  * The opacity a skeleton bar draws with: the shared pulse, or a still mid-point
- * under reduced motion. Nothing animates until the OS setting has been read.
+ * under reduced motion. Nothing animates until the OS setting has been read once;
+ * later skeletons start from the last answer while it is read again.
  */
 export function useSkeletonOpacity(): Animated.AnimatedInterpolation<number> | number {
-  const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((enabled) => active && setReduceMotion(enabled))
-      .catch(() => active && setReduceMotion(false));
-    const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      active = false;
-      listener.remove();
-    };
-  }, []);
+  const reduceMotion = useSyncExternalStore(subscribeToReduceMotion, getReduceMotionSetting);
 
   useEffect(() => {
     if (reduceMotion !== false) return undefined;
