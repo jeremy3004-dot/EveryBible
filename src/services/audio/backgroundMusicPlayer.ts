@@ -29,6 +29,8 @@ const MIN_FADE_OUT_MS = 250;
 const LEVEL_RAMP_MS = 400;
 /** The Sound level that plays each sound at its catalog volume. */
 const DEFAULT_LEVEL = 0.5;
+/** How long a remote sound that failed to load waits before its one automatic retry. */
+const REMOTE_RETRY_DELAY_MS = 10_000;
 
 type SoundChoice = Exclude<BackgroundMusicChoice, 'off'>;
 
@@ -56,6 +58,10 @@ class BackgroundMusicPlayer {
   private pendingCrossfades = new Set<Promise<void>>();
   /** Suppress loop reentry while this sound's replacement is loading. */
   private crossfadingSound: Audio.Sound | null = null;
+  /** The pending automatic retry of a remote sound whose first load failed. */
+  private remoteRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Remote sounds already retried since they last played or the listener last paused. */
+  private retriedRemoteChoices = new Set<SoundChoice>();
 
   /** The volume the bed plays at: the current sound's catalog level scaled by the Sound level. */
   private get targetVolume(): number {
@@ -345,6 +351,29 @@ class BackgroundMusicPlayer {
     }
   }
 
+  private clearRemoteRetry(): void {
+    if (this.remoteRetryTimer) clearTimeout(this.remoteRetryTimer);
+    this.remoteRetryTimer = null;
+  }
+
+  /**
+   * A remote sound whose download or decode failed would otherwise stay silent until the
+   * listener's next play or pause. Retries once after a backoff, if it is still the sound
+   * wanted; a second failure waits for the listener, so a dead network never loops.
+   */
+  private scheduleRemoteRetry(choice: SoundChoice): void {
+    if (this.retriedRemoteChoices.has(choice)) return;
+    this.retriedRemoteChoices.add(choice);
+    this.clearRemoteRetry();
+    this.remoteRetryTimer = setTimeout(() => {
+      this.remoteRetryTimer = null;
+      const requested = this.requested;
+      if (requested?.choice === choice && requested.shouldPlay) {
+        void this.sync(choice, true);
+      }
+    }, REMOTE_RETRY_DELAY_MS);
+  }
+
   /**
    * The file a remote sound plays from, once it is on disk. A sound not downloaded yet
    * starts downloading and resolves null: the bed stays silent (the narration carries on)
@@ -364,9 +393,9 @@ class BackgroundMusicPlayer {
 
     void backgroundSoundCache.ensureCached(option).then((downloaded) => {
       const requested = this.requested;
-      if (downloaded && requested?.choice === option.id && requested.shouldPlay) {
-        void this.sync(option.id, true);
-      }
+      if (requested?.choice !== option.id || !requested.shouldPlay) return;
+      if (downloaded) void this.sync(option.id, true);
+      else this.scheduleRemoteRetry(requested.choice as SoundChoice);
     });
     return null;
   }
@@ -431,6 +460,7 @@ class BackgroundMusicPlayer {
       // again instead of failing on the same file for good.
       if (option.source.kind === 'remote' && requestId === this.loadRequestId) {
         await backgroundSoundCache.discard(option);
+        this.scheduleRemoteRetry(choice);
       }
       return;
     }
@@ -444,6 +474,7 @@ class BackgroundMusicPlayer {
     this.sound = sound;
     this.currentSource = source;
     this.currentChoice = choice;
+    this.retriedRemoteChoices.delete(choice);
   }
 
   async sync(choice: BackgroundMusicChoice, shouldPlay: boolean): Promise<void> {
@@ -461,6 +492,10 @@ class BackgroundMusicPlayer {
     // Capture the user's command before any async work, including configuration.
     // Pause must cancel pending loads and crossfades as well as playing sounds.
     const requestId = ++this.loadRequestId;
+    if (choice === 'off' || !shouldPlay) {
+      this.clearRemoteRetry();
+      this.retriedRemoteChoices.clear();
+    }
     if (choice === 'off') {
       this.shouldBePlaying = false;
       this.currentChoice = null;
@@ -531,6 +566,8 @@ class BackgroundMusicPlayer {
     this.shouldBePlaying = false;
     this.currentChoice = null;
     this.requested = null;
+    this.clearRemoteRetry();
+    this.retriedRemoteChoices.clear();
     this.loadRequestId += 1;
     await this.unloadCurrentSound();
   }

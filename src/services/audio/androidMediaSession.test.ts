@@ -13,6 +13,7 @@ import {
   type BibleNowPlayingInput,
   type BibleNowPlayingLocalizedStrings,
 } from './audioNowPlayingModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -233,7 +234,7 @@ test('advancing to the next chapter updates metadata on the running session with
     'updatePlaybackState',
   ]);
   assert.equal(h.native.methods().filter((method) => method === 'enableMediaControls').length, 0);
-  assert.deepEqual(h.native.calls[2].args[0], {
+  assert.deepEqual(assertDefined(h.native.calls[2], 'h.native.calls[2]').args[0], {
     title: 'Genesis 2',
     artist: 'Berean Standard Bible',
     album: 'Every Bible',
@@ -315,7 +316,10 @@ test('native calls keep the order the hook issued them: sync, clear, sync', asyn
     'updateMetadata',
     'updatePlaybackState',
   ]);
-  assert.equal((h.native.calls[5].args[0] as { title: string }).title, 'Genesis 3');
+  assert.equal(
+    (assertDefined(h.native.calls[5], 'h.native.calls[5]').args[0] as { title: string }).title,
+    'Genesis 3'
+  );
 });
 
 test('syncs that queue up behind a slow native call collapse into the latest one', async () => {
@@ -447,7 +451,10 @@ test('an unreadable privacy setting fails closed to the neutral entry', async ()
 
   await sync(h, genesisOne);
 
-  assert.equal((h.native.calls[1].args[0] as { title: string }).title, 'Now playing');
+  assert.equal(
+    (assertDefined(h.native.calls[1], 'h.native.calls[1]').args[0] as { title: string }).title,
+    'Now playing'
+  );
   assert.deepEqual(h.errors, ['isDiscreetMode']);
 });
 
@@ -503,7 +510,7 @@ for (const canSkipNext of [false, true]) {
     test(`initial Android controls reflect next=${canSkipNext}, previous=${canSkipPrevious}`, async () => {
       const h = createHarness();
       await sync(h, { ...genesisOne, canSkipNext, canSkipPrevious });
-      const options = optionsOf(h.native.calls[0]);
+      const options = optionsOf(assertDefined(h.native.calls[0], 'h.native.calls[0]'));
       for (const list of [options.capabilities, options.compactCapabilities]) {
         assert.equal(list.includes('nextTrack'), canSkipNext);
         assert.equal(list.includes('previousTrack'), canSkipPrevious);
@@ -562,7 +569,7 @@ test('changing only the interface labels refreshes the running session options',
     localized: { ...english, channelName: 'Playing now', pause: 'Pause narration' },
   });
   assert.deepEqual(h.native.methods(), ['updateMediaControlOptions']);
-  const options = optionsOf(h.native.calls[0]);
+  const options = optionsOf(assertDefined(h.native.calls[0], 'h.native.calls[0]'));
   assert.equal(options.android.channelName, 'Playing now');
   assert.equal(options.android.actionLabels.pause, 'Pause narration');
 });
@@ -610,7 +617,7 @@ test('pending options updates collapse to the latest boundaries and localized la
   release();
   await Promise.all([first, second, latest]);
   assert.deepEqual(h.native.methods(), ['updateMediaControlOptions', 'updateMediaControlOptions']);
-  const options = optionsOf(h.native.calls[1]);
+  const options = optionsOf(assertDefined(h.native.calls[1], 'h.native.calls[1]'));
   assert.equal(options.capabilities.includes('nextTrack'), false);
   assert.equal(options.capabilities.includes('previousTrack'), false);
   assert.deepEqual(options.compactCapabilities, ['play']);
@@ -630,7 +637,7 @@ test('clear and re-enable publish the new initial capabilities without a stale o
     'updateMetadata',
     'updatePlaybackState',
   ]);
-  const options = optionsOf(h.native.calls[0]);
+  const options = optionsOf(assertDefined(h.native.calls[0], 'h.native.calls[0]'));
   assert.equal(options.capabilities.includes('nextTrack'), true);
   assert.equal(options.capabilities.includes('previousTrack'), false);
 });
@@ -638,7 +645,7 @@ test('clear and re-enable publish the new initial capabilities without a stale o
 test('older native binaries use filtered initial controls and keep playback updates without rebinding', async () => {
   const h = createHarness({ legacy: true });
   await sync(h, { ...genesisOne, canSkipNext: false, canSkipPrevious: false });
-  const initial = optionsOf(h.native.calls[0]);
+  const initial = optionsOf(assertDefined(h.native.calls[0], 'h.native.calls[0]'));
   assert.deepEqual(initial.compactCapabilities, ['play']);
   h.native.calls.length = 0;
   await sync(h, {

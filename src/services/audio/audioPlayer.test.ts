@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { afterEach, before, beforeEach, mock } from 'node:test';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // Recording ./trackPlayer double
@@ -182,7 +183,10 @@ test('configureAudioMode logs and swallows a setup failure so playback can still
   }
 
   assert.equal(errors.messages.length, 1);
-  assert.equal(errors.messages[0][0], 'Error configuring audio mode:');
+  assert.equal(
+    assertDefined(errors.messages[0], 'errors.messages[0]')[0],
+    'Error configuring audio mode:'
+  );
 });
 
 // ---------------------------------------------------------------------------

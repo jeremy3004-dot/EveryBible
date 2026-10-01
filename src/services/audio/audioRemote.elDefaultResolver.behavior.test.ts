@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { afterEach, before, mock } from 'node:test';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import type { ElAudioManifest } from '../elMedia/elManifestModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Mock configuration for this file: the manifest SERVICE (network + signature verification) is
 // replaced, while the pure manifest model stays real. That leaves audioRemote's production
@@ -124,5 +125,8 @@ test('a manifest service failure degrades to no audio instead of throwing', asyn
 
   assert.equal(await mod.fetchRemoteChapterAudio('el-lqd', 'PHM', 1), null);
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /Failed to resolve EL manifest chapter audio/);
+  assert.match(
+    String(assertDefined(warnings[0], 'warnings[0]')[0]),
+    /Failed to resolve EL manifest chapter audio/
+  );
 });

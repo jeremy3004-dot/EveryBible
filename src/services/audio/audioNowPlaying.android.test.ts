@@ -5,6 +5,7 @@ import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createReactNativeStub } from '../../testing/reactNativeStub';
 import { ANDROID_REENABLE_GAP_MS } from './androidMediaSession';
 import type { BibleNowPlayingRemoteCommand } from './audioNowPlaying';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Android wiring of the public now-playing API: calls must reach the
 // expo-media-control native module (looked up through `expo`), never the iOS
@@ -122,7 +123,7 @@ test('syncing on Android starts the media session with localized metadata and ar
     mediaControlCalls.map((call) => call.method),
     ['enableMediaControls', 'updateMetadata', 'updatePlaybackState']
   );
-  assert.deepEqual(mediaControlCalls[1].args[0], {
+  assert.deepEqual(assertDefined(mediaControlCalls[1], 'mediaControlCalls[1]').args[0], {
     title: 'Génesis 1',
     artist: 'Berean Standard Bible',
     album: 'Every Bible',
@@ -131,7 +132,7 @@ test('syncing on Android starts the media session with localized metadata and ar
       uri: 'android.resource://com.everybible.app/drawable/assets_audio_nowplayingartwork',
     },
   });
-  assert.deepEqual(mediaControlCalls[2].args, [2, 30, 1]);
+  assert.deepEqual(assertDefined(mediaControlCalls[2], 'mediaControlCalls[2]').args, [2, 30, 1]);
   assert.ok(requestedModules.every((name) => name === 'ExpoMediaControl'));
   assert.deepEqual(iosCalls, []);
 });
@@ -160,7 +161,7 @@ test('discreet mode from the privacy store hides the chapter on the Android lock
 
   await mod.syncBibleNowPlaying(genesisOne);
 
-  assert.deepEqual(mediaControlCalls[1].args[0], {
+  assert.deepEqual(assertDefined(mediaControlCalls[1], 'mediaControlCalls[1]').args[0], {
     title: 'Reproduciendo ahora',
     artist: '',
     album: '',

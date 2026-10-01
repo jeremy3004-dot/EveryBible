@@ -546,6 +546,9 @@ async function fetchBibleIsChapterAudio(
         ? data.data[0]
         : (data.data.find((file) => verse >= file.verse_start && verse <= file.verse_end) ??
           data.data[0]);
+    if (!audioFile) {
+      return null;
+    }
 
     return {
       url: requireSecureMediaUrl(audioFile.path),

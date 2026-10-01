@@ -55,6 +55,8 @@ interface AudioState {
   // frozen in `sleepTimerRemainingMs` and the end time is recomputed on resume.
   sleepTimerEndTime: number | null;
   sleepTimerRemainingMs: number | null;
+  /** The frozen timer was left by a full stop, so the next session clears it. Not persisted. */
+  sleepTimerStopped: boolean;
 
   // Settings (persisted)
   playbackRate: PlaybackRate;
@@ -134,27 +136,56 @@ const keepsSelah = (status: AudioStatus) => status !== 'idle' && status !== 'err
 
 const clampUnit = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1);
 
-type SleepTimerFields = Pick<AudioState, 'sleepTimerEndTime' | 'sleepTimerRemainingMs'>;
+type SleepTimerFields = Pick<
+  AudioState,
+  'sleepTimerEndTime' | 'sleepTimerRemainingMs' | 'sleepTimerStopped' | 'sleepTimerMinutes'
+>;
+
+/** A full stop (or playback ending) rather than a pause. */
+const isStoppedStatus = (status: AudioStatus) => status === 'idle' || status === 'error';
 
 /**
  * Moves the sleep timer between its running (end time) and frozen (remaining
- * time) forms to follow a playback status (or Selah) change. Returns null when
- * nothing changes.
+ * time) forms to follow a playback status (or Selah) change. A timer a full stop
+ * left frozen belongs to the finished session, so the next session to start
+ * playing clears it instead of resuming it. Returns null when nothing changes.
  */
 function getSleepTimerForStatus(
-  state: SleepTimerFields,
+  state: SleepTimerFields & Pick<AudioState, 'status'>,
   status: AudioStatus,
   now: number,
   selahActive = false
-): SleepTimerFields | null {
+): Partial<SleepTimerFields> | null {
   if (isSleepTimerRunning(status, selahActive)) {
     if (state.sleepTimerRemainingMs === null) return null;
+    if (state.sleepTimerStopped) {
+      return {
+        sleepTimerMinutes: null,
+        sleepTimerEndTime: null,
+        sleepTimerRemainingMs: null,
+        sleepTimerStopped: false,
+      };
+    }
     return { sleepTimerEndTime: now + state.sleepTimerRemainingMs, sleepTimerRemainingMs: null };
   }
-  if (state.sleepTimerEndTime === null) return null;
+  const stopped = isStoppedStatus(status);
+  if (state.sleepTimerEndTime === null) {
+    // Pause, then stop: the frozen time still belongs to the session that just ended. A timer
+    // chosen while already stopped is not marked: it waits for the next playback.
+    if (
+      state.sleepTimerRemainingMs !== null &&
+      stopped &&
+      !state.sleepTimerStopped &&
+      !isStoppedStatus(state.status)
+    ) {
+      return { sleepTimerStopped: true };
+    }
+    return null;
+  }
   return {
     sleepTimerEndTime: null,
     sleepTimerRemainingMs: Math.max(0, state.sleepTimerEndTime - now),
+    sleepTimerStopped: stopped,
   };
 }
 
@@ -240,6 +271,7 @@ export const useAudioStore = create<AudioState>()(
       lastPosition: 0,
       sleepTimerEndTime: null,
       sleepTimerRemainingMs: null,
+      sleepTimerStopped: false,
 
       // Initial settings
       playbackRate: 1.0,
@@ -396,6 +428,7 @@ export const useAudioStore = create<AudioState>()(
           sleepTimerMinutes: minutes,
           sleepTimerEndTime: isRunning ? Date.now() + lengthMs : null,
           sleepTimerRemainingMs: isRunning ? null : lengthMs,
+          sleepTimerStopped: false,
         });
       },
 
@@ -404,6 +437,7 @@ export const useAudioStore = create<AudioState>()(
           sleepTimerMinutes: null,
           sleepTimerEndTime: null,
           sleepTimerRemainingMs: null,
+          sleepTimerStopped: false,
         }),
 
       setBackgroundMusicChoice: (choice) => set({ backgroundMusicChoice: choice }),

@@ -346,7 +346,63 @@ async function downloadAudioBookWithLease({
   return { bookId: book.id, chapterCount: chapterTargets.length };
 }
 
-export async function downloadAudioTranslation({
+// Every collection run of a translation shares one `translation` job id (Old Testament, whole
+// Bible, ...). Overlapping runs would let the first to finish mark that shared job completed while
+// the other is still transferring, so runs of one translation queue behind each other. A queued
+// run stays cancellable through its signal.
+const translationRunTails = new Map<string, Promise<void>>();
+
+async function acquireTranslationRun(jobId: string, signal?: AbortSignal): Promise<() => void> {
+  const previous = translationRunTails.get(jobId) ?? Promise.resolve();
+  let release!: () => void;
+  const mine = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tail = previous.then(() => mine);
+  translationRunTails.set(jobId, tail);
+  const done = () => {
+    release();
+    // Only the newest waiter owns the map entry; older ones leave it for their successors.
+    void tail.then(() => {
+      if (translationRunTails.get(jobId) === tail) translationRunTails.delete(jobId);
+    });
+  };
+  if (!signal) {
+    await previous;
+    return done;
+  }
+  let onAbort!: () => void;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new AudioDownloadCancelledError());
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    await Promise.race([previous, aborted]);
+  } catch (error) {
+    done();
+    throw error;
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+  return done;
+}
+
+export async function downloadAudioTranslation(
+  params: DownloadAudioTranslationParams
+): Promise<{ downloadedBookIds: string[] }> {
+  const releaseRun = await acquireTranslationRun(
+    createAudioDownloadJobId({ translationId: params.translationId, scope: 'translation' }),
+    params.signal
+  );
+  try {
+    return await runAudioTranslationDownload(params);
+  } finally {
+    releaseRun();
+  }
+}
+
+async function runAudioTranslationDownload({
   rootUri,
   translationId,
   books,
