@@ -25,8 +25,22 @@ export function usePlanDetailData(planId: string) {
   // without reading state from inside a setState updater (a side effect there
   // can run more than once under StrictMode/concurrent rendering).
   const entriesRef = useRef<ReadingPlanEntry[]>(entries);
+  // Only the latest load may write: a slower one for the plan the screen has since left
+  // (params change on a deep link or notification) would show that plan's rows, and the
+  // kept-rows fallback below must never carry one plan's entries onto another.
+  const latestLoadRef = useRef(0);
+  const shownPlanIdRef = useRef(planId);
 
   const load = useCallback(async () => {
+    const loadId = ++latestLoadRef.current;
+    const isCurrent = () => loadId === latestLoadRef.current;
+    if (shownPlanIdRef.current !== planId) {
+      shownPlanIdRef.current = planId;
+      entriesRef.current = [];
+      setPlan(null);
+      setEntries([]);
+      setRelatedPlans([]);
+    }
     setLoading(true);
     setError(null);
 
@@ -34,6 +48,7 @@ export function usePlanDetailData(planId: string) {
       listReadingPlans(),
       getPlanEntries(planId),
     ]);
+    if (!isCurrent()) return;
 
     let foundPlan: ReadingPlan | null = null;
     let nextError: string | null = null;
@@ -64,6 +79,7 @@ export function usePlanDetailData(planId: string) {
     // Fetch related plans once we know the category
     if (foundPlan?.category) {
       const relatedResult = await getPlansByCategory(foundPlan.category);
+      if (!isCurrent()) return;
       if (relatedResult.success) {
         const filtered = (relatedResult.data ?? [])
           .filter((p) => p.id !== planId)
@@ -77,6 +93,9 @@ export function usePlanDetailData(planId: string) {
 
   useEffect(() => {
     load(); // eslint-disable-line react-hooks/set-state-in-effect
+    return () => {
+      latestLoadRef.current += 1;
+    };
   }, [load]);
 
   return { plan, entries, relatedPlans, loading, error, load };
