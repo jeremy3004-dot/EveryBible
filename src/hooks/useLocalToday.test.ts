@@ -60,6 +60,39 @@ test('a screen kept open across local midnight moves to the new day', async () =
   assert.equal(localKey(view.result), '2026-9-25');
 });
 
+test('refocusing or foregrounding on the same day keeps the same Date instance', async () => {
+  mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 12, 0) });
+  const { useLocalToday } = await import('./useLocalToday');
+  const view = runtime.mount(useLocalToday);
+  await view.commit();
+  const first = view.result;
+
+  mock.timers.setTime(new Date(2026, 8, 23, 15, 30).getTime());
+  focus.refocus();
+  view.rerender();
+  await view.commit();
+  rn.AppState.emit('active');
+  view.rerender();
+
+  // Memoised plan cards keyed on `today` must not recompute for a same-day refresh.
+  assert.equal(view.result, first);
+});
+
+test('the Date is replaced when the small hours of a new day end, which the cycle rollover reads', async () => {
+  mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 1, 0) });
+  const { useLocalToday } = await import('./useLocalToday');
+  const view = runtime.mount(useLocalToday);
+  await view.commit();
+  const first = view.result;
+
+  mock.timers.setTime(new Date(2026, 8, 23, 8, 0).getTime());
+  rn.AppState.emit('active');
+  view.rerender();
+
+  assert.notEqual(view.result, first);
+  assert.equal(view.result.getHours(), 8);
+});
+
 test('focus still refreshes the date, and unmounting leaves nothing running', async () => {
   mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 12, 0) });
   const { useLocalToday } = await import('./useLocalToday');

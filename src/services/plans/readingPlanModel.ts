@@ -331,7 +331,7 @@ export function getPlanLedgerDayNumbers(
  * Hours after local midnight during which a recurring plan's day that has just
  * rolled into the previous cycle is still taken to be last night's reading.
  */
-const RECURRING_CYCLE_ROLLOVER_GRACE_HOURS = 4;
+export const RECURRING_CYCLE_ROLLOVER_GRACE_HOURS = 4;
 
 function getRecurringCycleDate(
   plan: Pick<ReadingPlan, 'scheduleMode'>,
