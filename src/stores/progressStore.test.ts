@@ -1,6 +1,7 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockMmkvStorage, mockModule, sourcePath } from '../testing/mockModules';
+import { MIN_LISTENING_MS } from '../services/progress/readingActivity';
 
 // One mock configuration per file.
 const mmkv = mockMmkvStorage(mock);
@@ -103,14 +104,18 @@ test('only the six ledgers hydration restores are persisted, not the computed ge
   ]);
 });
 
-test('a mutation that leaves the persisted ledgers unchanged does not rewrite storage', (t) => {
+test('a mutation that leaves the persisted ledgers unchanged does not touch storage', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);
+  // Reads too: the MMKV adapter compares with the stored value before writing,
+  // so an unchanged payload never reaches `set` either way. Skipping it here
+  // is what spares re-serializing the ledger and the native round trip.
+  const reads = t.mock.method(mmkv.mmkvInstance, 'getString');
   const writes = t.mock.method(mmkv.mmkvInstance, 'set');
 
   state().updateStreak();
   useProgressStore.setState({});
-  assert.equal(writes.mock.callCount(), 0);
+  assert.deepEqual([reads.mock.callCount(), writes.mock.callCount()], [0, 0]);
 
   state().markChapterRead('GEN', 2);
   assert.equal(writes.mock.callCount(), 1);
@@ -299,16 +304,17 @@ test('the period counters only count chapters read inside each window', (t) => {
   );
 });
 
-test('the year window opens on 1 January, not on the current day of the month', (t) => {
+test('the year window opens at local midnight on 1 January, not on the current day of the month', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 9) });
   useProgressStore.setState({
     chaptersRead: {
-      GEN_1: localNoon(2026, 1, 2), // early January, inside this year
-      GEN_2: localNoon(2025, 12, 31), // last year, outside
+      GEN_1: new Date(2026, 0, 1, 0, 0, 0, 0).getTime(), // the first instant of this year
+      GEN_2: localNoon(2026, 1, 2), // early January, inside this year
+      GEN_3: new Date(2025, 11, 31, 23, 59, 59, 999).getTime(), // last year, outside
     },
   });
 
-  assert.equal(state().getYearCount(), 1);
+  assert.equal(state().getYearCount(), 2);
 });
 
 test('a chapter read at exactly local midnight counts toward today', (t) => {
@@ -430,6 +436,14 @@ test('listening on a later day is banked under the new day', (t) => {
   assert.deepEqual(state().chaptersListened, { GEN_1: localNoon(2026, 9, 9) });
 });
 
+test('the shortest positive segment, one millisecond, is still banked', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
+
+  state().recordListeningTime(1);
+
+  assert.deepEqual(state().listeningMsByDate, { '2026-09-08': 1 });
+});
+
 test('a fractional listening time is rounded to whole milliseconds', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
 
@@ -508,12 +522,29 @@ test('a listening day restored without its date still proves yesterday for the s
   useProgressStore.setState({
     streakDays: 3,
     lastReadDate: '2026-09-06',
-    listeningMsByDate: { '2026-09-08': 5 * 60_000 },
+    // Exactly the listening that counts a day when it is heard.
+    listeningMsByDate: { '2026-09-08': MIN_LISTENING_MS },
   });
 
   state().markChapterRead('GEN', 1);
 
   assert.equal(state().streakDays, 4);
+});
+
+test('a single chapter on the day tally for yesterday still proves yesterday for the streak', (t) => {
+  // The chapter ledgers keep only each chapter's latest timestamp, so once a
+  // chapter is reread the tally is the only record of the earlier day.
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 9) });
+  useProgressStore.setState({
+    streakDays: 3,
+    lastReadDate: '2026-09-06',
+    chaptersByDate: { '2026-09-08': 1 },
+  });
+
+  state().updateStreak();
+
+  assert.equal(state().streakDays, 4);
+  assert.equal(state().lastReadDate, '2026-09-09');
 });
 
 // ---------------------------------------------------------------------------
@@ -565,16 +596,20 @@ test('a changed last-read date alone is enough to apply synced progress', () => 
   assert.equal(state().lastReadDate, '2026-09-09');
 });
 
-test('a differing chapter timestamp is enough to apply synced progress', () => {
-  useProgressStore.setState({ chaptersRead: { GEN_1: 100 }, streakDays: 1, lastReadDate: null });
-
-  state().applySyncedProgress({
-    chaptersRead: { GEN_1: 999 },
+test('one differing chapter timestamp among unchanged ones is enough to apply synced progress', () => {
+  useProgressStore.setState({
+    chaptersRead: { GEN_1: 100, GEN_2: 200 },
     streakDays: 1,
     lastReadDate: null,
   });
 
-  assert.deepEqual(state().chaptersRead, { GEN_1: 999 });
+  state().applySyncedProgress({
+    chaptersRead: { GEN_1: 100, GEN_2: 999 },
+    streakDays: 1,
+    lastReadDate: null,
+  });
+
+  assert.deepEqual(state().chaptersRead, { GEN_1: 100, GEN_2: 999 });
 });
 
 test('a synced ledger with a chapter removed shrinks the local ledger', () => {
