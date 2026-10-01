@@ -63,6 +63,8 @@ interface Props {
   renderHoverSummary?: (record: AtlasRecord, location: AtlasLocation | undefined) => HTMLElement;
   /** Keeps the empty-map message hidden while the public startup snapshot is loading. */
   dataReady?: boolean;
+  /** Hands the ready map to a host that drives the camera itself; null when it goes away. */
+  onMapReady?: (map: LibreMap | null) => void;
 }
 
 export function LanguageMap({
@@ -78,6 +80,7 @@ export function LanguageMap({
   renderHoverSummary,
   dataReady = true,
   highlightedIds,
+  onMapReady,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
@@ -114,6 +117,7 @@ export function LanguageMap({
   const displayModeRef = useRef(displayMode);
   const appliedDisplayModeRef = useRef(displayMode);
   const paddingRef = useRef(padding);
+  const onMapReadyRef = useRef(onMapReady);
   const [group, setGroup] = useState<{ data: typeof data; records: AtlasRecord[] } | null>(null);
   const [groupPage, setGroupPage] = useState(0);
   const [groupError, setGroupError] = useState(false);
@@ -144,6 +148,9 @@ export function LanguageMap({
   useEffect(() => {
     projectionRef.current = projection;
   }, [projection]);
+  useEffect(() => {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
   useEffect(() => {
     displayModeRef.current = displayMode;
   }, [displayMode]);
@@ -290,6 +297,7 @@ export function LanguageMap({
       readyMapRef.current = map;
       setReady(true);
       setFailed(false);
+      onMapReadyRef.current?.(map);
     });
     map.on('error', () => {
       if (alive && mapRef.current === map) setFailed(true);
@@ -419,7 +427,10 @@ export function LanguageMap({
     return () => {
       alive = false;
       styleReady = false;
-      if (readyMapRef.current === map) readyMapRef.current = null;
+      if (readyMapRef.current === map) {
+        readyMapRef.current = null;
+        onMapReadyRef.current?.(null);
+      }
       if (mapRef.current === map) mapRef.current = null;
       if (popupRef.current === popup) popupRef.current = null;
       styleRequest.abort();

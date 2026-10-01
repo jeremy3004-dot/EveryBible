@@ -119,12 +119,12 @@ export const homeCopyEn: HomeCopy = {
     languages: {
       eyebrow: 'The world’s languages',
       title: 'Every dot is a language.',
-      body: '{{languages}} languages and {{dialects}} dialects, mapped where they are spoken.',
+      body: '{{languages}} languages, each mapped where it is spoken, with its dialects and varieties.',
     },
     noScripture: {
       eyebrow: 'The need',
       title: '{{count}} have no known Scripture.',
-      body: 'Not one verse recorded in their language. Each red dot is a people still waiting.',
+      body: 'None is recorded in our sources. Each red dot is a language still waiting for God’s Word.',
     },
     inTheApp: {
       eyebrow: 'EveryBible',

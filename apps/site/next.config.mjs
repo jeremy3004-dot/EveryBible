@@ -19,6 +19,8 @@ const nextConfig = {
   },
   outputFileTracingRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..'),
   outputFileTracingIncludes: {
+    // The homepage revalidates daily and reads the story counts from here.
+    '/': ['./data/language-atlas/pages/meta.json'],
     '/api/language-atlas': ['./data/language-atlas/index.json.gz'],
     '/api/language-atlas/startup/*': [
       './data/language-atlas/startup-*.json.br',
