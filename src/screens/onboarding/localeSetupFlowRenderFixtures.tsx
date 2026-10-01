@@ -121,7 +121,7 @@ export interface LocaleSetupFlowFakes {
    */
   waitForSync: () => Promise<void>;
   /** The props the flow last passed to FlashList. */
-  flashList: { props: Record<string, unknown> | null };
+  flashList: { props: Record<string, unknown> | null; renders: number };
   colors: { current: ThemeColors | null };
   renderFlow: (
     props?: Record<string, unknown>,
@@ -180,7 +180,7 @@ export function installLocaleSetupFlowFakes(
     impl: async () => {},
   };
   let languageRequest = 0;
-  const flashList: LocaleSetupFlowFakes['flashList'] = { props: null };
+  const flashList: LocaleSetupFlowFakes['flashList'] = { props: null, renders: 0 };
   const colors: LocaleSetupFlowFakes['colors'] = { current: null };
   let resolveSync = () => {};
   const sync: LocaleSetupFlowFakes['sync'] = {
@@ -197,6 +197,7 @@ export function installLocaleSetupFlowFakes(
   // ScrollView, and records the props FlashList itself consumes.
   const FlashList = (props: Record<string, unknown>) => {
     flashList.props = props;
+    flashList.renders += 1;
     return createElement(FlatList, { ...props, virtualizedBy: 'FlashList' });
   };
   mockPackage(mocker, '@shopify/flash-list', { FlashList });
@@ -330,6 +331,7 @@ export function installLocaleSetupFlowFakes(
     languageRequest = 0;
     changeLanguage.impl = async () => {};
     flashList.props = null;
+    flashList.renders = 0;
     colors.current = null;
     resetSync();
     useBibleStore.setState(useBibleStore.getInitialState(), true);
