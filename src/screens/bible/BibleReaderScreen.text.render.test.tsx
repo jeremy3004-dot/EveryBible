@@ -40,7 +40,7 @@ const HEADED = [
 ];
 
 /** Lay the list out like the device: a 700pt viewport, 500pt paragraph cells. */
-async function measure(view: View) {
+async function measure(view: View, paragraphHeight = 500) {
   await view.fire(reader.readerList(view), 'onLayout', {
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 700 } },
   });
@@ -52,7 +52,7 @@ async function measure(view: View) {
   for (const cell of cells) {
     // Virtualized cells report y relative to their own wrapper: always 0.
     await view.fire(cell, 'onLayout', {
-      nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 500 } },
+      nativeEvent: { layout: { x: 0, y: 0, width: 390, height: paragraphHeight } },
     });
   }
 }
@@ -322,6 +322,43 @@ test('a repeated chapter that restarts scrolls the reader back to the top', asyn
   await playJohn3(500);
 
   assert.deepEqual(scrolls().at(-1), ['scrollToOffset', { offset: 0, animated: true }]);
+});
+
+test('a font size or theme change keeps the reader on the verse it was showing', async () => {
+  chapters.set('JHN:3', HEADED);
+  const view = await renderReader();
+  await measure(view);
+  // The fixture's content inset above the first paragraph; the reader sits 881pt below it,
+  // 1.762 paragraphs in, which is verse 2's paragraph at 76%.
+  const inset = 119;
+  const scrollY = 1000;
+  await reader.scrollReader(view, scrollY);
+  harness.refCalls.length = 0;
+  const lastOffset = () => {
+    const last = scrolls().at(-1);
+    assert.equal(last?.[0], 'scrollToOffset');
+    return (last?.[1] as { offset: number }).offset;
+  };
+
+  // Larger text makes every paragraph 20% taller; pixels no longer mean the same verse.
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ fontSize: 'large' });
+  });
+  await measure(view, 600);
+  const kept = inset + (scrollY - inset) * 1.2;
+  assert.ok(Math.abs(lastOffset() - kept) < 0.01, `kept the same spot, at ${kept}`);
+  assert.ok(
+    scrolls().every(([, args]) => (args as { offset: number }).offset > 0),
+    'never back to the top'
+  );
+
+  // A theme change moves no heights, so no row reports a layout.
+  await reader.settleReaderScroll(view, kept);
+  harness.refCalls.length = 0;
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ theme: 'dark' });
+  });
+  assert.ok(Math.abs(lastOffset() - kept) < 0.01, 'a theme change pins the same spot');
 });
 
 test('annotations that arrive after the reader moved on are dropped', async () => {

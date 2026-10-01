@@ -1111,6 +1111,7 @@ export function BibleReaderScreen() {
         readerContentTopPadding={readerContentTopPadding}
         readerFocusScrollRef={readerFocusScrollRef}
         readerInlineActiveVerse={readerInlineActiveVerse}
+        readerLastScrollOffsetYRef={readerLastScrollOffsetYRef}
         readerScrollViewportHeightRef={readerScrollViewportHeightRef}
         readingFontFamily={readingFontFamily}
         readingFontFamilyBold={readingFontFamilyBold}
@@ -1182,6 +1183,7 @@ export function BibleReaderScreen() {
             readerContentTopPadding={readerContentTopPadding}
             readerFocusScrollRef={readerFocusScrollRef}
             readerInlineActiveVerse={readerInlineActiveVerse}
+            readerLastScrollOffsetYRef={readerLastScrollOffsetYRef}
             readerScrollViewportHeightRef={readerScrollViewportHeightRef}
             readingFontFamily={readingFontFamily}
             readingFontFamilyBold={readingFontFamilyBold}

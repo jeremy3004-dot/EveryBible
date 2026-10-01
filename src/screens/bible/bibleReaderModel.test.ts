@@ -22,6 +22,8 @@ import {
   getReaderAutoScrollTarget,
   getReaderInlineActiveVerse,
   getReaderVerseContentOffset,
+  getReaderScrollAnchor,
+  getReaderScrollAnchorOffset,
   getAnnotationsForDisplayedVerses,
   canSelectDisplayedVerse,
   isActiveAudioTrackMatch,
@@ -1188,4 +1190,47 @@ test('chapter route updates preserve a captured plan occurrence and explicitly c
   });
   assert.equal(Object.hasOwn(passage, 'planOccurrenceKey'), true);
   assert.equal(passage.planOccurrenceKey, undefined);
+});
+
+test('anchors the top of the viewport as a position inside a paragraph and restores it after a resize', () => {
+  const anchor = getReaderScrollAnchor({
+    paragraphs: AUTO_SCROLL_PARAGRAPHS,
+    paragraphHeights: AUTO_SCROLL_HEIGHTS,
+    contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+    scrollOffset: 420,
+  });
+  // p0 spans 120-320 and p1 320-520, so 420 is halfway through p1.
+  assert.deepEqual(anchor, { paragraphKey: 'p1', fraction: 0.5 });
+
+  const grown = { p0: 400, p1: 400, p2: 800 };
+  assert.equal(
+    getReaderScrollAnchorOffset({
+      paragraphs: AUTO_SCROLL_PARAGRAPHS,
+      paragraphHeights: grown,
+      contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+      anchor: assertDefined(anchor, 'anchor'),
+    }),
+    AUTO_SCROLL_CONTENT_TOP + 400 + 200
+  );
+});
+
+test('has nothing to anchor at the top of the chapter or above an unmeasured paragraph', () => {
+  const input = {
+    paragraphs: AUTO_SCROLL_PARAGRAPHS,
+    paragraphHeights: AUTO_SCROLL_HEIGHTS,
+    contentTopOffset: AUTO_SCROLL_CONTENT_TOP,
+  };
+  assert.equal(getReaderScrollAnchor({ ...input, scrollOffset: 0 }), null);
+  assert.equal(
+    getReaderScrollAnchor({ ...input, paragraphHeights: { p1: 200 }, scrollOffset: 420 }),
+    null
+  );
+  assert.equal(
+    getReaderScrollAnchorOffset({
+      ...input,
+      paragraphHeights: { p1: 200 },
+      anchor: { paragraphKey: 'p1', fraction: 0.5 },
+    }),
+    null
+  );
 });

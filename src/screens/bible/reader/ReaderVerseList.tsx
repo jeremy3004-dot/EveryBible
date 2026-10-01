@@ -27,6 +27,7 @@ import type { ReaderParagraph } from '../bibleReaderModel';
 import { renderStackedVerse, type StackedVerseContext } from './renderStackedVerse';
 import { readerSharedStyles } from './readerSharedStyles';
 import { ReaderParagraphBlock } from './ReaderParagraphBlock';
+import { useReaderAppearanceAnchor } from './useReaderAppearanceAnchor';
 import { traceReaderVerseLayout } from '../../../services/diagnostics/screenReaderTrace';
 
 export interface ReaderVerseListProps {
@@ -50,6 +51,7 @@ export interface ReaderVerseListProps {
   readerContentTopPadding: number;
   readerFocusScrollRef: RefObject<ReturnType<typeof createReaderFocusScroll>>;
   readerInlineActiveVerse: number | null;
+  readerLastScrollOffsetYRef: RefObject<number>;
   readerScrollViewportHeightRef: RefObject<number>;
   readingFontFamily: string | undefined;
   readingFontFamilyBold: string | undefined;
@@ -104,6 +106,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   readerContentTopPadding,
   readerFocusScrollRef,
   readerInlineActiveVerse,
+  readerLastScrollOffsetYRef,
   readerScrollViewportHeightRef,
   readingFontFamily,
   readingFontFamilyBold,
@@ -241,6 +244,33 @@ export const ReaderVerseList = memo(function ReaderVerseList({
     screenReaderEnabled,
   };
 
+  // Signature of every non-position input that affects paragraph output. When
+  // this changes we let memoized cells re-render; raw position ticks are absent
+  // here, so ticks alone never invalidate cells.
+  const paragraphRenderSignature = usePremiumTypography
+    ? premiumParagraphRenderSignature
+    : buildReaderParagraphRenderSignature({
+        premium: false,
+        verseFontSize,
+        verseLineHeight,
+        verseNumberSize,
+        headingFontSize,
+        readingFontFamily,
+        readingFontFamilyBold,
+        colors,
+        annotations: displayedAnnotations,
+        screenReaderEnabled,
+      });
+  const restoreAppearanceAnchor = useReaderAppearanceAnchor({
+    appearanceSignature: paragraphRenderSignature,
+    contentTopOffset: readerContentTopPadding,
+    paragraphHeightsRef,
+    paragraphs,
+    readerLastScrollOffsetYRef,
+    scrollToOffset: (offset) =>
+      premiumReaderListRef.current?.scrollToOffset({ offset, animated: false }),
+  });
+
   const renderParagraph = (paragraph: ReaderParagraph, _pIndex: number): ReactElement => (
     <Pressable
       key={paragraph.key}
@@ -258,6 +288,7 @@ export const ReaderVerseList = memo(function ReaderVerseList({
         // is always ~0 and must never be stored as a scroll offset; those
         // readers resolve offsets from the measured heights above instead.
         if (renderVirtualized) {
+          restoreAppearanceAnchor();
           flushPendingReaderAutoScroll(true);
           return;
         }
@@ -351,23 +382,6 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   // rendering, before those rows render, exactly as when this lived in the screen.
   // eslint-disable-next-line react-hooks/refs -- intentional render-time handoff, see above
   renderParagraphRef.current = renderParagraph;
-  // Signature of every non-position input that affects paragraph output. When
-  // this changes we let memoized cells re-render; raw position ticks are absent
-  // here, so ticks alone never invalidate cells.
-  const paragraphRenderSignature = usePremiumTypography
-    ? premiumParagraphRenderSignature
-    : buildReaderParagraphRenderSignature({
-        premium: false,
-        verseFontSize,
-        verseLineHeight,
-        verseNumberSize,
-        headingFontSize,
-        readingFontFamily,
-        readingFontFamilyBold,
-        colors,
-        annotations: displayedAnnotations,
-        screenReaderEnabled,
-      });
   // The selection rides along so the list offers its cells the new selection;
   // each cell's comparator then keeps the ones whose verses did not change.
   const premiumReaderListExtraData = `${readerInlineActiveVerse ?? 'none'}|${selectedVerses.join(',')}|${paragraphRenderSignature}`;
