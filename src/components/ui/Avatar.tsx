@@ -48,7 +48,8 @@ function initialsFrom(name?: string): string {
   if (words.length === 0) {
     return '';
   }
-  const letters = words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '');
+  // Array.from walks code points: `word[0]` would cut an emoji's surrogate pair in half.
+  const letters = words.slice(0, 2).map((word) => Array.from(word)[0]?.toUpperCase() ?? '');
   return letters.join('');
 }
 
