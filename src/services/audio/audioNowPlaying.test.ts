@@ -3,6 +3,7 @@ import test, { before, beforeEach, mock } from 'node:test';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { createReactNativeStub } from '../../testing/reactNativeStub';
 import type { BibleNowPlayingRemoteCommand } from './audioNowPlaying';
+import { assertDefined } from '../../utils/assertDefined';
 
 // ---------------------------------------------------------------------------
 // react-native stub
@@ -302,7 +303,7 @@ test('every supported remote command reaches the listener', async () => {
     'toggle',
     'interruption-ended',
   ]) {
-    emitters[0].emit(EVENT_NAME, { command });
+    assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, { command });
   }
   unsubscribe();
 
@@ -329,7 +330,10 @@ test('a seek command carries its position through to the listener', async () => 
     received.push(command)
   );
 
-  emitters[0].emit(EVENT_NAME, { command: 'seek-position', positionSeconds: 84.5 });
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, {
+    command: 'seek-position',
+    positionSeconds: 84.5,
+  });
   unsubscribe();
 
   assert.deepEqual(received, [{ command: 'seek-position', positionSeconds: 84.5 }]);
@@ -341,7 +345,10 @@ test('a non-numeric seek position is dropped rather than forwarded', async () =>
     received.push(command)
   );
 
-  emitters[0].emit(EVENT_NAME, { command: 'seek-position', positionSeconds: '84.5' });
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, {
+    command: 'seek-position',
+    positionSeconds: '84.5',
+  });
   unsubscribe();
 
   assert.deepEqual(received, [{ command: 'seek-position', positionSeconds: undefined }]);
@@ -353,9 +360,9 @@ test('an unrecognised command name is ignored', async () => {
     received.push(command)
   );
 
-  emitters[0].emit(EVENT_NAME, { command: 'eject' });
-  emitters[0].emit(EVENT_NAME, {});
-  emitters[0].emit(EVENT_NAME, { command: 42 });
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, { command: 'eject' });
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, {});
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, { command: 42 });
   unsubscribe();
 
   assert.deepEqual(received, []);
@@ -368,9 +375,9 @@ test('unsubscribing removes the native listener', async () => {
   );
 
   unsubscribe();
-  emitters[0].emit(EVENT_NAME, { command: 'play' });
+  assertDefined(emitters[0], 'emitters[0]').emit(EVENT_NAME, { command: 'play' });
 
-  assert.equal(emitters[0].listenerCount(EVENT_NAME), 0);
+  assert.equal(assertDefined(emitters[0], 'emitters[0]').listenerCount(EVENT_NAME), 0);
   assert.deepEqual(received, []);
 });
 
@@ -400,7 +407,10 @@ test('a dev build warns exactly once about the missing native module', async () 
   await mod.clearBibleNowPlaying();
 
   assert.equal(warnings.length, 1);
-  assert.match(String(warnings[0][0]), /EveryBibleAudioNowPlayingModule is missing/);
+  assert.match(
+    String(assertDefined(warnings[0], 'warnings[0]')[0]),
+    /EveryBibleAudioNowPlayingModule is missing/
+  );
 });
 
 test('Android never calls the iOS bridge, and is a silent no-op when its own module is absent', async () => {

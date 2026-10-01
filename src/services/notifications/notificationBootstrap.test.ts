@@ -1,6 +1,7 @@
 import test, { before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 type NotificationHandler = {
   handleNotification: () => Promise<Record<string, boolean>>;
@@ -60,7 +61,7 @@ test('foreground notifications show a banner and a list entry with sound but no 
   handlers.length = 0;
   bootstrap.setupNotificationHandler();
 
-  assert.deepEqual(await handlers[0].handleNotification(), {
+  assert.deepEqual(await assertDefined(handlers[0], 'handlers[0]').handleNotification(), {
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
@@ -73,7 +74,7 @@ test('in discreet mode foreground notifications are neither shown, listed nor he
   let discreet = true;
   bootstrap.setupNotificationHandler({ isDiscreet: () => discreet });
 
-  assert.deepEqual(await handlers[0].handleNotification(), {
+  assert.deepEqual(await assertDefined(handlers[0], 'handlers[0]').handleNotification(), {
     shouldShowBanner: false,
     shouldShowList: false,
     shouldPlaySound: false,
@@ -81,7 +82,10 @@ test('in discreet mode foreground notifications are neither shown, listed nor he
   });
 
   discreet = false;
-  assert.equal((await handlers[0].handleNotification()).shouldShowBanner, true);
+  assert.equal(
+    (await assertDefined(handlers[0], 'handlers[0]').handleNotification()).shouldShowBanner,
+    true
+  );
 });
 
 test('App.tsx gets the tap listener, the launch tap and the push-token listener from the same modules the package root re-exports', () => {

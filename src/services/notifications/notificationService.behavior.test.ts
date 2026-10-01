@@ -9,6 +9,7 @@ import {
   sourcePath,
 } from '../../testing/mockModules';
 import { createSupabaseFake, type SupabaseFakeResult } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 /**
  * Behavioural coverage through the real module loader. The vm-based
@@ -429,7 +430,7 @@ test('scheduling a reminder on Android waits for the channel its trigger names',
 
   assert.equal(schedules.length, 1);
   assert.equal(
-    (schedules[0].trigger as { channelId: string }).channelId,
+    (assertDefined(schedules[0], 'schedules[0]').trigger as { channelId: string }).channelId,
     'daily-reminder',
     'a trigger naming a channel Android has not been told about is dropped'
   );
@@ -509,20 +510,26 @@ test('scheduling a reminder replaces the previous one under a stable identifier'
 
   assert.deepEqual(cancellations, ['daily-reading-reminder']);
   assert.equal(schedules.length, 1);
-  assert.equal(schedules[0].identifier, 'daily-reading-reminder');
-  assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].trigger)), {
-    type: 'daily',
-    hour: 8,
-    minute: 30,
-    channelId: 'daily-reminder',
-  });
-  assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].content)), {
-    title: 'settings.notificationTitle',
-    body: 'settings.notificationBody',
-    sound: true,
-    // Lets a tap on the reminder open Plans (see notificationTapRouting).
-    data: { screen: 'plans' },
-  });
+  assert.equal(assertDefined(schedules[0], 'schedules[0]').identifier, 'daily-reading-reminder');
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(assertDefined(schedules[0], 'schedules[0]').trigger)),
+    {
+      type: 'daily',
+      hour: 8,
+      minute: 30,
+      channelId: 'daily-reminder',
+    }
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(assertDefined(schedules[0], 'schedules[0]').content)),
+    {
+      title: 'settings.notificationTitle',
+      body: 'settings.notificationBody',
+      sound: true,
+      // Lets a tap on the reminder open Plans (see notificationTapRouting).
+      data: { screen: 'plans' },
+    }
+  );
 });
 
 test('rescheduling a reminder cancels the previous one each time and keeps one identifier', async () => {
@@ -548,12 +555,15 @@ for (const [hour, minute] of [
   test(`a reminder set for ${hour}:${String(minute).padStart(2, '0')} is scheduled at exactly that time every day`, async () => {
     await notifications.scheduleDailyReminder(hour, minute);
 
-    assert.deepEqual(JSON.parse(JSON.stringify(schedules[0].trigger)), {
-      type: 'daily',
-      hour,
-      minute,
-      channelId: 'daily-reminder',
-    });
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(assertDefined(schedules[0], 'schedules[0]').trigger)),
+      {
+        type: 'daily',
+        hour,
+        minute,
+        channelId: 'daily-reminder',
+      }
+    );
   });
 }
 
@@ -1199,18 +1209,21 @@ test('registering forwards the native token, disables Expo auto-registration and
   assert.equal(await notifications.registerPushToken(uid, native), 'expo-token');
 
   assert.deepEqual(autoRegistration, [false]);
-  assert.equal(tokenCalls[0].projectId, 'project-id');
-  assert.equal(tokenCalls[0].baseUrl, 'https://exp.host/--/api/v2/');
-  assert.equal(tokenCalls[0].devicePushToken, native);
+  assert.equal(assertDefined(tokenCalls[0], 'tokenCalls[0]').projectId, 'project-id');
+  assert.equal(
+    assertDefined(tokenCalls[0], 'tokenCalls[0]').baseUrl,
+    'https://exp.host/--/api/v2/'
+  );
+  assert.equal(assertDefined(tokenCalls[0], 'tokenCalls[0]').devicePushToken, native);
   const [upsert] = upsertsFor(uid);
-  assert.deepEqual(upsert.payload, {
+  assert.deepEqual(assertDefined(upsert, 'upsert').payload, {
     user_id: uid,
     push_token: 'expo-token',
     platform: 'ios',
     is_active: true,
-    updated_at: (upsert.payload as { updated_at: string }).updated_at,
+    updated_at: (assertDefined(upsert, 'upsert').payload as { updated_at: string }).updated_at,
   });
-  assert.deepEqual(upsert.options, { onConflict: 'user_id,push_token' });
+  assert.deepEqual(assertDefined(upsert, 'upsert').options, { onConflict: 'user_id,push_token' });
   assert.equal(notifications.getCachedPushToken(), 'expo-token');
 
   await notifications.deactivatePushToken(uid);
@@ -1222,7 +1235,11 @@ test('the platform column records android for Android devices', async () => {
 
   await notifications.registerPushToken(uid);
 
-  assert.equal((upsertsFor(uid)[0].payload as { platform: string }).platform, 'android');
+  assert.equal(
+    (assertDefined(upsertsFor(uid)[0], 'upsertsFor(uid)[0]').payload as { platform: string })
+      .platform,
+    'android'
+  );
 
   await notifications.deactivatePushToken(uid);
 });

@@ -84,8 +84,9 @@ export function createNotificationTapRouter(deps: NotificationTapRouterDeps) {
     } catch {
       activePlanIds = [];
     }
-    return activePlanIds.length === 1
-      ? { screen: 'PlanDetail', planId: activePlanIds[0] }
+    const [onlyPlanId] = activePlanIds;
+    return activePlanIds.length === 1 && onlyPlanId !== undefined
+      ? { screen: 'PlanDetail', planId: onlyPlanId }
       : { screen: 'PlansHome' };
   };
 

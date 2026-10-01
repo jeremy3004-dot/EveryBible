@@ -6221,7 +6221,13 @@ test('completion queue edit: live reorder selects its first available successor 
   await waitForCompletionCoverage(SPARSE_EL);
   // No reorder UI exists yet; exercise the real store's queue replacement seam.
   const [finished, pending, appended] = store().queue;
-  useAudioStore.setState({ queue: [finished, appended, pending] });
+  useAudioStore.setState({
+    queue: [
+      assertDefined(finished, 'finished entry'),
+      assertDefined(appended, 'appended entry'),
+      assertDefined(pending, 'pending entry'),
+    ],
+  });
   scenario.coverageGate = null;
   gate.resolve();
   await finishing;

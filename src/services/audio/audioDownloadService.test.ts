@@ -26,6 +26,7 @@ import {
   type AudioDownloadJobStore,
   type AudioFileSystemAdapter,
 } from './audioDownloadService';
+import { assertDefined } from '../../utils/assertDefined';
 
 const createFileSystemDouble = () => {
   const files = new Set<string>();
@@ -1270,12 +1271,12 @@ test('inactivity aborts the attempt, waits for transport stop, and ignores late 
   };
   const result = runtime.start();
   await flush();
-  attempts[0].onProgress?.({ bytesDownloaded: 10, bytesTotal: 100 });
+  assertDefined(attempts[0], 'attempts[0]').onProgress?.({ bytesDownloaded: 10, bytesTotal: 100 });
   t.mock.timers.tick(60_000);
   await flush();
-  assert.equal(attempts[0].signal?.aborted, true);
+  assert.equal(assertDefined(attempts[0], 'attempts[0]').signal?.aborted, true);
   const beforeLateProgress = [...runtime.progress];
-  attempts[0].onProgress?.({ bytesDownloaded: 90, bytesTotal: 100 });
+  assertDefined(attempts[0], 'attempts[0]').onProgress?.({ bytesDownloaded: 90, bytesTotal: 100 });
   assert.deepEqual(runtime.progress, beforeLateProgress);
   t.mock.timers.tick(5000);
   await flush();
@@ -1285,11 +1286,14 @@ test('inactivity aborts the attempt, waits for transport stop, and ignores late 
   t.mock.timers.tick(1000);
   await flush();
   assert.equal(attempts.length, 2);
-  assert.notEqual(attempts[0].signal, attempts[1].signal);
+  assert.notEqual(
+    assertDefined(attempts[0], 'attempts[0]').signal,
+    assertDefined(attempts[1], 'attempts[1]').signal
+  );
   await result;
   assert.equal(runtime.completed(), 1);
   const completedProgress = [...runtime.progress];
-  attempts[0].onProgress?.({ bytesDownloaded: 5, bytesTotal: 100 });
+  assertDefined(attempts[0], 'attempts[0]').onProgress?.({ bytesDownloaded: 5, bytesTotal: 100 });
   assert.deepEqual(runtime.progress, completedProgress);
 });
 
