@@ -642,3 +642,75 @@ test('on Android the sheet surface runs below its edge and clears the gesture ba
     harness.rn.Platform.OS = 'ios';
   }
 });
+
+// ---- Large text -------------------------------------------------------------------
+
+// iOS's largest accessibility size (AX5) scales body text by about 3.1.
+const AX5_FONT_SCALE = 3.1;
+const LARGE_TEXT_COLUMNS = ['row', 'column'] as const;
+
+const directionOf = (node: ReactTestInstance) => flattenStyle(node.props.style)?.flexDirection;
+
+test('a chip label takes a second line instead of cutting a passage reference short', async () => {
+  const { view } = await renderSheet({ playbackRate: 1.25 as PlaybackRate });
+
+  const label = within(view.getByRole('button', { name: '1.25x' })).getByText('1.25x');
+  assert.equal(label.props.numberOfLines, 2);
+});
+
+test('at AX5 the volume sliders drop under their labels and keep the full row width', async () => {
+  for (const [scale, expected] of [
+    [1, LARGE_TEXT_COLUMNS[0]],
+    [AX5_FONT_SCALE, LARGE_TEXT_COLUMNS[1]],
+  ] as const) {
+    harness.setFontScale(scale);
+    const { view } = await renderSheet();
+    for (const key of ['audio.voiceVolume', 'audio.soundVolume']) {
+      const row = hostAncestors(view.getByRole('adjustable', { name: t(key) }))[0];
+      assert.ok(row);
+      assert.equal(directionOf(row), expected, `${key} at ${scale}`);
+    }
+  }
+});
+
+test('at AX5 the sound row stacks its name under the label and lets a long name wrap', async () => {
+  harness.setFontScale(AX5_FONT_SCALE);
+  const { view } = await renderSheet({ backgroundMusicChoice: 'harp' });
+
+  const row = view.getByRole('button', { name: t('audio.backgroundSound') });
+  assert.equal(directionOf(row), 'column');
+  assert.equal(
+    within(row).getByText(t('interface.music.harp.label')).props.numberOfLines,
+    undefined
+  );
+});
+
+test('at the default size the sound row stays one line', async () => {
+  const { view } = await renderSheet({ backgroundMusicChoice: 'harp' });
+
+  const row = view.getByRole('button', { name: t('audio.backgroundSound') });
+  assert.equal(directionOf(row), 'row');
+  assert.equal(within(row).getByText(t('interface.music.harp.label')).props.numberOfLines, 1);
+});
+
+test('at AX5 Share clip and Download stack so each label has the full width', async () => {
+  harness.setFontScale(AX5_FONT_SCALE);
+  const { view } = await renderSheet();
+
+  const footer = hostAncestors(view.getByRole('button', { name: t('bible.shareChapterAudio') }))[0];
+  assert.ok(footer);
+  assert.equal(directionOf(footer), 'column');
+});
+
+test('at AX5 the sound library is two tiles across so names are not broken mid-word', async () => {
+  harness.setFontScale(AX5_FONT_SCALE);
+  const { view } = await renderSheet({ backgroundMusicChoice: 'harp' });
+  await view.press(view.getByRole('button', { name: t('audio.backgroundSound') }));
+
+  const first = view.getByRole('button', { name: t('interface.music.off.label') });
+  const row = hostAncestors(first)[0];
+  assert.ok(row);
+  assert.equal(within(row).getAllByRole('button').length, 2);
+  const name = within(first).getByText(t('interface.music.off.label'));
+  assert.equal(name.props.maxFontSizeMultiplier, 1.6);
+});

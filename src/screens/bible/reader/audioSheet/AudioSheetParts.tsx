@@ -72,7 +72,8 @@ export function Chip({
           styles.chipText,
           { color: isSelected ? colors.onAccentSurface : colors.biblePrimaryText },
         ]}
-        numberOfLines={1}
+        // Two lines: a passage chip ("Genesis 1:1 to 3:24") is the only place its range shows.
+        numberOfLines={2}
       >
         {label}
       </Text>
@@ -92,6 +93,8 @@ const styles = StyleSheet.create({
   chip: {
     minHeight: layout.minTouchTarget - spacing.sm,
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    maxWidth: '100%',
     borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
@@ -99,5 +102,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     ...typography.label,
+    flexShrink: 1,
+    textAlign: 'center',
   },
 });
