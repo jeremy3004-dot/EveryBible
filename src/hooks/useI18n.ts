@@ -35,7 +35,9 @@ export function useI18n() {
   }, [language]);
 
   const setLanguage = useCallback(
-    async (language: LanguageCode) => {
+    // True once the language is applied and saved; false when a newer request, an account
+    // change or an unmount superseded this one, so callers can keep their UI open.
+    async (language: LanguageCode): Promise<boolean> => {
       const request = ++languageRequestRef.current;
       const owner = useAuthStore.getState();
       const userId = owner.user?.uid;
@@ -50,9 +52,10 @@ export function useI18n() {
         );
       };
       const applied = await changeLanguage(language, isCurrent);
-      if (applied === false || !isCurrent()) return;
+      if (applied === false || !isCurrent()) return false;
       setPreferences({ language });
       syncPreferences().catch(() => {});
+      return true;
     },
     [setPreferences]
   );

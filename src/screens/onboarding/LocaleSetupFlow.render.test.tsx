@@ -812,3 +812,15 @@ test('a Bible finish completed after the onboarding flow unmounts cannot save or
   assert.deepEqual(fakes.bibleCalls, []);
   assert.equal(fakes.sync.calls, 0);
 });
+
+test('a preference the flow never reads does not re-render it', async () => {
+  const view = await renderSettings();
+  const rendersBefore = fakes.flashList.renders;
+
+  await act(async () => {
+    harness.authStore.getState().setPreferences({ fontSize: 'large' });
+  });
+  await view.flush();
+
+  assert.equal(fakes.flashList.renders, rendersBefore);
+});

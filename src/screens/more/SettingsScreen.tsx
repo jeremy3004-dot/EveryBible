@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { layout, spacing, typography } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -109,7 +109,8 @@ export function SettingsScreen() {
   };
 
   const handleLanguageSelect = async (languageCode: LanguageCode) => {
-    await setLanguage(languageCode);
+    // A choice a newer request superseded must not close the list under that request.
+    if ((await setLanguage(languageCode)) === false) return;
     setShowLanguagePicker(false);
   };
 
@@ -128,15 +129,23 @@ export function SettingsScreen() {
     syncPreferences().catch(() => {});
   };
 
-  const localeSummary = resolveLocaleSummary({
-    countryCode: localePreferences.countryCode ?? null,
-    countryName: localePreferences.countryName ?? null,
-    contentLanguageNativeName: contentLanguageNativeName ?? null,
-    currentLanguage,
-    resolveCountryDisplayName: (countryCode, languageCode) =>
-      localeSearchEngine.getCountryDisplayName(countryCode, languageCode as LanguageCode),
-    fallbackLabel: t('common.notSet'),
-  });
+  // Memoized: the first display name for a language walks every country, so an unrelated
+  // re-render (opening a modal, a reminder write) must not repeat it.
+  const { countryCode, countryName } = localePreferences;
+  const notSetLabel = t('common.notSet');
+  const localeSummary = useMemo(
+    () =>
+      resolveLocaleSummary({
+        countryCode: countryCode ?? null,
+        countryName: countryName ?? null,
+        contentLanguageNativeName: contentLanguageNativeName ?? null,
+        currentLanguage,
+        resolveCountryDisplayName: (code, languageCode) =>
+          localeSearchEngine.getCountryDisplayName(code, languageCode as LanguageCode),
+        fallbackLabel: notSetLabel,
+      }),
+    [countryCode, countryName, contentLanguageNativeName, currentLanguage, notSetLabel]
+  );
 
   const chapterFeedbackSummary = chapterFeedbackEnabled
     ? `${t('settings.chapterFeedbackSummaryOn')} · ${

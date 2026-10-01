@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import * as Localization from 'expo-localization';
 import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LANGUAGES, type Language, type LanguageCode } from '../../constants/languages';
@@ -92,7 +93,15 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     surfaceRef: listSurfaceRef,
     safeAreaBottomInset: insets.bottom,
   });
-  const preferences = useAuthStore((state) => state.preferences);
+  // Only the fields this flow seeds from: any other preference write (font size, theme,
+  // reminders) would otherwise re-render the whole step list.
+  const preferences = useAuthStore(
+    useShallow((state) => ({
+      language: state.preferences.language,
+      countryCode: state.preferences.countryCode,
+      contentLanguageCode: state.preferences.contentLanguageCode,
+    }))
+  );
   const setPreferences = useAuthStore((state) => state.setPreferences);
   const mountedRef = useRef(false);
   const languageRequestRef = useRef(0);
