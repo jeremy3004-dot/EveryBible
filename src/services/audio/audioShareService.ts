@@ -137,3 +137,123 @@ export async function prepareChapterAudioShareAsset({
     isTemporary: true,
   };
 }
+
+/** Exports older than this are always removed; nobody is still sharing a day-old file. */
+export const AUDIO_SHARE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** The export cache is trimmed, oldest first, once it holds more than this. */
+export const AUDIO_SHARE_CACHE_MAX_BYTES = 50 * 1024 * 1024;
+/**
+ * A file touched within this window is never removed: a recipient may still be reading a file
+ * the native share sheet just handed over, even after `shareAsync` has returned.
+ */
+export const AUDIO_SHARE_CACHE_GRACE_MS = 10 * 60 * 1000;
+
+export interface AudioShareCacheFile {
+  uri: string;
+  size: number;
+  modifiedAtMs: number;
+}
+
+export interface AudioShareCacheFileSystem {
+  /** Every file under `rootUri`, nested directories included; empty when it does not exist. */
+  listFiles: (rootUri: string) => Promise<AudioShareCacheFile[]>;
+  deleteFile: (fileUri: string) => Promise<void>;
+}
+
+export interface PruneAudioShareCacheOptions {
+  fileSystem: AudioShareCacheFileSystem;
+  rootUri?: string;
+  nowMs?: number;
+  /** Files a share in progress is using; they are kept whatever their age or size. */
+  protectedUris?: readonly string[];
+  maxAgeMs?: number;
+  maxBytes?: number;
+  graceMs?: number;
+}
+
+/**
+ * Bounds the chapter-audio export cache: removes exports older than a day, then the oldest
+ * ones until the rest fit the byte budget. Protected files and anything younger than the
+ * grace window are never removed, so a share in progress cannot lose its file. Returns the
+ * uris it deleted; a file that cannot be deleted is skipped.
+ */
+export async function pruneAudioShareCache({
+  fileSystem,
+  rootUri = AUDIO_SHARE_EXPORT_ROOT_URI,
+  nowMs = Date.now(),
+  protectedUris = [],
+  maxAgeMs = AUDIO_SHARE_CACHE_MAX_AGE_MS,
+  maxBytes = AUDIO_SHARE_CACHE_MAX_BYTES,
+  graceMs = AUDIO_SHARE_CACHE_GRACE_MS,
+}: PruneAudioShareCacheOptions): Promise<string[]> {
+  const files = await fileSystem.listFiles(rootUri);
+  const protectedSet = new Set(protectedUris);
+  const ageOf = (file: AudioShareCacheFile) => nowMs - file.modifiedAtMs;
+  const removable = files
+    .filter((file) => !protectedSet.has(file.uri) && ageOf(file) >= graceMs)
+    .sort((left, right) => left.modifiedAtMs - right.modifiedAtMs);
+
+  const deleted: string[] = [];
+  let remainingBytes = files.reduce((total, file) => total + file.size, 0);
+  for (const file of removable) {
+    if (ageOf(file) <= maxAgeMs && remainingBytes <= maxBytes) {
+      // Oldest first, so nothing later is old enough either, and the budget is met.
+      break;
+    }
+    try {
+      await fileSystem.deleteFile(file.uri);
+      deleted.push(file.uri);
+      remainingBytes -= file.size;
+    } catch {
+      // A stale file that cannot be deleted must not block this share.
+    }
+  }
+  return deleted;
+}
+
+/** The parts of expo-file-system/legacy the export cache walk needs. */
+export interface ExpoLegacyFileSystemSubset {
+  readDirectoryAsync: (directoryUri: string) => Promise<string[]>;
+  getInfoAsync: (
+    uri: string
+  ) => Promise<
+    | { exists: false }
+    | { exists: true; isDirectory: boolean; size?: number; modificationTime?: number }
+  >;
+  deleteAsync: (uri: string, options?: { idempotent?: boolean }) => Promise<void>;
+}
+
+export function createExpoAudioShareCacheFileSystem(
+  fileSystem: ExpoLegacyFileSystemSubset
+): AudioShareCacheFileSystem {
+  const listFiles = async (directoryUri: string): Promise<AudioShareCacheFile[]> => {
+    const directory = directoryUri.endsWith('/') ? directoryUri : `${directoryUri}/`;
+    let names: string[];
+    try {
+      names = await fileSystem.readDirectoryAsync(directory);
+    } catch {
+      return [];
+    }
+    const files: AudioShareCacheFile[] = [];
+    for (const name of names) {
+      const uri = `${directory}${name}`;
+      const info = await fileSystem.getInfoAsync(uri);
+      if (!info.exists) continue;
+      if (info.isDirectory) {
+        files.push(...(await listFiles(uri)));
+      } else {
+        // modificationTime is in seconds; a file without one counts as brand new, so it is kept.
+        files.push({
+          uri,
+          size: info.size ?? 0,
+          modifiedAtMs: info.modificationTime ? info.modificationTime * 1000 : Date.now(),
+        });
+      }
+    }
+    return files;
+  };
+  return {
+    listFiles,
+    deleteFile: (fileUri) => fileSystem.deleteAsync(fileUri, { idempotent: true }),
+  };
+}

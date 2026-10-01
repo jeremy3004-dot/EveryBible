@@ -13,6 +13,8 @@ export type BibleSearchIntent =
   | {
       kind: 'full-text';
       query: string;
+      /** The query is also exactly a book's name: chapter 1 of it, offered above the verse hits. */
+      book?: PassageReferenceTarget;
     }
   | {
       kind: 'reference';
@@ -29,7 +31,8 @@ export const shouldRunBibleSearch = (query: string): boolean => {
 
 export const resolveBibleSearchIntent = (
   query: string,
-  parseReference: (query: string) => PassageReferenceTarget | null
+  parseReference: (query: string) => PassageReferenceTarget | null,
+  parseBook?: (query: string) => PassageReferenceTarget | null
 ): BibleSearchIntent => {
   const normalizedQuery = query.trim();
 
@@ -49,9 +52,11 @@ export const resolveBibleSearchIntent = (
     };
   }
 
+  const bookTarget = parseBook?.(normalizedQuery);
   return {
     kind: 'full-text',
     query: normalizedQuery,
+    ...(bookTarget ? { book: bookTarget } : {}),
   };
 };
 
