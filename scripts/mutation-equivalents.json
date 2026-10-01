@@ -43,6 +43,16 @@
       "reason": "Pack paths are absolute file paths, never a single character"
     }
   ],
+  "src/stores/bible/textPackJournalRecovery.ts": [
+    {
+      "key": "number-literal|0|1|let stuckJournalPassAt = 0;",
+      "reason": "stuckJournalPassAt is only read once a stuck signature is set, which always sets it to Date.now() first"
+    },
+    {
+      "key": "equality-flip|===|!==|(completion.installOperationId === undefined && !latestJournal.installs[translationId])",
+      "reason": "Redundant clause: with no install entry and no install operation id, the first clause is already true; the mutant only removes a missing key"
+    }
+  ],
   "src/stores/privateDataAdoption.ts": [
     {
       "key": "relational-boundary|>|>=|return candidate.updated_at > current.updated_at ? candidate : current;",
