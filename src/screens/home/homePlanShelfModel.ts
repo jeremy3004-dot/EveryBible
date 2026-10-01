@@ -1,7 +1,6 @@
 import {
   getActivePlanDayNumber,
   getPlanDayCount,
-  getPlanLastActivityTime,
   getVisibleCompletedEntryCount,
   isSeasonalPlan,
 } from '../../services/plans/readingPlanModel';
@@ -43,10 +42,8 @@ export interface HomePlanShelf {
 }
 
 /**
- * The plans Home shows as covers: the reader's own in-progress plans, most
- * recently active first (the order My Plans uses), or suggestions when they have
- * none. selectHomeContinuePlans picks which plans make the cut; a plan already
- * read today still leads the shelf rather than sinking behind unread ones.
+ * The plans Home shows as covers: the reader's own in-progress plans, best first
+ * (see selectHomeContinuePlans), or suggestions when they have none.
  */
 export function selectHomePlanShelf({
   plans,
@@ -63,22 +60,17 @@ export function selectHomePlanShelf({
   if (mine.length > 0) {
     return {
       kind: 'mine',
-      items: [...mine]
-        .sort(
-          (left, right) =>
-            getPlanLastActivityTime(right.progress) - getPlanLastActivityTime(left.progress)
-        )
-        .map(({ plan, progress }) => {
-          const totalDays = getPlanDayCount(plan, today);
-          const completed = getVisibleCompletedEntryCount(plan, progress.completed_entries, today);
-          return {
-            plan,
-            progress,
-            dayNumber: getActivePlanDayNumber(plan, progress, today),
-            totalDays,
-            fraction: totalDays > 0 ? Math.min(1, completed / totalDays) : 0,
-          };
-        }),
+      items: mine.map(({ plan, progress }) => {
+        const totalDays = getPlanDayCount(plan, today);
+        const completed = getVisibleCompletedEntryCount(plan, progress.completed_entries, today);
+        return {
+          plan,
+          progress,
+          dayNumber: getActivePlanDayNumber(plan, progress, today),
+          totalDays,
+          fraction: totalDays > 0 ? Math.min(1, completed / totalDays) : 0,
+        };
+      }),
     };
   }
 

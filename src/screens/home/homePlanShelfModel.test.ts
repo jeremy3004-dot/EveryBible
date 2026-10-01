@@ -45,14 +45,14 @@ function makeProgress(
 // Thursday 24 September 2026, mid-morning.
 const TODAY = new Date(2026, 8, 24, 10, 0);
 
-test('enrolled plans fill the shelf, most recently active first, with their day and progress', () => {
+test('enrolled plans fill the shelf, best first, with their day and progress', () => {
   const read = makePlan('read', 1);
   const unread = makePlan('unread', 2);
   const readEntry = getPlanCompletionEntryKey(read, 1, TODAY);
   const shelf = selectHomePlanShelf({
     plans: [read, unread, makePlan('not-joined', 3)],
     progressByPlanId: {
-      // Ticked today, so it leads: most recently active first, as on My Plans.
+      // Ticked today, so it sorts behind the plan still waiting on today's reading.
       read: makeProgress('read', {
         current_day: 2,
         completed_entries: { [readEntry]: TODAY.toISOString() },
@@ -66,8 +66,8 @@ test('enrolled plans fill the shelf, most recently active first, with their day 
   assert.deepEqual(
     shelf.items.map((item) => [item.plan.id, item.dayNumber, item.totalDays, item.fraction]),
     [
-      ['read', 2, 10, 0.1],
       ['unread', 1, 10, 0],
+      ['read', 2, 10, 0.1],
     ]
   );
   assert.ok(shelf.items.every((item) => item.progress !== null));

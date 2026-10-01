@@ -1,7 +1,6 @@
 import {
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
-  getPlanLastActivityTime,
   isJoinedPlanShownToday,
   isPlanInSeason,
   isRecurringPlan,
@@ -53,6 +52,18 @@ function isReadToday({ plan, progress }: HomeContinuePlan, today: Date): boolean
   });
 }
 
+/** The last time the plan was touched: its latest tick, else its enrolment. */
+function getLastActivityTime({ progress }: HomeContinuePlan): number {
+  let latest = parseTimestamp(progress.started_at) ?? 0;
+  for (const completedAt of Object.values(progress.completed_entries)) {
+    const time = parseTimestamp(completedAt);
+    if (time != null && time > latest) {
+      latest = time;
+    }
+  }
+  return latest;
+}
+
 /**
  * The in-progress plans Home offers to continue, best first.
  *
@@ -82,7 +93,7 @@ export function selectHomeContinuePlans(
       .map((item) => ({
         item,
         readToday: isReadToday(item, today),
-        lastActivity: getPlanLastActivityTime(item.progress),
+        lastActivity: getLastActivityTime(item),
       }))
       .sort((left, right) => {
         if (left.readToday !== right.readToday) {
