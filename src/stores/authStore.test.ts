@@ -374,6 +374,25 @@ test('a newer server stamp for one setting is adopted while the other stamps are
   assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, newer);
 });
 
+test('repeating a sync with the same values, time and stamps leaves the store untouched', () => {
+  const synced = '2026-06-01T00:00:00.000Z';
+  const stamps = { fontSize: synced, theme: synced };
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, synced, undefined, stamps);
+  let notified = 0;
+  const unsubscribe = useAuthStore.subscribe(() => {
+    notified += 1;
+  });
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, synced, undefined, { ...stamps });
+  unsubscribe();
+
+  assert.equal(notified, 0, 'no re-render and no persisted write for a sync that changed nothing');
+});
+
 // An install from before sync bases has its edit time but no base. A sync that
 // finds the same values and time must still record the server's copy as the
 // base, and its stamps, for the per-field merges that follow.
