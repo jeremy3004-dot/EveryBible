@@ -25,6 +25,104 @@
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
     }
   ],
+  "src/services/plans/readingPlanActivity.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "With no chapters both later return paths already give null"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries[0] ?? null|playbackEntries[0]|return playbackEntries[0] ?? null;",
+      "reason": "The guard above ensures playbackEntries is not empty, so [0] is always defined"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0] ??\n    null|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0]|playbackEntries.find(",
+      "reason": "playbackEntries[0] is always defined, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "number-literal|0|1|return entries.reduce((maxDay, entry) => Math.max(maxDay, entry.day_number), 0);",
+      "reason": "Only differs when every entry's day_number is below 1, and then no day >= 1 matches either way"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);",
+      "reason": "Math.max(..., 1) floors the result, so a default of 0 or 1 gives the same day"
+    },
+    {
+      "key": "remove-statement|return totalDays > 0 ? totalDays : currentDay;|;|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "negate-condition|totalDays > 0|!(totalDays > 0)|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "number-literal|0|1|return totalDays > 0 ? totalDays : currentDay;",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;",
+      "reason": "Only differs when every entry has day_number <= 0; catalog days run 1..duration_days (readingPlans.integrity.test.ts)"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;",
+      "reason": "A plan with no entries is skipped anyway, because its day has no chapters"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[planId] ?? null|progressByPlanId[planId]|const progress = progressByPlanId[planId] ?? null;",
+      "reason": "undefined and null progress behave the same everywhere they are used"
+    },
+    {
+      "key": "logical-swap|&&||||plan && isRecurringPlan(plan)",
+      "reason": "For catalog fixed-length plans both day functions agree (duration_days equals the last entry day, enforced by the integrity test)"
+    },
+    {
+      "key": "nullish-drop-default|progress ?? undefined|progress|: getRhythmDayNumber(entries, progress ?? undefined);",
+      "reason": "getRhythmDayNumber reads progress only through ?., so null and undefined are the same"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;#4",
+      "reason": "Without the continue, a plan item gets no chapter range, no entries, and hits the next continue"
+    },
+    {
+      "key": "relational-boundary|<|<=|startSegment && startSegment.startIndex < playbackSequenceEntries.length",
+      "reason": "Every segment holds at least one entry, so startIndex < length always holds"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex] ??\n          null|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex]|? (playbackSequenceEntries",
+      "reason": "The entry at startIndex always exists, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries[startSegment.startIndex] ?? null|playbackSequenceEntries[startSegment.startIndex]|: (playbackSequenceEntries[startSegment.startIndex] ?? null)",
+      "reason": "The entry at startIndex always exists"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[segment.planId ?? '']?.is_completed ?? false|progressByPlanId[segment.planId ?? '']?.is_completed|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "!(undefined) and !(false) are both true"
+    },
+    {
+      "key": "nullish-drop-default|segment.planId ?? ''|segment.planId|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "Plan segments always carry a planId, so the fallback is never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);",
+      "reason": "Plan segments always carry a planId, so the fallback key is never used"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;#1",
+      "reason": "Segments start at index >= 0, so a negative index finds no segment and returns null anyway"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || timestamp >= existing.timestamp) {",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || nextRecord.timestamp >= existing.timestamp) {",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    }
+  ],
   "src/services/sync/syncMerge.ts": [
     {
       "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {",
