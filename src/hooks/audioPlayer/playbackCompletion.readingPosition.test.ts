@@ -294,3 +294,85 @@ test('a mounted reader following the same step leaves one consistent place', asy
     chapter: 5,
   });
 });
+
+const RHYTHM_PLAN_A = 'psalms-30-days';
+const RHYTHM_PLAN_B = 'proverbs-31-days';
+
+/** A two-plan rhythm session: plan A owns PSA 4-5, plan B owns PRO 1-2. */
+function rhythmSessionPlaying(bookId: string, chapter: number): Promise<void> {
+  useAudioStore.getState().setPlaybackSequence([
+    { bookId: 'PSA', chapter: 4 },
+    { bookId: 'PSA', chapter: 5 },
+    { bookId: 'PRO', chapter: 1 },
+    { bookId: 'PRO', chapter: 2 },
+  ]);
+  useAudioStore.getState().setAudioReturnTarget({
+    translationId: 'bsb',
+    bookId: 'PSA',
+    chapter: 4,
+    preferredMode: 'listen',
+    planId: RHYTHM_PLAN_A,
+    planDayNumber: 1,
+    returnToPlanOnComplete: true,
+    sessionContext: {
+      type: 'rhythm',
+      rhythmId: 'daily' as never,
+      title: 'Daily',
+      itemIds: [],
+      planIds: [RHYTHM_PLAN_A, RHYTHM_PLAN_B],
+      chapterKeys: [],
+      segments: [
+        {
+          itemId: 'a' as never,
+          type: 'plan',
+          title: 'A',
+          startIndex: 0,
+          endIndex: 2,
+          chapterKeys: [],
+          isComplete: false,
+          planId: RHYTHM_PLAN_A,
+          dayNumber: 1,
+        },
+        {
+          itemId: 'b' as never,
+          type: 'plan',
+          title: 'B',
+          startIndex: 2,
+          endIndex: 4,
+          chapterKeys: [],
+          isComplete: false,
+          planId: RHYTHM_PLAN_B,
+          dayNumber: 1,
+        },
+      ],
+    },
+  });
+  return audioPlaying(bookId, chapter);
+}
+
+test('a rhythm session stepping from one plan into the next keeps the first plan resume inside its own day', async () => {
+  readerLeftOn('PSA', 5);
+  readingPlansStore.getState().setPlanDayResume(RHYTHM_PLAN_A, 1, 'PSA', 5);
+  await rhythmSessionPlaying('PSA', 5);
+
+  await finishPlaying();
+
+  assert.equal(useAudioStore.getState().currentBookId, 'PRO');
+  assert.deepEqual(readingPlansStore.getState().getPlanDayResume(RHYTHM_PLAN_A, 1), {
+    bookId: 'PSA',
+    chapter: 5,
+  });
+});
+
+test('a rhythm session with the reader closed moves the resume of the plan that owns the chapter', async () => {
+  readerLeftOn('PRO', 1);
+  readingPlansStore.getState().setPlanDayResume(RHYTHM_PLAN_B, 1, 'PRO', 1);
+  await rhythmSessionPlaying('PRO', 1);
+
+  await finishPlaying();
+
+  assert.deepEqual(readingPlansStore.getState().getPlanDayResume(RHYTHM_PLAN_B, 1), {
+    bookId: 'PRO',
+    chapter: 2,
+  });
+});
