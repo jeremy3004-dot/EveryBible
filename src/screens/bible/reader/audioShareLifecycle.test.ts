@@ -430,3 +430,35 @@ test('unmount resolves a chooser dismissal wait without starting preparation', a
   assert.equal(prepareCalls, 0);
   assert.deepEqual(shares, []);
 });
+
+test('previewing a clip from a paused player keeps the preview while playback starts', () => {
+  const view = mountPortion();
+  const toggles: string[] = [];
+  const input = (status: 'paused' | 'loading' | 'playing') => ({
+    ...portionInput(),
+    status,
+    togglePlayPause: async () => {
+      toggles.push('toggle');
+    },
+  });
+  view.rerender(input('paused'));
+  view.flushEffects();
+
+  view.result.handleToggleAudioPortionPreview();
+  // Starting playback moves the player through "loading" before it reports "playing".
+  view.rerender(input('loading'));
+  view.flushEffects();
+  assert.equal(view.rerender(input('loading')).isPreviewingAudioPortion, true);
+
+  view.rerender(input('playing'));
+  view.flushEffects();
+  const playing = view.rerender(input('playing'));
+  assert.equal(playing.isPreviewingAudioPortion, true);
+  assert.equal(playing.isWatchingAudioPortionPreview, true, 'the end of the range is watched');
+  assert.deepEqual(toggles, ['toggle']);
+
+  // Pausing from outside the clip sheet still ends the preview.
+  view.rerender(input('paused'));
+  view.flushEffects();
+  assert.equal(view.rerender(input('paused')).isPreviewingAudioPortion, false);
+});

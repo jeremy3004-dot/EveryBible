@@ -85,12 +85,21 @@ export function useAudioPortionShare({
 
   const audioPortionRangeDurationMs = Math.max(audioPortionEndMs - audioPortionStartMs, 0);
 
+  // A preview started from a paused player renders once before playback has begun (the
+  // status passes through 'loading'), so it only ends when playback stops after having started.
+  const previewPlaybackStartedRef = useRef(false);
   useEffect(() => {
-    if (!isPreviewingAudioPortion || !audioPortionShareDraft || !isCurrentAudioChapter) {
+    if (!isPreviewingAudioPortion) {
+      previewPlaybackStartedRef.current = false;
+      return;
+    }
+    if (!audioPortionShareDraft || !isCurrentAudioChapter) {
       return;
     }
 
-    if (status !== 'playing') {
+    if (status === 'playing' || status === 'loading') {
+      previewPlaybackStartedRef.current = true;
+    } else if (previewPlaybackStartedRef.current) {
       setIsPreviewingAudioPortion(false);
     }
   }, [audioPortionShareDraft, isCurrentAudioChapter, isPreviewingAudioPortion, status]);
