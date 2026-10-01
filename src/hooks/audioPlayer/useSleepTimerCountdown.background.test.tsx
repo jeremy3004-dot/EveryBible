@@ -36,11 +36,11 @@ afterEach(() => {
   mock.timers.reset();
 });
 
-async function mountCountdown(minutes: number) {
+async function mountCountdown(minutes: number | null) {
   const { useSleepTimerCountdown } = await import('./useSleepTimerCountdown');
   const { useAudioStore } = await import('../../stores/audioStore');
   const { View } = await import('react-native');
-  const endTime = START + minutes * 60_000;
+  const endTime = minutes === null ? null : START + minutes * 60_000;
   useAudioStore.setState({ sleepTimerEndTime: endTime });
   const calls = { cleared: 0, paused: 0 };
   const shown: Array<number | null> = [];
@@ -117,4 +117,26 @@ test('coming back to the foreground resyncs the minutes and resumes the one-seco
   assert.equal(shown.at(-1), 19, 'foreground ticking is back');
   assert.equal(wakeups, 61);
   assert.equal(calls.paused, 0);
+});
+
+test('playing with no sleep timer set runs no countdown', async () => {
+  harness.rn.AppState.emit('active');
+  const { shown } = await mountCountdown(null);
+  wakeups = 0;
+  await tickSeconds(60);
+  assert.equal(wakeups, 0, 'nothing to count down, so nothing wakes every second');
+  assert.equal(shown.at(-1), null);
+});
+
+test('once the timer has run out the countdown stops waking, before its owner re-renders', async () => {
+  harness.rn.AppState.emit('active');
+  // The probe's props keep the old end time: only the store learns that the timer was cleared.
+  const { calls } = await mountCountdown(1);
+  await tickSeconds(60);
+  assert.equal(calls.paused, 1);
+
+  wakeups = 0;
+  await tickSeconds(60);
+  assert.equal(wakeups, 0, 'an expired countdown does not keep its one-second clock');
+  assert.equal(calls.paused, 1);
 });
