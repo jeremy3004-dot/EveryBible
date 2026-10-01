@@ -895,6 +895,47 @@ test('a transfer that receives no bytes for 30 s fails as an error instead of sp
   });
 });
 
+test('time the app spent suspended in the background does not count as a stall', async (t) => {
+  const { downloadCatalogTextPack } = await loadModule();
+  const progress = collectProgress();
+  resumable.enabled = true;
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'backgrounded',
+    downloadUrl: 'https://media.example.test/backgrounded.db',
+    expectedVerseCount: 3,
+    onProgress: progress.onProgress,
+  });
+  let settled = false;
+  const outcome = promise.then(
+    () => {
+      settled = true;
+      return null;
+    },
+    (error: unknown) => {
+      settled = true;
+      return error;
+    }
+  );
+  for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+
+  // The JS thread is suspended for two minutes while the native transfer may keep going;
+  // on resume the overdue stall timer fires at once.
+  t.mock.timers.setTime(1_000_000 + 120_000);
+  t.mock.timers.tick(30_000);
+  for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+
+  assert.equal(resumable.cancelled, false, 'a late timer is not proof of a stall');
+  assert.equal(settled, false, 'the download keeps waiting for bytes');
+
+  // A real 30 s with no bytes after resuming still fails it.
+  t.mock.timers.tick(30_000);
+  const error = await outcome;
+  assert.ok(error instanceof Error);
+  assert.equal(resumable.cancelled, true);
+});
+
 test('a transfer the native layer abandons on its own is reported as cancelled, not as an error', async () => {
   const { downloadCatalogTextPack, isTextPackDownloadCancelled } = await loadModule();
   const progress = collectProgress();

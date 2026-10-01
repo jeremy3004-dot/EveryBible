@@ -33,6 +33,11 @@ type CatalogTextDownloadOperation = {
 
 /** A text pack transfer that receives no bytes for this long is abandoned as failed. */
 const TEXT_PACK_STALL_TIMEOUT_MS = 30_000;
+/**
+ * A stall timer firing this much later than scheduled means the JS thread was suspended
+ * (app in the background) while the native transfer may have kept going.
+ */
+const TEXT_PACK_SUSPENDED_TIMER_SLACK_MS = 5_000;
 
 const activeCatalogTextDownloads = new Map<string, CatalogTextDownloadOperation>();
 const activeCatalogTextDownloadSettlements = new Map<string, Promise<unknown>>();
@@ -508,7 +513,14 @@ async function downloadCatalogTextPackImpl(params: {
           });
           const armStallTimer = () => {
             if (stallTimer !== null) clearTimeout(stallTimer);
+            const deadline = Date.now() + TEXT_PACK_STALL_TIMEOUT_MS;
             stallTimer = setTimeout(() => {
+              // Overdue timers fire at once when the app returns from the background; that
+              // suspended time is not a stall, so start a fresh window instead.
+              if (Date.now() - deadline > TEXT_PACK_SUSPENDED_TIMER_SLACK_MS) {
+                armStallTimer();
+                return;
+              }
               void task.cancelAsync?.().catch(() => {});
               rejectStalled(new Error('Translation download stalled: no data received.'));
             }, TEXT_PACK_STALL_TIMEOUT_MS);
