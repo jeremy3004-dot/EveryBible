@@ -307,6 +307,112 @@
       "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
     }
   ],
+  "src/services/sync/syncService.ts": [
+    {
+      "key": "nullish-drop-default|identity.expectedGeneration ?? 'legacy'|identity.expectedGeneration|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;",
+      "reason": "captureSyncIdentity always passes a numeric generation, so the 'legacy' default is never used"
+    },
+    {
+      "key": "string-literal|'legacy'|''|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;",
+      "reason": "The default is never used, and the cycle key is only compared with itself"
+    },
+    {
+      "key": "remove-statement|return false;|;|if (!error) return false;",
+      "reason": "Not a transient pattern: the regex then tests the text 'undefined', which matches nothing, so the result is the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferencesSyncBase ?? null|authState.preferencesSyncBase|base: authState.preferencesSyncBase ?? null,",
+      "reason": "mergePreferences only checks base for truthiness, so undefined and null behave the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferenceFieldStamps ?? {}|authState.preferenceFieldStamps|fieldStamps: authState.preferenceFieldStamps ?? {},",
+      "reason": "Both consumers already default fieldStamps with ?? {}"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/field_updated_at/.test(error.message ?? '')",
+      "reason": ".test(undefined) tests 'undefined', which never matches /field_updated_at/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/field_updated_at/.test(error.message ?? '')",
+      "reason": "'__mutant__' does not match /field_updated_at/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|merge.fieldStamps ?? undefined|merge.fieldStamps|const fieldStamps = merge.fieldStamps ?? undefined;",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/position_updated_(at|for)/.test(error.message ?? '')",
+      "reason": ".test(undefined) never matches /position_updated_(at|for)/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/position_updated_(at|for)/.test(error.message ?? '')",
+      "reason": "'__mutant__' does not match /position_updated_(at|for)/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|expectedUserId ?? useAuthStore.getState().user?.uid ?? null|expectedUserId ?? useAuthStore.getState().user?.uid|const candidate = expectedUserId ?? useAuthStore.getState().user?.uid ?? null;",
+      "reason": "The candidate is only checked for falsiness, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "For a falsy candidate the next check also returns null, because a signed-out store has no uid"
+    },
+    {
+      "key": "nullish-drop-default|useAuthStore.getState().user?.uid ?? null|useAuthStore.getState().user?.uid|() => useAuthStore.getState().user?.uid ?? null,",
+      "reason": "The uid is only compared !== to a non-empty expected uid, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#1",
+      "reason": "Only runs inside syncAll, whose closing isCurrent check returns the same stale result; generations only move forward"
+    },
+    {
+      "key": "remove-statement|return { success: true };|;|return { success: true };",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "boolean-literal|true|false|return { success: true };",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "nullish-drop-default|mergedReading.readingPositionUpdatedAt ?? null|mergedReading.readingPositionUpdatedAt|updatedAt: mergedReading.readingPositionUpdatedAt ?? null,",
+      "reason": "mergeReadingSnapshot always returns readingPositionUpdatedAt as number | null, never undefined"
+    },
+    {
+      "key": "nullish-drop-default|mergedPreferences.fieldStamps ?? undefined|mergedPreferences.fieldStamps|mergedPreferences.fieldStamps ?? undefined",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "logical-swap||||&&|mergedPreferences.changed ||",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "equality-flip|!==|===|remotePreferences?.synced_at !== localSnapshot.updatedAt ||",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "nullish-drop-default|activeSyncAllCycles.get(cycleKey) ?? 1|activeSyncAllCycles.get(cycleKey)|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|2|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|0|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#20",
+      "reason": "The runIfCurrent on the next line runs the same check synchronously and returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#21",
+      "reason": "The isCurrent check that follows immediately returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#22",
+      "reason": "pullReadingPlansFromCloud's own isCurrent check runs before any request and returns the same stale result"
+    }
+  ],
   "src/stores/bible/textPackInstallModel.ts": [
     {
       "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0",
