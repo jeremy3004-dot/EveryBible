@@ -248,6 +248,32 @@ test('a failed cycle that was already replaced does not evict its replacement', 
   assert.equal(await replacement, 'fresh');
 });
 
+// The generation is optional on both sides: a boundary only compares it when a
+// generation was captured AND it was given a way to read the current one.
+test('a boundary given a generation reader but no captured generation checks the account only', async () => {
+  const boundary = createSyncIdentityBoundary(
+    'A',
+    () => 'A',
+    undefined,
+    () => 7
+  );
+
+  assert.equal(await boundary.isCurrent(), true);
+  assert.deepEqual(await boundary.runIfCurrent(() => 'written'), {
+    applied: true,
+    value: 'written',
+  });
+});
+
+test('a boundary given a captured generation but no reader checks the account only', async () => {
+  let owner = 'A';
+  const boundary = createSyncIdentityBoundary('A', () => owner, 3);
+
+  assert.equal(await boundary.isCurrent(), true);
+  owner = 'B';
+  assert.equal(await boundary.isCurrent(), false);
+});
+
 test('a current operation preserves its synchronous and asynchronous results', async () => {
   const boundary = createSyncIdentityBoundary('A', () => 'A');
   const immediate = boundary.runIfCurrent(() => 42);
