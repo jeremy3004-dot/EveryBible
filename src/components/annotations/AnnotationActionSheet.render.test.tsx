@@ -266,3 +266,12 @@ test('a close button beside the reference closes the sheet', async () => {
   await view.press(close);
   assert.equal(closed, 1);
 });
+
+test('an open tray moves screen reader focus to its title', async () => {
+  const { AnnotationActionSheet } = await import('./AnnotationActionSheet');
+  const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);
+  await act(async () => {});
+
+  const title = view.getByRole('header', { name: /John 3:16/ });
+  assert.deepEqual(harness.rn.__recorded.focusRequests, [title.props]);
+});
