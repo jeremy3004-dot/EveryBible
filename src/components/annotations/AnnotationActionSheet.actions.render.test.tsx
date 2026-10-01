@@ -4,6 +4,10 @@ import type { ComponentProps } from 'react';
 import { act } from 'react-test-renderer';
 import { mockBarrel } from '../../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // What each control on the verse action sheet does: highlight colours, the
 // action pills, the note composer, and closing.
@@ -73,7 +77,7 @@ test('a closed sheet draws no sheet, only its empty overlay that lets touches th
 
   assert.equal(view.queryByRole('header'), null);
   assert.equal(view.queryAllByType('Pressable').length, 0);
-  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  const overlay = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   assert.equal(overlay.props.pointerEvents, 'box-none');
 });
 
@@ -197,7 +201,7 @@ test('the sheet rises with a spring and slides away when it closes', async () =>
 // what closing removes; removing its overlay too made the sheet vanish in one frame.
 test('closing removes only the animated sheet, leaving its overlay in place', async () => {
   const { view, rerender } = await renderSheet();
-  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  const overlay = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   const surface = hostAncestors(sheetHeader(view)).find((node) => node.props.exiting);
   assert.ok(surface);
   assert.ok(hostAncestors(surface).includes(overlay), 'the sheet sits inside the overlay');

@@ -7,6 +7,10 @@ import {
   isHiddenFromAccessibility,
   within,
 } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -50,7 +54,7 @@ test('EmptyState names its heading, hides its decorative icon, and runs its call
   assert.ok(view.getByRole('header', { name: 'No plans yet' }));
   assert.ok(view.getByText('Pick a plan to start.'));
 
-  const [icon] = view.queryAllByType('Icon');
+  const icon = nth(view.queryAllByType('Icon'), 0);
   assert.equal(icon.props.name, 'book-outline');
   assert.equal(isHiddenFromAccessibility(icon), true, 'the icon repeats the title');
 
@@ -158,7 +162,7 @@ test('ListRow announces its value and subtitle along with its title', async () =
   assert.equal(row.props.hitSlop, 8, 'the separator gap is not dead space');
 
   // Settings relies on the 52pt floor and a single-line value column.
-  const [content] = within(row).queryAllByType('View');
+  const content = nth(within(row).queryAllByType('View'), 0);
   assert.equal(flattenStyle(content.props.style)?.minHeight, 52);
   assert.equal(view.getByText('Large').props.numberOfLines, 1);
 });
@@ -170,7 +174,7 @@ test('ListRow can move a wide trailing control under the title once the text is 
     <ListRow title="Font size" trailing={<Text>A- Medium A+</Text>} stackTrailingAtLargeText />
   );
   const titleColumn = (view: Awaited<ReturnType<typeof harness.render>>) =>
-    hostAncestors(view.getByText('Font size'))[0];
+    nth(hostAncestors(view.getByText('Font size')), 0);
 
   const regular = await harness.render(row());
   assert.equal(
@@ -273,12 +277,12 @@ test('Sheet is a named, iOS-modal dialog whose backdrop closes it and whose titl
     </Sheet>
   );
 
-  const [modal] = view.queryAllByType('Modal');
+  const modal = nth(view.queryAllByType('Modal'), 0);
   assert.equal(modal.props.statusBarTranslucent, true);
   assert.equal(modal.props.navigationBarTranslucent, true);
   assert.equal(modal.props.onRequestClose !== undefined, true, 'Android back closes the sheet');
 
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  const avoider = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   assert.equal(avoider.props.behavior, 'padding');
   assert.ok(view.queryAllByType('View').some((node) => node.props.accessibilityViewIsModal));
 
@@ -376,7 +380,7 @@ test('Sheet bounds its height below the status bar and scrolls a body that outgr
 
   // The avoider fills the modal below the status bar, so the keyboard's padding
   // shrinks the room the sheet has instead of pushing its top off the screen.
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  const avoider = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   const avoiderStyle = flattenStyle(avoider.props.style) ?? {};
   assert.equal(avoiderStyle.flex, 1);
   assert.equal(avoiderStyle.paddingTop, harness.insets.top);
@@ -435,7 +439,7 @@ test('an Avatar reads as its name, and an unnamed one is decorative', async () =
   assert.equal(initials.props.accessible, false, 'the container carries the whole label');
 
   const unnamed = await harness.render(<Avatar />);
-  const [gradient] = unnamed.queryAllByType('LinearGradient');
+  const gradient = nth(unnamed.queryAllByType('LinearGradient'), 0);
   assert.equal(isHiddenFromAccessibility(gradient), true);
   assert.equal(unnamed.queryByRole('image'), null);
 });
@@ -488,6 +492,6 @@ test('a trailing control moved under the title spans the title column', async ()
   const view = await harness.render(
     <ListRow title="Font size" trailing={<Text>A- Medium A+</Text>} stackTrailingAtLargeText />
   );
-  const [wrapper] = hostAncestors(view.getByText('A- Medium A+'));
+  const wrapper = nth(hostAncestors(view.getByText('A- Medium A+')), 0);
   assert.equal(flattenStyle(wrapper.props.style)?.alignSelf, 'stretch');
 });

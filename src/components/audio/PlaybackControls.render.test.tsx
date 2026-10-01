@@ -6,6 +6,10 @@ import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../testing/render';
 import type { BackgroundMusicChoice, PlaybackRate, SleepTimerOption } from '../../types';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // A small phone (iPhone SE: 375x667pt, 20pt status bar, no home indicator), where
 // the option dialogs are likeliest to outgrow the screen at large text.
@@ -150,7 +154,7 @@ test('the share utility is a labelled share icon in the same centred group as th
 
   const share = view.getByRole('button', { name: t('bible.shareChapterAudio') });
   assert.equal(share.props.accessibilityHint, t('interface.shareAudioHint'));
-  const [icon] = within(share).queryAllByType('Icon');
+  const icon = nth(within(share).queryAllByType('Icon'), 0);
   assert.equal(icon.props.name, 'share-outline');
   assert.equal(within(share).queryAllByType('Text').length, 0);
 
@@ -195,7 +199,10 @@ test('the background-music utility names the current choice and opens a picker t
   });
   const musicButton = view.getByRole('button', { name: offLabel });
   assert.equal(musicButton.props.accessibilityHint, t('interface.backgroundMusicHint'));
-  assert.equal(within(musicButton).queryAllByType('Icon')[0].props.name, 'musical-notes-outline');
+  assert.equal(
+    nth(within(musicButton).queryAllByType('Icon'), 0).props.name,
+    'musical-notes-outline'
+  );
   assert.equal(view.queryByRole('header', { name: t('audio.musicAndSounds') }), null);
 
   await view.press(musicButton);
@@ -213,7 +220,7 @@ test('an active background-music choice fills the music icon', async () => {
   const musicButton = view.getByRole('button', {
     name: t('interface.backgroundMusicLabel', { name: t('interface.music.piano.label') }),
   });
-  assert.equal(within(musicButton).queryAllByType('Icon')[0].props.name, 'musical-notes');
+  assert.equal(nth(within(musicButton).queryAllByType('Icon'), 0).props.name, 'musical-notes');
 });
 
 test('the chapter-only transport enlarges the chapter buttons and makes play dominant', async () => {
@@ -261,7 +268,7 @@ test('a control beside the chapter-only transport gets a mirrored slot, so play 
     transportAccessory: <Text>Selah</Text>,
   });
   const play = view.getByRole('button', { name: t('interface.playChapterAudio') });
-  const row = hostAncestors(play)[0];
+  const row = nth(hostAncestors(play), 0);
   const slots = row.children.filter(
     (child): child is ReactTestInstance =>
       typeof child !== 'string' && flattenStyle(child.props.style)?.width === 44
@@ -269,14 +276,15 @@ test('a control beside the chapter-only transport gets a mirrored slot, so play 
   assert.equal(slots.length, 2);
   assert.equal(row.children[0], slots[0], 'an empty slot leads');
   assert.equal(row.children.at(-1), slots[1], 'the accessory trails');
-  assert.ok(within(slots[1]).getByText('Selah'));
+  assert.ok(within(nth(slots, 1)).getByText('Selah'));
 
   // A slot is kept even when the accessory draws nothing (Selah unavailable).
   await view.unmount();
   const empty = await renderControls({ variant: 'chapter-only', transportAccessory: null });
-  const emptyRow = hostAncestors(
-    empty.view.getByRole('button', { name: t('interface.playChapterAudio') })
-  )[0];
+  const emptyRow = nth(
+    hostAncestors(empty.view.getByRole('button', { name: t('interface.playChapterAudio') })),
+    0
+  );
   assert.equal(
     emptyRow.children.filter(
       (child) => typeof child !== 'string' && flattenStyle(child.props.style)?.width === 44
@@ -328,7 +336,7 @@ test('every option sheet draws under the Android system bars', async () => {
   for (const [button, header] of sheets) {
     assert.equal(view.queryAllByType('Modal').length, 0);
     await view.press(view.getByRole('button', { name: button }));
-    const [modal] = view.queryAllByType('Modal');
+    const modal = nth(view.queryAllByType('Modal'), 0);
     assert.ok(within(modal).getByRole('header', { name: header }));
     assert.equal(modal.props.statusBarTranslucent, true);
     assert.equal(modal.props.navigationBarTranslucent, true);
@@ -414,7 +422,7 @@ test('at large text on a small phone the sleep-timer dialog fits the safe area a
   assert.ok(maxHeight > safeHeight / 2 && maxHeight < safeHeight, `cap ${maxHeight}`);
 
   // The dialog is centred inside the safe area, not the whole window.
-  const [modal] = view.queryAllByType('Modal');
+  const modal = nth(view.queryAllByType('Modal'), 0);
   const centred = hostAncestors(surface).find(
     (node) => flattenStyle(node.props.style)?.justifyContent === 'center'
   );
@@ -450,7 +458,7 @@ test('at large text the speed and music dialogs are bounded and scroll the same 
     assert.ok(Number(flattenStyle(surface.props.style)?.maxHeight) < WINDOW.height, header);
     const scroll = hostAncestors(view.getByText(lastText)).find(isScrollView);
     assert.ok(scroll && hostAncestors(scroll).includes(surface), `${header} scrolls`);
-    await view.fire(view.queryAllByType('Modal')[0], 'onRequestClose');
+    await view.fire(nth(view.queryAllByType('Modal'), 0), 'onRequestClose');
   }
 });
 
@@ -530,17 +538,23 @@ test('no failure notice is drawn without a message', async () => {
 
 test('the play icon switches to pause while playing and is nudged right only as play', async () => {
   const paused = await renderControls({ status: 'paused' });
-  const [playIcon] = within(
-    paused.view.getByRole('button', { name: t('interface.playChapterAudio') })
-  ).queryAllByType('Icon');
+  const playIcon = nth(
+    within(
+      paused.view.getByRole('button', { name: t('interface.playChapterAudio') })
+    ).queryAllByType('Icon'),
+    0
+  );
   assert.equal(playIcon.props.name, 'play');
   assert.equal(flattenStyle(playIcon.props.style)?.marginLeft, 2);
   await paused.view.unmount();
 
   const playing = await renderControls({ status: 'playing' });
-  const [pauseIcon] = within(
-    playing.view.getByRole('button', { name: t('interface.pauseChapterAudio') })
-  ).queryAllByType('Icon');
+  const pauseIcon = nth(
+    within(
+      playing.view.getByRole('button', { name: t('interface.pauseChapterAudio') })
+    ).queryAllByType('Icon'),
+    0
+  );
   assert.equal(pauseIcon.props.name, 'pause');
   assert.equal(pauseIcon.props.style, undefined);
 });
@@ -555,13 +569,13 @@ test('the skip buttons show "10" beside their direction arrow', async () => {
     back.findAll((node) => isGlyphOrText(node)).map((node) => String(node.type)),
     ['Icon', 'Text']
   );
-  assert.equal(within(back).queryAllByType('Icon')[0].props.name, 'play-back');
+  assert.equal(nth(within(back).queryAllByType('Icon'), 0).props.name, 'play-back');
   assert.ok(within(back).getByText('10'));
   assert.deepEqual(
     forward.findAll((node) => isGlyphOrText(node)).map((node) => String(node.type)),
     ['Text', 'Icon']
   );
-  assert.equal(within(forward).queryAllByType('Icon')[0].props.name, 'play-forward');
+  assert.equal(nth(within(forward).queryAllByType('Icon'), 0).props.name, 'play-forward');
 });
 
 test('the chapter-only transport can drop its chapter buttons and keep play', async () => {
@@ -585,7 +599,7 @@ test('a running sleep timer shows and announces the minutes left', async () => {
   const minutes = t('interface.minutesShort', { count: 12 });
   assert.deepEqual(timer.props.accessibilityValue, { text: minutes });
   assert.ok(within(timer).getByText(minutes));
-  assert.equal(within(timer).queryAllByType('Icon')[0].props.name, 'timer');
+  assert.equal(nth(within(timer).queryAllByType('Icon'), 0).props.name, 'timer');
 });
 
 test('without a sleep timer the button is icon-only with no value', async () => {
@@ -594,7 +608,7 @@ test('without a sleep timer the button is icon-only with no value', async () => 
   const timer = view.getByRole('button', { name: t('audio.sleepTimer') });
   assert.equal(timer.props.accessibilityValue, undefined);
   assert.equal(within(timer).queryAllByType('Text').length, 0);
-  assert.equal(within(timer).queryAllByType('Icon')[0].props.name, 'timer-outline');
+  assert.equal(nth(within(timer).queryAllByType('Icon'), 0).props.name, 'timer-outline');
 });
 
 test('the sleep-timer sheet marks the remembered length while a countdown runs, else Off', async () => {

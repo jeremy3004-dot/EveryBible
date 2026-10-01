@@ -10,6 +10,10 @@ import {
   createFakeGatherStore,
   mockSvgForCommonJs,
 } from '../../screens/learn/gatherRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock, { os: 'ios', skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -148,9 +152,9 @@ test('the sheet names the lesson in the interface language with its passage refe
   assert.ok(view.getByText('Genesis 1:1-2'));
   // The passage is read in the reader's translation, falling back to the bundled BSB.
   assert.equal(passage.requests.length, 1);
-  assert.deepEqual(passage.requests[0].slice(0, 2), [lesson.references, 'npi']);
+  assert.deepEqual(nth(passage.requests, 0).slice(0, 2), [lesson.references, 'npi']);
   assert.equal(
-    (passage.requests[0][2] as { fallbackTranslationId: string }).fallbackTranslationId,
+    (nth(passage.requests, 0)[2] as { fallbackTranslationId: string }).fallbackTranslationId,
     'bsb'
   );
 });
@@ -336,14 +340,14 @@ test('dismissing a pending audio share leaves the next lesson sheet open and sha
           (action: { name: string }) => action.name === 'moreOptions'
         )
       );
-  await view.fire(rows()[0], 'onAccessibilityAction', {
+  await view.fire(nth(rows(), 0), 'onAccessibilityAction', {
     nativeEvent: { actionName: 'moreOptions' },
   });
   await view.flush();
   await view.press(view.getByRole('button', { name: t('gather.shareAudio') }));
   await started;
   await view.press(view.getByRole('button', { name: t('common.done') }));
-  await view.fire(rows()[1], 'onAccessibilityAction', {
+  await view.fire(nth(rows(), 1), 'onAccessibilityAction', {
     nativeEvent: { actionName: 'moreOptions' },
   });
   await view.flush();

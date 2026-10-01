@@ -4,6 +4,10 @@ import type { ReactTestInstance } from 'react-test-renderer';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, installRenderHarness } from '../../testing/render';
 import type { RenderResult } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -56,10 +60,14 @@ async function renderScrubber(position = 30_000, duration = 120_000) {
 }
 
 const fillWidth = (view: RenderResult) => {
-  const fill = view.root.findAll(
-    (node: ReactTestInstance) =>
-      typeof node.type === 'string' && flattenStyle(node.props.style)?.backgroundColor === '#222222'
-  )[0];
+  const fill = nth(
+    view.root.findAll(
+      (node: ReactTestInstance) =>
+        typeof node.type === 'string' &&
+        flattenStyle(node.props.style)?.backgroundColor === '#222222'
+    ),
+    0
+  );
   return flattenStyle(fill.props.style)?.width;
 };
 

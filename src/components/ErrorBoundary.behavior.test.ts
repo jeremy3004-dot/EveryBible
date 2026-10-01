@@ -4,6 +4,10 @@ import { mockMmkvStorage, mockModule, sourcePath } from '../testing/mockModules'
 import { createReactNativeStub } from '../testing/reactNativeStub';
 import { createRequire } from 'node:module';
 import type { AppErrorReport } from '../services/diagnostics/crashReportModel';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // The boundary's render-time collaborators are replaced; the crash log is the
 // real store over an in-memory MMKV, so the assertions read what a user would
@@ -43,7 +47,7 @@ test('a caught render error is written to the on-device crash log with its scree
   const error = new Error('Cannot read property map of null');
   boundary.componentDidCatch(error, { componentStack: '\n    in VerseList\n    in BibleReader' });
 
-  const [entry] = getCrashLogs();
+  const entry = nth(getCrashLogs(), 0);
   assert.equal(getCrashLogs().length, 1);
   assert.equal(entry.isFatal, false);
   assert.equal(entry.message, '[screen:BibleReader] Cannot read property map of null');
@@ -59,7 +63,7 @@ test('a caught render error is also queued as a scrubbed boundary crash report',
     componentStack: '\n    in PlanDay (at PlanDetail.tsx:12)\n    in PlanDetail',
   });
 
-  const [report] = pendingReports();
+  const report = nth(pendingReports(), 0);
   assert.equal(pendingReports().length, 1);
   assert.equal(report.kind, 'boundary');
   assert.equal(report.is_fatal, false);

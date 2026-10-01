@@ -5,6 +5,10 @@ import { act } from 'react-test-renderer';
 import { mockBarrel } from '../../testing/mockModules';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { flattenStyle, hostAncestors, installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // A small phone (iPhone SE: 375x667pt, 20pt status bar, no home indicator), the
 // window where the sheet is likeliest to outgrow the screen at large text.
@@ -123,7 +127,7 @@ test('the sheet is drawn inline, not in a modal, so the Bible stays tappable aro
   const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);
 
   assert.equal(view.queryAllByType('Modal').length, 0);
-  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  const overlay = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   assert.equal(
     overlay.props.pointerEvents,
     'box-none',
@@ -173,7 +177,7 @@ test('at large text on a small phone the sheet stays below the status bar and it
   const view = await harness.render(<AnnotationActionSheet {...sheetProps(() => {})} />);
 
   // The overlay fills the reader, which draws under the status bar.
-  const [overlay] = view.queryAllByType('KeyboardAvoidingView');
+  const overlay = nth(view.queryAllByType('KeyboardAvoidingView'), 0);
   assert.equal(flattenStyle(overlay.props.style)?.paddingTop, harness.insets.top);
 
   const title = `${t('annotations.selected')}: John 3:16`;

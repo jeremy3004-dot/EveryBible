@@ -2,6 +2,7 @@ import { Image, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { radius } from '../../design/system';
+import { assertDefined } from '../../utils/assertDefined';
 
 export interface AvatarProps {
   name?: string;
@@ -74,7 +75,10 @@ export function Avatar({ name, imageUri, size = 44, accessibilityLabel }: Avatar
   }
 
   const initials = initialsFrom(name);
-  const gradient = WARM_GRADIENTS[hashName(name ?? '') % WARM_GRADIENTS.length];
+  const gradient = assertDefined(
+    WARM_GRADIENTS[hashName(name ?? '') % WARM_GRADIENTS.length],
+    'a warm gradient for the hashed name'
+  );
 
   return (
     <LinearGradient

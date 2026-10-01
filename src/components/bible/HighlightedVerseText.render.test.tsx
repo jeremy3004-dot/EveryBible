@@ -1,6 +1,10 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { flattenStyle, installRenderHarness, textContent } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -25,7 +29,7 @@ async function renderVerse(overrides: { isSelected?: boolean; onPress?: () => vo
 type View = Awaited<ReturnType<typeof renderVerse>>;
 
 const layoutLines = (view: View, lines: string[]) =>
-  view.fire(view.queryAllByType('Text')[0], 'onTextLayout', {
+  view.fire(nth(view.queryAllByType('Text'), 0), 'onTextLayout', {
     nativeEvent: { lines: lines.map((text) => ({ text })) },
   });
 
@@ -83,7 +87,7 @@ test('once measured, each wrapped line gets its own highlight, the number only o
     .queryAllByType('View')
     .filter((node) => node.props.pointerEvents === 'none');
   assert.equal(highlights.length, 3);
-  assert.equal(flattenStyle(highlights[0].props.style)?.backgroundColor, '#F4E2A84d');
+  assert.equal(flattenStyle(nth(highlights, 0).props.style)?.backgroundColor, '#F4E2A84d');
 });
 
 test('the same measurement twice does not redraw the lines', async () => {
