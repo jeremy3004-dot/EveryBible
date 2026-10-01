@@ -197,10 +197,11 @@ test('an aborted cleanup waiter settles and removes its listener before its own 
   );
 });
 
-
 function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>((done) => { resolve = done; });
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -211,7 +212,9 @@ test('a completed writer invalidates a prior idle cleanup snapshot', async () =>
   await runAudioBookExclusively(directory, new AbortController().signal, async () => {
     bytes = 'repaired';
   });
-  const deleted = await runAudioBookCleanupIfUnchanged(snapshot, async () => { bytes = ''; });
+  const deleted = await runAudioBookCleanupIfUnchanged(snapshot, async () => {
+    bytes = '';
+  });
   assert.equal(deleted, false);
   assert.equal(bytes, 'repaired');
 });
@@ -220,19 +223,35 @@ test('active and queued writers prevent capture and invalidate cleanup even when
   const directory = 'file:///cleanup-cancelled/';
   const snapshot = captureIdleAudioBookWriter(directory)!;
   const gate = deferred();
-  const first = runAudioBookExclusively(directory, new AbortController().signal, () => gate.promise);
+  const first = runAudioBookExclusively(
+    directory,
+    new AbortController().signal,
+    () => gate.promise
+  );
   assert.equal(captureIdleAudioBookWriter(directory), null);
   const controller = new AbortController();
   let ran = false;
-  const queued = runAudioBookExclusively(directory, controller.signal, async () => { ran = true; });
+  const queued = runAudioBookExclusively(directory, controller.signal, async () => {
+    ran = true;
+  });
   const rejected = assert.rejects(queued, /cancelled/);
   controller.abort();
   let deletes = 0;
-  assert.equal(await runAudioBookCleanupIfUnchanged(snapshot, async () => { deletes += 1; }), false);
+  assert.equal(
+    await runAudioBookCleanupIfUnchanged(snapshot, async () => {
+      deletes += 1;
+    }),
+    false
+  );
   gate.resolve();
   await Promise.all([first, rejected]);
   assert.equal(ran, false);
-  assert.equal(await runAudioBookCleanupIfUnchanged(snapshot, async () => { deletes += 1; }), false);
+  assert.equal(
+    await runAudioBookCleanupIfUnchanged(snapshot, async () => {
+      deletes += 1;
+    }),
+    false
+  );
   assert.equal(deletes, 0);
   assert.ok(captureIdleAudioBookWriter(directory));
 });
@@ -241,7 +260,9 @@ test('cleanup rechecks ownership inside its lease when a writer is claimed befor
   const directory = 'file:///cleanup-before-start/';
   const snapshot = captureIdleAudioBookWriter(directory)!;
   const calls: string[] = [];
-  const cleanup = runAudioBookCleanupIfUnchanged(snapshot, async () => { calls.push('delete'); });
+  const cleanup = runAudioBookCleanupIfUnchanged(snapshot, async () => {
+    calls.push('delete');
+  });
   const writer = runAudioBookExclusively(directory, new AbortController().signal, async () => {
     calls.push('write');
   });
@@ -283,29 +304,52 @@ test('shared playback snapshots allow only one cleanup and cannot delete under a
   const first = captureIdleAudioBookWriter(directory)!;
   const second = captureIdleAudioBookWriter(directory)!;
   let deletes = 0;
-  const cleanup = () => runAudioBookCleanupIfUnchanged(first, async () => { deletes += 1; });
-  assert.deepEqual(await Promise.all([cleanup(), runAudioBookCleanupIfUnchanged(second, async () => {
-    deletes += 1;
-  })]), [true, false]);
+  const cleanup = () =>
+    runAudioBookCleanupIfUnchanged(first, async () => {
+      deletes += 1;
+    });
+  assert.deepEqual(
+    await Promise.all([
+      cleanup(),
+      runAudioBookCleanupIfUnchanged(second, async () => {
+        deletes += 1;
+      }),
+    ]),
+    [true, false]
+  );
   const fresh = captureIdleAudioBookWriter(directory)!;
   assert.notEqual(fresh, first);
   assert.equal(await cleanup(), false);
-  assert.equal(await runAudioBookCleanupIfUnchanged(fresh, async () => { deletes += 1; }), true);
+  assert.equal(
+    await runAudioBookCleanupIfUnchanged(fresh, async () => {
+      deletes += 1;
+    }),
+    true
+  );
   assert.equal(deletes, 2);
 });
 
 test('a failed cleanup retires its snapshot and releases the book for a fresh writer', async () => {
   const directory = 'file:///cleanup-failed/';
   const snapshot = captureIdleAudioBookWriter(directory)!;
-  await assert.rejects(runAudioBookCleanupIfUnchanged(snapshot, async () => {
-    throw new Error('delete failed');
-  }), /delete failed/);
+  await assert.rejects(
+    runAudioBookCleanupIfUnchanged(snapshot, async () => {
+      throw new Error('delete failed');
+    }),
+    /delete failed/
+  );
   let writes = 0;
-  await runAudioBookExclusively(directory, new AbortController().signal, async () => { writes += 1; });
-  assert.equal(await runAudioBookCleanupIfUnchanged(snapshot, async () => { throw new Error('stale'); }), false);
+  await runAudioBookExclusively(directory, new AbortController().signal, async () => {
+    writes += 1;
+  });
+  assert.equal(
+    await runAudioBookCleanupIfUnchanged(snapshot, async () => {
+      throw new Error('stale');
+    }),
+    false
+  );
   assert.equal(writes, 1);
 });
-
 
 test('an already-cancelled writer claim invalidates cleanup without touching the chapter', async () => {
   const directory = 'file:///cleanup-aborted-claim/';
@@ -313,10 +357,15 @@ test('an already-cancelled writer claim invalidates cleanup without touching the
   const controller = new AbortController();
   controller.abort();
   let writes = 0;
-  const writer = runAudioBookExclusively(directory, controller.signal, async () => { writes += 1; });
-  assert.equal(await runAudioBookCleanupIfUnchanged(snapshot, async () => {
-    throw new Error('stale cleanup must not run');
-  }), false);
+  const writer = runAudioBookExclusively(directory, controller.signal, async () => {
+    writes += 1;
+  });
+  assert.equal(
+    await runAudioBookCleanupIfUnchanged(snapshot, async () => {
+      throw new Error('stale cleanup must not run');
+    }),
+    false
+  );
   await assert.rejects(writer, /cancelled/);
   assert.equal(writes, 0);
 });

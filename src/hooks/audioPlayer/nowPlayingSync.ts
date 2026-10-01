@@ -78,7 +78,7 @@ export function syncPlayerNowPlaying(
             direction
           )
         : (state.queue[state.queueIndex + direction] ??
-          getAdjacentAudioChapter(resolvedBookId, resolvedChapter, direction, coverage))
+            getAdjacentAudioChapter(resolvedBookId, resolvedChapter, direction, coverage))
     );
   const resolvedCanSkipNext = overrides.canSkipNext ?? canSkip(1);
   const resolvedCanSkipPrevious = overrides.canSkipPrevious ?? canSkip(-1);

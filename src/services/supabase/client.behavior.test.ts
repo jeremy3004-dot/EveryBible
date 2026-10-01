@@ -1,7 +1,12 @@
 import test, { before, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mockMmkvStorage, mockModule, mockReactNative, sourcePath } from '../../testing/mockModules';
+import {
+  mockMmkvStorage,
+  mockModule,
+  mockReactNative,
+  sourcePath,
+} from '../../testing/mockModules';
 
 // This file deliberately does NOT use `mockSupabaseModule`: it tests the real
 // client module, so `@supabase/supabase-js`, `expo-secure-store`, `react-native`

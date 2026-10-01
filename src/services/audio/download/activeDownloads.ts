@@ -148,10 +148,7 @@ export function runAudioBookExclusively<T>(
   });
 }
 
-async function runUnderAudioBookLease<T>(
-  directoryUri: string,
-  run: () => Promise<T>
-): Promise<T> {
+async function runUnderAudioBookLease<T>(directoryUri: string, run: () => Promise<T>): Promise<T> {
   const previous = bookDownloadTails.get(directoryUri) ?? Promise.resolve();
   let release!: () => void;
   const tail = new Promise<void>((resolve) => {

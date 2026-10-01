@@ -233,7 +233,14 @@ for (const transition of ['unmount', 'route', 'uid', 'generation'] as const) {
     const created = store.getState().createRhythm({
       title: 'My evening',
       items: [
-        { id: '', type: 'passage', title: 'Psalm 4', bookId: 'PSA', startChapter: 4, endChapter: 4 },
+        {
+          id: '',
+          type: 'passage',
+          title: 'Psalm 4',
+          bookId: 'PSA',
+          startChapter: 4,
+          endChapter: 4,
+        },
       ],
     });
     const rhythmId = created.rhythm!.id;
@@ -248,7 +255,14 @@ for (const transition of ['unmount', 'route', 'uid', 'generation'] as const) {
       const second = store.getState().createRhythm({
         title: 'Another rhythm',
         items: [
-          { id: '', type: 'passage', title: 'John 1', bookId: 'JHN', startChapter: 1, endChapter: 1 },
+          {
+            id: '',
+            type: 'passage',
+            title: 'John 1',
+            bookId: 'JHN',
+            startChapter: 1,
+            endChapter: 1,
+          },
         ],
       });
       const { RhythmComposerScreen } = await import('./RhythmComposerScreen');
@@ -265,7 +279,10 @@ for (const transition of ['unmount', 'route', 'uid', 'generation'] as const) {
     }
 
     await act(async () => remove());
-    assert.ok(store.getState().rhythmsById[rhythmId], 'stale confirmation must not delete the rhythm');
+    assert.ok(
+      store.getState().rhythmsById[rhythmId],
+      'stale confirmation must not delete the rhythm'
+    );
     assert.deepEqual(callsTo('popToTop'), []);
   });
 }

@@ -41,9 +41,7 @@ test('a completed book audio download still confirms the saved book', async () =
     downloadAudioForBook: async () => {
       bibleStore.setState((state) => ({
         translations: state.translations.map((translation) =>
-          translation.id === 'bsb'
-            ? { ...translation, downloadedAudioBooks: ['JHN'] }
-            : translation
+          translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['JHN'] } : translation
         ),
       }));
     },
@@ -52,16 +50,17 @@ test('a completed book audio download still confirms the saved book', async () =
   await press;
 
   assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('bible.audioSavedOffline'));
-  assert.deepEqual(downloadEvents().map((event) => [event.bookId, event.chapter]), [['JHN', 3]]);
+  assert.deepEqual(
+    downloadEvents().map((event) => [event.bookId, event.chapter]),
+    [['JHN', 3]]
+  );
   await view.unmount();
 });
 
 test('an already cached book still confirms offline availability', async () => {
   bibleStore.setState((state) => ({
     translations: state.translations.map((translation) =>
-      translation.id === 'bsb'
-        ? { ...translation, downloadedAudioBooks: ['JHN'] }
-        : translation
+      translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['JHN'] } : translation
     ),
   }));
   const { view, press } = await startReaderDownload();
@@ -96,9 +95,7 @@ test('a completed download after leaving the reader does not interrupt the next 
       await pending;
       bibleStore.setState((state) => ({
         translations: state.translations.map((translation) =>
-          translation.id === 'bsb'
-            ? { ...translation, downloadedAudioBooks: ['JHN'] }
-            : translation
+          translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['JHN'] } : translation
         ),
       }));
     },
@@ -131,9 +128,7 @@ test('a completed old-chapter download does not alert over a newly opened chapte
       await pending;
       bibleStore.setState((state) => ({
         translations: state.translations.map((translation) =>
-          translation.id === 'bsb'
-            ? { ...translation, downloadedAudioBooks: ['JHN'] }
-            : translation
+          translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['JHN'] } : translation
         ),
       }));
     },
@@ -166,9 +161,7 @@ test('a completed old-translation download does not alert after translation chan
       await pending;
       bibleStore.setState((state) => ({
         translations: state.translations.map((translation) =>
-          translation.id === 'bsb'
-            ? { ...translation, downloadedAudioBooks: ['JHN'] }
-            : translation
+          translation.id === 'bsb' ? { ...translation, downloadedAudioBooks: ['JHN'] } : translation
         ),
       }));
     },

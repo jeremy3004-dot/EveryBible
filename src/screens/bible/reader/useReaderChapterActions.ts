@@ -264,10 +264,13 @@ export function useReaderChapterActions({
       if (!isCurrentRequest()) return;
       // Cancellation resolves without throwing. Confirm the captured book is actually
       // present before claiming it was saved or recording a successful download.
-      const saved = useBibleStore.getState().translations.some(
-        (translation) =>
-          translation.id === currentTranslation && translation.downloadedAudioBooks.includes(bookId)
-      );
+      const saved = useBibleStore
+        .getState()
+        .translations.some(
+          (translation) =>
+            translation.id === currentTranslation &&
+            translation.downloadedAudioBooks.includes(bookId)
+        );
       if (!saved) return;
       trackBibleExperienceEvent({
         name: 'library_action',
