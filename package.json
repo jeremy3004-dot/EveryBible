@@ -162,6 +162,11 @@
   },
   "expo": {
     "autolinking": {
+      "android": {
+        "exclude": [
+          "expo-updates"
+        ]
+      },
       "ios": {
         "exclude": [
           "expo-media-control"
