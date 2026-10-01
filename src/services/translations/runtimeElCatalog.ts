@@ -21,7 +21,7 @@ export interface ApplyElRuntimeCatalogDeps {
 // Default heavy step. Lazy dynamic imports target the SPECIFIC modules (not the barrel) so the
 // loaded graph stays minimal. refreshElCatalog falls back to the last verified catalog; on a
 // null catalog there is nothing to add.
-const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
+export const defaultElStep: ElBootstrapStep = async (catalogUrl) => {
   const [{ refreshElCatalog, getLastVerifiedElCatalog }, { mapElCatalogToBibleTranslations }] =
     await Promise.all([
       import('../elMedia/elCatalogService'),

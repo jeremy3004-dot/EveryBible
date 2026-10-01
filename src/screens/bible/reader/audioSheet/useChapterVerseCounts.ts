@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getChapter } from '../../../../services/bible/bibleService';
 import { chapterVerseCount, type VerseCountLookup } from './audioSheetModel';
 
@@ -38,22 +38,33 @@ export function useChapterVerseCounts(
     (chapter: number) => `${translationId}:${bookId}:${chapter}`,
     [bookId, translationId]
   );
-  const wanted = [...new Set(chapters)].filter((chapter) => counts[keyOf(chapter)] === undefined);
-  const wantedKey = wanted.join(',');
+  // Keyed on the requested set, not on what is still missing: a count arriving must not
+  // re-run the effect. Loads are never cancelled (a result is stored under its own
+  // translation/book/chapter key, so a late one is harmless), and `requested` keeps a chapter
+  // from being fetched twice.
+  const requested = useRef(new Set<string>());
+  const mounted = useRef(true);
+  const requestedKey = [...new Set(chapters)].join(',');
 
   useEffect(() => {
-    if (wantedKey === '') return;
-    let cancelled = false;
-    for (const chapter of wantedKey.split(',').map(Number)) {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (requestedKey === '') return;
+    for (const chapter of requestedKey.split(',').map(Number)) {
+      const key = `${translationId}:${bookId}:${chapter}`;
+      if (requested.current.has(key)) continue;
+      requested.current.add(key);
       void loadVerseCount(translationId, bookId, chapter).then((count) => {
-        if (cancelled) return;
-        setCounts((current) => ({ ...current, [`${translationId}:${bookId}:${chapter}`]: count }));
+        if (!mounted.current) return;
+        setCounts((current) => ({ ...current, [key]: count }));
       });
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId, translationId, wantedKey]);
+  }, [bookId, translationId, requestedKey]);
 
   return useCallback(
     (chapter: number) => {

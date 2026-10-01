@@ -107,3 +107,39 @@ test('the non-premium list draws the same paragraphs the screen already built, w
   assert.equal(builds.count, 0);
   assert.equal(headings(), 'Jesus and Nicodemus|The Visit at Night');
 });
+
+test('unmounting before the scroll-failure retry frame runs makes no scroll call', async () => {
+  const frames = new Map<number, () => void>();
+  let nextFrame = 1;
+  const realRaf = globalThis.requestAnimationFrame;
+  const realCaf = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = (callback) => {
+    frames.set(nextFrame, () => callback(0));
+    return nextFrame++;
+  };
+  globalThis.cancelAnimationFrame = (id) => {
+    frames.delete(id);
+  };
+  try {
+    const scrolls: number[] = [];
+    const { view } = await renderList({
+      renderVirtualized: true,
+      readerInlineActiveVerse: 2,
+      scrollReaderToVerseParagraph: (verse: number) => {
+        scrolls.push(verse);
+        return true;
+      },
+      premiumReaderListRef: { current: { scrollToOffset: () => {} } } as never,
+    });
+    const list = view.root.find((node) => typeof node.props.onScrollToIndexFailed === 'function');
+    list.props.onScrollToIndexFailed({ index: 3, averageItemLength: 80 });
+    assert.equal(frames.size, 1);
+
+    await view.unmount();
+    for (const run of [...frames.values()]) run();
+    assert.deepEqual(scrolls, []);
+  } finally {
+    globalThis.requestAnimationFrame = realRaf;
+    globalThis.cancelAnimationFrame = realCaf;
+  }
+});

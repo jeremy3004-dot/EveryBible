@@ -11,6 +11,7 @@ import type { createReaderFocusScroll } from '../readerFocusScroll';
 import {
   memo,
   useEffect,
+  useRef,
   type Dispatch,
   type RefObject,
   type SetStateAction,
@@ -127,6 +128,15 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   verseOffsetsRef,
 }: ReaderVerseListProps) {
   const { colors } = useTheme();
+
+  // The retry frame scheduled by onScrollToIndexFailed must not fire into an unmounted list.
+  const scrollRetryFrameRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (scrollRetryFrameRef.current != null) cancelAnimationFrame(scrollRetryFrameRef.current);
+    },
+    []
+  );
 
   // Device-debugging breadcrumb only (see screenReaderTrace): which layout the prose
   // paragraphs below take, logged when it changes.
@@ -409,7 +419,10 @@ export const ReaderVerseList = memo(function ReaderVerseList({
             offset: Math.max(info.averageItemLength * info.index - sharedTopChromeTop, 0),
             animated: true,
           });
-          requestAnimationFrame(() => {
+          if (scrollRetryFrameRef.current != null)
+            cancelAnimationFrame(scrollRetryFrameRef.current);
+          scrollRetryFrameRef.current = requestAnimationFrame(() => {
+            scrollRetryFrameRef.current = null;
             if (focusTarget != null) {
               pendingReaderAutoScrollVerseRef.current = null;
               scrollReaderToVerseParagraph(focusTarget, false);

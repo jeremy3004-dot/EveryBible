@@ -1,10 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getEngagementSummary,
   refreshEngagement,
 } from '../../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../../services/supabase/types';
+
+// Tab-hopping refocuses this screen often; a summary this fresh is reused rather than refetched.
+const SUMMARY_FRESH_MS = 60_000;
 
 /**
  * The signed-in reader's cloud totals, refreshed first so the row is current.
@@ -22,9 +25,13 @@ export function useEngagementSummary(
     summary: UserEngagementSummary;
   } | null>(null);
 
+  const fetchedRef = useRef<{ owner: string; at: number } | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       if (!isAuthenticated) return;
+      const fetched = fetchedRef.current;
+      if (fetched?.owner === (owner ?? '') && Date.now() - fetched.at < SUMMARY_FRESH_MS) return;
       let cancelled = false;
       // Fire-and-forget refresh so the summary row is up-to-date before we read it
       refreshEngagement()
@@ -35,6 +42,7 @@ export function useEngagementSummary(
         })
         .then((result) => {
           if (!cancelled && result?.success && result.data) {
+            fetchedRef.current = { owner: owner ?? '', at: Date.now() };
             setLoaded({ owner: owner ?? '', summary: result.data });
           }
         })

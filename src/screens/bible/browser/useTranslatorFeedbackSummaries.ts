@@ -40,6 +40,7 @@ export function useTranslatorFeedbackSummaries(
   const [error, setError] = useState<string | null>(null);
   const [notCovered, setNotCovered] = useState<TranslatorNotCovered | null>(null);
   const requestIdRef = useRef(0);
+  const inFlightRef = useRef(0);
 
   const load = useCallback(async () => {
     if (!enabled || !passcode) {
@@ -57,12 +58,18 @@ export function useTranslatorFeedbackSummaries(
     setError(null);
     setNotCovered(null);
 
-    const result = await fetchChapterFeedbackReviewSummaryForTranslation({
-      translationId,
-      passcode,
-    });
+    inFlightRef.current += 1;
+    let result: Awaited<ReturnType<typeof fetchChapterFeedbackReviewSummaryForTranslation>>;
+    try {
+      result = await fetchChapterFeedbackReviewSummaryForTranslation({ translationId, passcode });
+    } finally {
+      inFlightRef.current -= 1;
+    }
 
     if (requestId !== requestIdRef.current) {
+      // A discarded response must not leave the spinner on. When a newer request is still in
+      // flight it owns the loading state; otherwise (focus lost) nothing else will clear it.
+      if (inFlightRef.current === 0) setIsLoading(false);
       return;
     }
 

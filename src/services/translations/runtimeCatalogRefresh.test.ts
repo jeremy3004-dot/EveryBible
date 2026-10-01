@@ -539,3 +539,58 @@ test('failed forced refresh invalidates freshness so an ordinary open retries', 
   assert.equal(shouldMarkRuntimeCatalogHydrated(await refresh()), true);
   assert.equal(requests, 3);
 });
+
+test('the Supabase and EL catalog requests start together so a hung network costs the longer one, not the sum', async () => {
+  const el = makeElRuntime('el-lqdtest');
+  const store = makeFakeStore([]);
+  const started: string[] = [];
+  let releaseList: (result: {
+    success: boolean;
+    data: TranslationCatalogEntry[];
+  }) => void = () => {};
+  const refreshing = refreshRuntimeCatalog({
+    listTranslations: () => {
+      started.push('supabase');
+      return new Promise((resolve) => {
+        releaseList = resolve;
+      });
+    },
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => {
+      started.push('el');
+      return [el];
+    },
+  });
+  // Both requests are in flight while the Supabase one is still pending.
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(started.sort(), ['el', 'supabase']);
+
+  releaseList({ success: true, data: [makeCatalogEntry('bsb')] });
+  const result = await refreshing;
+  assert.deepEqual(store.translations.map((translation) => translation.id).sort(), [
+    'bsb',
+    'el-lqdtest',
+  ]);
+  assert.equal(result.appliedElCatalog, true);
+});
+
+test('a rejecting EL step does not block the Supabase catalog', async () => {
+  const store = makeFakeStore([]);
+  const result = await refreshRuntimeCatalog({
+    listTranslations: async () => ({ success: true, data: [makeCatalogEntry('bsb')] }),
+    getStoreTranslations: store.getStoreTranslations,
+    applyRuntimeCatalog: store.applyRuntimeCatalog,
+    resolveUrl: () => 'https://lqd-media.example.com/catalog.dev.json',
+    elStep: async () => {
+      throw new Error('offline');
+    },
+  });
+  assert.equal(result.appliedSupabaseCatalog, true);
+  assert.equal(result.appliedElCatalog, false);
+  assert.deepEqual(
+    store.translations.map((translation) => translation.id),
+    ['bsb']
+  );
+});
