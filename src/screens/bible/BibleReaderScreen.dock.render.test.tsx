@@ -5,6 +5,7 @@ import type { ReactTestInstance } from 'react-test-renderer';
 import type { SharedValue } from 'react-native-reanimated';
 import { flattenStyle, isHiddenFromAccessibility, within } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3, verseOf } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Scroll-linked chrome, the reader's transport on the player bar (which the tab bar
 // draws; the fixture renders it beside the reader), chapter navigation and the root
@@ -400,7 +401,10 @@ test('read-mode arrows move the text only, keeping read mode, and never start au
   });
 
   // One pair of arrows: the bar's (no second chapter rail under the player).
-  const [previous] = view.getAllByRole('button', { name: t('audio.previousChapter') });
+  const previous = assertDefined(
+    view.getAllByRole('button', { name: t('audio.previousChapter') })[0],
+    'previous'
+  );
   await view.press(previous);
   assert.equal(reader.setParamsCalls().at(-1)?.chapter, 2);
   assert.deepEqual(reader.audioCalls, []);
@@ -457,7 +461,7 @@ test('when playback moves on to the next chapter the reader follows in the same 
 test('a readable chapter opens on the text even when listen mode was asked for', async () => {
   const view = await renderReader({ preferredMode: 'listen' });
 
-  assert.ok(view.getByText(new RegExp(JOHN_3[0].text.slice(0, 20))));
+  assert.ok(view.getByText(new RegExp(assertDefined(JOHN_3[0], 'JOHN_3[0]').text.slice(0, 20))));
   assert.equal(view.queryAllByType('FlatList').length, 1);
   assert.equal(view.queryByRole('button', { name: t('audio.previousChapter') }) != null, true);
 });
@@ -486,7 +490,9 @@ test('the reader shows the root tab bar on entry and styles it as the shared cap
 test('selecting a verse slides the tab bar away until the selection closes', async () => {
   const view = await renderReader();
 
-  await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+  );
   assert.equal(reader.setParamsCalls().at(-1)?.tabBarCollapseProgress, 1);
   assert.equal(
     (reader.rootTabCalls.at(-1)?.tabBarStyle as { transform?: unknown })?.transform != null,
@@ -494,7 +500,9 @@ test('selecting a verse slides the tab bar away until the selection closes', asy
   );
 
   // A second tap on the only selected verse closes the selection.
-  await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+  );
   assert.equal(reader.setParamsCalls().at(-1)?.tabBarCollapseProgress, 0);
 });
 

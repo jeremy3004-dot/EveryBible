@@ -5,6 +5,7 @@ import { installIntervalLeakGuard } from '../../testing/reactHookRuntime';
 import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrace';
 import { isHiddenFromAccessibility } from '../../testing/render';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Chapter-feedback voice notes: recording and previewing them must never leave
 // the microphone, a sound or the recording timer running once nobody wants them.
@@ -359,7 +360,10 @@ test('an older preview finishing does not forget the one that is playing now', a
   assert.equal(feedbackAv.sounds.length, 2);
 
   await act(async () => {
-    feedbackAv.sounds[0].onStatus?.({ isLoaded: true, didJustFinish: true });
+    assertDefined(feedbackAv.sounds[0], 'feedbackAv.sounds[0]').onStatus?.({
+      isLoaded: true,
+      didJustFinish: true,
+    });
   });
   assert.equal(feedbackAv.log.includes('sound2.unload'), false, 'the playing preview plays on');
   await view.unmount();
@@ -374,7 +378,7 @@ test('a preview that plays to the end is released', async () => {
 
   await view.press(preview);
   await view.flush();
-  const [sound] = feedbackAv.sounds;
+  const sound = assertDefined(feedbackAv.sounds[0], 'sound');
   assert.ok(sound.onStatus, 'the reader listens for the end of the preview');
   await act(async () => {
     sound.onStatus?.({ isLoaded: true, didJustFinish: true });
@@ -488,7 +492,7 @@ test('a failed preview unload blocks Bible takeover until its next explicit retr
   const preview = await recordDraft(view);
   await view.press(preview);
   await view.flush();
-  const sound = feedbackAv.sounds[0];
+  const sound = assertDefined(feedbackAv.sounds[0], 'sound');
   const originalUnload = sound.unloadAsync;
   let attempts = 0;
   sound.unloadAsync = async () => {
@@ -511,7 +515,7 @@ test('a failed recorder stop blocks Bible takeover and retries without losing it
   const view = await renderComposer();
   await view.press(recordButton(view));
   await view.flush();
-  const recording = feedbackAv.recordings[0];
+  const recording = assertDefined(feedbackAv.recordings[0], 'recording');
   const originalStop = recording.stopAndUnloadAsync.bind(recording);
   let attempts = 0;
   recording.stopAndUnloadAsync = async () => {
@@ -539,7 +543,7 @@ test('an Expo stop error after recorder cleanup does not trap all future narrati
   const view = await renderComposer();
   await view.press(recordButton(view));
   await view.flush();
-  const recording = feedbackAv.recordings[0];
+  const recording = assertDefined(feedbackAv.recordings[0], 'recording');
   let released = false;
   recording.stopAndUnloadAsync = async () => {
     feedbackAv.log.push('recording1.stopAndUnload');
@@ -674,9 +678,13 @@ test('closing feedback unloads the recorder without depending on a separate stat
   await view.flush();
   now = 5_000;
   await act(async () => context.mock.timers.tick(500));
-  const statusRead = context.mock.method(feedbackAv.recordings[0], 'getStatusAsync', async () => {
-    throw new Error('native status unavailable');
-  });
+  const statusRead = context.mock.method(
+    assertDefined(feedbackAv.recordings[0], 'the first recording'),
+    'getStatusAsync',
+    async () => {
+      throw new Error('native status unavailable');
+    }
+  );
   await view.press(view.getByRole('button', { name: t('common.cancel') }));
   await view.flush();
   assert.ok(
@@ -700,13 +708,14 @@ test('a real stop failure stays visible even when the preceding status read fail
   const view = await renderModalComposer();
   await view.press(recordButton(view));
   await view.flush();
-  feedbackAv.recordings[0].getStatusAsync = async () => {
+  assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').getStatusAsync = async () => {
     throw new Error('status unavailable');
   };
-  feedbackAv.recordings[0].stopAndUnloadAsync = async () => {
-    feedbackAv.log.push('recording1.stopAndUnload');
-    throw new Error('native stop failed');
-  };
+  assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').stopAndUnloadAsync =
+    async () => {
+      feedbackAv.log.push('recording1.stopAndUnload');
+      throw new Error('native stop failed');
+    };
   await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
   await view.flush();
   assert.ok(feedbackAv.log.includes('recording1.stopAndUnload'));
@@ -720,14 +729,15 @@ test('reopening keeps recording controls until the old native stop finalizes', a
   try {
     await view.press(recordButton(view));
     await view.flush();
-    feedbackAv.recordings[0].stopAndUnloadAsync = async () => {
-      feedbackAv.log.push('recording1.stop.pending');
-      await new Promise<void>((resolve) => {
-        finishStop = resolve;
-      });
-      feedbackAv.log.push('recording1.stopAndUnload');
-      return { durationMillis: 4_000 };
-    };
+    assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').stopAndUnloadAsync =
+      async () => {
+        feedbackAv.log.push('recording1.stop.pending');
+        await new Promise<void>((resolve) => {
+          finishStop = resolve;
+        });
+        feedbackAv.log.push('recording1.stopAndUnload');
+        return { durationMillis: 4_000 };
+      };
     await view.press(view.getByRole('button', { name: t('common.cancel') }));
     await view.flush();
     assert.ok(feedbackAv.log.includes('recording1.stop.pending'));
@@ -758,7 +768,7 @@ test('closing again during native stop preserves the finished draft for a fresh 
   await view.press(recordButton(view));
   await view.flush();
   let finishStop: () => void = () => {};
-  feedbackAv.recordings[0].stopAndUnloadAsync = () =>
+  assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').stopAndUnloadAsync = () =>
     new Promise<{ durationMillis: number }>((resolve) => {
       finishStop = () => resolve({ durationMillis: 4_000 });
     });
@@ -828,10 +838,11 @@ test('the finalized native stop status supplies the voice note duration', async 
   const view = await renderModalComposer();
   await view.press(recordButton(view));
   await view.flush();
-  feedbackAv.recordings[0].stopAndUnloadAsync = async () => {
-    feedbackAv.log.push('recording1.stopAndUnload');
-    return { durationMillis: 6_100 };
-  };
+  assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').stopAndUnloadAsync =
+    async () => {
+      feedbackAv.log.push('recording1.stopAndUnload');
+      return { durationMillis: 6_100 };
+    };
   await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
   await view.flush();
   assert.ok(view.getByText(t('bible.chapterFeedbackAudioReady', { duration: '0:06' })));
@@ -901,12 +912,13 @@ for (const [composer, render] of [
     try {
       await view.press(recordButton(view));
       await view.flush();
-      feedbackAv.recordings[0].stopAndUnloadAsync = async () => {
-        await new Promise<void>((resolve) => {
-          finishStop = resolve;
-        });
-        return { durationMillis: 4_000 };
-      };
+      assertDefined(feedbackAv.recordings[0], 'feedbackAv.recordings[0]').stopAndUnloadAsync =
+        async () => {
+          await new Promise<void>((resolve) => {
+            finishStop = resolve;
+          });
+          return { durationMillis: 4_000 };
+        };
       await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackAudioStop') }));
       await view.flush();
       await view.press(view.getByText(t('bible.chapterFeedbackSubmit')));
@@ -932,7 +944,10 @@ for (const [composer, render] of [
           mimeType: 'audio/m4a',
         },
       ]);
-      assert.deepEqual(reader.feedbackSubmissions[0].audioResponse, attachment);
+      assert.deepEqual(
+        assertDefined(reader.feedbackSubmissions[0], 'reader.feedbackSubmissions[0]').audioResponse,
+        attachment
+      );
       if (composer === 'modal') await reopenModalComposer(view);
       await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackThumbsUp') }));
       assert.equal(

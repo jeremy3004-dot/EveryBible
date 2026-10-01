@@ -35,6 +35,7 @@ import {
   shouldSyncReaderToActiveAudioChapter,
   shouldShowChapterLoadSkeleton,
 } from './bibleReaderModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 test('uses the plan completion action on the final plan chapter even while listening', () => {
   assert.deepEqual(
@@ -1063,9 +1064,9 @@ test('buildReaderParagraphs starts a new paragraph at every heading', () => {
 test('buildReaderParagraphs groups a chapter with no headings into one paragraph', () => {
   const paragraphs = buildReaderParagraphs([headingVerse(1, 1, null), headingVerse(2, 2, null)]);
   assert.equal(paragraphs.length, 1);
-  assert.equal(paragraphs[0].heading, null);
+  assert.equal(assertDefined(paragraphs[0], 'paragraphs[0]').heading, null);
   assert.deepEqual(
-    paragraphs[0].verses.map((v) => v.verse),
+    assertDefined(paragraphs[0], 'paragraphs[0]').verses.map((v) => v.verse),
     [1, 2]
   );
 });

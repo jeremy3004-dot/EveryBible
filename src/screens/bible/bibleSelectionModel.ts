@@ -60,11 +60,12 @@ export const buildBibleSelectionVerseRanges = (verses: number[]): BibleSelection
     return [];
   }
 
+  const [firstVerse = 0, ...remainingVerses] = normalizedVerses;
   const verseRanges: BibleSelectionVerseRange[] = [];
-  let rangeStart = normalizedVerses[0];
-  let rangeEnd = normalizedVerses[0];
+  let rangeStart = firstVerse;
+  let rangeEnd = firstVerse;
 
-  for (const verse of normalizedVerses.slice(1)) {
+  for (const verse of remainingVerses) {
     if (verse === rangeEnd + 1) {
       rangeEnd = verse;
       continue;

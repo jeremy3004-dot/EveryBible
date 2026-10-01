@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer';
 import { flattenStyle, isHiddenFromAccessibility, within } from '../../testing/render';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
 import { installBrowserRenderFixture } from './BibleBrowserScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Header, availability notes, the translator summary banner, search surface
 // transitions and store-driven updates.
@@ -149,7 +150,7 @@ test('an unavailable chapter tile carries a small lock, so it is not told apart 
 
   // Pinned in the corner opposite the feedback badge, off the layout, so the
   // tile keeps its size and the number stays centred at any text size.
-  const [lock] = within(four).queryAllByType('Icon');
+  const lock = assertDefined(within(four).queryAllByType('Icon')[0], 'lock');
   const lockStyle = flattenStyle(lock.props.style);
   assert.equal(lockStyle?.position, 'absolute');
   assert.ok(lockStyle?.bottom !== undefined && lockStyle?.top === undefined);
@@ -178,7 +179,9 @@ test('the coming-soon chapter note clears when the book collapses or the transla
 
 test('the chapter grid shares the panel width once measured', async () => {
   const view = await renderBrowser();
-  const tileWidth = () => flattenStyle(chapterButtons(view)[0].props.style)?.width;
+  const tileWidth = () =>
+    flattenStyle(assertDefined(chapterButtons(view)[0], 'chapterButtons(view)[0]').props.style)
+      ?.width;
   const estimated = tileWidth();
   assert.equal(typeof estimated, 'number');
 
@@ -288,7 +291,9 @@ test('earlier results stay on screen while a newer search runs', async () => {
 
   await view.changeText(input, 'love');
   await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'God is love.')]));
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'God is love.')])
+  );
   assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
 
   await view.changeText(input, 'loved');
@@ -306,7 +311,7 @@ test('an empty search result says so on screen and is announced as zero results'
   await view.flush();
   assert.equal(view.queryByText(t('bible.searchNoResults')), null, 'not while the query waits');
   await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
-  await act(async () => searches[0].resolve([]));
+  await act(async () => assertDefined(searches[0], 'searches[0]').resolve([]));
 
   assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
   assert.ok(view.getByText(t('bible.searchNoResults')));
@@ -320,7 +325,11 @@ test('an empty search result says so on screen and is announced as zero results'
   assert.equal(view.queryByText(t('bible.searchNoResults')), null);
   assert.equal(view.queryAllByType('VersesSkeleton').length, 1);
   await wait(BIBLE_SEARCH_DEBOUNCE_MS + 50);
-  await act(async () => searches[1].resolve([verse('JHN', 3, 16, 'For God so loved the world.')]));
+  await act(async () =>
+    assertDefined(searches[1], 'searches[1]').resolve([
+      verse('JHN', 3, 16, 'For God so loved the world.'),
+    ])
+  );
   assert.equal(view.queryByText(t('bible.searchNoResults')), null);
   assert.ok(view.getByText(/For God so loved the world\./));
 });

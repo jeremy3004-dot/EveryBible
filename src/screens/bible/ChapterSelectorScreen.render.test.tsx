@@ -10,6 +10,7 @@ import {
 } from '../../testing/render';
 import { DEFAULT_APPEARANCE_PALETTE } from '../../constants/appearancePalettes';
 import { CHAPTER_TILE_MAX_FONT_SCALE } from './chapterTileLayout';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -85,8 +86,9 @@ test('read and continue chapters carry a shape cue, not only a different fill', 
       .filter((node) => flattenStyle(node.props.style)?.borderWidth);
 
   // Read: a small tick in the accent colour, pinned off the layout under the number.
-  const [tick, ...extraIcons] = within(read).queryAllByType('Icon');
+  const [tickNode, ...extraIcons] = within(read).queryAllByType('Icon');
   assert.deepEqual(extraIcons, []);
+  const tick = assertDefined(tickNode, 'the read tick');
   assert.deepEqual([tick.props.name, tick.props.color], ['checkmark', colors.bibleAccent]);
   const tickStyle = flattenStyle(tick.props.style);
   assert.equal(tickStyle?.position, 'absolute');
@@ -95,8 +97,9 @@ test('read and continue chapters carry a shape cue, not only a different fill', 
   assert.deepEqual(ringsOf(read), []);
 
   // Continue: an inner ring in the on-accent colour, and no tick.
-  const [ring, ...extraRings] = ringsOf(continuing);
+  const [ringNode, ...extraRings] = ringsOf(continuing);
   assert.deepEqual(extraRings, []);
+  const ring = assertDefined(ringNode, 'the continue ring');
   assert.equal(flattenStyle(ring.props.style)?.borderColor, colors.onAccent);
   assert.equal(flattenStyle(ring.props.style)?.position, 'absolute');
   assert.equal(isHiddenFromAccessibility(ring), true);

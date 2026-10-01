@@ -6,6 +6,7 @@ import {
   hasParagraphSelectionChanged,
   type ReaderParagraphAppearance,
 } from './bibleReaderRenderModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 const appearance = (): ReaderParagraphAppearance => ({
   premium: true,
@@ -28,6 +29,9 @@ const appearance = (): ReaderParagraphAppearance => ({
 });
 
 const signature = buildReaderParagraphRenderSignature;
+
+const firstAnnotation = (input: ReaderParagraphAppearance) =>
+  assertDefined(input.annotations[0], 'the fixture annotation');
 
 test('unchanged paragraph appearance retains its render signature across cloned input', () => {
   const input = appearance();
@@ -57,13 +61,13 @@ test('the same selection set is never a change', () => {
 
 test('recoloring an existing highlight invalidates the paragraph', () => {
   const input = appearance();
-  const changed = { ...input, annotations: [{ ...input.annotations[0], color: '#00aaff' }] };
+  const changed = { ...input, annotations: [{ ...firstAnnotation(input), color: '#00aaff' }] };
   assert.notEqual(signature(input), signature(changed));
 });
 
 test('changing a highlight range invalidates the paragraph', () => {
   const input = appearance();
-  const changed = { ...input, annotations: [{ ...input.annotations[0], verse_end: 3 }] };
+  const changed = { ...input, annotations: [{ ...firstAnnotation(input), verse_end: 3 }] };
   assert.notEqual(signature(input), signature(changed));
 });
 
@@ -71,7 +75,7 @@ test('soft-deleting a highlight invalidates the paragraph without changing the a
   const input = appearance();
   const changed = {
     ...input,
-    annotations: [{ ...input.annotations[0], deleted_at: '2026-09-12' }],
+    annotations: [{ ...firstAnnotation(input), deleted_at: '2026-09-12' }],
   };
   assert.notEqual(signature(input), signature(changed));
 });
@@ -112,7 +116,7 @@ test('a screen reader turning on or off invalidates every paragraph', () => {
 });
 
 test('highlight lookup includes ranges and single verses but ignores notes and deleted entries', () => {
-  const highlight = appearance().annotations[0];
+  const highlight = firstAnnotation(appearance());
   const single = { ...highlight, verse_start: 4, verse_end: null };
   const index = buildReaderHighlightIndex(
     [
@@ -128,7 +132,7 @@ test('highlight lookup includes ranges and single verses but ignores notes and d
 });
 
 test('overlapping highlights preserve the first match even when its color is empty', () => {
-  const first = { ...appearance().annotations[0], color: null };
+  const first = { ...firstAnnotation(appearance()), color: null };
   const second = { ...first, color: '#0000ff' };
   const index = buildReaderHighlightIndex([first, second], 2);
   assert.equal(index.get(1), first);
@@ -136,7 +140,7 @@ test('overlapping highlights preserve the first match even when its color is emp
 });
 
 test('highlight ranges are bounded by the displayed chapter', () => {
-  const highlight = { ...appearance().annotations[0], verse_start: 0, verse_end: 999999 };
+  const highlight = { ...firstAnnotation(appearance()), verse_start: 0, verse_end: 999999 };
   assert.deepEqual([...buildReaderHighlightIndex([highlight], 3).keys()], [1, 2, 3]);
   assert.equal(buildReaderHighlightIndex([highlight], 0).size, 0);
 });
@@ -144,7 +148,7 @@ test('highlight ranges are bounded by the displayed chapter', () => {
 test('repeated verse lookups do not rescan annotations', () => {
   let rangeReads = 0;
   const annotations = Array.from({ length: 100 }, (_, index) => ({
-    ...appearance().annotations[0],
+    ...firstAnnotation(appearance()),
     get verse_start() {
       rangeReads += 1;
       return index + 1;

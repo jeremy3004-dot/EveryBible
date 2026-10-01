@@ -136,7 +136,7 @@ function buildFallbackSummary(book: BibleBook) {
 
 function getFallbackArtworkVariant(order: number) {
   const variants = ['sunrise', 'river', 'midnight', 'meadow', 'ember'] as const;
-  return variants[order % variants.length];
+  return variants[order % variants.length] ?? variants[0];
 }
 
 function getBookHubPalette(_book: BibleBook) {

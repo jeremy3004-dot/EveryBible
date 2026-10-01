@@ -32,6 +32,7 @@ import {
   bible,
   installPickerRenderFixture,
 } from './TranslationPickerList.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 let windowDimensions = { width: 390, height: 844, scale: 3, fontScale: 1 };
 const {
@@ -62,7 +63,7 @@ const {
 test('the picker opens on a search field, the language pill, My Translations, then Available · <language>', async () => {
   const view = await renderPicker();
 
-  const [list] = view.queryAllByType('FlatList');
+  const list = assertDefined(view.queryAllByType('FlatList')[0], 'list');
   const firstChild = list.children[0] as ReactTestInstance;
   assert.equal(
     within(firstChild).getByTestId('translation-picker-search'),
@@ -328,12 +329,25 @@ test('the manage sheet reserves the safe area and sizes to the window after rota
   // Pinning re-renders the open sheet, as a changed window dimension does natively.
   await view.press(within(sheet).getByRole('button', { name: t('translations.pin') }));
   assert.equal(flattenStyle(content.props.style)?.height, 390 * 0.82);
-  assert.equal(flattenStyle(within(sheet).queryAllByType('ScrollView')[0].props.style)?.flex, 1);
+  assert.equal(
+    flattenStyle(
+      assertDefined(
+        within(sheet).queryAllByType('ScrollView')[0],
+        "within(sheet).queryAllByType('ScrollView')[0]"
+      ).props.style
+    )?.flex,
+    1
+  );
   await view.fire(sheet, 'onRequestClose');
   assert.equal(view.queryAllByType('Modal').length, 0, 'Android back closes the manage sheet');
 
   const reopened = await openManageSheet(view, BSB);
-  await view.press(within(reopened).getAllByRole('button', { name: t('interface.close') })[1]);
+  await view.press(
+    assertDefined(
+      within(reopened).getAllByRole('button', { name: t('interface.close') })[1],
+      "within(reopened).getAllByRole('button', { name: t('interf..."
+    )
+  );
   assert.equal(view.queryAllByType('Modal').length, 0);
 });
 
@@ -405,7 +419,12 @@ test('audio rows appear only when the translation has known book coverage it can
     const sheet = await openManageSheet(view, translation);
     assert.equal(within(sheet).queryByRole('header', { name: t('bible.audioDownloads') }), null);
     assert.equal(within(sheet).queryByText(t('bible.byBook')), null, translation.name);
-    await view.press(within(sheet).getAllByRole('button', { name: t('interface.close') })[1]);
+    await view.press(
+      assertDefined(
+        within(sheet).getAllByRole('button', { name: t('interface.close') })[1],
+        "within(sheet).getAllByRole('button', { name: t('interface..."
+      )
+    );
   }
 });
 
@@ -440,7 +459,7 @@ test('the New Testament row downloads just the New Testament books', async () =>
   const sheet = await openManageSheet(view, BSB);
   await view.press(within(sheet).getByRole('button', { name: t('bible.newTestament') }));
 
-  const [call] = log;
+  const call = assertDefined(log[0], 'call');
   assert.equal(call[0], 'downloadAudioForBooks');
   assert.equal(call[1], 'bsb');
   const books = call[2] as string[];
@@ -520,7 +539,7 @@ test('audio download failures alert with the specific reason, from collections a
   assert.deepEqual(log, [['downloadAudioForTranslation', 'bsb']]);
   assert.deepEqual([lastAlert()?.title, lastAlert()?.message], [t('common.error'), expected]);
 
-  sheet = view.queryAllByType('Modal')[0];
+  sheet = assertDefined(view.queryAllByType('Modal')[0], 'the manage sheet');
   await view.press(within(sheet).getByRole('button', { name: 'Genesis' }));
   assert.deepEqual(log.at(-1), ['downloadAudioForBook', 'bsb', 'GEN']);
   assert.equal(harness.rn.__recorded.alerts.length, 2);
@@ -536,19 +555,28 @@ test('the list keeps taps and scroll-to-dismiss while typing, and grows by the k
   const view = await renderPicker();
   const list = () => view.queryAllByType('FlatList')[0];
 
-  assert.equal(list().props.keyboardShouldPersistTaps, 'handled');
-  assert.equal(list().props.keyboardDismissMode, 'on-drag');
-  assert.equal(list().props.contentContainerStyle.paddingBottom, layout.sectionGap);
+  assert.equal(assertDefined(list(), 'list()').props.keyboardShouldPersistTaps, 'handled');
+  assert.equal(assertDefined(list(), 'list()').props.keyboardDismissMode, 'on-drag');
+  assert.equal(
+    assertDefined(list(), 'list()').props.contentContainerStyle.paddingBottom,
+    layout.sectionGap
+  );
 
   await inAct(() =>
     harness.rn.Keyboard.emit('keyboardWillShow', {
       endCoordinates: { height: 300, screenY: 544, screenX: 0, width: 390 },
     })
   );
-  assert.equal(list().props.contentContainerStyle.paddingBottom, layout.sectionGap + 300);
+  assert.equal(
+    assertDefined(list(), 'list()').props.contentContainerStyle.paddingBottom,
+    layout.sectionGap + 300
+  );
 
   await inAct(() => harness.rn.Keyboard.emit('keyboardWillHide', {}));
-  assert.equal(list().props.contentContainerStyle.paddingBottom, layout.sectionGap);
+  assert.equal(
+    assertDefined(list(), 'list()').props.contentContainerStyle.paddingBottom,
+    layout.sectionGap
+  );
 });
 
 test('the language pill opens a language list whose choice persists through the Bible store', async () => {

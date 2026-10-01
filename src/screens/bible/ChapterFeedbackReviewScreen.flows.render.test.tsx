@@ -10,6 +10,7 @@ import {
   praise,
   settled,
 } from './ChapterFeedbackReviewScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Filters, paging, bulk review, failures and playback edges of the translator's
 // chapter feedback list.
@@ -37,8 +38,8 @@ test('choosing a source in the source sheet refetches for that source and names 
   await view.flush();
 
   assert.equal(visibleSheet(view), null, 'choosing a source closes the sheet');
-  assert.equal(lastFetch().category, 'scripture_council');
-  assert.equal(lastFetch().cursor, null);
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').category, 'scripture_council');
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').cursor, null);
   assert.ok(sourceButton(t('feedback.council')));
 });
 
@@ -48,7 +49,7 @@ test('the Done tab asks the server for settled feedback', async () => {
   await view.press(view.getByRole('tab', { name: t('feedback.doneTab') }));
   await view.flush();
 
-  assert.equal(lastFetch().status, 'reviewed');
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').status, 'reviewed');
   assert.ok(view.getByRole('tab', { name: t('feedback.doneTab'), selected: true }));
 });
 
@@ -59,11 +60,11 @@ test('accurate-without-comment feedback can be viewed on its own and hidden agai
 
   await view.press(view.getByRole('button', { name: t('feedback.viewPositive') }));
   await view.flush();
-  assert.equal(lastFetch().positiveOnly, true);
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').positiveOnly, true);
 
   await view.press(view.getByRole('button', { name: t('feedback.showComments') }));
   await view.flush();
-  assert.equal(lastFetch().positiveOnly, false);
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').positiveOnly, false);
 });
 
 // ---- Bulk review ---------------------------------------------------------------
@@ -83,19 +84,29 @@ test('Mark reviewed on the accurate count confirms the exact previewed IDs, then
 
   await view.press(bulk);
   await view.flush();
-  const [confirm] = alerts();
+  const confirm = assertDefined(alerts()[0], 'confirm');
   assert.equal(confirm.title, t('feedback.markReviewed'));
   assert.equal(confirm.message, t('feedback.bulkConfirm', { count: 2 }));
   assert.equal(calls.reviewPositive.length, 1);
-  assert.equal(calls.reviewPositive[0].ids, undefined, 'the first call only previews');
+  assert.equal(
+    assertDefined(calls.reviewPositive[0], 'calls.reviewPositive[0]').ids,
+    undefined,
+    'the first call only previews'
+  );
 
   const fetchesBefore = calls.fetch.length;
   const buttons = confirm.buttons as { text: string; onPress?: () => void }[];
   await act(async () => buttons.find((b) => b.text === t('feedback.markReviewed'))?.onPress?.());
   await view.flush();
 
-  assert.deepEqual(calls.reviewPositive[1].ids, ['a', 'b']);
-  assert.equal(calls.reviewPositive[1].input.status, 'pending');
+  assert.deepEqual(assertDefined(calls.reviewPositive[1], 'calls.reviewPositive[1]').ids, [
+    'a',
+    'b',
+  ]);
+  assert.equal(
+    assertDefined(calls.reviewPositive[1], 'calls.reviewPositive[1]').input.status,
+    'pending'
+  );
   assert.deepEqual(announcements(), [t('feedback.reviewed')]);
   assert.equal(calls.fetch.length, fetchesBefore + 1, 'the list reloads');
 });
@@ -180,7 +191,11 @@ test('Continue loads the next page and adds only the feedback not already listed
   await view.press(view.getByRole('button', { name: t('common.continue') }));
   await view.flush();
 
-  assert.deepEqual(lastFetch().cursor, { snapshot: 1, sequence: 3, sentiment: 'down' });
+  assert.deepEqual(assertDefined(lastFetch(), 'lastFetch()').cursor, {
+    snapshot: 1,
+    sequence: 3,
+    sentiment: 'down',
+  });
   assert.equal(view.getAllByText('Old concern').length, 1, 'no duplicate card');
   assert.ok(view.getByText('A later concern'));
   assert.equal(view.queryByRole('button', { name: t('common.continue') }), null, 'last page');
@@ -196,25 +211,27 @@ test('reaching the end of the list loads the next page once, and not without a c
   };
   const view = await renderReview();
 
-  await view.fire(flatList(view), 'onEndReached');
-  await view.fire(flatList(view), 'onEndReached');
+  await view.fire(assertDefined(flatList(view), 'flatList(view)'), 'onEndReached');
+  await view.fire(assertDefined(flatList(view), 'flatList(view)'), 'onEndReached');
   assert.equal(calls.fetch.length, 2, 'a page already loading is not asked for again');
   (release as (() => void) | null)?.();
   await view.flush();
   assert.ok(view.getByText('A later concern'));
 
-  await view.fire(flatList(view), 'onEndReached');
+  await view.fire(assertDefined(flatList(view), 'flatList(view)'), 'onEndReached');
   assert.equal(calls.fetch.length, 2);
 });
 
 test('pulling to refresh reloads the first page', async () => {
   const view = await renderReview();
 
-  await act(async () => flatList(view).props.refreshControl.props.onRefresh());
+  await act(async () =>
+    assertDefined(flatList(view), 'flatList(view)').props.refreshControl.props.onRefresh()
+  );
   await view.flush();
 
   assert.equal(calls.fetch.length, 2);
-  assert.equal(lastFetch().cursor, null);
+  assert.equal(assertDefined(lastFetch(), 'lastFetch()').cursor, null);
 });
 
 // ---- Failures and access -------------------------------------------------------------

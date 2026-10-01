@@ -9,6 +9,7 @@ import {
   JOHN_3,
   verseOf,
 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // What the reader draws for a chapter: paragraphs, headings, poetry, the audio
 // follow-along highlight and the scrolling that keeps it in view.
@@ -33,9 +34,9 @@ function verseSpan(view: View, verse: number): ReactTestInstance {
 const backgroundOf = (node: ReactTestInstance) => flattenStyle(node.props.style)?.backgroundColor;
 
 const HEADED = [
-  verseOf(1, JOHN_3[0].text, { heading: 'Jesus and Nicodemus' }),
-  verseOf(2, JOHN_3[1].text, { heading: 'The Visit at Night' }),
-  verseOf(3, JOHN_3[2].text, { heading: 'Born Again' }),
+  verseOf(1, assertDefined(JOHN_3[0], 'JOHN_3[0]').text, { heading: 'Jesus and Nicodemus' }),
+  verseOf(2, assertDefined(JOHN_3[1], 'JOHN_3[1]').text, { heading: 'The Visit at Night' }),
+  verseOf(3, assertDefined(JOHN_3[2], 'JOHN_3[2]').text, { heading: 'Born Again' }),
 ];
 
 /** Lay the list out like the device: a 700pt viewport, 500pt paragraph cells. */
@@ -87,10 +88,10 @@ test('read mode flows a paragraph’s verses inline, each a tappable span with a
   const view = await renderReader();
 
   const first = verseSpan(view, 1);
-  const paragraph = hostAncestors(first)[0];
+  const paragraph = assertDefined(hostAncestors(first)[0], 'paragraph');
   assert.equal(paragraph.type, 'Text', 'verses sit inside one paragraph Text');
   assert.equal(verseSpan(view, 2).parent?.parent, first.parent?.parent);
-  const number = first.findAllByType('Text' as never)[1];
+  const number = assertDefined(first.findAllByType('Text' as never)[1], 'number');
   assert.equal(flattenStyle(number.props.style)?.color, theme.secondaryText);
 
   await view.press(verseSpan(view, 2));
@@ -275,7 +276,11 @@ test('the verse list skips reader re-renders it takes nothing from, but not size
   assert.ok(reader.renders.count > renders, 'the screen did re-render');
   assert.equal(listRenders(), 0, 'playback of another chapter does not redraw the verse list');
 
-  const bodySize = () => flattenStyle(hostAncestors(verseSpan(view, 1))[0].props.style)?.fontSize;
+  const bodySize = () =>
+    flattenStyle(
+      assertDefined(hostAncestors(verseSpan(view, 1))[0], 'hostAncestors(verseSpan(view, 1))[0]')
+        .props.style
+    )?.fontSize;
   const mediumSize = bodySize();
   await act(async () => {
     harness.authStore.getState().setPreferences({ fontSize: 'large' });
@@ -327,7 +332,8 @@ test('annotations that arrive after the reader moved on are dropped', async () =
   const view = await renderReader();
   await reader.navigateReader(view, { chapter: 4 });
 
-  const [stale, current] = reader.annotationLoads;
+  const stale = assertDefined(reader.annotationLoads[0], 'the stale annotation load');
+  const current = assertDefined(reader.annotationLoads[1], 'the current annotation load');
   assert.deepEqual([stale.chapter, current.chapter], ['JHN:3', 'JHN:4']);
   current.resolve([]);
   await view.flush();
@@ -427,9 +433,12 @@ test('feedback contributors get a feedback button in the chrome that opens a key
   assert.ok(avoiding, 'the sheet rides above the keyboard');
   const modal = hostAncestors(avoiding).find((node) => (node.type as string) === 'Modal');
   assert.equal(modal?.props.statusBarTranslucent, true);
-  const [scroll] = within(avoiding).queryAllByType('ScrollView');
+  const scroll = assertDefined(within(avoiding).queryAllByType('ScrollView')[0], 'scroll');
   assert.equal(scroll.props.keyboardShouldPersistTaps, 'handled');
-  const [backdrop] = within(avoiding).queryAllByType('TouchableOpacity');
+  const backdrop = assertDefined(
+    within(avoiding).queryAllByType('TouchableOpacity')[0],
+    'backdrop'
+  );
   assert.equal(backdrop.props.importantForAccessibility, 'no-hide-descendants');
   assert.ok(within(avoiding).getByRole('button', { name: t('bible.chapterFeedbackThumbsUp') }));
 });
@@ -467,7 +476,7 @@ test('the listen page carries the feedback composer inline and submits it as lis
   await view.press(view.getByRole('button', { name: t('bible.chapterFeedbackSubmit') }));
 
   assert.equal(reader.feedbackSubmissions.length, 1);
-  const [submission] = reader.feedbackSubmissions;
+  const submission = assertDefined(reader.feedbackSubmissions[0], 'submission');
   assert.equal(submission.sourceScreen, 'listener');
   assert.equal(submission.sentiment, 'up');
   assert.deepEqual([submission.bookId, submission.chapter], ['JHN', 3]);

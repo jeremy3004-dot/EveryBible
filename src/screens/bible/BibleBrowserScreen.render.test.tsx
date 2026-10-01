@@ -5,6 +5,7 @@ import { flattenStyle, hostAncestors, within } from '../../testing/render';
 import { DEFAULT_APPEARANCE_PALETTE } from '../../constants/appearancePalettes';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
 import { installBrowserRenderFixture } from './BibleBrowserScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Book list, reader navigation, search and the translation sheet. Availability,
 // the translator summary banner and store-driven updates live in
@@ -122,7 +123,7 @@ test('as the picker modal it offers a close control, no translation entry, and p
 
   assert.equal(translationEntry(view), null, 'no translation entry inside the picker');
   await view.press(view.getByRole('button', { name: '5' }));
-  const [call] = harness.navigation.calls;
+  const call = assertDefined(harness.navigation.calls[0], 'call');
   assert.deepEqual(harness.navigation.calls, [
     {
       method: 'popTo',
@@ -263,7 +264,9 @@ test('full-text search waits for the debounce window, then lists and announces r
     [['bsb', 'love']]
   );
 
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'God is love.')]));
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'God is love.')])
+  );
   const result = view.getByRole('button', { name: /1 John 4:8/ });
   assert.ok(within(result).getByText(/God is love\./));
   assert.ok(
@@ -288,7 +291,9 @@ test('a search result receives the first tap with the search keyboard open', asy
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 1);
   await act(async () =>
-    searches[0].resolve([verse('JHN', 7, 38, 'Rivers of living water will flow from within him.')])
+    assertDefined(searches[0], 'searches[0]').resolve([
+      verse('JHN', 7, 38, 'Rivers of living water will flow from within him.'),
+    ])
   );
 
   const result = view.getByRole('button', { name: /John 7:38/ });
@@ -336,7 +341,9 @@ test('a trailing space does not search again or re-announce the same results', a
   await view.changeText(input, 'love');
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length > 0);
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'God is love.')]));
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'God is love.')])
+  );
 
   // The space before the next word asks the same question; a screen reader heard the count
   // again on every space, and the same query ran again.
@@ -363,7 +370,9 @@ test('changing translations hides prior results until the selected translation a
   await view.changeText(view.getByLabelText(t('common.search')), 'love');
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 1);
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'BSB search text.')]));
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'BSB search text.')])
+  );
   assert.ok(view.getByRole('button', { name: /BSB search text\./ }));
 
   await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
@@ -382,7 +391,9 @@ test('changing translations hides prior results until the selected translation a
       { translationId: 'web', query: 'love' },
     ]
   );
-  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
+  await act(async () =>
+    assertDefined(searches[1], 'searches[1]').resolve([verse('1JN', 4, 8, 'WEB search text.')])
+  );
   assert.ok(view.getByRole('button', { name: /WEB search text\./ }));
   assert.equal(view.queryByText(/BSB search text\./), null);
 });
@@ -397,8 +408,12 @@ test('a late prior-translation response cannot replace current search results', 
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 2);
 
-  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'Late BSB search text.')]));
+  await act(async () =>
+    assertDefined(searches[1], 'searches[1]').resolve([verse('1JN', 4, 8, 'WEB search text.')])
+  );
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'Late BSB search text.')])
+  );
   assert.ok(view.getByText(/WEB search text\./));
   assert.equal(view.queryByText(/Late BSB search text\./), null);
 });
@@ -410,11 +425,15 @@ test('switching back hides the other translation results and rejects its late re
   await view.changeText(input, 'love');
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 1);
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'BSB search text.')]));
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'BSB search text.')])
+  );
   await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 2);
-  await act(async () => searches[1].resolve([verse('1JN', 4, 8, 'WEB search text.')]));
+  await act(async () =>
+    assertDefined(searches[1], 'searches[1]').resolve([verse('1JN', 4, 8, 'WEB search text.')])
+  );
   await view.changeText(input, 'grace');
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 3);
@@ -422,11 +441,13 @@ test('switching back hides the other translation results and rejects its late re
 
   await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
   assert.equal(view.queryByText(/WEB search text\./), null);
-  await act(async () => searches[2].resolve([verse('EPH', 2, 8, 'Late WEB search text.')]));
+  await act(async () =>
+    assertDefined(searches[2], 'searches[2]').resolve([verse('EPH', 2, 8, 'Late WEB search text.')])
+  );
   assert.equal(view.queryByText(/Late WEB search text\./), null);
   await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
   await waitUntil(() => searches.length === 4);
-  await act(async () => searches[3].resolve([]));
+  await act(async () => assertDefined(searches[3], 'searches[3]').resolve([]));
   assert.ok(view.getByText(t('bible.searchNoResults')));
   assert.equal(view.queryAllByType('VersesSkeleton').length, 0);
 });
@@ -447,8 +468,14 @@ test('a slower earlier search never overwrites the results of a newer one', asyn
     ['love', 'grace']
   );
 
-  await act(async () => searches[1].resolve([verse('EPH', 2, 8, 'By grace you have been saved.')]));
-  await act(async () => searches[0].resolve([verse('1JN', 4, 8, 'God is love.')]));
+  await act(async () =>
+    assertDefined(searches[1], 'searches[1]').resolve([
+      verse('EPH', 2, 8, 'By grace you have been saved.'),
+    ])
+  );
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([verse('1JN', 4, 8, 'God is love.')])
+  );
 
   assert.ok(view.getByText(/By grace you have been saved\./));
   assert.equal(view.queryByText(/God is love\./), null);
@@ -467,14 +494,14 @@ test('a translation without full-text search says so; other failures show the lo
     const unavailable = Object.assign(new Error('no index'), {
       name: 'BibleSearchUnavailableError',
     });
-    await act(async () => searches[0].reject(unavailable));
+    await act(async () => assertDefined(searches[0], 'searches[0]').reject(unavailable));
     assert.ok(view.getByText(t('bible.searchUnavailable')));
     assert.equal(view.queryByText(t('bible.failedToLoad')), null);
 
     await view.changeText(input, 'grace');
     await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
     await waitUntil(() => searches.length === 2);
-    await act(async () => searches[1].reject(new Error('disk I/O')));
+    await act(async () => assertDefined(searches[1], 'searches[1]').reject(new Error('disk I/O')));
     assert.ok(view.getByText(t('bible.failedToLoad')));
     assert.equal(view.queryByText(t('bible.searchUnavailable')), null);
   } finally {
@@ -496,7 +523,9 @@ test('the translation sheet loads the shared picker only once it is opened', asy
 
   const [picker] = view.queryAllByType('TranslationPickerList');
   assert.ok(picker, 'the shared picker renders inside the sheet');
-  const sheet = flattenStyle(hostAncestors(picker)[0].props.style);
+  const sheet = flattenStyle(
+    assertDefined(hostAncestors(picker)[0], 'hostAncestors(picker)[0]').props.style
+  );
   assert.equal(sheet?.height, '60%', 'a fixed-height sheet, so the picker cannot collapse it');
   assert.equal(sheet?.overflow, 'hidden', 'the sheet clips the picker');
 
@@ -540,8 +569,8 @@ test('translator review badges mark pending and addressed feedback on books and 
   const badgeOf = (node: ReactTestInstance) => {
     const badges = within(node).queryAllByRole('image');
     assert.equal(badges.length, 1);
-    const [badge] = badges;
-    const [icon] = within(badge).queryAllByType('Icon');
+    const badge = assertDefined(badges[0], 'badge');
+    const icon = assertDefined(within(badge).queryAllByType('Icon')[0], 'icon');
     return {
       label: badge.props.accessibilityLabel,
       icon: icon.props.name,

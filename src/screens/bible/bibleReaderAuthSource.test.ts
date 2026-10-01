@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { URL } from 'node:url';
 import { listBibleReaderSourceFiles, readBibleReaderSource } from './bibleReaderSourceFiles';
+import { assertDefined } from '../../utils/assertDefined';
 
 test('BibleReaderScreen keeps reader actions local-first instead of restoring an auth session', () => {
   const source = readBibleReaderSource();
@@ -11,7 +12,7 @@ test('BibleReaderScreen keeps reader actions local-first instead of restoring an
     const fileSource = readFileSync(new URL(file, import.meta.url), 'utf8');
     return Array.from(
       fileSource.matchAll(/useAuthStore\(\s*\(state\) => state\.([^)]+?)\s*\)/gs),
-      (match) => ({ file, selector: match[1].replace(/\s+/g, '') })
+      (match) => ({ file, selector: assertDefined(match[1], 'match[1]').replace(/\s+/g, '') })
     );
   });
 

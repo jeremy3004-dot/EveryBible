@@ -9,6 +9,7 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from './readerAnnotationEdits';
+import { assertDefined } from '../../utils/assertDefined';
 
 const chapter = { book: 'JHN', chapter: 3 };
 
@@ -277,25 +278,32 @@ test('a failed write never loses a highlight on verses outside the selection', a
   }
 });
 
+const firstUpsert = (plan: ReturnType<typeof planReaderNoteSave>) =>
+  assertDefined(plan.upserts[0], 'the planned upsert');
+
 test('applying edits writes before it deletes and stops at the first failure', async () => {
   const calls: string[] = [];
   const edits: ReaderAnnotationEdits = {
     softDeleteIds: ['old'],
     upserts: [
-      planReaderNoteSave({
-        ...chapter,
-        annotations: [],
-        selectedVerses: [1],
-        content: 'a',
-        createId: () => 'first',
-      }).upserts[0],
-      planReaderNoteSave({
-        ...chapter,
-        annotations: [],
-        selectedVerses: [2],
-        content: 'b',
-        createId: () => 'second',
-      }).upserts[0],
+      firstUpsert(
+        planReaderNoteSave({
+          ...chapter,
+          annotations: [],
+          selectedVerses: [1],
+          content: 'a',
+          createId: () => 'first',
+        })
+      ),
+      firstUpsert(
+        planReaderNoteSave({
+          ...chapter,
+          annotations: [],
+          selectedVerses: [2],
+          content: 'b',
+          createId: () => 'second',
+        })
+      ),
     ],
   };
 
