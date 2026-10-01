@@ -4,12 +4,7 @@ import { createRef } from 'react';
 import type { ReactTestInstance } from 'react-test-renderer';
 import type { View } from 'react-native';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
-import {
-  flattenStyle,
-  hostAncestors,
-  installRenderHarness,
-  within,
-} from '../../../testing/render';
+import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../../testing/render';
 import { serifFamily } from '../../../design/fonts';
 
 // The picture editor the reader opens from a verse's Image action.
