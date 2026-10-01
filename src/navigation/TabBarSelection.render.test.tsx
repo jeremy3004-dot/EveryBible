@@ -74,7 +74,7 @@ test('the pill is a 52pt neutral wash inset by the capsule padding, radius 26', 
   assert.equal(style.start, 6 + 2 * ITEM_WIDTH, 'rests on its slot by layout');
   assert.equal(style.borderRadius, 26);
   assert.equal(style.width, ITEM_WIDTH, 'one tab slot wide');
-  assert.deepEqual(style.transform, [{ translateX: '0%' }]);
+  assert.deepEqual(style.transform, [{ translateX: 0 }]);
 });
 
 test('changing tabs springs the pill in from the slot it left', async () => {
@@ -88,7 +88,7 @@ test('changing tabs springs the pill in from the slot it left', async () => {
   assert.deepEqual(harness.animations, [{ kind: 'spring', toValue: 0, config: motion.spring }]);
   const style = styleOf(pill().props.style);
   assert.equal(style.start, 6 + 3 * ITEM_WIDTH);
-  assert.deepEqual(style.transform, [{ translateX: '0%' }]);
+  assert.deepEqual(style.transform, [{ translateX: 0 }]);
 });
 
 test('with Reduce Motion on, the pill jumps to the new slot without a spring', async () => {

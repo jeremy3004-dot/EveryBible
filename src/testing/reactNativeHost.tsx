@@ -41,9 +41,38 @@ export const hostRenderLog: HostRender[] = [];
 // React 19 passes `ref` to function components as an ordinary prop, so these
 // forward it to the host element by spreading props; no forwardRef needed.
 
+/**
+ * The app runs on React Native's old architecture, whose Android transform parser only
+ * accepts numbers: a percent translate (`translateX: '50%'`) throws while the native view
+ * is created, crashing the app on launch. Node renders it happily, so the fake host fails
+ * any render that passes one.
+ */
+function assertNumericTranslates(name: string, style: unknown): void {
+  if (Array.isArray(style)) {
+    style.forEach((entry) => assertNumericTranslates(name, entry));
+    return;
+  }
+  if (!style || typeof style !== 'object') return;
+  const transform = (style as { transform?: unknown }).transform;
+  if (!Array.isArray(transform)) return;
+  for (const step of transform) {
+    if (!step || typeof step !== 'object') continue;
+    for (const key of ['translateX', 'translateY'] as const) {
+      const value = (step as Record<string, unknown>)[key];
+      if (typeof value === 'string') {
+        throw new Error(
+          `${name} got ${key}: '${value}'. Percent/string translates crash Android on the old ` +
+            'architecture; translate by a number of points instead.'
+        );
+      }
+    }
+  }
+}
+
 /** A component that renders a host element of the same name with its props. */
 export function hostComponent(name: string) {
   const Component = (props: AnyProps) => {
+    assertNumericTranslates(name, props.style);
     hostRenderLog.push({ type: name, props });
     return createElement(name, props);
   };
