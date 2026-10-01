@@ -1801,7 +1801,7 @@ export const es = {
     startPlan: 'Iniciar plan',
     enrolled: 'Inscrito',
     dayOf: 'Día {{current}} de {{total}}',
-    inSeason: 'De temporada',
+    inSeason: 'Para este tiempo',
     seasonStarts: 'Comienza el {{date}}',
     seasonStartsToday: 'Comienza hoy',
     markComplete: 'Marcar como completado',
@@ -2015,7 +2015,7 @@ export const es = {
       holyWeek: {
         title: 'Semana Santa',
         description:
-          'Del Domingo de Ramos al Domingo de Pascua, día a día: la entrada en Jerusalén, la última cena, la cruz, el sepulcro sellado y el sepulcro vacío.',
+          'Del Domingo de Ramos al Domingo de Pascua, día a día: la entrada en Jerusalén, la Última Cena, la cruz, el sepulcro sellado y el sepulcro vacío.',
       },
       orthodoxHolyWeek: {
         title: 'Semana Santa (calendario ortodoxo)',
@@ -2025,12 +2025,12 @@ export const es = {
       easter: {
         title: 'Pascua',
         description:
-          'Del lunes de Pascua a la víspera de la Ascensión: el Señor resucitado se aparece, y las cartas y los profetas muestran lo que significa su resurrección.',
+          'Del Lunes de Pascua a la víspera de la Ascensión: el Señor resucitado se aparece, y las cartas y los profetas muestran lo que significa su resurrección.',
       },
       pentecost: {
         title: 'De la Ascensión a Pentecostés',
         description:
-          'Once días desde la Ascensión hasta Pentecostés: espera y ora con los primeros discípulos por el Espíritu Santo, que lleva el evangelio a todas las lenguas.',
+          'Once días desde la Ascensión hasta Pentecostés: espera y ora con los primeros discípulos por la venida del Espíritu Santo, que lleva el evangelio a todas las lenguas.',
       },
       translationWeek: {
         title: 'La Palabra en todas las lenguas',
@@ -2050,7 +2050,7 @@ export const es = {
       hardChristmas: {
         title: 'Cuando la Navidad es difícil',
         description:
-          'La semana antes de Navidad, para cuando la época pesa por la pérdida o la soledad: lamentos, consuelo y la luz que brilla en la oscuridad.',
+          'La semana antes de Navidad, para cuando la pérdida o la soledad hacen pesadas estas fechas: lamentos, consuelo y la luz que brilla en la oscuridad.',
       },
     },
     lifeSituations: {
