@@ -19,6 +19,7 @@ import {
   within,
 } from '../../testing/render';
 import { bibleTranslations } from '../../constants/translations';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { skip: ['@react-navigation/native'] });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
@@ -243,7 +244,7 @@ async function finishEditorDismissal(view: HomeView, onDismiss: () => void) {
 
 /** The on-screen hero lives in the ScrollView. */
 function heroes(view: HomeView) {
-  const [scroll] = view.queryAllByType('ScrollView');
+  const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
   return { screen: within(scroll) };
 }
 
@@ -465,7 +466,7 @@ test('Read on a verse borrowed from BSB asks first, then opens the chapter in BS
 
   // The reader follows the selected translation, which lacks this book.
   assert.equal(harness.navigation.calls.length, navigationsBefore, 'nothing opens yet');
-  const [alert] = harness.rn.__recorded.alerts;
+  const alert = assertDefined(harness.rn.__recorded.alerts[0], 'alert');
   assert.equal(
     alert.title,
     t('home.borrowedPassageTitle', { passage: 'John 3', translation: 'Nepali Bible' })
@@ -477,11 +478,11 @@ test('Read on a verse borrowed from BSB asks first, then opens the chapter in BS
     [t('common.cancel'), t('home.readInTranslation', { translation: 'BSB' })]
   );
 
-  buttons[0].onPress?.();
+  assertDefined(buttons[0], 'buttons[0]').onPress?.();
   assert.deepEqual(translationSwitches, [], 'Cancel keeps the reader in their translation');
   assert.equal(harness.navigation.calls.length, navigationsBefore);
 
-  buttons[1].onPress?.();
+  assertDefined(buttons[1], 'buttons[1]').onPress?.();
   assert.deepEqual(translationSwitches, ['bsb']);
   assert.deepEqual(harness.navigation.calls.at(-1), {
     method: 'navigate',
@@ -588,7 +589,7 @@ test('the hero share control is an icon-only button named with the shared share 
   assert.equal(textContent(shareButton), '', 'icon only');
   assert.equal(within(shareButton).queryAllByType('LucideIcon').length, 1);
   // It closes the hero action row, after the read action.
-  const actionRow = hostAncestors(shareButton)[0];
+  const actionRow = assertDefined(hostAncestors(shareButton)[0], 'actionRow');
   const actions = within(actionRow).getAllByRole('button');
   assert.equal(actions.at(-1), shareButton);
   assert.equal(view.getAllByRole('button', { name: t('groups.share') }).length, 1);
@@ -600,7 +601,7 @@ test('sharing from the editor captures its picture as a PNG and opens the share 
   await shareFromEditor(view, editor);
 
   assert.equal(sharing.captures.length, 1);
-  const [{ options }] = sharing.captures;
+  const { options } = assertDefined(sharing.captures[0], 'the first capture');
   assert.deepEqual(options, { format: 'png', quality: 1, result: 'tmpfile' });
   assert.deepEqual(sharing.sheets, [
     {
@@ -640,9 +641,9 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     const view = await renderHome();
     const { screen } = heroes(view);
 
-    const [photo] = screen.queryAllByType('ImageBackground');
+    const photo = assertDefined(screen.queryAllByType('ImageBackground')[0], 'photo');
     assert.equal(flattenStyle(photo.props.imageStyle)?.opacity, undefined);
-    const [scrim] = screen.queryAllByType('LinearGradient');
+    const scrim = assertDefined(screen.queryAllByType('LinearGradient')[0], 'scrim');
     assert.deepEqual(scrim.props.colors, [
       'rgba(12, 11, 9, 0.42)',
       'rgba(12, 11, 9, 0.05)',
@@ -735,7 +736,7 @@ test('Home is a bouncing scroll shell that clears the floating tab bar, with no 
   const { resolveFloatingBottomOffset, TAB_BAR_CAPSULE_HEIGHT, TAB_BAR_CONTENT_GAP } =
     await import('../../hooks/useTabBarHeight');
   const view = await renderHome();
-  const [scroll] = view.queryAllByType('ScrollView');
+  const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
 
   assert.equal(scroll.props.bounces, true);
   assert.equal(scroll.props.alwaysBounceVertical, true);
@@ -762,13 +763,13 @@ test('the photograph bleeds under the status bar while the verse clears it', asy
   );
   assert.equal(flattenStyle(heroContent?.props.style)?.paddingTop, harness.insets.top + 14);
 
-  const [statusBar] = view.queryAllByType('ExpoStatusBar');
+  const statusBar = assertDefined(view.queryAllByType('ExpoStatusBar')[0], 'statusBar');
   assert.equal(statusBar.props.style, 'light');
 });
 
 test('once the photograph scrolls out from under the status bar, the strip gets a backdrop', async () => {
   const view = await renderHome();
-  const [scroll] = view.queryAllByType('ScrollView');
+  const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
   const isStatusMask = (node: ReactTestInstance) => {
     const style = flattenStyle(node.props.style) ?? {};
     return (
@@ -779,7 +780,11 @@ test('once the photograph scrolls out from under the status bar, the strip gets 
     );
   };
   const masks = () => view.queryAllByType('View').filter(isStatusMask);
-  const statusBarStyle = () => view.queryAllByType('ExpoStatusBar')[0].props.style;
+  const statusBarStyle = () =>
+    assertDefined(
+      view.queryAllByType('ExpoStatusBar')[0],
+      "view.queryAllByType('ExpoStatusBar')[0]"
+    ).props.style;
   const scrollTo = (y: number) =>
     view.fire(scroll, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y } } });
 
@@ -807,7 +812,12 @@ test('once the photograph scrolls out from under the status bar, the strip gets 
   assert.equal(style.right, 0);
   assert.equal(
     style.backgroundColor,
-    flattenStyle(view.root.findAllByType('View' as never)[0].props.style)?.backgroundColor
+    flattenStyle(
+      assertDefined(
+        view.root.findAllByType('View' as never)[0],
+        "view.root.findAllByType('View' as never)[0]"
+      ).props.style
+    )?.backgroundColor
   );
   assert.equal(statusBarStyle(), 'dark', 'glyphs follow the page, not the photograph');
 
@@ -985,8 +995,11 @@ test('with an empty catalogue there is no shelf', async () => {
 // ---- Gather and the reading ledger ----------------------------------------------
 
 test('the Gather chip names the active foundation, its lesson count and the next lesson', async () => {
-  const [first, second] = gatherFoundations;
-  gatherStore.setState({ completedLessons: { [second.id]: [second.lessons[0].id] } });
+  const first = assertDefined(gatherFoundations[0], 'the first foundation');
+  const second = assertDefined(gatherFoundations[1], 'the second foundation');
+  gatherStore.setState({
+    completedLessons: { [second.id]: [assertDefined(second.lessons[0], 'second.lessons[0]').id] },
+  });
   const view = await renderHome();
 
   const chip = view.getByRole('button', { name: new RegExp(`^${t('tabs.gather')} · `) });
@@ -994,7 +1007,11 @@ test('the Gather chip names the active foundation, its lesson count and the next
   assert.ok(
     label.includes(t('home.lessonsProgress', { completed: 1, total: second.lessons.length }))
   );
-  assert.ok(label.includes(t('home.nextLesson', { title: second.lessons[1].title })));
+  assert.ok(
+    label.includes(
+      t('home.nextLesson', { title: assertDefined(second.lessons[1], 'second.lessons[1]').title })
+    )
+  );
   assert.ok(!label.includes(first.title), 'the in-progress foundation wins over the first');
   assert.ok(within(chip).getByText(t('home.lessonChip', { number: 2 })));
   const bar = within(chip).getByTestId('reading-chip-progress');
@@ -1021,7 +1038,7 @@ const heatmapButton = (view: HomeView) =>
 
 test('one dark card holds the streak, the heatmap, Continue and Gather, then the plan shelf', async () => {
   const view = await renderHome();
-  const [scroll] = view.queryAllByType('ScrollView');
+  const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
   const order = within(scroll)
     .queryAllByType('Pressable')
     .map((node) => String(node.props.accessibilityLabel ?? ''))

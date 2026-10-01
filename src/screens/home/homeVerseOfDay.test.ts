@@ -10,6 +10,7 @@ import {
   type VerseOfDayLoad,
   type VerseOfDayLoadOptions,
 } from './homeVerseOfDay';
+import { assertDefined } from '../../utils/assertDefined';
 
 mock.method(console, 'error', () => undefined);
 
@@ -90,7 +91,7 @@ test('Home loads the selected Bible locally without any network request', async 
   assert.equal(h.scriptureRequests.length, 1);
   assert.deepEqual(h.scriptureCalls, [{ translation: BSB, allowInitialization: true }]);
   const local = scripture('Local Scripture');
-  h.scriptureRequests[0].resolve(local);
+  assertDefined(h.scriptureRequests[0], 'h.scriptureRequests[0]').resolve(local);
   await loading;
   assert.equal(h.state.scripture, local);
   assert.equal(h.state.loading, false);
@@ -103,9 +104,9 @@ test('a slower Bible lookup cannot overwrite Scripture from the newer translatio
   const second = h.load();
   await h.settleModuleLoads();
   const newest = scripture('new verse');
-  h.scriptureRequests[1].resolve(newest);
+  assertDefined(h.scriptureRequests[1], 'h.scriptureRequests[1]').resolve(newest);
   await second;
-  h.scriptureRequests[0].resolve(scripture('old verse'));
+  assertDefined(h.scriptureRequests[0], 'h.scriptureRequests[0]').resolve(scripture('old verse'));
   await first;
 
   assert.equal(h.state.scripture, newest);
@@ -117,12 +118,14 @@ test('an older failure cannot hide the spinner or clear the newer pending load',
   await h.settleModuleLoads();
   const second = h.load();
   await h.settleModuleLoads();
-  h.scriptureRequests[0].reject(new Error('old request failed'));
+  assertDefined(h.scriptureRequests[0], 'h.scriptureRequests[0]').reject(
+    new Error('old request failed')
+  );
   await first;
   assert.equal(h.state.loading, true);
 
   const newest = scripture('new verse');
-  h.scriptureRequests[1].resolve(newest);
+  assertDefined(h.scriptureRequests[1], 'h.scriptureRequests[1]').resolve(newest);
   await second;
   assert.equal(h.state.scripture, newest);
   assert.equal(h.state.loading, false);
@@ -134,10 +137,10 @@ test('a silent foreground refresh settles an initial loading spinner', async () 
   await h.settleModuleLoads();
   const second = h.load({ silent: true });
   await h.settleModuleLoads();
-  h.scriptureRequests[1].resolve(scripture('new verse'));
+  assertDefined(h.scriptureRequests[1], 'h.scriptureRequests[1]').resolve(scripture('new verse'));
   await second;
   assert.equal(h.state.loading, false);
-  h.scriptureRequests[0].resolve(scripture('old verse'));
+  assertDefined(h.scriptureRequests[0], 'h.scriptureRequests[0]').resolve(scripture('old verse'));
   await first;
   assert.equal(h.state.loading, false);
 });
@@ -229,7 +232,7 @@ test('the first verse load waits for interactions and shows the spinner', () => 
   const h = refreshHarness();
 
   assert.deepEqual(h.loads, []);
-  h.interactions[0].run();
+  assertDefined(h.interactions[0], 'h.interactions[0]').run();
   assert.deepEqual(h.loads, [undefined]);
   h.cleanup();
 });
@@ -280,7 +283,7 @@ test("midnight and each return to the foreground advance Home's clock, not the f
   mock.timers.enable({ apis: ['setTimeout'] });
   const h = refreshHarness('active', 5_000);
 
-  h.interactions[0].run();
+  assertDefined(h.interactions[0], 'h.interactions[0]').run();
   assert.equal(h.clockAdvances(), 0);
   h.emitAppState('background');
   h.emitAppState('active');
@@ -296,7 +299,7 @@ test('cleanup stops the timer, the listener and the pending load', () => {
 
   h.cleanup();
 
-  assert.equal(h.interactions[0].cancelled, true);
+  assert.equal(assertDefined(h.interactions[0], 'h.interactions[0]').cancelled, true);
   assert.equal(h.removed(), 1);
   assert.equal(h.requestIdRef.current, 1, 'an in-flight load is made stale');
   assert.equal(h.midnightTimerRef.current, null);
