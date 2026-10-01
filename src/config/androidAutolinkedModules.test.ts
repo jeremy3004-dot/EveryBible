@@ -24,6 +24,13 @@ test('Android builds leave out expo-updates', async () => {
   assert.equal(android.includes('expo-updates'), false);
 });
 
-test('iOS builds keep expo-updates until iOS startup is measured without it', async () => {
-  assert.ok((await linkedPackages('ios')).includes('expo-updates'));
+// On iOS the disabled module cost less but was still measurable: an interleaved A/B of
+// Release simulator builds (n = 12 each, 2026-10-01) started JS 22 ms and reached Home's
+// interaction-ready 30 ms sooner without it, with Constants.expoConfig and bundled asset
+// URIs unchanged (docs/research/ios-profiling-2026-10-01.md).
+test('iOS builds leave out expo-updates', async () => {
+  const ios = await linkedPackages('ios');
+
+  assert.ok(ios.includes('expo-asset'), 'the resolver should see the app modules');
+  assert.equal(ios.includes('expo-updates'), false);
 });

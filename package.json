@@ -169,7 +169,8 @@
       },
       "ios": {
         "exclude": [
-          "expo-media-control"
+          "expo-media-control",
+          "expo-updates"
         ]
       }
     },

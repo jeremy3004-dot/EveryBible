@@ -21,6 +21,8 @@ let shareFails = false;
 let beforeTrimLoad: (() => Promise<void>) | null = null;
 mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
   loadAudioShareDependencies: async () => ({ prepareChapterAudioShareAsset: () => prepare() }),
+  releaseStaleAudioShares: async () => {},
+  deleteSharedAudioFile: async () => {},
   loadVideoTrimDependencies: async () => {
     await beforeTrimLoad?.();
     if (trimLoadFails) throw new Error('trim module unavailable');

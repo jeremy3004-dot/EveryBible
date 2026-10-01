@@ -71,13 +71,13 @@ test('the pill is a 52pt neutral wash inset by the capsule padding, radius 26', 
   assert.equal(style.position, 'absolute');
   assert.equal(style.top, 6);
   assert.equal(style.bottom, 6);
-  assert.equal(style.start, 6);
+  assert.equal(style.start, 6 + 2 * ITEM_WIDTH, 'rests on its slot by layout');
   assert.equal(style.borderRadius, 26);
   assert.equal(style.width, ITEM_WIDTH, 'one tab slot wide');
-  assert.deepEqual(style.transform, [{ translateX: 2 * ITEM_WIDTH }]);
+  assert.deepEqual(style.transform, [{ translateX: 0 }]);
 });
 
-test('changing tabs springs the pill to the new slot', async () => {
+test('changing tabs springs the pill in from the slot it left', async () => {
   const { view, pill, layout, TabBarSelection } = await renderSelection(0);
   await layout();
   harness.animations.length = 0;
@@ -85,8 +85,10 @@ test('changing tabs springs the pill to the new slot', async () => {
   await settle(view, () => <TabBarSelection selectedIndex={3} count={5} color={PILL_COLOR} />);
 
   const { motion } = await import('../design/system');
-  assert.deepEqual(harness.animations, [{ kind: 'spring', toValue: 3, config: motion.spring }]);
-  assert.deepEqual(styleOf(pill().props.style).transform, [{ translateX: 3 * ITEM_WIDTH }]);
+  assert.deepEqual(harness.animations, [{ kind: 'spring', toValue: 0, config: motion.spring }]);
+  const style = styleOf(pill().props.style);
+  assert.equal(style.start, 6 + 3 * ITEM_WIDTH);
+  assert.deepEqual(style.transform, [{ translateX: 0 }]);
 });
 
 test('with Reduce Motion on, the pill jumps to the new slot without a spring', async () => {
@@ -97,13 +99,31 @@ test('with Reduce Motion on, the pill jumps to the new slot without a spring', a
   await settle(view, () => <TabBarSelection selectedIndex={4} count={5} color={PILL_COLOR} />);
 
   assert.deepEqual(harness.animations, []);
-  assert.deepEqual(styleOf(pill().props.style).transform, [{ translateX: 4 * ITEM_WIDTH }]);
+  assert.equal(styleOf(pill().props.style).start, 6 + 4 * ITEM_WIDTH);
 });
 
-test('in right-to-left layouts the pill slides the other way', async () => {
+test('a tab change made while the capsule is unmeasured lands on its slot at the first layout', async () => {
+  // The reader hides the bar (the capsule measures 0 wide, the pill unmounts), the
+  // tab changes meanwhile, then the bar shows again. The pill must be on the Bible
+  // slot on its very first render, with no animated value having to catch up.
+  const { view, layer, maybePill, layout, TabBarSelection } = await renderSelection(0);
+  await layout();
+  await view.fire(layer, 'onLayout', { nativeEvent: { layout: { width: 0, height: 0 } } });
+  assert.equal(maybePill(), undefined);
+
+  await view.rerender(<TabBarSelection selectedIndex={1} count={5} color={PILL_COLOR} />);
+  await view.fire(layer, 'onLayout', {
+    nativeEvent: { layout: { width: CAPSULE_WIDTH, height: 64 } },
+  });
+  const style = styleOf(assertDefined(maybePill(), 'the pill').props.style);
+  assert.equal(style.start, 6 + ITEM_WIDTH);
+  assert.equal(style.width, ITEM_WIDTH);
+});
+
+test('in right-to-left layouts the pill rests on the logical start edge', async () => {
   harness.rn.I18nManager.isRTL = true;
   const { pill, layout } = await renderSelection(1);
   await layout();
 
-  assert.deepEqual(styleOf(pill().props.style).transform, [{ translateX: -ITEM_WIDTH }]);
+  assert.equal(styleOf(pill().props.style).start, 6 + ITEM_WIDTH);
 });

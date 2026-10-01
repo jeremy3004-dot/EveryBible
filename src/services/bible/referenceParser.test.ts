@@ -14,6 +14,7 @@ import { vi } from '../../i18n/locales/vi';
 import { zh } from '../../i18n/locales/zh';
 import {
   parsePassageReference,
+  parsePassageBookLocale,
   parsePassageReferenceLocale,
   isSupportedParserLocale,
   warmReferenceParser,
@@ -467,4 +468,34 @@ test('warmReferenceParser readies the interface grammar and the English fallback
   assert.deepEqual(warmReferenceParser('fr'), [], 'French uses English, which is ready already');
   assert.deepEqual(warmReferenceParser('hi'), ['hi']);
   assert.deepEqual(parseAll(), before, 'warming leaves every answer as it was');
+});
+
+// ---------------------------------------------------------------------------
+// A query that names a book and nothing else
+// ---------------------------------------------------------------------------
+
+test('a bare book name or abbreviation resolves to the book', () => {
+  assert.equal(parsePassageBookLocale('john', 'en'), 'JHN');
+  assert.equal(parsePassageBookLocale('  John ', 'en'), 'JHN');
+  assert.equal(parsePassageBookLocale('1 john', 'en'), '1JN');
+  assert.equal(parsePassageBookLocale('psalms', 'en'), 'PSA');
+  assert.equal(parsePassageBookLocale('Gen', 'en'), 'GEN');
+  assert.equal(parsePassageBookLocale('job', 'en'), 'JOB');
+});
+
+test('short words, chapters and sentences are not a book-only query', () => {
+  assert.equal(parsePassageBookLocale('am', 'en'), null);
+  assert.equal(parsePassageBookLocale('is', 'en'), null);
+  assert.equal(parsePassageBookLocale('john 3', 'en'), null);
+  assert.equal(parsePassageBookLocale('john loves', 'en'), null);
+  assert.equal(parsePassageBookLocale('love', 'en'), null);
+  assert.equal(parsePassageBookLocale('', 'en'), null);
+});
+
+test('a book named in the interface language resolves to the book', () => {
+  assert.equal(parsePassageBookLocale('Jean', 'fr', frNames), 'JHN');
+  assert.equal(parsePassageBookLocale('1 Jean', 'fr', frNames), '1JN');
+  assert.equal(parsePassageBookLocale('约翰福音', 'zh', interfaceBookNames(zh.bible.books)), 'JHN');
+  assert.equal(parsePassageBookLocale('Genese', 'fr', frNames), 'GEN');
+  assert.equal(parsePassageBookLocale('Jean aime', 'fr', frNames), null);
 });

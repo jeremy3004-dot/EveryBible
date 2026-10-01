@@ -179,6 +179,8 @@ export function BibleBrowserScreen() {
     const submitIntent = resolveSubmitIntent();
     if (submitIntent.kind === 'reference') {
       handleReferencePress(submitIntent.target);
+    } else if (submitIntent.kind === 'full-text' && submitIntent.book) {
+      handleReferencePress(submitIntent.book);
     }
   }, [handleReferencePress, resolveSubmitIntent]);
 
@@ -239,14 +241,23 @@ export function BibleBrowserScreen() {
       </BibleBrowserHeader>
 
       {searchIntent.kind === 'full-text' ? (
-        <BibleSearchResults
-          results={search.searchResults}
-          isSearching={search.isSearching}
-          error={search.searchError}
-          hasNoResults={search.hasNoResults}
-          contentContainerStyle={listContentStyle}
-          onPressResult={handleSearchResultPress}
-        />
+        <>
+          {searchIntent.book ? (
+            <ReferenceJumpCard
+              target={searchIntent.book}
+              translationId={currentTranslation}
+              onPress={handleReferencePress}
+            />
+          ) : null}
+          <BibleSearchResults
+            results={search.searchResults}
+            isSearching={search.isSearching}
+            error={search.searchError}
+            hasNoResults={search.hasNoResults}
+            contentContainerStyle={listContentStyle}
+            onPressResult={handleSearchResultPress}
+          />
+        </>
       ) : searchIntent.kind === 'reference' ? (
         <ReferenceJumpCard
           target={searchIntent.target}
