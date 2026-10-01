@@ -353,18 +353,20 @@ test('going inactive in the settlement tail locks at its existing deadline', asy
   assert.equal(usePrivacyStore.getState().isLocked, true);
 });
 
-test('an icon alert held until the next active state still expires while inactive', async () => {
+test('an icon alert held until the next active state stays excused while inactive, and ends when answered', async () => {
   prepareInactiveGraceTest();
   const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
     await import('../services/privacy/privacyLockGrace');
   await withPrivacyLockGrace(async () => undefined, { untilNextActive: true });
   mock.timers.tick(2_000);
   rn.AppState.emit('inactive');
-  mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS - 2_001);
+  mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS * 2);
+  assert.equal(usePrivacyStore.getState().isLocked, false, 'the open alert is not on a timer');
+  rn.AppState.emit('active');
   assert.equal(usePrivacyStore.getState().isLocked, false);
-  rn.AppState.emit('inactive');
   mock.timers.tick(1);
-  assert.equal(usePrivacyStore.getState().isLocked, true);
+  rn.AppState.emit('inactive');
+  assert.equal(usePrivacyStore.getState().isLocked, true, 'leaving afterwards locks');
 });
 
 test('unmounting cancels an inactive grace timer and settlement subscription', async () => {
@@ -416,4 +418,83 @@ test('another prompt and repeated inactive events cannot extend the same absence
     finishSecond();
     await Promise.all([first, second]);
   }
+});
+
+// ─── An icon alert the reader leaves open ────────────────────────────────────
+
+const ICON_ALERT_OPEN_MS = 12_000;
+
+/** Turns discreet mode's icon change on under a fake clock; returns once it settled. */
+async function changeIconUnderAlert() {
+  configureDiscreet();
+  homeScreenIcon = 'standard';
+  inactiveTestClock += 100_000;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inactiveTestClock });
+  const lock = mountPrivacyLock();
+  const before = changesMade;
+  void usePrivacyStore.getState().reconcileAppIcon();
+  await tickUntilIconChanged(before);
+  return lock;
+}
+
+test('an icon alert raised during the change and held open past every grace does not lock', async () => {
+  alertDuringChange = true;
+  const lock = await changeIconUnderAlert();
+
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  assert.equal(lock.locks.length, 0, 'the open alert never locked');
+  rn.AppState.emit('active');
+
+  assert.equal(lock.locks.length, 0, 'dismissing the alert late does not lock either');
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('an icon alert raised after the change and held open past every grace does not lock', async () => {
+  alertDuringChange = false;
+  const lock = await changeIconUnderAlert();
+
+  mock.timers.tick(1_527);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  assert.equal(lock.locks.length, 0, 'the open alert never locked');
+  rn.AppState.emit('active');
+
+  assert.equal(lock.locks.length, 0, 'dismissing the alert late does not lock either');
+});
+
+test('an icon alert that reports active before inactive does not lock', async () => {
+  alertDuringChange = false;
+  const lock = await changeIconUnderAlert();
+
+  mock.timers.tick(300);
+  rn.AppState.emit('active');
+  mock.timers.tick(1_000);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  rn.AppState.emit('active');
+
+  assert.equal(lock.locks.length, 0);
+});
+
+test('backgrounding while a long icon alert is open still locks', async () => {
+  alertDuringChange = true;
+  await changeIconUnderAlert();
+
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  rn.AppState.emit('background');
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('leaving the app after a long icon alert was dismissed locks again', async () => {
+  alertDuringChange = true;
+  await changeIconUnderAlert();
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  rn.AppState.emit('active');
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+
+  mock.timers.tick(GRACE_MS + 1);
+  rn.AppState.emit('inactive');
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
 });
