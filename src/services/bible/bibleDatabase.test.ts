@@ -452,6 +452,28 @@ test('initDatabase imports the bundled asset on first launch and reports what it
   );
 });
 
+test('a cold initDatabase counts the bundled verses once, not once to verify and again to report', async () => {
+  const { initDatabase } = await loadModule();
+  await resetBundledDatabase();
+
+  await initDatabase(READY_VERSE_COUNT);
+
+  const countScans = queries.filter(
+    (entry) =>
+      entry.path === bundledDatabasePath &&
+      entry.sql.includes('SELECT COUNT(*) as count FROM verses')
+  );
+  assert.equal(
+    countScans.filter((entry) => !entry.sql.includes('WHERE')).length,
+    1,
+    'the verse count is a scan of every row of the four bundled translations'
+  );
+  assert.equal(
+    countScans.filter((entry) => entry.sql.includes('formatting IS NOT NULL')).length,
+    1
+  );
+});
+
 test('the status returned by initDatabase reports readiness against the shipped threshold', async () => {
   const { initDatabase, DEFAULT_MINIMUM_READY_VERSE_COUNT } = await loadModule();
 

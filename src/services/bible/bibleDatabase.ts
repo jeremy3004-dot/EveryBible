@@ -331,15 +331,19 @@ export function scheduleTextPackSearchIndexBuild(
   });
 }
 
+// The status that decided readiness is returned with the handle: inspecting again to report it
+// re-counted every bundled verse (about 124,000 rows) on the cold-start path.
+type BundledDatabaseOpen = { database: SQLite.SQLiteDatabase; status: BibleDatabaseStatus };
+
 async function ensureBundledDatabaseReady(
   minimumReadyVerseCount: number
-): Promise<SQLite.SQLiteDatabase> {
+): Promise<BundledDatabaseOpen> {
   try {
     const database = await openBundledDatabase(false);
     const status = await inspectOpenDatabase(database);
 
     if (isBundledBibleDatabaseReady(status, minimumReadyVerseCount)) {
-      return database;
+      return { database, status };
     }
   } catch (error) {
     console.warn('[Bible] Bundled database check failed, attempting recovery:', error);
@@ -357,17 +361,17 @@ async function ensureBundledDatabaseReady(
     );
   }
 
-  return recoveredDatabase;
+  return { database: recoveredDatabase, status: recoveredStatus };
 }
 
 // Shared by initDatabase/getDatabase/inspectBundledDatabaseStatus so concurrent cold-start
 // callers (e.g. isBibleDataReady() and initBibleData() firing close together) don't race each
 // other into duplicate imports/recovery cycles against the same underlying .db file.
-let bundledInitPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let bundledInitPromise: Promise<BundledDatabaseOpen> | null = null;
 
 function acquireBundledDatabaseSingleFlight(
   minimumReadyVerseCount: number
-): Promise<SQLite.SQLiteDatabase> {
+): Promise<BundledDatabaseOpen> {
   if (!bundledInitPromise) {
     bundledInitPromise = ensureBundledDatabaseReady(minimumReadyVerseCount).finally(() => {
       bundledInitPromise = null;
@@ -393,8 +397,7 @@ export async function initDatabase(
     }
   }
 
-  const database = await acquireBundledDatabaseSingleFlight(minimumReadyVerseCount);
-  return inspectOpenDatabase(database);
+  return (await acquireBundledDatabaseSingleFlight(minimumReadyVerseCount)).status;
 }
 
 function notReadyStatus(): BibleDatabaseStatus {
