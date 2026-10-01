@@ -36,6 +36,8 @@ export interface AppCardProps {
   accessibilityLabel?: string;
   /** Pressable cards only: state the label does not carry (progress, day). */
   accessibilityValue?: AccessibilityValue;
+  /** Pressable cards only: what activating does, when the label replaces visible text. */
+  accessibilityHint?: string;
   /** Pressable cards only: e.g. `selected` for a card that is one of several choices. */
   accessibilityState?: AccessibilityState;
   /**
@@ -67,6 +69,7 @@ export function AppCard({
   style,
   accessibilityLabel,
   accessibilityValue,
+  accessibilityHint,
   accessibilityState,
   accessibilityActions,
   onAccessibilityAction,
@@ -115,6 +118,7 @@ export function AppCard({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityValue={accessibilityValue}
+        accessibilityHint={accessibilityHint}
         accessibilityState={accessibilityState}
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={onAccessibilityAction}

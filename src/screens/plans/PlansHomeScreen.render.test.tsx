@@ -570,6 +570,19 @@ test('active plans split into Daily readings and Daily rhythms, each card announ
   assert.ok(within(kathisma).getByText(t('readingPlans.morningLabel')));
 });
 
+test('an active plan card speaks the action its button offers as a hint', async () => {
+  await seed(
+    progressRow(PSALMS, { current_day: 3, started_at: '2026-09-22T09:00:00.000Z' }),
+    progressRow(KATHISMA, { started_at: '2026-09-20T09:00:00.000Z' })
+  );
+  const view = await renderHome();
+
+  const psalms = view.getByRole('button', { name: titleOf(PSALMS) });
+  assert.equal(psalms.props.accessibilityHint, t('common.continue'));
+  const kathisma = view.getByRole('button', { name: titleOf(KATHISMA) });
+  assert.equal(kathisma.props.accessibilityHint, t('readingPlans.morningLabel'));
+});
+
 test('within a section, the most recently started plan comes first', async () => {
   await seed(
     progressRow(GOSPELS, { started_at: '2026-09-19T09:00:00.000Z' }),
