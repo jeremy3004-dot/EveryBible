@@ -662,6 +662,37 @@ for (const failure of ['offline', 'failed'] as const) {
   });
 }
 
+test('listening banked inside the same minute does not re-render the profile', async () => {
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 5 * 60_000 } });
+  const view = await renderScreen();
+
+  const since = harness.renders.mark();
+  for (let tick = 1; tick <= 4; tick += 1) {
+    await act(async () => {
+      useProgressStore.setState({
+        listeningMsByDate: { '2026-09-17': 5 * 60_000 + tick * 10_000 },
+      });
+    });
+  }
+  await view.flush();
+
+  assert.equal(harness.renders.since(since).length, 0);
+});
+
+test('the listening total still moves once a whole minute is banked', async () => {
+  signIn();
+  backend.engagement = { success: true, data: engagementSummary(0) };
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 5 * 60_000 } });
+  const view = await renderScreen();
+  assert.ok(view.getByText(harness.i18n.t('interface.minutesShort', { count: 5 })));
+
+  await act(async () => {
+    useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 6 * 60_000 } });
+  });
+
+  assert.ok(view.getByText(harness.i18n.t('interface.minutesShort', { count: 6 })));
+});
+
 for (const sameUid of [false, true]) {
   test(`a pending expired-token restore cannot update a ${sameUid ? 'new generation of the same' : 'different'} account`, async () => {
     signIn();

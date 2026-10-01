@@ -13,10 +13,26 @@ export function totalListeningMinutes(
   listeningMsByDate: Record<string, number>,
   cloudMinutes: number | null | undefined
 ): number {
+  return combineListeningMinutes(localListeningMinutes(listeningMsByDate), cloudMinutes);
+}
+
+/**
+ * Whole minutes banked on this device. A store selector can return this instead of
+ * the raw map: audio banks listening every 30 seconds, but the minute count only
+ * changes about every other bank, so subscribers re-render at most that often.
+ */
+export function localListeningMinutes(listeningMsByDate: Record<string, number>): number {
   const localMs = Object.values(listeningMsByDate)
     .filter(isCountableMs)
     .reduce((sum, ms) => sum + ms, 0);
-  const localMinutes = Math.floor(localMs / MINUTE_MS);
+  return Math.floor(localMs / MINUTE_MS);
+}
+
+/** The larger of this device's minutes and the cloud summary's (see totalListeningMinutes). */
+export function combineListeningMinutes(
+  localMinutes: number,
+  cloudMinutes: number | null | undefined
+): number {
   const cloud = cloudMinutes != null && isCountableMs(cloudMinutes) ? Math.floor(cloudMinutes) : 0;
   return Math.max(localMinutes, cloud);
 }
