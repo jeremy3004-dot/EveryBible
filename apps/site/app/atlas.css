@@ -1527,25 +1527,24 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid hsl(var(--foreground) / 0.08);
-  border-radius: 10px;
-  background: hsl(var(--background) / 0.78);
-  box-shadow: var(--shadow-md), var(--edge-light);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid hsl(var(--foreground) / 0.28);
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: var(--shadow-lg);
 }
 .pa-zoom button {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border: 0;
   background: none;
   color: hsl(var(--foreground));
-  font: 500 20px/1 var(--font-ui);
+  font: 500 28px/1 var(--font-ui);
 }
 .pa-zoom button + button {
-  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  border-top: 1px solid hsl(var(--foreground) / 0.2);
 }
 .pa-zoom button:hover {
+  background: hsl(var(--primary) / 0.16);
   color: hsl(var(--primary));
 }
 .pa-zoom button:active {

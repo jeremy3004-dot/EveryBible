@@ -13,6 +13,8 @@ const ALL_GESTURES = [...SCROLL_GESTURES, 'dragPan', 'dragRotate', 'boxZoom', 'k
 /* Latitude the globe tilts toward: most of the world's languages sit north
    of the equator. */
 const HERO_LATITUDE = 18;
+/* Start a little closer than a whole-globe fit, so the dots read as places. */
+const HERO_ZOOM_IN = 0.45;
 const SPIN_FRAME_MS = 66;
 /* Phone-sized maps keep a still globe: every turn re-projects ~26k dots. */
 const PHONE_WIDTH = 760;
@@ -71,7 +73,7 @@ export function useStoryCamera(
     handled.current = false;
     map.jumpTo({
       center: [map.getCenter().lng, HERO_LATITUDE],
-      zoom: globeFitZoom(width, height, HERO_LATITUDE),
+      zoom: globeFitZoom(width, height, HERO_LATITUDE) + HERO_ZOOM_IN,
       bearing: 0,
       pitch: 0,
       padding,
