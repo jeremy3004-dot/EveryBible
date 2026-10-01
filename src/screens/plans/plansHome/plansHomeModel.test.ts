@@ -101,6 +101,20 @@ test('the reader’s plans are listed most recently started first', () => {
   );
 });
 
+test('a plan read since it started leads, so My Plans and the Home shelf agree on order', () => {
+  const sorted = sortProgressNewestFirst({
+    older: makeProgress('older', {
+      started_at: '2026-09-01T00:00:00.000Z',
+      completed_entries: { '1': '2026-09-10T08:00:00.000Z' },
+    }),
+    newer: makeProgress('newer', { started_at: '2026-09-03T00:00:00.000Z' }),
+  });
+  assert.deepEqual(
+    sorted.map((row) => row.plan_id),
+    ['older', 'newer']
+  );
+});
+
 test('active and completed rows join the catalog and drop a plan the catalog no longer has', () => {
   const progress = [
     makeProgress('psalms'),
