@@ -20,8 +20,9 @@ export function resolveLocaleSummary({
   resolveCountryDisplayName,
   fallbackLabel,
 }: LocaleSummaryInput): string {
+  // The catalog answers '' for a code it does not list, so the saved name still shows.
   const localizedCountryName = countryCode
-    ? resolveCountryDisplayName(countryCode, currentLanguage)
+    ? resolveCountryDisplayName(countryCode, currentLanguage) || countryName
     : countryName;
 
   if (localizedCountryName && contentLanguageNativeName) {

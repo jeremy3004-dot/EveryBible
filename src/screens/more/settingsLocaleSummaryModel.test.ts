@@ -76,3 +76,18 @@ test('prefers the localized country name over the stored country name', () => {
     'Reino Unido • English'
   );
 });
+
+test('falls back to the stored country name when the catalog cannot name the saved code', () => {
+  // A synced or older preference can hold a code the catalog does not list; the engine then
+  // answers with an empty string, which must not hide the name saved beside it.
+  assert.equal(
+    resolveLocaleSummary({
+      ...baseInput,
+      countryCode: 'ZZ',
+      countryName: 'Atlantis',
+      contentLanguageNativeName: 'English',
+      resolveCountryDisplayName: () => '',
+    }),
+    'Atlantis • English'
+  );
+});
