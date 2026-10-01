@@ -113,6 +113,8 @@ export function PrayerWallScreen() {
   const loadGenerationRef = useRef(0);
   // A list snapshot started before a confirmed write must not undo that write.
   const confirmedMutationRef = useRef(0);
+  // Whether this wall has shown a server snapshot yet; the first one is never just dropped.
+  const hasLoadedRef = useRef(false);
   // The request whose report form is open, if any.
   const [reportTarget, setReportTarget] = useState<PrayerRequestWithCounts | null>(null);
   const [isReporting, setIsReporting] = useState(false);
@@ -136,10 +138,18 @@ export function PrayerWallScreen() {
     setIsLoadingMore(false);
     const isCurrent = () => owner.isCurrent() && generation === loadGenerationRef.current;
     const isFresh = () => isCurrent() && mutation === confirmedMutationRef.current;
+    // A write confirmed while the very first load was in flight makes that snapshot stale, but
+    // dropping it would leave the wall with only the new row and no older requests or retry.
+    let reloadFirstSnapshot = false;
     try {
       const result = await prayerService.listPrayerRequests(groupId);
+      if (isCurrent() && !isFresh() && !hasLoadedRef.current) {
+        reloadFirstSnapshot = true;
+        return;
+      }
       if (!isFresh()) return;
       if (result.success && result.data) {
+        hasLoadedRef.current = true;
         setRequests(result.data);
         setNextCursor(result.nextCursor ?? null);
         confirmedRef.current = new Map();
@@ -158,7 +168,8 @@ export function PrayerWallScreen() {
       setOffline(isOffline);
       setLoadError(true);
     } finally {
-      if (isCurrent()) {
+      if (reloadFirstSnapshot) void loadRequests();
+      else if (isCurrent()) {
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -210,6 +221,7 @@ export function PrayerWallScreen() {
     inFlightRef.current = new Map();
     confirmedRef.current = new Map();
     loadingMoreRef.current = null;
+    hasLoadedRef.current = false;
     submittingRef.current = null;
     reportingRef.current = null;
     setRequests([]);
