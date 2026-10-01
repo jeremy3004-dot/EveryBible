@@ -66,6 +66,9 @@ export const modalStyles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.pageTitle,
+    // pageTitle's 0.95 line height is tuned for one-line screen titles; a dialog title can
+    // wrap or scale up, and Android clips the descenders ("language") below that box.
+    lineHeight: 30,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },

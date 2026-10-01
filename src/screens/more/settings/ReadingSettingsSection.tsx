@@ -118,7 +118,7 @@ export function ReadingSettingsSection({
               strokeWidth={ICON_STROKE}
               style={styles.blockIcon}
             />
-            <Text style={[typography.rowTitle, { color: colors.primaryText }]}>
+            <Text style={[typography.rowTitle, styles.leftAligned, { color: colors.primaryText }]}>
               {t('settings.themeMode')}
             </Text>
           </View>
@@ -238,6 +238,10 @@ export function ReadingSettingsSection({
 }
 
 const styles = StyleSheet.create({
+  // The enforced LTR row, not the label's script, decides which edge text sits against.
+  leftAligned: {
+    textAlign: 'left',
+  },
   themeBlock: {
     paddingVertical: spacing.md,
     gap: spacing.md,

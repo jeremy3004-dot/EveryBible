@@ -50,7 +50,7 @@ export function limitStoryPassageView(view: StoryPassageView, maxVerses: number)
  * the "1" alone on a second line.
  */
 export function keepReferenceTogether(reference: string): string {
-  return reference.replace(/ (?=\d)/g, ' ');
+  return reference.replace(/ (?=\d)/g, '\u00a0');
 }
 
 /**
