@@ -565,7 +565,7 @@ test("Share opens the verse-picture editor on today's photograph, verse and refe
   const view = await renderHome();
   const { editor, picture, pictureNode } = await openShareEditor(view);
 
-  assert.ok(picture.getByText(`"${JOHN_3_16}"`));
+  assert.ok(picture.getByText(`“${JOHN_3_16}”`));
   assert.ok(picture.getByText('John 3:16'));
   // Only the verse and its reference: no title or date line above it.
   assert.equal(picture.queryByText(/^Verse of the Day/), null);

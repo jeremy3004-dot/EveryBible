@@ -38,7 +38,7 @@ async function renderSheet(text = VERSE) {
   );
   const tab = (key: string) => view.getByRole('tab', { name: t(`bible.verseImage.tabs.${key}`) });
   const verse = () =>
-    view.getAllByText(`"${text}"`).find((node) => node.props.testID !== 'verse-image-measure')!;
+    view.getAllByText(`“${text}”`).find((node) => node.props.testID !== 'verse-image-measure')!;
   return { view, tab, verse };
 }
 
@@ -63,6 +63,19 @@ test('four tabs edit the picture: its background, font, colour and size', async 
     ['picture', 'font', 'color', 'size'].map((key) => t(`bible.verseImage.tabs.${key}`))
   );
   assert.ok(view.getAllByRole('button', { name: /1$/ }).length > 0, 'the backgrounds show first');
+});
+
+test('the sheet is titled for the tab being edited', async () => {
+  const { view, tab } = await renderSheet();
+  const title = () => view.getByRole('header').props.children;
+
+  assert.equal(title(), t('bible.chooseVerseImageBackground'));
+  for (const key of ['font', 'color', 'size']) {
+    await view.press(tab(key));
+    assert.equal(title(), t(`bible.verseImage.tabs.${key}`));
+  }
+  await view.press(tab('picture'));
+  assert.equal(title(), t('bible.chooseVerseImageBackground'));
 });
 
 test('the picture names the passage without the translation', async () => {

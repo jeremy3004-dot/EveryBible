@@ -33,7 +33,8 @@ export function VerseImageSharePreview({
   onFitChange,
 }: VerseImageSharePreviewProps) {
   const verseText = selectedText.trim();
-  const shownText = `"${verseText || referenceLabel}"`;
+  // Curly quotes, as the reader's own verse text sets them.
+  const shownText = `“${verseText || referenceLabel}”`;
   const color = getVerseImageColor(style.colorId);
   // The reference keeps the app's own chip in every text colour: an opaque backdrop,
   // since the wash over the photo is translucent.
@@ -151,7 +152,11 @@ export function VerseImageSharePreview({
           <View
             style={[
               styles.verseImagePreviewReferenceChip,
-              { backgroundColor: colors.bibleSurface },
+              {
+                backgroundColor: colors.bibleSurface,
+                // The surface is near the wash over a dark picture; the outline keeps it a chip.
+                borderColor: colors.bibleSecondaryText,
+              },
             ]}
           >
             <Text
@@ -237,6 +242,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+    borderWidth: 1,
   },
   verseImagePreviewReference: {
     ...typography.label,

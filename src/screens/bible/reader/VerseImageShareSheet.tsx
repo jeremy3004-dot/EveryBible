@@ -334,7 +334,9 @@ export function VerseImageShareSheet({
                   accessibilityRole="header"
                   style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
                 >
-                  {t('bible.chooseVerseImageBackground')}
+                  {activeTab === 'picture'
+                    ? t('bible.chooseVerseImageBackground')
+                    : t(`bible.verseImage.tabs.${activeTab}`)}
                 </Text>
                 <Text
                   style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
