@@ -428,3 +428,23 @@ test('an old image failure cannot clear a replacement selection share or launch 
   await finishDismissal(view, onDismiss);
   assert.equal(sharing.sheets.at(-1)?.uri, 'file:///new-selection.png');
 });
+
+test('each background tile says its position in the rail', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  const total = within(sheet)
+    .queryAllByType('ImageBackground')
+    .filter((node) => node.props.resizeMethod === 'resize').length;
+  assert.ok(total > 1, 'the rail offers multiple backgrounds');
+
+  assert.ok(
+    within(sheet).getByRole('button', {
+      name: t('bible.verseImage.backgroundOption', { position: 1, total }),
+    })
+  );
+  assert.ok(
+    within(sheet).getByRole('button', {
+      name: t('bible.verseImage.backgroundOption', { position: total, total }),
+    })
+  );
+});

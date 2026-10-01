@@ -675,6 +675,7 @@ export const vi = {
       },
       size: 'Kích cỡ chữ',
       sizeMaxed: 'Kích cỡ tối đa: chữ đã lấp đầy toàn bộ hình ảnh',
+      backgroundOption: 'Nền {{position}} trên {{total}}',
     },
     chooseVerseImageBackground: 'Chọn ảnh nền',
     books: {

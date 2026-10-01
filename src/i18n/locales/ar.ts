@@ -710,6 +710,7 @@ export const ar = {
       },
       size: 'حجم النص',
       sizeMaxed: 'بلغ الحجم أقصاه: الكلمات تملأ الصورة بالكامل',
+      backgroundOption: 'الخلفية {{position}} من {{total}}',
     },
     chooseVerseImageBackground: 'اختر خلفية',
     books: {

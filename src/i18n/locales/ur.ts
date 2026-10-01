@@ -662,6 +662,7 @@ export const ur = {
       },
       size: 'تحریر کا سائز',
       sizeMaxed: 'زیادہ سے زیادہ سائز: الفاظ نے پوری تصویر بھر دی ہے',
+      backgroundOption: 'پس منظر {{position}} از {{total}}',
     },
     chooseVerseImageBackground: 'پس منظر منتخب کریں',
     books: {

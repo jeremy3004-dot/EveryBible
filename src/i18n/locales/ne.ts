@@ -314,6 +314,7 @@ export const ne = {
       },
       size: 'पाठको आकार',
       sizeMaxed: 'अधिकतम आकार: शब्दहरूले तस्बिर पूरै भरेको छ',
+      backgroundOption: '{{total}} मध्ये {{position}} नम्बरको पृष्ठभूमि',
     },
     chooseVerseImageBackground: 'पृष्ठभूमि छान्नुहोस्',
     chapterFeedback: 'शुद्धता समीक्षा',

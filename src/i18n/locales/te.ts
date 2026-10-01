@@ -317,6 +317,7 @@ export const te = {
       },
       size: 'అక్షరాల పరిమాణం',
       sizeMaxed: 'గరిష్ట పరిమాణం: పదాలు చిత్రాన్ని పూర్తిగా నింపేశాయి',
+      backgroundOption: '{{total}}లో {{position}}వ నేపథ్యం',
     },
     chooseVerseImageBackground: 'నేపథ్యాన్ని ఎంచుకోండి',
     books: {

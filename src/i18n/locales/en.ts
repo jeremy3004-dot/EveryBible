@@ -653,6 +653,7 @@ export const en = {
       },
       size: 'Text size',
       sizeMaxed: 'As big as it goes: the words fill the picture',
+      backgroundOption: 'Background {{position}} of {{total}}',
     },
     chooseVerseImageBackground: 'Choose a background',
     chapterFeedback: 'Accuracy review',

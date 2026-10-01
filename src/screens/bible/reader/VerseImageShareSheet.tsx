@@ -121,7 +121,10 @@ export function VerseImageShareSheet({
             key={`${index}`}
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={`${t('bible.chooseVerseImageBackground')} ${index + 1}`}
+            accessibilityLabel={t('bible.verseImage.backgroundOption', {
+              position: index + 1,
+              total: SHARE_VERSE_BACKGROUND_SOURCES.length,
+            })}
             hitSlop={8}
             style={({ pressed }) => [
               styles.verseImageBackgroundButton,

@@ -678,6 +678,7 @@ export const de = {
       },
       size: 'Textgröße',
       sizeMaxed: 'Maximale Größe: Der Text füllt das ganze Bild aus',
+      backgroundOption: 'Hintergrund {{position}} von {{total}}',
     },
     chooseVerseImageBackground: 'Hintergrund auswählen',
     books: {

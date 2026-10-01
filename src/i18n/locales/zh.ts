@@ -640,6 +640,7 @@ export const zh = {
       },
       size: '文字大小',
       sizeMaxed: '已达到最大尺寸：文字已经填满整张图片',
+      backgroundOption: '第 {{position}} 张背景，共 {{total}} 张',
     },
     chooseVerseImageBackground: '选择背景',
     books: {

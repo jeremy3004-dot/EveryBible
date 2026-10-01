@@ -695,6 +695,7 @@ export const ru = {
       },
       size: 'Размер текста',
       sizeMaxed: 'Максимальный размер: слова уже заполняют всю фотографию',
+      backgroundOption: 'Фон {{position}} из {{total}}',
     },
     chooseVerseImageBackground: 'Выберите фон',
     chapterFeedback: 'Отзыв о точности',

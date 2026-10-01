@@ -315,6 +315,7 @@ export const mr = {
       },
       size: 'मजकुराचा आकार',
       sizeMaxed: 'कमाल आकार: शब्दांनी संपूर्ण चित्र भरले आहे',
+      backgroundOption: '{{total}} पैकी {{position}} क्रमांकाची पार्श्वभूमी',
     },
     chooseVerseImageBackground: 'पार्श्वभूमी निवडा',
     books: {

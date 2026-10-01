@@ -319,6 +319,7 @@ export const ta = {
       },
       size: 'எழுத்து அளவு',
       sizeMaxed: 'அதிகபட்ச அளவு: வார்த்தைகள் படம் முழுவதையும் நிறைத்துவிட்டன',
+      backgroundOption: '{{total}} இல் {{position}}வது பின்னணி',
     },
     chooseVerseImageBackground: 'பின்னணியைத் தேர்ந்தெடுங்கள்',
     books: {

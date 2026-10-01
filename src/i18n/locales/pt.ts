@@ -689,6 +689,7 @@ export const pt = {
       },
       size: 'Tamanho do texto',
       sizeMaxed: 'Tamanho máximo: as palavras já preenchem toda a foto',
+      backgroundOption: 'Plano de fundo {{position}} de {{total}}',
     },
     chooseVerseImageBackground: 'Escolha um plano de fundo',
     books: {

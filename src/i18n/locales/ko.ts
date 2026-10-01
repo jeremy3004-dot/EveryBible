@@ -659,6 +659,7 @@ export const ko = {
       },
       size: '텍스트 크기',
       sizeMaxed: '최대 크기입니다: 글자가 이미지를 가득 채웠습니다',
+      backgroundOption: '배경 {{position}}/{{total}}',
     },
     chooseVerseImageBackground: '배경을 선택하세요',
     books: {

@@ -672,6 +672,7 @@ export const tr = {
       },
       size: 'Metin boyutu',
       sizeMaxed: 'Ulaşılabilecek en büyük boyut: kelimeler fotoğrafı tamamen dolduruyor',
+      backgroundOption: 'Arka plan {{position}} / {{total}}',
     },
     chooseVerseImageBackground: 'Bir arka plan seçin',
     books: {

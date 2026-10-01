@@ -316,6 +316,7 @@ export const pa = {
       },
       size: 'ਲਿਖਤ ਦਾ ਆਕਾਰ',
       sizeMaxed: 'ਵੱਧ ਤੋਂ ਵੱਧ ਆਕਾਰ: ਸ਼ਬਦ ਪੂਰੀ ਤਸਵੀਰ ਭਰ ਗਏ ਹਨ',
+      backgroundOption: '{{total}} ਵਿੱਚੋਂ ਪਿਛੋਕੜ {{position}}',
     },
     chooseVerseImageBackground: 'ਇੱਕ ਪਿਛੋਕੜ ਚੁਣੋ',
     books: {

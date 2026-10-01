@@ -316,6 +316,7 @@ export const hi = {
       },
       size: 'टेक्स्ट का आकार',
       sizeMaxed: 'अधिकतम आकार: शब्द पूरी तस्वीर भर चुके हैं',
+      backgroundOption: '{{total}} में से पृष्ठभूमि {{position}}',
     },
     chooseVerseImageBackground: 'पृष्ठभूमि चुनें',
     chapterFeedback: 'सटीकता की समीक्षा',

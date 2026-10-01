@@ -693,6 +693,7 @@ export const es = {
       },
       size: 'Tamaño del texto',
       sizeMaxed: 'Tamaño máximo: el texto ya llena toda la foto',
+      backgroundOption: 'Fondo {{position}} de {{total}}',
     },
     chooseVerseImageBackground: 'Elige un fondo',
     chapterFeedback: 'Revisión de precisión',

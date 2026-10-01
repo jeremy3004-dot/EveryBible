@@ -659,6 +659,7 @@ export const ja = {
       },
       size: '文字サイズ',
       sizeMaxed: '最大サイズです：文字が画像いっぱいに広がっています',
+      backgroundOption: '背景 {{position}}/{{total}}',
     },
     chooseVerseImageBackground: '背景を選ぶ',
     books: {

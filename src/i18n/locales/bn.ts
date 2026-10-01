@@ -315,6 +315,7 @@ export const bn = {
       },
       size: 'লেখার আকার',
       sizeMaxed: 'সবচেয়ে বড় আকার: লেখাটি পুরো ছবি জুড়ে ছড়িয়ে গেছে',
+      backgroundOption: '{{total}}টির মধ্যে {{position}} নম্বর ব্যাকগ্রাউন্ড',
     },
     chooseVerseImageBackground: 'একটি পটভূমি বেছে নিন',
     books: {

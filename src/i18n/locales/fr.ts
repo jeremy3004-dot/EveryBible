@@ -702,6 +702,7 @@ export const fr = {
       },
       size: 'Taille du texte',
       sizeMaxed: 'Taille maximale : le texte remplit toute la photo',
+      backgroundOption: 'Arrière-plan {{position}} sur {{total}}',
     },
     chooseVerseImageBackground: 'Choisissez un arrière-plan',
     books: {

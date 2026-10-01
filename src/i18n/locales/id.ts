@@ -673,6 +673,7 @@ export const id = {
       },
       size: 'Ukuran teks',
       sizeMaxed: 'Ukuran maksimal: kata-kata sudah memenuhi seluruh gambar',
+      backgroundOption: 'Latar belakang {{position}} dari {{total}}',
     },
     chooseVerseImageBackground: 'Pilih latar belakang',
     books: {
