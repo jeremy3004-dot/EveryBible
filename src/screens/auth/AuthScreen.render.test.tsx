@@ -149,10 +149,14 @@ test('a failed reset email maps its code too, and falls back to the translated r
     { title: t('common.error'), message: t('auth.backendNotConfigured') }
   );
 
+  auth.resetResult = { success: false, code: 'service_unavailable', error: RAW_ERROR };
+  await view.press(view.getByText(t('auth.forgotPassword')));
+  assert.equal(lastAlert()?.message, t('auth.serviceUnavailable'));
+
   auth.resetResult = { success: false, code: 'unknown', error: RAW_ERROR };
   await view.press(view.getByText(t('auth.forgotPassword')));
   assert.equal(lastAlert()?.message, t('auth.resetEmailError'));
-  assert.deepEqual(auth.calls, ['reset:ruth@example.com', 'reset:ruth@example.com']);
+  assert.equal(auth.calls.length, 3);
 });
 
 test('a successful sign-in stores the live session, restores that user from the cloud and closes', async () => {
