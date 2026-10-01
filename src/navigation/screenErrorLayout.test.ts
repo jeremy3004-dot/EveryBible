@@ -65,3 +65,14 @@ test('a crashed stack root offers no Back action because there is nowhere to go 
 
 // That every *Stack.tsx passes this as its screenLayout is rendered in
 // stackRoutes.render.test.tsx.
+
+test('a screen boundary is keyed by the route params so new params retry a crashed screen', async () => {
+  const { renderScreenWithErrorBoundary } = await import('./screenErrorLayout');
+  const params = { bookId: 1, chapter: 3 };
+  const args = layoutArgs('BibleReader', { canGoBack: () => true, goBack: () => {} });
+  args.route = { ...args.route, params };
+
+  const element = renderScreenWithErrorBoundary(args);
+
+  assert.equal((element.props as { resetKey?: unknown }).resetKey, params);
+});

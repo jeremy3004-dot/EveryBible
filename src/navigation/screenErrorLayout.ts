@@ -2,7 +2,7 @@ import { createElement, type ReactElement } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface ScreenErrorLayoutArgs {
-  route: { name: string };
+  route: { name: string; params?: unknown };
   navigation: { canGoBack: () => boolean; goBack: () => void };
   children: ReactElement;
 }
@@ -24,5 +24,11 @@ export function renderScreenWithErrorBoundary({
 }: ScreenErrorLayoutArgs): ReactElement {
   const onGoBack = navigation.canGoBack() ? () => navigation.goBack() : undefined;
 
-  return createElement(ErrorBoundary, { scope: `screen:${route.name}`, onGoBack }, children);
+  // route.params is replaced by every navigate/setParams on this route instance, so
+  // a crashed screen retries when it is sent somewhere new instead of staying stuck.
+  return createElement(
+    ErrorBoundary,
+    { scope: `screen:${route.name}`, onGoBack, resetKey: route.params },
+    children
+  );
 }

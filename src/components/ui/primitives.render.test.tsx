@@ -287,6 +287,18 @@ test('Sheet is a named, iOS-modal dialog whose backdrop closes it and whose titl
   assert.deepEqual(harness.rn.__recorded.announcements, ['Share verse']);
 });
 
+test('a Sheet title is a heading, so the rotor can find what the sheet is about', async () => {
+  const { Sheet } = await import('./Sheet');
+  const { Text } = harness.rn;
+  const view = await harness.render(
+    <Sheet visible title="Share verse" onClose={() => {}}>
+      <Text>Body</Text>
+    </Sheet>
+  );
+
+  assert.ok(view.getByRole('header', { name: 'Share verse' }));
+});
+
 test("VoiceOver's escape gesture closes a Sheet", async () => {
   const { Sheet } = await import('./Sheet');
   const { Text } = harness.rn;
@@ -391,6 +403,26 @@ test('ProgressBar announces a named progress bar', async () => {
 
   const bar = view.getByRole('progressbar', { name: 'Download' });
   assert.equal(bar.props.accessibilityValue?.now, 40);
+});
+
+test('ProgressBar treats a non-finite progress (an empty plan: 0 of 0) as no progress', async () => {
+  const { ProgressBar } = await import('./ProgressBar');
+  for (const progress of [Number.NaN, Number.POSITIVE_INFINITY]) {
+    const view = await harness.render(
+      <ProgressBar progress={progress} accessibilityLabel="Plan" />
+    );
+
+    const bar = view.getByRole('progressbar', { name: 'Plan' });
+    assert.equal(bar.props.accessibilityValue?.now, 0);
+    await view.unmount();
+  }
+});
+
+test('an Avatar takes whole emoji as initials instead of splitting a surrogate pair', async () => {
+  const { Avatar } = await import('./Avatar');
+  const view = await harness.render(<Avatar name="😀 Ruth" />);
+
+  assert.ok(view.getByText('😀R'));
 });
 
 test('an Avatar reads as its name, and an unnamed one is decorative', async () => {

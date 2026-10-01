@@ -33,11 +33,18 @@ interface Props {
    * that must fail safe (the privacy lock locks the app).
    */
   onError?: (error: Error) => void;
+  /**
+   * When this changes while the fallback is showing, the boundary retries on its own.
+   * A screen boundary passes its route params: navigating the same route instance to
+   * new params (another chapter, another plan) is a fresh attempt, not the crash.
+   */
+  resetKey?: unknown;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  resetKey: unknown;
 }
 
 function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: () => void }) {
@@ -103,11 +110,18 @@ function ErrorFallback({ onRetry, onGoBack }: { onRetry: () => void; onGoBack?: 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, resetKey: props.resetKey };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
+  }
+
+  static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
+    if (props.resetKey === state.resetKey) {
+      return null;
+    }
+    return { hasError: false, error: null, resetKey: props.resetKey };
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
