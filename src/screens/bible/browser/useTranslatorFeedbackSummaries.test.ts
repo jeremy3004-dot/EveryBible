@@ -10,12 +10,17 @@ mockModule(mock, 'react', runtime.react);
 // Focus is driven by hand: `blur()` runs the focus effect's cleanup without unmounting.
 let blur: () => void = () => {};
 mockModule(mock, '@react-navigation/native', {
-  useFocusEffect: (effect: () => void | (() => void)) =>
-    runtime.react.useEffect(() => {
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    const useEffect = runtime.react.useEffect as (
+      callback: () => void | (() => void),
+      deps: unknown[]
+    ) => void;
+    useEffect(() => {
       const cleanup = effect();
       blur = typeof cleanup === 'function' ? cleanup : () => {};
       return cleanup;
-    }, [effect]),
+    }, [effect]);
+  },
 });
 
 const pending: Array<(result: unknown) => void> = [];
