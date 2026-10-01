@@ -43,6 +43,48 @@
       "reason": "Pack paths are absolute file paths, never a single character"
     }
   ],
+  "src/stores/privateDataAdoption.ts": [
+    {
+      "key": "relational-boundary|>|>=|return candidate.updated_at > current.updated_at ? candidate : current;",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.updated_at > right.updated_at",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.created_at > right.created_at",
+      "reason": "Inside the branch where created_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|: left.id > right.id;",
+      "reason": "Ids are unique after the merge, so an annotation is only compared with itself, where the result is the same object"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {",
+      "reason": "A sort comparator only matters by its sign; 2 has the sign of 1"
+    },
+    {
+      "key": "number-literal|1|0|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {",
+      "reason": "V8's sort only tests compare < 0, so returning 0 instead of 1 sorts identically (checked on 60k random arrays)"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {#1",
+      "reason": "A sort comparator only matters by its sign; -2 has the sign of -1"
+    },
+    {
+      "key": "remove-statement|return annotation;|;|return annotation;#1",
+      "reason": "Unreachable: the loop above puts every active annotation's verse+type key in visibleByKey"
+    },
+    {
+      "key": "number-literal|0|1|merged[key] = Math.max(account[key] ?? 0, value);",
+      "reason": "Every ledger value is at least 1 (epoch timestamps, whole counts, whole-ms segments), so Math.max with 0 or 1 is the same"
+    },
+    {
+      "key": "relational-boundary|>|>=|(guest.lastReadDate === account.lastReadDate && guest.streakDays > account.streakDays));",
+      "reason": "On the same date with an equal streak both branches return the same streakDays and lastReadDate"
+    }
+  ],
   "src/stores/privateDataScope.ts": [
     {
       "key": "remove-statement|return null;|;|return null;",
@@ -87,6 +129,32 @@
     {
       "key": "boolean-literal|true|false|store.setState(store.getInitialState(), true);",
       "reason": "Every private store's initial state holds all of its keys, so replacing and merging it give the same state"
+    }
+  ],
+  "src/stores/progressStore.ts": [
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;",
+      "reason": "syncDebounceTimer only feeds clearTimeout, and clearing an already-cleared handle does nothing"
+    },
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;#1",
+      "reason": "Clearing a timer that already fired does nothing"
+    },
+    {
+      "key": "nullish-drop-default|state.chaptersByDate[yesterdayStr] ?? 0|state.chaptersByDate[yesterdayStr]|(state.chaptersByDate[yesterdayStr] ?? 0) > 0 ||",
+      "reason": "undefined > 0 and 0 > 0 are both false"
+    },
+    {
+      "key": "nullish-drop-default|state.listeningMsByDate[yesterdayStr] ?? 0|state.listeningMsByDate[yesterdayStr]|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;",
+      "reason": "undefined >= MIN_LISTENING_MS and 0 >= MIN_LISTENING_MS are both false"
+    },
+    {
+      "key": "number-literal|0|1|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;",
+      "reason": "1 >= MIN_LISTENING_MS (60,000) is false, as with 0"
+    },
+    {
+      "key": "remove-statement|lastSavedProgress = undefined;|;|lastSavedProgress = undefined;",
+      "reason": "Every successful load replaces the ledgers with fresh objects, so a stale write cache can never match; only an unreadable blob is affected, and no ledger data differs"
     }
   ],
   "src/stores/readingPlans/planProgressModel.ts": [
