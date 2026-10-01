@@ -645,6 +645,19 @@ test('a private bucket that could not be read is not overwritten by the defaults
   assert.deepEqual(stored(NOTES), { notes: ['saved', 'new'] }, 'once read, writes resume');
 });
 
+// unchangedStateStorage remembers a slice as saved only when setItem returns nothing, so a
+// write that did not land must say so, or an unchanged slice would never be retried.
+test('privateDataStorage.setItem reports a write that did not reach the bucket', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const value = blob({ notes: ['kept in memory'] });
+  failWritesOf(t, NOTES);
+
+  assert.equal(scope.privateDataStorage.setItem(NOTES, value), false);
+  t.mock.restoreAll();
+  assert.equal(scope.privateDataStorage.setItem(NOTES, value), undefined);
+  assert.deepEqual(stored(NOTES), { notes: ['kept in memory'] });
+});
+
 test('a private store write still happens when the unchanged-payload check cannot read MMKV', (t) => {
   t.mock.method(console, 'warn', () => {});
   useNotes.getState().addNote('first');

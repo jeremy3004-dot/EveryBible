@@ -99,3 +99,29 @@ test('coverage probes record exactly the statements a run reached', () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('an edit to an identical statement in another function leaves a key alone', () => {
+  const twoGuards = (first: string) =>
+    [
+      'export function save(blocked: boolean) {',
+      '  if (blocked) {',
+      `    ${first}`,
+      '  }',
+      '}',
+      'export function remove(blocked: boolean) {',
+      '  if (blocked) {',
+      '    return;',
+      '  }',
+      '}',
+      '',
+    ].join('\n');
+  const keyOfRemoveGuard = (text: string) =>
+    generateMutants(text, 'guards.ts').find(
+      (m) => m.operator === 'remove-statement' && m.scope === 'remove'
+    )?.key;
+
+  assert.equal(
+    keyOfRemoveGuard(twoGuards('return false;')),
+    keyOfRemoveGuard(twoGuards('return;'))
+  );
+});

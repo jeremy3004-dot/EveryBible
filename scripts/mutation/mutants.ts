@@ -31,7 +31,13 @@ export interface Mutant {
   line: number;
   column: number;
   lineText: string;
-  /** Stable across unrelated edits to the file: used by the equivalents list. */
+  /** The named declarations around the mutant, outermost first (`store.setItem`). */
+  scope: string;
+  /**
+   * Operator, text, source line and scope, plus an occurrence number among
+   * identical ones in the same scope: stable across edits elsewhere in the file.
+   * Used by the equivalents list.
+   */
   key: string;
   /** Source offset whose execution means the mutant ran (for coverage probes). */
   anchor: number;
@@ -232,6 +238,32 @@ function isStatementDeletable(statement: ts.Statement): boolean {
   );
 }
 
+function declarationName(node: ts.Node): string | undefined {
+  if (
+    (ts.isFunctionDeclaration(node) ||
+      ts.isMethodDeclaration(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isVariableDeclaration(node) ||
+      ts.isPropertyAssignment(node) ||
+      ts.isPropertyDeclaration(node)) &&
+    node.name &&
+    (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))
+  ) {
+    return node.name.text;
+  }
+  return undefined;
+}
+
+/** The named declarations enclosing `node`, outermost first. */
+function scopeOf(node: ts.Node): string {
+  const names: string[] = [];
+  for (let current: ts.Node | undefined = node; current; current = current.parent) {
+    const name = declarationName(current);
+    if (name) names.unshift(name);
+  }
+  return names.join('.');
+}
+
 function isInsideIfBody(statement: ts.Statement): boolean {
   const parent = statement.parent;
   // A statement child of an if is its then or else branch (the condition is an expression).
@@ -249,6 +281,8 @@ export function generateMutants(sourceText: string, fileName: string): Mutant[] 
   );
   const lines = sourceText.split('\n');
   const drafts: Omit<Mutant, 'id' | 'key' | 'line' | 'column' | 'lineText'>[] = [];
+  // The node being visited; every mutant added while visiting it takes its scope.
+  let current: ts.Node = source;
   const add = (
     operator: MutantOperator,
     start: number,
@@ -258,7 +292,7 @@ export function generateMutants(sourceText: string, fileName: string): Mutant[] 
   ): void => {
     const original = sourceText.slice(start, end);
     if (original !== replacement) {
-      drafts.push({ operator, start, end, original, replacement, anchor });
+      drafts.push({ operator, start, end, original, replacement, anchor, scope: scopeOf(current) });
     }
   };
   const negate = (expression: ts.Expression) =>
@@ -271,6 +305,7 @@ export function generateMutants(sourceText: string, fileName: string): Mutant[] 
 
   const visit = (node: ts.Node): void => {
     if (isSkippedSubtree(node, source)) return;
+    current = node;
 
     if (ts.isBinaryExpression(node)) {
       const token = node.operatorToken;
@@ -416,7 +451,7 @@ export function generateMutants(sourceText: string, fileName: string): Mutant[] 
     const line = before.split('\n').length;
     const column = draft.start - before.lastIndexOf('\n');
     const lineText = (lines[line - 1] ?? '').trim();
-    const base = `${draft.operator}|${draft.original}|${draft.replacement}|${lineText}`;
+    const base = `${draft.operator}|${draft.original}|${draft.replacement}|${lineText}|${draft.scope}`;
     const occurrence = seen.get(base) ?? 0;
     seen.set(base, occurrence + 1);
     return {
