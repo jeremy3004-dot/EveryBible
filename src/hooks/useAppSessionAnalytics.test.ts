@@ -266,3 +266,30 @@ test('mounting and unmounting through cold starts leaves no listeners and balanc
     [5, 5]
   );
 });
+
+test('a transient inactive state (notification centre, permission dialog) keeps the session', async () => {
+  mountApp();
+  await settle();
+  calls.length = 0;
+
+  rn.AppState.emit('inactive');
+  await settle();
+  await foreground();
+
+  assert.deepEqual(calls, []);
+});
+
+test('going inactive and then to the background ends the session once, and the next foreground starts one', async () => {
+  mountApp();
+  await settle();
+  calls.length = 0;
+
+  rn.AppState.emit('inactive');
+  await settle();
+  await background();
+  assert.deepEqual(calls, ['endAnonymousUsageSession', 'flushAnonymousUsageEvents', 'flushEvents']);
+
+  calls.length = 0;
+  await foreground();
+  assert.deepEqual(calls, ['primeGeoContext', 'startAnonymousUsageSession']);
+});
