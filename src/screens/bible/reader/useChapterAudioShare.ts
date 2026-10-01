@@ -102,6 +102,8 @@ export function useChapterAudioShare({
     const request = {};
     requestRef.current = request;
     const isCurrent = () => requestRef.current === request;
+    // Past this point the audio exists, so a failure is the share sheet's, not a download's.
+    let audioReady = false;
 
     setShowChapterAudioShareSheet(false);
     setPendingChapterAudioShareAction('full');
@@ -142,6 +144,7 @@ export function useChapterAudioShare({
         return;
       }
 
+      audioReady = true;
       trackBibleExperienceEvent({
         name: 'library_action',
         bookId,
@@ -175,8 +178,10 @@ export function useChapterAudioShare({
       );
     } catch {
       if (!isCurrent()) return;
-      const message = t('bible.audioDownloadFailed');
-      Alert.alert(t('common.error'), message);
+      Alert.alert(
+        t('common.error'),
+        t(audioReady ? 'common.somethingWentWrong' : 'bible.audioDownloadFailed')
+      );
     } finally {
       if (isCurrent()) {
         requestRef.current = null;
