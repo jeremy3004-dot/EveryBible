@@ -817,3 +817,25 @@ export function planCompletionPercent(completedCount: number, durationDays: numb
   }
   return Math.min(100, Math.round((completedCount / durationDays) * 100));
 }
+
+/**
+ * The last time a plan was touched: its latest completed day, else its enrolment.
+ * Home's shelf and My Plans both order by this, so the plan you just read leads
+ * both lists.
+ */
+export function getPlanLastActivityTime(
+  progress: Pick<UserReadingPlanProgress, 'started_at' | 'completed_entries'>
+): number {
+  const parse = (value: string | null | undefined): number | null => {
+    const time = value ? Date.parse(value) : Number.NaN;
+    return Number.isNaN(time) ? null : time;
+  };
+  let latest = parse(progress.started_at) ?? 0;
+  for (const completedAt of Object.values(progress.completed_entries)) {
+    const time = parse(completedAt);
+    if (time != null && time > latest) {
+      latest = time;
+    }
+  }
+  return latest;
+}

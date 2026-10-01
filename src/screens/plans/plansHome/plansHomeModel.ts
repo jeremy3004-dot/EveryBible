@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import {
   getPlanDayCount,
+  getPlanLastActivityTime,
   getPlanSeason,
   isJoinedPlanShownToday,
   isMultiSessionPlan,
@@ -33,12 +34,12 @@ export function formatProgressPercent(progress: number): string {
   return `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
 }
 
-/** The reader's plans, most recently started first. */
+/** The reader's plans, most recently active first (see getPlanLastActivityTime). */
 export function sortProgressNewestFirst(
   progressByPlanId: Record<string, UserReadingPlanProgress>
 ): UserReadingPlanProgress[] {
-  return Object.values(progressByPlanId).sort((left, right) =>
-    right.started_at.localeCompare(left.started_at)
+  return Object.values(progressByPlanId).sort(
+    (left, right) => getPlanLastActivityTime(right) - getPlanLastActivityTime(left)
   );
 }
 
