@@ -132,3 +132,17 @@ test('an onError handler that throws does not break the boundary', async () => {
   );
   assert.equal(getCrashLogs()[0]?.message, '[privacy-lock] boom');
 });
+
+test('a boundary showing its fallback retries when its resetKey changes', async () => {
+  const { ErrorBoundary } = await import('./ErrorBoundary');
+  const first = { chapter: 1 };
+  const second = { chapter: 2 };
+  const crashed = { hasError: true, error: new Error('bad chapter'), resetKey: first };
+
+  assert.equal(ErrorBoundary.getDerivedStateFromProps({ resetKey: first }, crashed), null);
+  assert.deepEqual(ErrorBoundary.getDerivedStateFromProps({ resetKey: second }, crashed), {
+    hasError: false,
+    error: null,
+    resetKey: second,
+  });
+});
