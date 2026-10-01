@@ -1,6 +1,3 @@
-/* eslint-disable react-hooks/refs -- latest-handler refs, moved unchanged from LocaleSetupFlow:
-   the queue is created once and must call the handlers of the latest render, and the rows
-   need a stable onPress. The refs are only read from event handlers and the queue. */
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +50,10 @@ export function useOnboardingBibleSelection({
     queuedId: null,
   });
 
+  // The Bible whose finish is running: switching the interface language can take seconds the
+  // first time its strings load, and the row shows its busy spinner meanwhile.
+  const [finishingId, setFinishingId] = useState<string | null>(null);
+
   const mountedRef = useRef(false);
   const latestInterfaceLanguageRef = useRef(selectedInterfaceLanguageCode);
   latestInterfaceLanguageRef.current = selectedInterfaceLanguageCode;
@@ -64,6 +65,15 @@ export function useOnboardingBibleSelection({
   }, []);
 
   const completeInitialSetup = async (translation: BibleTranslation): Promise<boolean> => {
+    setFinishingId(translation.id);
+    try {
+      return await finishInitialSetup(translation);
+    } finally {
+      if (mountedRef.current) setFinishingId(null);
+    }
+  };
+
+  const finishInitialSetup = async (translation: BibleTranslation): Promise<boolean> => {
     const translationLanguage = localeSearchEngine.getLanguageByName(translation.language);
     let interfaceLanguageCode = latestInterfaceLanguageRef.current;
     const deviceCountry = localeSearchEngine.getCountryByCode(deviceCountryCode);
@@ -184,5 +194,8 @@ export function useOnboardingBibleSelection({
     void handleTranslationSelectRef.current(translation);
   }, []);
 
-  return { bibleSelectionState, handleTranslationSelect };
+  return {
+    bibleSelectionState: { ...bibleSelectionState, finishingId },
+    handleTranslationSelect,
+  };
 }

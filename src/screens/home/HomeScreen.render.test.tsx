@@ -79,8 +79,18 @@ mockModule(mock, sourcePath('screens/bible/reader/verseImage/verseImageFonts.ts'
 // ---- Services ----------------------------------------------------------------
 // The plan catalog is the real bundled data; a test can empty it.
 let catalog: ReadingPlan[] = bundledReadingPlans;
+let catalogThrows = false;
 mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
-  listReadingPlans: async () => ({ success: true, data: catalog }),
+  listReadingPlans: async () => {
+    if (catalogThrows) throw new Error('catalog chunk failed to load');
+    return { success: true, data: catalog };
+  },
+});
+const reportedFailures: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reportedFailures.push({ source, error });
+  },
 });
 
 const JOHN_3_16 = 'For God so loved the world that He gave His one and only Son.';
@@ -173,6 +183,8 @@ beforeEach(() => {
   setToday(TODAY);
   isFocused = true;
   catalog = bundledReadingPlans;
+  catalogThrows = false;
+  reportedFailures.length = 0;
   dailyScripture = verseOf();
   remoteAudio.books = null;
   network.offline = false;
@@ -1062,6 +1074,26 @@ test('with an empty catalogue there is no shelf', async () => {
   const view = await renderHome();
 
   assert.equal(view.queryByRole('button', { name: t('readingPlans.findPlans') }), null);
+});
+
+test('a plan catalog that rejects leaves Home without a shelf, reported and not unhandled', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    catalogThrows = true;
+    const view = await renderHome();
+    await view.flush();
+
+    assert.equal(view.queryByRole('button', { name: t('readingPlans.findPlans') }), null);
+    assert.deepEqual(
+      reportedFailures.map((failure) => failure.source),
+      ['home.readingPlans']
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 // ---- Gather and the reading ledger ----------------------------------------------

@@ -1,10 +1,6 @@
 import { create } from 'zustand';
-import {
-  persist,
-  createJSONStorage,
-  type PersistStorage,
-  type StorageValue,
-} from 'zustand/middleware';
+import { createUnchangedStateStorage } from './unchangedStateStorage';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage } from './mmkvStorage';
 import type {
   AudioPlaybackSequenceEntry,
@@ -208,45 +204,8 @@ const selectPersistedAudioState = (state: AudioState) => ({
 
 type PersistedAudioState = ReturnType<typeof selectPersistedAudioState>;
 const audioJsonStorage = createJSONStorage<PersistedAudioState>(() => zustandStorage)!;
-let lastSavedAudio: StorageValue<PersistedAudioState> | undefined;
-
-function hasSameSavedAudio(left: PersistedAudioState, right: PersistedAudioState): boolean {
-  // Both values come from the same fixed projection. Avoid allocating Maps or
-  // serializing the queue just to check the fixed saved fields.
-  for (const key in right) {
-    const field = key as keyof PersistedAudioState;
-    if (!Object.is(left[field], right[field])) return false;
-  }
-  return true;
-}
-
-// Zustand calls storage even when partialize excludes the changed field. Compare
-// before JSON serialization so 250ms playback ticks do not serialize the queue or
-// cross the native storage boundary between the existing resume checkpoints.
-const audioStorage: PersistStorage<PersistedAudioState> = {
-  getItem: (name) => {
-    lastSavedAudio = undefined;
-    return audioJsonStorage.getItem(name);
-  },
-  removeItem: (name) => {
-    lastSavedAudio = undefined;
-    return audioJsonStorage.removeItem(name);
-  },
-  setItem: (name, value) => {
-    if (
-      lastSavedAudio?.version === value.version &&
-      lastSavedAudio &&
-      hasSameSavedAudio(lastSavedAudio.state, value.state)
-    ) {
-      return;
-    }
-    const result = audioJsonStorage.setItem(name, value);
-    // MMKV is synchronous. Only remember successful synchronous saves; an async
-    // adapter can still work, but must not suppress a write before it has finished.
-    lastSavedAudio = result === undefined ? value : undefined;
-    return result;
-  },
-};
+// Skips serialising the slice when a set left it unchanged (see unchangedStateStorage.ts).
+const audioStorage = createUnchangedStateStorage(audioJsonStorage);
 
 export const useAudioStore = create<AudioState>()(
   persist(

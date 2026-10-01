@@ -80,7 +80,7 @@ export function ReadingSettingsSection({
   const { colors, themeMode } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
-  const switchColors = useSettingSwitchColors();
+  const switchColorsFor = useSettingSwitchColors();
 
   // TabSwitch hands back the segment key as a plain string; resolve it against
   // the segment table rather than casting, so an unknown key is simply ignored.
@@ -118,7 +118,7 @@ export function ReadingSettingsSection({
               strokeWidth={ICON_STROKE}
               style={styles.blockIcon}
             />
-            <Text style={[typography.rowTitle, { color: colors.primaryText }]}>
+            <Text style={[typography.rowTitle, styles.leftAligned, { color: colors.primaryText }]}>
               {t('settings.themeMode')}
             </Text>
           </View>
@@ -160,7 +160,7 @@ export function ReadingSettingsSection({
             <Switch
               value={chapterFeedbackEnabled}
               onValueChange={onChapterFeedbackToggle}
-              {...switchColors}
+              {...switchColorsFor(chapterFeedbackEnabled)}
               accessibilityLabel={t('settings.chapterFeedback')}
             />
           }
@@ -206,7 +206,7 @@ export function ReadingSettingsSection({
             <Switch
               value={translatorReviewEnabled}
               onValueChange={onTranslatorReviewToggle}
-              {...switchColors}
+              {...switchColorsFor(translatorReviewEnabled)}
               accessibilityLabel={t('settings.translatorAccess')}
             />
           }
@@ -238,6 +238,10 @@ export function ReadingSettingsSection({
 }
 
 const styles = StyleSheet.create({
+  // The enforced LTR row, not the label's script, decides which edge text sits against.
+  leftAligned: {
+    textAlign: 'left',
+  },
   themeBlock: {
     paddingVertical: spacing.md,
     gap: spacing.md,

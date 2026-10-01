@@ -3,8 +3,10 @@ Needs Google Chrome (headless) to rasterise; then pngquant --quality 55-80 + oxi
 before copying into assets/plans/covers/.
 
 Every reading-plan cover as a language-free mark on a textured ground.
-Canvas 2400x1800 (4:3); marks stay inside the centre square so the detail
-hero (~1.1:1) and catalog thumbnails (1:1) both crop cleanly."""
+Canvas 2400x1800 (4:3), rasterised at 1200x900: the widest cover shows at ~430pt,
+and src/data/bundledImageBudget.test.ts caps covers at 1200px wide. Marks stay
+inside the centre square so the detail hero (~1.1:1) and catalog thumbnails (1:1)
+both crop cleanly."""
 import math, os, subprocess, sys
 OUT = sys.argv[1]
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -623,7 +625,7 @@ for name in only:
          f'<rect width="2400" height="1800" filter="url(#f)" opacity="0.35"/><rect width="2400" height="1800" filter="url(#g)" opacity="0.12"/></svg>')
   html = os.path.join(OUT, f'{name}.html')
   open(html, 'w').write(f'<html><body style="margin:0">{svg}</body></html>')
-  subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1.2',
+  subprocess.run([CHROME, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
                   '--window-size=1200,900', f'--screenshot={os.path.join(OUT, name + ".png")}', f'file://{html}'],
                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
   print('rendered', name)

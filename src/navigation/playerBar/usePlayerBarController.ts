@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
-import { getAdjacentBibleChapter, getTranslatedBookName } from '../../constants/books';
+import { getAdjacentBibleChapter, getTranslatedPassageBookName } from '../../constants/books';
 import { useSelah } from '../../hooks/audioPlayer/useSelah';
 import {
   stepActivePlayback,
@@ -142,7 +142,7 @@ export function usePlayerBarController(
     // Home, Gather, Plans and More the bar is the tabs alone (the lock screen still
     // controls what is playing).
     if (!showsSessionRow || !audioLoaded || !currentBookId || currentChapter == null) return null;
-    const reference = `${getTranslatedBookName(currentBookId, t)} ${currentChapter}`;
+    const reference = `${getTranslatedPassageBookName(currentBookId, t)} ${currentChapter}`;
     return {
       scope,
       showsPause: !isSelahActive && (status === 'playing' || status === 'loading'),

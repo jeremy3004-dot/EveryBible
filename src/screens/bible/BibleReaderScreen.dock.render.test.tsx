@@ -146,7 +146,7 @@ test('the collapsed strip’s Next keeps the strip and the tucked-away top chrom
   await navigateReader(view, {});
 
   const strip = () => view.getByTestId('player-bar-row');
-  await view.press(within(strip()).getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(within(strip()).getByRole('button', { name: t('audio.nextChapter') }));
   await navigateReader(view, reader.setParamsCalls().at(-1) ?? {});
   await reader.setAudio({ currentChapter: 4 });
   await reader.settleReaderScroll(view, 0);
@@ -391,7 +391,7 @@ test('the hide-play-button preference leaves the bar with its chapter arrows', a
 test('read-mode arrows move the text only, keeping read mode, and never start audio', async () => {
   const view = await renderReader();
 
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
   assert.deepEqual(reader.setParamsCalls().at(-1), {
     bookId: 'JHN',
     chapter: 4,
@@ -413,7 +413,7 @@ test('read-mode arrows move the text only, keeping read mode, and never start au
 test('the arrows cross book boundaries and skip chapters the audio does not cover', async () => {
   chapters.set('JHN:21', [verseOf(1, 'Afterward Jesus appeared again.', {}, 'JHN', 21)]);
   const view = await renderReader({ chapter: 21 });
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
   assert.deepEqual(
     [reader.setParamsCalls().at(-1)?.bookId, reader.setParamsCalls().at(-1)?.chapter],
     ['ACT', 1]
@@ -422,7 +422,7 @@ test('the arrows cross book boundaries and skip chapters the audio does not cove
 
   reader.contentSummary.audioChapters = { JHN: [1, 3, 5] };
   const sparse = await renderReader();
-  await sparse.press(sparse.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await sparse.press(sparse.getByRole('button', { name: t('audio.nextChapter') }));
   assert.equal(reader.setParamsCalls().at(-1)?.chapter, 5);
   await sparse.press(sparse.getByRole('button', { name: t('audio.previousChapter') }));
   assert.equal(reader.setParamsCalls().at(-1)?.chapter, 1);
@@ -434,7 +434,7 @@ test('on the playing chapter the arrows step the audio session and the text foll
   reader.playerSteps.previous = { bookId: 'JHN', chapter: 2 };
   const view = await renderReader();
 
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
   assert.deepEqual(reader.audioCalls.at(-1), ['nextChapter']);
   assert.equal(reader.setParamsCalls().at(-1)?.chapter, 4);
 
@@ -546,7 +546,7 @@ test('stepping within a plan session keeps the plan in the route', async () => {
   chapters.set('MAT:1', [verseOf(1, 'This is the record of the genealogy.', {}, 'MAT', 1)]);
   const view = await renderReader(PLAN_PARAMS);
 
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
 
   const params = reader.setParamsCalls().at(-1);
   assert.equal(params?.chapter, 2);

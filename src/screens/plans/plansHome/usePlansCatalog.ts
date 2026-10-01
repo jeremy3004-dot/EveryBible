@@ -1,7 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { reportHandledError } from '../../../services/diagnostics/crashReportQueue';
 import { getUserPlanProgress, listReadingPlans } from '../../../services/plans/readingPlanService';
 import type { ReadingPlan } from '../../../services/plans/types';
+
+// The server progress read costs two requests (progress rows + unenrol tombstones). Tabbing away
+// and back inside this window reuses what the last read already merged into the store; a
+// pull-to-refresh always reads.
+const PROGRESS_HYDRATE_MIN_INTERVAL_MS = 2 * 60 * 1000;
 
 /**
  * The bundled plan catalog, loaded once on first open and reloaded quietly (no
@@ -16,21 +22,36 @@ export function usePlansCatalog() {
   const [refreshing, setRefreshing] = useState(false);
   const hasLoadedOnce = useRef(false);
 
-  const hydratePlanProgress = useCallback(async () => {
-    await getUserPlanProgress().catch(() => {});
+  const lastHydratedAt = useRef<number | null>(null);
+
+  const hydratePlanProgress = useCallback(async (force: boolean) => {
+    const last = lastHydratedAt.current;
+    if (!force && last !== null && Date.now() - last < PROGRESS_HYDRATE_MIN_INTERVAL_MS) return;
+    lastHydratedAt.current = Date.now();
+    await getUserPlanProgress().catch(() => {
+      // Failed: let the next focus retry rather than waiting out the window.
+      lastHydratedAt.current = null;
+    });
   }, []);
 
   const loadAllData = useCallback(
-    async (quiet = false) => {
+    async (quiet = false, force = false) => {
       if (!quiet) setLoading(true);
 
-      const allPlansResult = await listReadingPlans();
-      if (allPlansResult.success && allPlansResult.data) {
-        setAllPlans(allPlansResult.data);
+      // A rejection (a lazy catalog chunk that cannot load) still ends the first-load
+      // skeleton; the callers swallow it, which used to leave the skeleton up for good.
+      try {
+        const allPlansResult = await listReadingPlans();
+        if (allPlansResult.success && allPlansResult.data) {
+          setAllPlans(allPlansResult.data);
+        }
+      } catch (error) {
+        reportHandledError('plans.catalog', error);
+      } finally {
+        if (!quiet) setLoading(false);
       }
-      if (!quiet) setLoading(false);
 
-      void hydratePlanProgress();
+      void hydratePlanProgress(force);
     },
     [hydratePlanProgress]
   );
@@ -47,7 +68,7 @@ export function usePlansCatalog() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    await loadAllData(true).catch(() => {});
+    await loadAllData(true, true).catch(() => {});
     setRefreshing(false);
   }, [loadAllData]);
 

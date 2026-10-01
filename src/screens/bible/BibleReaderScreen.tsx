@@ -15,7 +15,12 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { getBookById, getCompactTranslatedBookName, getTranslatedBookName } from '../../constants';
+import {
+  getBookById,
+  getCompactTranslatedBookName,
+  getTranslatedBookName,
+  getTranslatedPassageBookName,
+} from '../../constants';
 import { config } from '../../constants/config';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../design/system';
@@ -384,7 +389,7 @@ export function BibleReaderScreen() {
   // not synthesise a bold weight for a named custom family, so the 700 face has to be asked
   // for by name; non-Latin scripts get undefined and fall back to the platform serif.
   const readingFontFamilyBold = getReadingFontFamily(currentTranslationInfo?.language, 700);
-  const compactBookName = getCompactTranslatedBookName(bookId, t);
+  const compactBookName = getCompactTranslatedBookName(bookId, t, undefined, true);
   const activeChapterKey = `${bookId}_${chapter}`;
   // A reader left open past midnight (or resumed the next morning) must count today's
   // reads and listens toward today's plan day, not yesterday's.
@@ -449,7 +454,7 @@ export function BibleReaderScreen() {
       translationAbbreviation: currentTranslationInfo?.abbreviation,
       translationLanguage: currentTranslationInfo?.language,
     }) || translationLabel;
-  const chapterShareTitle = `${getTranslatedBookName(bookId, t)} ${chapter}`;
+  const chapterShareTitle = `${getTranslatedPassageBookName(bookId, t)} ${chapter}`;
   const rawPresentationMode = getChapterPresentationMode({
     verses,
     translation: currentTranslationInfo,
@@ -1343,6 +1348,7 @@ export function BibleReaderScreen() {
         hasPrevChapter={hasPrevChapter}
         isCollapsed={isReadBottomChromeCollapsed}
         isLastPlanChapter={isLastPlanChapter}
+        onOpenPlan={handleExitPlanSession}
         planDayNumber={planDayNumber}
         planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
         rootTabBarBottomPadding={rootTabBarBottomPadding}

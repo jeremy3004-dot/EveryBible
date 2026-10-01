@@ -552,8 +552,6 @@ export const id = {
     recommendedLanguages: 'Bahasa Alkitab yang direkomendasikan di {{country}}',
     moreLanguages: 'Bahasa lain yang cocok',
     noLanguagesFound: 'Belum ada bahasa yang cocok',
-    noLanguagesFoundBody:
-      'Coba ejaan lain, atau cari dalam bahasa Inggris atau aksara setempat. Pencarian tetap bekerja meski ejaannya tidak persis.',
     catalogUnavailableTitle: 'Tidak dapat terhubung ke pustaka Alkitab',
     catalogUnavailableBody:
       'Periksa koneksi internet Anda lalu coba lagi. Alkitab di bawah ini sudah ada di perangkat ini dan dapat dipakai tanpa internet.',
@@ -595,7 +593,7 @@ export const id = {
     verse: 'Ayat',
     selectTranslation: 'Pilih terjemahan',
     manageAudio: 'Kelola audio',
-    audioDownloads: 'Unduhan audio',
+    audioDownloads: 'Audio',
     downloadBibleAudio: 'Unduh audio seluruh Alkitab',
     audioSavedOffline: 'Disimpan untuk didengarkan offline',
     audioDownloadFailed: 'Kami belum bisa mengunduh audio ini sekarang.',

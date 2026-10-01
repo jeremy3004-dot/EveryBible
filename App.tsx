@@ -17,6 +17,7 @@ import {
 import { useAuthStore } from './src/stores/authStore';
 import { isDiscreetModeActive, usePrivacyStore } from './src/stores/privacyStore';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { NavigatorLoadingShell } from './src/components/NavigatorLoadingShell';
 import { PrivacyLockScreen } from './src/components/privacy/PrivacyLockScreen';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import i18n, { changeLanguage } from './src/i18n';
@@ -372,7 +373,7 @@ function LoadingScreen() {
   }
 
   if (!shouldRenderNavigator || !RootNavigator) {
-    return <View style={[styles.bootShell, { backgroundColor: colors.background }]} />;
+    return <NavigatorLoadingShell />;
   }
 
   return <RootNavigator />;

@@ -46,12 +46,56 @@ export interface PrivacyLockGraceOptions {
   untilNextActive?: boolean;
 }
 
-type PendingGrace = { startedAt: number; sawInactive: boolean };
+type PendingGrace = { startedAt: number; sawInactive: boolean; iconAlert: boolean };
 
 const pendingSince = new Set<PendingGrace>();
 let graceUntil = 0;
 let heldUntilActiveSince: number | null = null;
+// iOS keeps its icon-change alert up until the reader taps OK, however long that takes.
+let iconAlertWindowUntil = 0;
+let inactiveUnderIconAlert = false;
 const graceListeners = new Set<() => void>();
+// Work (the lock after enabling discreet mode) held back until the icon alert is answered.
+let iconChangeExpected = false;
+let alertWaiters: Array<() => void> = [];
+let alertWaitTimer: ReturnType<typeof setTimeout> | null = null;
+
+const releaseAlertWaiters = (): void => {
+  iconChangeExpected = false;
+  if (alertWaitTimer !== null) {
+    clearTimeout(alertWaitTimer);
+    alertWaitTimer = null;
+  }
+  const waiters = alertWaiters;
+  alertWaiters = [];
+  waiters.forEach((run) => run());
+};
+
+/** An app icon change is about to be requested; its system alert is not up yet. */
+export function expectPrivacyIconChange(): void {
+  iconChangeExpected = true;
+}
+
+/** The expected icon change raised no alert (nothing to change, it failed, or no iOS). */
+export function noPrivacyIconAlertExpected(): void {
+  if (iconChangeExpected) {
+    releaseAlertWaiters();
+  }
+}
+
+/**
+ * Runs `run` now, unless an icon change is expected: then once its alert is answered
+ * (the app active again, or backgrounded), or at the cap if the alert never came. Locking
+ * under the alert left the reader on the lock screen with the alert still up.
+ */
+export function runAfterPrivacyIconAlert(run: () => void): void {
+  if (!iconChangeExpected) {
+    run();
+    return;
+  }
+  alertWaiters.push(run);
+  alertWaitTimer ??= setTimeout(releaseAlertWaiters, PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+}
 
 /** Allows an inactive lock timer to shorten when a prompt settles. */
 export function subscribeToPrivacyLockGraceChanges(listener: () => void): () => void {
@@ -66,7 +110,11 @@ export async function withPrivacyLockGrace<T>(
   task: () => Promise<T>,
   options: PrivacyLockGraceOptions = {}
 ): Promise<T> {
-  const entry: PendingGrace = { startedAt: Date.now(), sawInactive: false };
+  const entry: PendingGrace = {
+    startedAt: Date.now(),
+    sawInactive: false,
+    iconAlert: options.untilNextActive === true,
+  };
   pendingSince.add(entry);
   try {
     return await task();
@@ -74,8 +122,14 @@ export async function withPrivacyLockGrace<T>(
     pendingSince.delete(entry);
     const settledAt = Date.now();
     graceUntil = Math.max(graceUntil, settledAt + PRIVACY_LOCK_GRACE_AFTER_SYSTEM_UI_MS);
-    if (options.untilNextActive && !entry.sawInactive) {
-      heldUntilActiveSince = settledAt;
+    if (options.untilNextActive) {
+      iconAlertWindowUntil = Math.max(
+        iconAlertWindowUntil,
+        settledAt + PRIVACY_LOCK_GRACE_MAX_PENDING_MS
+      );
+      if (!entry.sawInactive) {
+        heldUntilActiveSince = settledAt;
+      }
     }
     graceListeners.forEach((listener) => listener());
   }
@@ -88,11 +142,40 @@ export async function withPrivacyLockGrace<T>(
 export function notePrivacyLockAppState(nextState: string): void {
   if (nextState === 'active') {
     heldUntilActiveSince = null;
+    if (inactiveUnderIconAlert) {
+      // The alert was answered; leaving after it is the reader's own doing.
+      iconAlertWindowUntil = 0;
+      inactiveUnderIconAlert = false;
+      releaseAlertWaiters();
+    }
   } else if (nextState === 'inactive') {
+    let pendingIconAlert = false;
     pendingSince.forEach((entry) => {
       entry.sawInactive = true;
+      pendingIconAlert = pendingIconAlert || entry.iconAlert;
     });
+    if (pendingIconAlert || Date.now() < iconAlertWindowUntil) {
+      inactiveUnderIconAlert = true;
+      // The alert is up: the cap is only for one that never comes.
+      if (alertWaitTimer !== null) {
+        clearTimeout(alertWaitTimer);
+        alertWaitTimer = null;
+      }
+    }
+  } else {
+    iconAlertWindowUntil = 0;
+    inactiveUnderIconAlert = false;
+    releaseAlertWaiters();
   }
+}
+
+/**
+ * Whether the app is inactive under the alert iOS raised for an app icon change. The alert
+ * stays until the reader dismisses it, so no deadline applies; only returning to 'active'
+ * or going to the background (which locks) ends it.
+ */
+export function isInactiveUnderIconAlert(): boolean {
+  return inactiveUnderIconAlert;
 }
 
 /** Whether system UI the app raised itself explains the app going 'inactive' right now. */

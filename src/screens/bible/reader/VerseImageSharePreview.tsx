@@ -21,6 +21,7 @@ import {
   getVerseImageScrim,
   type VerseImageStyle,
 } from './verseImage/verseImageStyle';
+import { quoteVerseForImage } from './verseImage/verseImageQuote';
 
 const REFERENCE_FONT_SIZE = 13;
 
@@ -33,8 +34,8 @@ export function VerseImageSharePreview({
   onFitChange,
 }: VerseImageSharePreviewProps) {
   const verseText = selectedText.trim();
-  // Curly quotes, as the reader's own verse text sets them.
-  const shownText = `“${verseText || referenceLabel}”`;
+  // Curly quotes, as the reader's own verse text sets them; quotes inside the verse nest.
+  const shownText = quoteVerseForImage(verseText || referenceLabel);
   const color = getVerseImageColor(style.colorId);
   // The reference keeps the app's own chip in every text colour: an opaque backdrop,
   // since the wash over the photo is translucent.
@@ -168,9 +169,10 @@ export function VerseImageSharePreview({
                   lineHeight: Math.round(REFERENCE_FONT_SIZE * 1.4),
                 },
               ]}
-              numberOfLines={2}
+              // One line: a two-line pill reads as a broken label. It shrinks to fit instead.
+              numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.82}
+              minimumFontScale={0.7}
               allowFontScaling={false}
             >
               {referenceLabel}

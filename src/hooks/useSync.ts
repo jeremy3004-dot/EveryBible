@@ -7,6 +7,12 @@ import { useAuthStore } from '../stores/authStore';
 import { useSyncStatusStore } from '../stores/syncStatusStore';
 import { createSyncCoordinator } from './syncCoordinator';
 
+// A foreground return inside this window of the previous one is an app switch or a
+// notification-shade pull, not a fresh session: a cycle costs ~6 requests (auth user, profile
+// upsert, progress, plans, tombstones, preferences), which low-bandwidth readers feel.
+// Reconnects and the initial pull are not throttled.
+const FOREGROUND_SYNC_MIN_INTERVAL_MS = 60 * 1000;
+
 export const useSync = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitialized = useAuthStore((state) => state.isInitialized);
@@ -16,6 +22,7 @@ export const useSync = () => {
   // the expired token; sync waits for that refresh.
   const awaitingTokenRefresh = useAuthStore((state) => state.awaitingTokenRefresh);
   const appState = useRef(AppState.currentState);
+  const lastForegroundSyncAt = useRef<number | null>(null);
   const initialSyncUserId = useRef<string | null>(null);
   const initialSyncGeneration = useRef<number | null>(null);
   const syncCoordinator = useMemo(() => createSyncCoordinator(), []);
@@ -97,7 +104,12 @@ export const useSync = () => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         supabase.auth.startAutoRefresh();
-        performSync();
+        const now = Date.now();
+        const last = lastForegroundSyncAt.current;
+        if (last === null || now - last >= FOREGROUND_SYNC_MIN_INTERVAL_MS) {
+          lastForegroundSyncAt.current = now;
+          performSync();
+        }
       } else if (nextAppState.match(/inactive|background/)) {
         supabase.auth.stopAutoRefresh();
       }

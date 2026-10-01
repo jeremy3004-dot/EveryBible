@@ -1,6 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { installRenderHarness } from '../../../testing/render';
+import { flattenStyle, installRenderHarness } from '../../../testing/render';
 import type { LanguageCode } from '../../../constants/languages';
 
 const harness = installRenderHarness(mock);
@@ -18,6 +18,26 @@ async function renderPicker(currentLanguage: LanguageCode) {
 }
 
 const SELECTED_ROW_TOP = 1180;
+
+test('language names align to the row start whatever their script, so Arabic does not jam the check', async () => {
+  const view = await renderPicker('ar');
+
+  for (const name of ['العربية', 'Arabic']) {
+    const label = view.getAllByText(name)[0]!;
+    assert.equal(flattenStyle(label.props.style)?.textAlign, 'left', name);
+  }
+});
+
+test('the dialog title leaves room for descenders instead of clipping them at large text', async () => {
+  const view = await renderPicker('en');
+  const title = view.getByRole('header');
+
+  const style = flattenStyle(title.props.style);
+  assert.ok(
+    Number(style?.lineHeight) >= Number(style?.fontSize) * 1.2,
+    'the line box is at least 1.2x the font size'
+  );
+});
 
 test('the list opens scrolled to the selected language, not at the top', async () => {
   const view = await renderPicker('ar');

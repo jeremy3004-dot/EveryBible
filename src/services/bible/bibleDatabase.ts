@@ -5,6 +5,7 @@ import type { Verse } from '../../types';
 import { bibleBooks } from '../../constants/books';
 import {
   buildBibleFallbackSearchTerms,
+  buildBibleSearchPhrase,
   buildBibleSearchQuery,
   buildBibleSearchVerificationTerms,
   buildBibleSubstringSearchTerms,
@@ -765,6 +766,11 @@ export async function searchVerses(
     const verificationSql = verificationTerms
       .map(() => `AND instr(${getJoinerFreeTextSql('v.text')}, ?) > 0`)
       .join(' ');
+    // Verses holding the words side by side ("living water") come before verses that merely
+    // contain each word; bm25 and canonical order then break ties inside each tier.
+    const phrase = buildBibleSearchPhrase(query);
+    const phraseTierSql = phrase ? 'instr(lower(v.text), ?) > 0 DESC, ' : '';
+    const phraseParams = phrase ? [phrase] : [];
     const indexedResults = await database.getAllAsync<VerseRow>(
       `
         SELECT v.*
@@ -774,10 +780,18 @@ export async function searchVerses(
           AND verses_fts.rowid BETWEEN ? AND ?
           AND v.translation_id = ?
           ${verificationSql}
-        ORDER BY bm25(verses_fts), ${getCanonicalBookOrderSql('v.book_id')}, v.chapter, v.verse
+        ORDER BY ${phraseTierSql}bm25(verses_fts), ${getCanonicalBookOrderSql('v.book_id')}, v.chapter, v.verse
         LIMIT ?
       `,
-      [ftsQuery, idRange.first, idRange.last, translationId, ...verificationTerms, limit]
+      [
+        ftsQuery,
+        idRange.first,
+        idRange.last,
+        translationId,
+        ...verificationTerms,
+        ...phraseParams,
+        limit,
+      ]
     );
 
     return indexedResults.map(toVerse);

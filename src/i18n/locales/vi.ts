@@ -555,8 +555,6 @@ export const vi = {
     recommendedLanguages: 'Ngôn ngữ Kinh Thánh gợi ý tại {{country}}',
     moreLanguages: 'Các ngôn ngữ phù hợp khác',
     noLanguagesFound: 'Chưa có ngôn ngữ nào phù hợp',
-    noLanguagesFoundBody:
-      'Hãy thử cách viết khác, hoặc tìm bằng tiếng Anh hay chữ viết địa phương. Ứng dụng có hỗ trợ tìm gần đúng.',
     catalogUnavailableTitle: 'Không thể kết nối với thư viện Kinh Thánh',
     catalogUnavailableBody:
       'Hãy kiểm tra kết nối internet rồi thử lại. Các bản Kinh Thánh bên dưới đã có sẵn trên thiết bị này và dùng được khi không có mạng.',

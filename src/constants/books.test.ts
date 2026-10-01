@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getAdjacentBibleChapter, getCompactTranslatedBookName } from './books';
+import {
+  getAdjacentBibleChapter,
+  getCompactTranslatedBookName,
+  getTranslatedPassageBookName,
+} from './books';
 
 test('getAdjacentBibleChapter advances to the next book after the last chapter', () => {
   assert.deepEqual(getAdjacentBibleChapter('GEN', 50, 1), { bookId: 'EXO', chapter: 1 });
@@ -48,6 +52,25 @@ test('getCompactTranslatedBookName matches the ICU collation it replaced on acce
   assert.equal(getCompactTranslatedBookName('DEU', t), 'Deut');
   assert.equal(getCompactTranslatedBookName('ECC', t), 'Eccl');
   assert.equal(getCompactTranslatedBookName('PHP', t), 'Phil.');
+});
+
+test('getTranslatedPassageBookName cites a single Psalm in the singular, only in English', () => {
+  const en = (key: string) => (key === 'bible.books.PSA' ? 'Psalms' : key);
+  const es = (key: string) => (key === 'bible.books.PSA' ? 'Salmos' : key);
+  const missing = (key: string) => key;
+  const john = (key: string) => (key === 'bible.books.JHN' ? 'John' : key);
+
+  assert.equal(getTranslatedPassageBookName('PSA', en), 'Psalm');
+  assert.equal(getTranslatedPassageBookName('PSA', missing), 'Psalm');
+  assert.equal(getTranslatedPassageBookName('PSA', es), 'Salmos');
+  assert.equal(getTranslatedPassageBookName('JHN', john), 'John');
+});
+
+test('getCompactTranslatedBookName can name a single chapter of the Psalms', () => {
+  const en = (key: string) => (key === 'bible.books.PSA' ? 'Psalms' : key);
+
+  assert.equal(getCompactTranslatedBookName('PSA', en), 'Psalms');
+  assert.equal(getCompactTranslatedBookName('PSA', en, undefined, true), 'Psalm');
 });
 
 test('lowercase equality is equivalent to accent-sensitive ICU collation for book abbreviations', () => {

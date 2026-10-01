@@ -26,6 +26,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     // Reviewed 2026-09-11: the natural target-language value is byte-identical to English.
     'common.error': 'Error',
     // Reviewed 2026-09-26: the Audio sheet's title; Spanish writes "audio" as English does.
+    // Reviewed 2026-10-01: matches English "Audio" so the Bible row subtitle reads "Audio (Full Bible)".
+    'bible.audioDownloads': 'Audio',
     'audio.sheetTitle': 'Audio',
     'annotations.audio': 'Audio',
     // Reviewed 2026-09-26: the Psalms' "Selah"; Reina-Valera transliterates it exactly as English.
@@ -77,6 +79,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'gather.topicJustice': 'Justice',
     // Reviewed 2026-09-26: Audio sheet labels whose French word is spelled as in English
     // (the sheet title, the repeat chip for a Bible passage, and the village sound tile).
+    // Reviewed 2026-10-01: matches English "Audio" so the Bible row subtitle reads "Audio (Full Bible)".
+    'bible.audioDownloads': 'Audio',
     'audio.sheetTitle': 'Audio',
     'annotations.audio': 'Audio',
     'audio.repeatOptionPassage': 'Passage',
@@ -229,6 +233,8 @@ export const sharedTranslationValues: Record<string, Record<string, string>> = {
     'bible.books.NAM': 'Nahum',
     'bible.books.TIT': 'Titus',
     // Reviewed 2026-09-26: the Audio sheet's title; Indonesian writes "audio" as English does.
+    // Reviewed 2026-10-01: matches English "Audio" so the Bible row subtitle reads "Audio (Full Bible)".
+    'bible.audioDownloads': 'Audio',
     'audio.sheetTitle': 'Audio',
     'annotations.audio': 'Audio',
   },

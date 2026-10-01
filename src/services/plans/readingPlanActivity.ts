@@ -696,6 +696,37 @@ function getScheduledDayLabelFormatter(locale: string | undefined): Intl.DateTim
   return scheduledDayLabelFormatter.format;
 }
 
+/**
+ * The date a sequential plan's day is shown under in the ledger.
+ *
+ * Days behind you keep their enrolment-date schedule. Today and every day ahead
+ * count forward from today, because finishing a day early (or falling behind)
+ * moves `currentDay` off the enrolment schedule: counting from `startedAt` there
+ * would date "Tomorrow" two days out and leave a gap in the dates.
+ */
+export function getPlanLedgerDayDate(
+  startedAt: string,
+  dayNumber: number,
+  currentDay: number,
+  today: Date
+): Date {
+  if (dayNumber < currentDay) {
+    return getScheduledPlanDayDate(startedAt, dayNumber);
+  }
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayNumber - currentDay);
+}
+
+export function formatPlanLedgerDayLabel(
+  startedAt: string,
+  dayNumber: number,
+  currentDay: number,
+  today: Date
+): string {
+  return getScheduledDayLabelFormatter(getActiveDateLocale()).format(
+    getPlanLedgerDayDate(startedAt, dayNumber, currentDay, today)
+  );
+}
+
 export function formatScheduledPlanDayLabel(startedAt: string, dayNumber: number): string {
   // L22: format day labels in the in-app language, not a pinned en-US locale.
   return getScheduledDayLabelFormatter(getActiveDateLocale()).format(
