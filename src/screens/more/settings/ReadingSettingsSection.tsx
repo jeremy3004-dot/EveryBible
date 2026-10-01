@@ -80,7 +80,7 @@ export function ReadingSettingsSection({
   const { colors, themeMode } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
-  const switchColors = useSettingSwitchColors();
+  const switchColorsFor = useSettingSwitchColors();
 
   // TabSwitch hands back the segment key as a plain string; resolve it against
   // the segment table rather than casting, so an unknown key is simply ignored.
@@ -160,7 +160,7 @@ export function ReadingSettingsSection({
             <Switch
               value={chapterFeedbackEnabled}
               onValueChange={onChapterFeedbackToggle}
-              {...switchColors}
+              {...switchColorsFor(chapterFeedbackEnabled)}
               accessibilityLabel={t('settings.chapterFeedback')}
             />
           }
@@ -206,7 +206,7 @@ export function ReadingSettingsSection({
             <Switch
               value={translatorReviewEnabled}
               onValueChange={onTranslatorReviewToggle}
-              {...switchColors}
+              {...switchColorsFor(translatorReviewEnabled)}
               accessibilityLabel={t('settings.translatorAccess')}
             />
           }

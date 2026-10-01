@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useLargeText } from '../../../hooks/useLargeText';
+import { getSwitchColors } from '../../../design/switchColors';
 import { layout, radius, spacing, typography } from '../../../design/system';
 
 /** Matches ListRow's own leading glyph so block rows line up with list rows. */
@@ -9,19 +10,10 @@ export const ICON_STROKE = 2;
 /** ListRow insets its separator past the glyph; blocks in the card must match. */
 export const ROW_SEPARATOR_INSET = ROW_ICON_SIZE + spacing.md;
 
-/**
- * The on/off colours every Settings switch shares. The off track is the only outline
- * an off switch has, so it takes the 3:1 control boundary rather than a translucent
- * tint of body text (1.6:1 light, 1.95:1 dark).
- */
+/** The on/off colours every Settings switch shares; see `getSwitchColors`. */
 export function useSettingSwitchColors() {
-  const { colors } = useTheme();
-  const offColor = colors.controlBorder;
-  return {
-    trackColor: { false: offColor, true: colors.accentPrimary },
-    ios_backgroundColor: offColor,
-    thumbColor: colors.cardBackground,
-  };
+  const { colors, isDark } = useTheme();
+  return (value: boolean) => getSwitchColors(colors, value, isDark);
 }
 
 /**

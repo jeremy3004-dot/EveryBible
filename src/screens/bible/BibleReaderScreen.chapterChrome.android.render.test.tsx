@@ -162,7 +162,7 @@ test('a chrome brought back by scrolling up stays shown after the Next arrow', a
   const view = await renderReader();
   await dropThenReveal(view);
 
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
   await followNavigation(view);
   assert.ok(view.getByText(/Chapter 4 opens here/), 'the new chapter loaded');
   await settleNewChapter(view);
@@ -184,7 +184,7 @@ test('a collapsed strip stays collapsed after its Next, and its chevrons stay li
 
   // One player row serves both states: collapsed, it is the strip.
   const strip = () => view.getByTestId('player-bar-row');
-  await view.press(within(strip()).getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(within(strip()).getByRole('button', { name: t('audio.nextChapter') }));
   assert.deepEqual(reader.audioCalls.at(-1), ['nextChapter']);
   await followNavigation(view);
   await playing(4); // the player is on the new chapter too
@@ -278,7 +278,7 @@ test('arriving on a chapter from the picker opens expanded, even from a collapse
 test('after the chapter change the finger collapses the chrome again', async () => {
   chapters.set('JHN:4', chapterOf(4));
   const view = await renderReader();
-  await view.press(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  await view.press(view.getByRole('button', { name: t('audio.nextChapter') }));
   await followNavigation(view);
   await settleReaderScroll(view, 0);
 

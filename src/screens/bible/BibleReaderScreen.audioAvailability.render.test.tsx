@@ -32,7 +32,7 @@ test('audio-only to text-only loading never retains a playable audio surface', a
   await view.flush();
   assert.ok(view.getByText(/Current text translation/));
   assert.ok(view.getByRole('button', { name: t('audio.previousChapter') }));
-  assert.ok(view.getByRole('button', { name: t('bible.nextChapterHint') }));
+  assert.ok(view.getByRole('button', { name: t('audio.nextChapter') }));
   assert.equal(view.queryByRole('button', { name: t('interface.playChapterAudio') }), null);
 });
 test('text to translation with no chapter content clears Scripture and hides play', async () => {
