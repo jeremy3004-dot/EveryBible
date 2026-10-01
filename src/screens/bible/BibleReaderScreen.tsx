@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  unstable_batchedUpdates,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { GestureDetector } from 'react-native-gesture-handler';
@@ -763,6 +764,7 @@ export function BibleReaderScreen() {
       setError,
       setVerses,
       setVersesChapterKey,
+      batchUpdates: unstable_batchedUpdates,
       t,
     });
   }

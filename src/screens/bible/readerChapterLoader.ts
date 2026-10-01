@@ -29,6 +29,12 @@ export interface ReaderChapterLoad extends ReaderChapterLoadRefs {
   setVerses: (verses: Verse[]) => void;
   /** Records which chapter `verses` now holds (see readerChapterKey). */
   setVersesChapterKey: (key: string) => void;
+  /**
+   * Applies several reader-state changes as one render (React Native's
+   * `unstable_batchedUpdates`). The old architecture renders each update made outside
+   * an event on its own, so a loaded chapter would otherwise be several passes.
+   */
+  batchUpdates: (updates: () => void) => void;
   t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => string;
 }
 
@@ -81,13 +87,24 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
     return;
   }
 
+  let loadingSettled = false;
   try {
     const data = await load.getChapter(translationId, bookId, chapter);
     if (requestId !== requestIdRef.current) {
       return;
     }
-    load.setVerses(data);
-    load.setVersesChapterKey(readerChapterKey(translationId, bookId, chapter));
+    // One render for the new chapter, not one per state change (verses, key, the
+    // progress store's subscribers, loading).
+    load.batchUpdates(() => {
+      load.setVerses(data);
+      load.setVersesChapterKey(readerChapterKey(translationId, bookId, chapter));
+      // An empty chapter put nothing on the page to read.
+      if (data.length > 0 && !load.returnToPlanOnComplete) {
+        load.markChapterRead(bookId, chapter);
+      }
+      load.setIsLoading(false);
+    });
+    loadingSettled = true;
     if (data.length > 0) {
       prefetchTaskRef.current = load.runAfterInteractions(() => {
         if (requestId !== requestIdRef.current) {
@@ -96,10 +113,6 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
         prefetchTaskRef.current = null;
         void load.prefetchNextChapter(translationId, bookId, chapter);
       });
-    }
-    // An empty chapter put nothing on the page to read.
-    if (data.length > 0 && !load.returnToPlanOnComplete) {
-      load.markChapterRead(bookId, chapter);
     }
   } catch (err) {
     if (requestId !== requestIdRef.current) {
@@ -118,7 +131,7 @@ export async function loadReaderChapter(load: ReaderChapterLoad): Promise<void> 
     }
     console.error('Error loading chapter:', err);
   } finally {
-    if (requestId === requestIdRef.current) {
+    if (!loadingSettled && requestId === requestIdRef.current) {
       load.setIsLoading(false);
     }
   }

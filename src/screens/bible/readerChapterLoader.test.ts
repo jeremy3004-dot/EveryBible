@@ -33,7 +33,11 @@ function reader(overrides: Partial<ReaderChapterLoad> = {}) {
     errors: [] as (string | null)[],
     markedRead: [] as number[],
     recovered: [] as string[],
+    /** The reader-state changes each batchUpdates call grouped, in order. */
+    batches: [] as string[][],
   };
+  let openBatch: string[] | null = null;
+  const note = (change: string) => openBatch?.push(change);
   const load: ReaderChapterLoad = {
     requestIdRef: { current: 0 },
     prefetchTaskRef: { current: null },
@@ -56,14 +60,39 @@ function reader(overrides: Partial<ReaderChapterLoad> = {}) {
         },
       };
     },
-    markChapterRead: (_book, chapter) => recorded.markedRead.push(chapter),
+    markChapterRead: (_book, chapter) => {
+      note('markedRead');
+      recorded.markedRead.push(chapter);
+    },
     recoverMissingInstalledPack: async (translationId) => {
       recorded.recovered.push(translationId);
     },
-    setIsLoading: (value) => recorded.loading.push(value),
-    setError: (message) => recorded.errors.push(message),
-    setVerses: (value) => recorded.verses.push(value),
-    setVersesChapterKey: (key) => recorded.chapterKeys.push(key),
+    setIsLoading: (value) => {
+      note(`loading:${value}`);
+      recorded.loading.push(value);
+    },
+    setError: (message) => {
+      note('error');
+      recorded.errors.push(message);
+    },
+    setVerses: (value) => {
+      note('verses');
+      recorded.verses.push(value);
+    },
+    setVersesChapterKey: (key) => {
+      note('chapterKey');
+      recorded.chapterKeys.push(key);
+    },
+    batchUpdates: (updates) => {
+      const batch: string[] = [];
+      openBatch = batch;
+      try {
+        updates();
+      } finally {
+        openBatch = null;
+        recorded.batches.push(batch);
+      }
+    },
     t: (key) => `t:${key}`,
     ...overrides,
   };
@@ -277,4 +306,16 @@ test('any other load failure shows the generic message without a self-heal', asy
 
   assert.deepEqual(recorded.recovered, []);
   assert.deepEqual(recorded.errors, [null, 't:bible.failedToLoad']);
+});
+
+// React Native's old architecture renders every state update made outside an event on
+// its own. Each of these was a separate pass over the whole reader (four when opening
+// Psalm 119 in a release build), so the new chapter must arrive as one update.
+test('a loaded chapter reaches the reader as one update: verses, key, read mark, loading', async () => {
+  const { load, recorded } = reader({ returnToPlanOnComplete: false });
+
+  await loadReaderChapter(load);
+
+  assert.deepEqual(recorded.batches, [['verses', 'chapterKey', 'markedRead', 'loading:false']]);
+  assert.deepEqual(recorded.loading, [true, false]);
 });
