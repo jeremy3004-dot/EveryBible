@@ -319,12 +319,15 @@ export async function loadChapterForTranslation(
     if (startPositionMs > 0) {
       store.setPosition(startPositionMs);
     }
-    store.setDuration(audioData.duration);
+    // Most sources publish no duration (0), and the native player has usually reported the
+    // real one while loading. What it measured wins over what the source claimed.
+    const durationMs = useAudioStore.getState().duration || audioData.duration;
+    store.setDuration(durationMs);
     // Loading can take long enough for the timer to run out meanwhile.
     if (
       await holdChapterForExpiredSleepTimer(syncNowPlaying, {
         ...heldTrack,
-        durationMs: audioData.duration,
+        durationMs,
       })
     ) {
       return;
@@ -337,7 +340,7 @@ export async function loadChapterForTranslation(
         bookId,
         chapter,
         positionMs: startPositionMs,
-        durationMs: audioData.duration,
+        durationMs,
         isPlaying: true,
         playbackRate: livePlaybackRate(),
       },

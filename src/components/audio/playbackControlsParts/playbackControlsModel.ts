@@ -31,6 +31,7 @@ export function playbackControlsLayout(
 export function repeatLabelKey(mode: RepeatMode): string {
   if (mode === 'chapter') return 'audio.repeatChapter';
   if (mode === 'book') return 'audio.repeatBook';
+  if (mode === 'passage') return 'audio.repeatOptionPassage';
   return 'audio.repeatOff';
 }
 

@@ -34,6 +34,12 @@ test('the repeat button is named for its mode', () => {
   ]);
 });
 
+// Passage repeat is set from the audio sheet, so this button can meet it: it must not
+// announce "Repeat off" while a passage loops.
+test('the repeat button does not read as off while a passage repeats', () => {
+  assert.equal(repeatLabelKey('passage'), 'audio.repeatOptionPassage');
+});
+
 test('rates read as a multiplier', () => {
   assert.equal(formatPlaybackRate(1.0), '1x');
   assert.equal(formatPlaybackRate(1.25), '1.25x');
