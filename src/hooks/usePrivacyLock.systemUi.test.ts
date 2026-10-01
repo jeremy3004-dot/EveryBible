@@ -498,3 +498,48 @@ test('leaving the app after a long icon alert was dismissed locks again', async 
 
   assert.equal(usePrivacyStore.getState().isLocked, true);
 });
+
+// ─── The lock enabling discreet mode asks for ────────────────────────────────
+
+test('the lock after enabling discreet mode waits for the icon alert to be answered', async () => {
+  const { runAfterPrivacyIconAlert } = await import('../services/privacy/privacyLockGrace');
+  alertDuringChange = false;
+  homeScreenIcon = 'standard';
+  inactiveTestClock += 100_000;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inactiveTestClock });
+  const lock = mountPrivacyLock();
+
+  const saved = await usePrivacyStore.getState().saveConfiguration({
+    mode: 'discreet',
+    pinInput: '1234',
+  });
+  assert.equal(saved.success, true);
+  // What the preferences screen does once it has navigated back.
+  runAfterPrivacyIconAlert(() => usePrivacyStore.getState().lock());
+  assert.equal(lock.locks.length, 0, 'not locked before the icon is even changed');
+
+  const before = changesMade;
+  await tickUntilIconChanged(before);
+  mock.timers.tick(1_527);
+  rn.AppState.emit('inactive');
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  assert.equal(lock.locks.length, 0, 'not locked while the alert is up');
+
+  rn.AppState.emit('active');
+  assert.equal(usePrivacyStore.getState().isLocked, true, 'locked once the alert is answered');
+});
+
+test('the lock after enabling discreet mode is not held when the icon already matches', async () => {
+  const { runAfterPrivacyIconAlert } = await import('../services/privacy/privacyLockGrace');
+  homeScreenIcon = 'discreet';
+  inactiveTestClock += 100_000;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inactiveTestClock });
+  mountPrivacyLock();
+
+  await usePrivacyStore.getState().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  runAfterPrivacyIconAlert(() => usePrivacyStore.getState().lock());
+  mock.timers.tick(400);
+  for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(usePrivacyStore.getState().isLocked, true, 'no change, so no alert to wait for');
+});

@@ -55,6 +55,47 @@ let heldUntilActiveSince: number | null = null;
 let iconAlertWindowUntil = 0;
 let inactiveUnderIconAlert = false;
 const graceListeners = new Set<() => void>();
+// Work (the lock after enabling discreet mode) held back until the icon alert is answered.
+let iconChangeExpected = false;
+let alertWaiters: Array<() => void> = [];
+let alertWaitTimer: ReturnType<typeof setTimeout> | null = null;
+
+const releaseAlertWaiters = (): void => {
+  iconChangeExpected = false;
+  if (alertWaitTimer !== null) {
+    clearTimeout(alertWaitTimer);
+    alertWaitTimer = null;
+  }
+  const waiters = alertWaiters;
+  alertWaiters = [];
+  waiters.forEach((run) => run());
+};
+
+/** An app icon change is about to be requested; its system alert is not up yet. */
+export function expectPrivacyIconChange(): void {
+  iconChangeExpected = true;
+}
+
+/** The expected icon change raised no alert (nothing to change, it failed, or no iOS). */
+export function noPrivacyIconAlertExpected(): void {
+  if (iconChangeExpected) {
+    releaseAlertWaiters();
+  }
+}
+
+/**
+ * Runs `run` now, unless an icon change is expected: then once its alert is answered
+ * (the app active again, or backgrounded), or at the cap if the alert never came. Locking
+ * under the alert left the reader on the lock screen with the alert still up.
+ */
+export function runAfterPrivacyIconAlert(run: () => void): void {
+  if (!iconChangeExpected) {
+    run();
+    return;
+  }
+  alertWaiters.push(run);
+  alertWaitTimer ??= setTimeout(releaseAlertWaiters, PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+}
 
 /** Allows an inactive lock timer to shorten when a prompt settles. */
 export function subscribeToPrivacyLockGraceChanges(listener: () => void): () => void {
@@ -105,6 +146,7 @@ export function notePrivacyLockAppState(nextState: string): void {
       // The alert was answered; leaving after it is the reader's own doing.
       iconAlertWindowUntil = 0;
       inactiveUnderIconAlert = false;
+      releaseAlertWaiters();
     }
   } else if (nextState === 'inactive') {
     let pendingIconAlert = false;
@@ -114,10 +156,16 @@ export function notePrivacyLockAppState(nextState: string): void {
     });
     if (pendingIconAlert || Date.now() < iconAlertWindowUntil) {
       inactiveUnderIconAlert = true;
+      // The alert is up: the cap is only for one that never comes.
+      if (alertWaitTimer !== null) {
+        clearTimeout(alertWaitTimer);
+        alertWaitTimer = null;
+      }
     }
   } else {
     iconAlertWindowUntil = 0;
     inactiveUnderIconAlert = false;
+    releaseAlertWaiters();
   }
 }
 
