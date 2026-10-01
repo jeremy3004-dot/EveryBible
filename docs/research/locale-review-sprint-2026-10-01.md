@@ -850,3 +850,39 @@ npx prettier --check src/i18n/locales/*.ts  # pass
 | `churchYear.hardChristmas.title`          | ok      | 圣诞节不好过时 — Natural, gentle phrasing; fits two lines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `churchYear.hardChristmas.description`    | fixed   | 圣诞节前一周，写给在这个节期被失去或孤单压得沉重的人：哀歌、安慰，以及在黑暗中照耀的光。 → **圣诞节前一周，写给因失落或孤单而觉得这个节期格外沉重的人：哀歌、安慰，以及照在黑暗里的光。** — “被失去或孤单压得沉重” is ungrammatical (失去, “to lose”, needs an object). It now reads “for those who find this season heavy because of loss or loneliness”, using 失落 as the file already does for loss. The light now echoes the Chinese Union Version of John 1:5 (光照在黑暗里).                                                        |
 | `translations.offlineNotice`              | ok      | 你目前处于离线状态。已下载的圣经仍可使用。 — Matches common.offlineTryAgain (你目前处于离线状态) and the file’s 已下载 / 圣经.                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+## Follow-up: sprint changes after the first review
+
+At the coordinator's request I merged `claude/deep-optimization-sprint-88be80` again; it fast-forwarded to `eebacbcd`. I then reviewed every locale change since this review's last commit (`4d13d736`). The coordinator's list also named `translations.offlineNotice`, `bible.verseImage.backgroundOption`, `home.shareVerseOfTheDay`, `readingActivity.sessionWindow` and the seasonal-plan strings. Those are unchanged since the review above, so the verdicts above stand. origin/main has no locale changes that the sprint lacks.
+
+Only two locale changes are new, both from `5d3fc324`:
+
+- **`onboarding.noLanguagesFoundBody` was removed from all 21 locales.** It contained the developer phrase "Fuzzy search is enabled", and nothing in `src/` references it any more, so no review is needed.
+- **`bible.audioDownloads` now matches English "Audio" in es, fr, id and pa.** It is used as a section header in the translation picker and in the row subtitle "Audio (Full Bible)" / "Audio (New Testament)".
+
+| Locale | Value    | Verdict                         |
+| ------ | -------- | ------------------------------- |
+| ar     | الصوت    | ok                              |
+| bn     | অডিও     | ok                              |
+| de     | Audio    | ok                              |
+| es     | Audio    | ok: Spanish UI uses "Audio"     |
+| fr     | Audio    | ok: French UI uses "Audio"      |
+| hi     | ऑडियो    | ok                              |
+| id     | Audio    | ok: Indonesian UI uses "Audio"  |
+| ja     | 音声     | ok                              |
+| ko     | 오디오   | ok                              |
+| mr     | ऑडिओ     | ok                              |
+| ne     | अडियो    | ok                              |
+| pa     | ਆਡੀਓ     | ok                              |
+| pt     | Áudio    | ok                              |
+| ru     | Аудио    | ok                              |
+| ta     | ஆடியோ    | ok                              |
+| te     | ఆడియో    | ok                              |
+| tr     | Ses      | ok: Turkish UI's word for audio |
+| ur     | آڈیو     | ok                              |
+| vi     | Âm thanh | ok                              |
+| zh     | 音频     | ok                              |
+
+**Key touched indirectly:** the same commit reuses `onboarding.noNationsFoundBody` ("Try another spelling, or search in English or the local script.") for the empty language search. The sentence names no nation, so it reads correctly for a language search in all 20 locales: ok × 20.
+
+This follow-up needed no locale fixes. Verification on `eebacbcd`: the i18n tests pass 38/38, `npm run typecheck` has 0 errors, and `npm test` passes 10,775/10,775.

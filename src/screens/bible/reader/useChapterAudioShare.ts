@@ -8,6 +8,7 @@ import type { ReaderAudioPositionSnapshot } from '../ReaderAudioPositionParts';
 import type { AudioPortionShareDraft } from './audioShareDependencies';
 import {
   loadAudioShareDependencies,
+  releaseStaleAudioShares,
   tryLoadSharing,
   loadVideoTrimDependencies,
 } from './audioShareDependencies';
@@ -15,6 +16,28 @@ import {
   AUDIO_PORTION_MIN_DURATION_MS,
   AUDIO_PORTION_DEFAULT_DURATION_MS,
 } from './readerConstants';
+
+// The export handed to sharing or the clip trimmer last. The recipient may keep reading it after
+// the share returns, so it is deleted when the next export is made, which keeps one export on
+// disk (plus whatever the age/size prune leaves) instead of one per share.
+let lastExportedAudioUri: string | null = null;
+
+/** Test seam: forget the last export so one test's file is not released in the next. */
+export function forgetLastExportedChapterAudio() {
+  lastExportedAudioUri = null;
+}
+
+// Exports are only ever temporary copies; a downloaded library file must never be deleted here.
+const releaseStaleExports = (asset: { uri: string; isTemporary: boolean }) => {
+  const previousUri = lastExportedAudioUri;
+  if (asset.isTemporary) {
+    lastExportedAudioUri = asset.uri;
+  }
+  void releaseStaleAudioShares({
+    previousUri: asset.isTemporary ? previousUri : null,
+    keepUris: [asset.uri],
+  });
+};
 
 export interface UseChapterAudioShareInput {
   audioPositionRef: RefObject<ReaderAudioPositionSnapshot>;
@@ -145,6 +168,7 @@ export function useChapterAudioShare({
       }
 
       audioReady = true;
+      releaseStaleExports(audioShareAsset);
       trackBibleExperienceEvent({
         name: 'library_action',
         bookId,
@@ -238,6 +262,7 @@ export function useChapterAudioShare({
         return;
       }
 
+      releaseStaleExports(audioShareAsset);
       trackBibleExperienceEvent({
         name: 'library_action',
         bookId,

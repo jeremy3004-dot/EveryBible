@@ -102,3 +102,42 @@ test('keeps short queries idle and does not ask the parser to resolve them', () 
   );
   assert.equal(parserCalls, 0);
 });
+
+test('a query that is only a book name keeps full-text search and carries the book target', () => {
+  const john = { bookId: 'JHN', chapter: 1, label: 'John' };
+
+  assert.deepEqual(
+    resolveBibleSearchIntent(
+      ' john ',
+      () => null,
+      (query) => (query === 'john' ? john : null)
+    ),
+    { kind: 'full-text', query: 'john', book: john }
+  );
+  assert.deepEqual(
+    resolveBibleSearchIntent(
+      'love',
+      () => null,
+      () => null
+    ),
+    { kind: 'full-text', query: 'love' }
+  );
+});
+
+test('a passage reference wins over the book lookup', () => {
+  const target = { bookId: 'JHN', chapter: 3, label: 'John 3' };
+  let bookCalls = 0;
+
+  assert.deepEqual(
+    resolveBibleSearchIntent(
+      'john 3',
+      () => target,
+      () => {
+        bookCalls += 1;
+        return null;
+      }
+    ),
+    { kind: 'reference', query: 'john 3', target }
+  );
+  assert.equal(bookCalls, 0);
+});
