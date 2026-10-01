@@ -8,6 +8,7 @@ import {
   upsertTextPackDeletion,
 } from '../../services/bible/textPackInstallJournalModel';
 import {
+  fallbackSelectionFields,
   hasTranslationDownloadData,
   reconcileMissingRuntimeTranslationPacks,
   resetTranslationDownloadState,
@@ -266,14 +267,13 @@ export const createTextPackMaintenanceSlice: BibleSliceCreator<TextPackMaintenan
             item.id === translationId ? resetTranslationDownloadState(item) : item
           );
           nextTranslationsSnapshot = nextTranslations;
-          const nextCurrentTranslation =
-            currentState.currentTranslation === translationId && translationId !== 'bsb'
-              ? 'bsb'
-              : currentState.currentTranslation;
+          const fellBack =
+            currentState.currentTranslation === translationId && translationId !== 'bsb';
 
           return {
             translations: nextTranslations,
-            currentTranslation: nextCurrentTranslation,
+            currentTranslation: fellBack ? 'bsb' : currentState.currentTranslation,
+            ...(fellBack ? fallbackSelectionFields(nextTranslations, 'bsb') : {}),
             downloadProgress:
               currentState.downloadProgress?.translationId === translationId
                 ? null
