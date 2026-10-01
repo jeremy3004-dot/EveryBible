@@ -1022,6 +1022,30 @@ test('a device row update not yet sent when time runs out is never sent, even un
   assert.deepEqual(pendingDeactivation(), { token: 'expo-token', userId: uid });
 });
 
+test('a sign-out abandoned with the account still signed in lets this device register again', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  await notifications.deactivatePushToken(uid);
+  assert.equal(await notifications.registerPushToken(uid), null, 'refused while signing out');
+
+  const token = await notifications.resumePushRegistration(uid);
+
+  assert.equal(token, 'expo-token');
+  const upserts = upsertsFor(uid);
+  assert.equal(upserts.length, 2);
+  assert.equal((upserts[1]?.payload as { is_active: boolean }).is_active, true);
+  assert.equal(pendingDeactivation(), undefined);
+});
+
+test('resuming registration does not override a sign-out of a different account', async () => {
+  const uid = nextUser();
+  await notifications.registerPushToken(uid);
+  await notifications.deactivatePushToken(uid);
+  nextUser();
+
+  assert.equal(await notifications.resumePushRegistration(uid), null);
+});
+
 test('offline, sign-out sends nothing and records the deactivation as pending', async () => {
   const uid = nextUser();
   await notifications.registerPushToken(uid);

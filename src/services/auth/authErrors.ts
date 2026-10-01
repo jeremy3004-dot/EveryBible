@@ -59,6 +59,13 @@ const getErrorStatus = (error: unknown): number | null => {
   return null;
 };
 
+const getErrorName = (error: unknown): string | null =>
+  typeof error === 'object' &&
+  error !== null &&
+  typeof (error as { name?: unknown }).name === 'string'
+    ? (error as { name: string }).name
+    : null;
+
 const authFailure = (code: AuthErrorCode, error: unknown, fallback?: string): AuthFailure => ({
   success: false,
   code,
@@ -87,7 +94,14 @@ export const mapSupabaseAuthError = (error: unknown): AuthFailure => {
     return authFailure('invalid_credentials', error);
   }
 
+  // A request that never got an answer (auth-js: AuthRetryableFetchError, status 0, which
+  // includes our timeout's abort), a server fault, or a rate limit: none says the
+  // credentials were wrong, and all clear up by trying again.
   if (
+    getErrorName(error) === 'AuthRetryableFetchError' ||
+    getErrorName(error) === 'AbortError' ||
+    status === 429 ||
+    (status !== null && status >= 500) ||
     message.includes('network request failed') ||
     message.includes('failed to fetch') ||
     message.includes('fetch failed') ||

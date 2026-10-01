@@ -471,6 +471,12 @@ export const useAuthStore = create<AuthState>()(
           if (!isCurrent()) return;
           const result = await getAuthModule().signOut(isCurrent);
           if (result.localRemovalFailed && isCurrent()) {
+            // The push row was already deactivated above; the account stays signed in.
+            if (previousUserId) {
+              void import('../services/notifications')
+                .then(({ resumePushRegistration }) => resumePushRegistration(previousUserId))
+                .catch(() => {});
+            }
             throw new Error('Could not safely end the session on this device');
           }
           // auth-js may already have emitted SIGNED_OUT for this account. That single

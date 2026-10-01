@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -61,11 +61,28 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // isLoading is render state: taps delivered before the next render (the Apple control
+  // cannot be disabled) all still read false. The ref is what admits one call at a time.
+  const inFlightRef = useRef(false);
   const [errors, setErrors] = useState<AuthFormErrors>({});
   const [verificationNotice, setVerificationNotice] = useState(false);
 
+  // Close and the system back gesture stay live during a sign-in. Once the screen is
+  // gone, finishing must not go back again: that would pop what lies under the modal.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const dismiss = () => {
     navigation.getParent()?.goBack();
+  };
+
+  const dismissWhenDone = () => {
+    if (isMountedRef.current) dismiss();
   };
 
   const changeMode = (nextMode: AuthScreenMode) => {
@@ -102,7 +119,7 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
     }
 
     await pullFromCloud(userId);
-    dismiss();
+    dismissWhenDone();
   };
 
   const showAuthFailure = (result: AuthResult, fallbackKey: string) => {
@@ -116,12 +133,17 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
 
   // Runs one auth call with the form locked, reporting a thrown call generically.
   const runLocked = async (work: () => Promise<void>) => {
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
     setIsLoading(true);
     try {
       await work();
     } catch {
       Alert.alert(t('common.error'), t('auth.somethingWentWrong'));
     } finally {
+      inFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -155,7 +177,7 @@ export function useAuthFlow(initialMode: AuthScreenMode): AuthFlow {
         const userId = await hydrateLiveSession();
         if (userId) {
           await pullFromCloud(userId);
-          dismiss();
+          dismissWhenDone();
           return;
         }
 

@@ -90,6 +90,10 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
   const didUpdatePasswordRef = useRef(false);
   const isMountedRef = useRef(true);
   const activationPendingRef = useRef(false);
+  // isResending/isSaving are render state, so taps delivered before the next render
+  // all read false. These refs admit one request at a time.
+  const resendInFlightRef = useRef(false);
+  const savingInFlightRef = useRef(false);
   const releaseObserverRef = useRef<(() => void) | null>(null);
   const recoveryOwnerRef = useRef<{ isCurrent: () => boolean; release: () => void } | null>(null);
 
@@ -231,6 +235,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
   // The new link is requested from this install, so its code verifier is stored
   // here and the emailed link works on this device.
   const sendNewLink = async () => {
+    if (resendInFlightRef.current) return;
     const email = resendEmail.trim();
     if (!email) {
       setResendError(t('auth.emailRequiredForReset'));
@@ -238,6 +243,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
     }
 
     setResendError(null);
+    resendInFlightRef.current = true;
     setIsResending(true);
     try {
       const result = await resetPassword(email);
@@ -251,6 +257,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
     } catch {
       setResendError(t('auth.resetEmailError'));
     } finally {
+      resendInFlightRef.current = false;
       setIsResending(false);
     }
   };
@@ -268,6 +275,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
   };
 
   const submitNewPassword = async () => {
+    if (savingInFlightRef.current) return;
     const nextErrors = validateNewPassword(password, confirmPassword);
     setErrors(nextErrors);
     if (hasFormErrors(nextErrors)) {
@@ -287,6 +295,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
       setFormError(t(resetFailureMessageKey('invalid_credentials')));
       return;
     }
+    savingInFlightRef.current = true;
     setIsSaving(true);
     setFormError(null);
     try {
@@ -324,6 +333,7 @@ export function useResetPasswordFlow(): ResetPasswordFlow {
       if (!isCurrent()) return;
       setFormError(t('auth.resetPasswordError'));
     } finally {
+      savingInFlightRef.current = false;
       if (isMountedRef.current) setIsSaving(false);
     }
   };

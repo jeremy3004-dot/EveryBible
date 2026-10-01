@@ -619,6 +619,20 @@ export async function deactivatePushToken(userId: string): Promise<void> {
 }
 
 /**
+ * Sign-out deactivated this device's row and then could not end the session on the
+ * device, so the account is still signed in. Lifts the sign-out's refusal for that
+ * auth generation and registers again; without it the account would get no pushes here
+ * until the next sign-in or launch. Another account's sign-in is never overridden.
+ */
+export function resumePushRegistration(userId: string): Promise<string | null> {
+  const auth = getAuthIdentity();
+  if (auth?.userId === userId && invalidatedAuthGenerations.get(userId) === auth.generation) {
+    invalidatedAuthGenerations.delete(userId);
+  }
+  return registerPushToken(userId);
+}
+
+/**
  * Discreet mode takes this device off the push list. Pushes are written by the server,
  * which does not know the device is disguised, and the OS shows them on the lock screen
  * under the app's real name (a group push also names the group); the foreground handler

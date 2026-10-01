@@ -30,6 +30,7 @@ const recovery = {
   resetResult: { success: true } as { success: boolean },
   session: { user: { id: 'recovery-uid' } } as { user: { id: string } } | null,
   resets: [] as string[],
+  updates: 0,
   signOuts: 0,
   activations: [] as Array<string | null>,
   // While set, activation and the password update wait on it.
@@ -50,6 +51,7 @@ const pulls: string[] = [];
 mockBarrel(mock, 'services/auth/index.ts', {
   provide: {
     updatePassword: async () => {
+      recovery.updates += 1;
       if (recovery.gate) await recovery.gate;
       if (recovery.throwOnUpdate) throw new Error('network down');
       return recovery.updateResult;
@@ -98,6 +100,7 @@ test.beforeEach(() => {
   recovery.resetResult = { success: true };
   recovery.session = { user: { id: 'recovery-uid' } };
   recovery.resets.length = 0;
+  recovery.updates = 0;
   recovery.signOuts = 0;
   recovery.activations.length = 0;
   recovery.gate = null;
@@ -409,6 +412,44 @@ test('while the password is being saved the form is locked', async () => {
     gate.resolve();
     await pending;
   });
+});
+
+// Taps delivered before React re-renders all see isSaving=false. A second password
+// update would be refused as "same password" and report a failure after the first one
+// had saved it.
+test('taps delivered before the form re-renders save the password once', async () => {
+  const view = await renderReset();
+  await continueToForm(view);
+  const gate = deferred();
+  recovery.gate = gate.promise;
+  await view.changeText(view.getByLabelText(t('auth.newPassword')), 'new-secret');
+  await view.changeText(view.getByLabelText(t('auth.confirmNewPassword')), 'new-secret');
+  const submit = view.getByRole('button', { name: t('auth.resetPasswordSubmit') }).props
+    .onPress as () => Promise<void>;
+
+  await act(async () => {
+    const taps = [submit(), submit()];
+    gate.resolve();
+    await Promise.all(taps);
+  });
+
+  assert.equal(recovery.updates, 1);
+});
+
+// A second reset request replaces the stored PKCE code verifier, which voids the link in
+// the first email.
+test('taps delivered before the form re-renders request one new link', async () => {
+  recovery.pending = null;
+  const view = await renderReset();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  const send = view.getByRole('button', { name: t('auth.sendNewResetLink') }).props
+    .onPress as () => Promise<void>;
+
+  await act(async () => {
+    await Promise.all([send(), send()]);
+  });
+
+  assert.deepEqual(recovery.resets, ['ruth@example.com']);
 });
 
 test('after a new password is saved, OK closes and leaving keeps the session', async () => {

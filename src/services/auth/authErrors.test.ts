@@ -75,6 +75,34 @@ test('mapSupabaseAuthError maps network failures to service_unavailable', () => 
   assert.equal(result.code, 'service_unavailable');
 });
 
+// auth-js wraps any fetch failure, including the request timeout's abort ("Aborted" on
+// React Native), as AuthRetryableFetchError with status 0 and the raw message. Mapped
+// to 'unknown', a sign-in on a slow link told the reader to check their password.
+test('mapSupabaseAuthError maps an aborted or failed request to service_unavailable', () => {
+  for (const message of ['Aborted', 'Network request failed', 'The operation was aborted']) {
+    const result = mapSupabaseAuthError({ name: 'AuthRetryableFetchError', status: 0, message });
+    assert.equal(result.code, 'service_unavailable', message);
+  }
+});
+
+test('mapSupabaseAuthError maps server-side failures and rate limits to service_unavailable', () => {
+  for (const status of [429, 500, 502, 503, 504]) {
+    const result = mapSupabaseAuthError({ name: 'AuthApiError', status, message: 'Try later' });
+    assert.equal(result.code, 'service_unavailable', String(status));
+  }
+});
+
+test('mapSupabaseAuthError keeps rejected credentials and unrelated errors as they were', () => {
+  assert.equal(
+    mapSupabaseAuthError({ name: 'AuthApiError', status: 401, message: 'bad' }).code,
+    'invalid_credentials'
+  );
+  assert.equal(
+    mapSupabaseAuthError({ name: 'AuthApiError', status: 422, message: 'weak password' }).code,
+    'unknown'
+  );
+});
+
 test('mapProviderIdTokenAuthError maps disabled provider errors to provider_unavailable', () => {
   const result = mapProviderIdTokenAuthError('google', {
     status: 400,
