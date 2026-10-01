@@ -5,8 +5,10 @@ import {
   mergeGuestFourFields,
   mergeGuestGather,
   mergeGuestLibrary,
+  mergeGuestProgress,
   type FourFieldsData,
   type LibraryData,
+  type ProgressData,
 } from './privateDataAdoption';
 import type { UserAnnotation } from '../services/supabase/types';
 
@@ -139,7 +141,64 @@ test('a deleted and a re-created annotation on one verse in the same bucket both
 
   assert.deepEqual(ids(merged), ['old', 'recreated']);
   assert.deepEqual(active(merged), ['recreated']);
+  // The deleted one keeps the time it was deleted, not the re-created one's edit time.
+  assert.deepEqual(
+    merged.find((item) => item.id === 'old'),
+    guest[0]
+  );
 });
+
+test('two highlights on one verse last edited at the same moment: the later-created one stays visible', () => {
+  const merged = mergeGuestAnnotations(
+    [
+      annotation({
+        id: 'account',
+        created_at: '2026-01-02T00:00:00Z',
+        updated_at: '2026-01-03T00:00:00Z',
+      }),
+    ],
+    [
+      annotation({
+        id: 'guest',
+        color: 'sky',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-03T00:00:00Z',
+      }),
+    ]
+  );
+
+  assert.deepEqual(active(merged), ['account']);
+});
+
+test('a note alone on its verse is adopted exactly as written, spacing included', () => {
+  // A highlight on the same verse is a different annotation type, not a collision.
+  const written = note({ id: 'guest', content: '  Grace\n' });
+
+  const merged = mergeGuestAnnotations([annotation({ id: 'account' })], [written]);
+
+  assert.deepEqual(active(merged), ['account', 'guest']);
+  assert.deepEqual(
+    merged.find((item) => item.id === 'guest'),
+    written
+  );
+});
+
+for (const blank of [null, '', '   ']) {
+  test(`colliding notes with no text (${JSON.stringify(blank)}) leave the shown note as it was`, () => {
+    const shown = note({ id: 'account', content: blank, updated_at: '2026-02-01T00:00:00Z' });
+
+    const merged = mergeGuestAnnotations(
+      [shown],
+      [note({ id: 'guest', content: null, updated_at: '2026-01-01T00:00:00Z' })]
+    );
+
+    assert.deepEqual(active(merged), ['account']);
+    assert.deepEqual(
+      merged.find((item) => item.id === 'account'),
+      shown
+    );
+  });
+}
 
 test('annotation adoption is idempotent', () => {
   const account = [
@@ -247,6 +306,21 @@ test('library adoption keeps the latest listen per chapter, newest first', () =>
   assert.deepEqual(merged.history, [
     { id: 'GEN:1', bookId: 'GEN', chapter: 1, listenedAt: 50, progress: 0.5 },
     { id: 'EXO:1', bookId: 'EXO', chapter: 1, listenedAt: 20, progress: 1 },
+  ]);
+});
+
+test('a listen recorded at the same moment on both sides keeps the account copy', () => {
+  const merged = mergeGuestLibrary(
+    library({
+      history: [{ id: 'GEN:1', bookId: 'GEN', chapter: 1, listenedAt: 50, progress: 1 }],
+    }),
+    library({
+      history: [{ id: 'GEN:1', bookId: 'GEN', chapter: 1, listenedAt: 50, progress: 0.4 }],
+    })
+  );
+
+  assert.deepEqual(merged.history, [
+    { id: 'GEN:1', bookId: 'GEN', chapter: 1, listenedAt: 50, progress: 1 },
   ]);
 });
 
@@ -373,6 +447,19 @@ test('Four Fields adoption keeps the account position when the guest never start
   assert.equal(merged.currentLessonId, 'l1');
 });
 
+test('Four Fields adoption keeps the account active group unless the guest had chosen one', () => {
+  const account = fourFields({ groups: [group('g-account')], activeGroupId: 'g-account' });
+
+  assert.equal(mergeGuestFourFields(account, fourFields()).activeGroupId, 'g-account');
+  assert.equal(
+    mergeGuestFourFields(
+      account,
+      fourFields({ groups: [group('g-guest')], activeGroupId: 'g-guest' })
+    ).activeGroupId,
+    'g-guest'
+  );
+});
+
 test('Four Fields adoption is idempotent', () => {
   const guest = fourFields({
     completedLessons: { 'course-1': ['l2'] },
@@ -385,4 +472,64 @@ test('Four Fields adoption is idempotent', () => {
   };
 
   assert.deepEqual({ ...once, ...mergeGuestFourFields(once, guest) }, once);
+});
+
+// ---------------------------------------------------------------------------
+// Reading and listening progress: the streak follows the most recent reading
+// ---------------------------------------------------------------------------
+
+const progress = (overrides: Partial<ProgressData> = {}): ProgressData => ({
+  chaptersRead: {},
+  chaptersListened: {},
+  listeningMsByDate: {},
+  chaptersByDate: {},
+  streakDays: 0,
+  lastReadDate: null,
+  ...overrides,
+});
+
+test('progress adoption takes the guest streak when the guest read on a later day', () => {
+  const merged = mergeGuestProgress(
+    progress({ streakDays: 9, lastReadDate: '2026-09-07' }),
+    progress({ streakDays: 2, lastReadDate: '2026-09-09' })
+  );
+
+  assert.deepEqual(merged, progress({ streakDays: 2, lastReadDate: '2026-09-09' }));
+});
+
+test('progress adoption keeps the account streak when the account read on a later day, even against a longer guest run', () => {
+  const merged = mergeGuestProgress(
+    progress({ streakDays: 3, lastReadDate: '2026-09-09' }),
+    progress({ streakDays: 10, lastReadDate: '2026-09-08' })
+  );
+
+  assert.deepEqual(merged, progress({ streakDays: 3, lastReadDate: '2026-09-09' }));
+});
+
+test('when both sides last read on the same day, the longer run is kept, whichever side has it', () => {
+  assert.deepEqual(
+    mergeGuestProgress(
+      progress({ streakDays: 4, lastReadDate: '2026-09-09' }),
+      progress({ streakDays: 6, lastReadDate: '2026-09-09' })
+    ),
+    progress({ streakDays: 6, lastReadDate: '2026-09-09' })
+  );
+  assert.deepEqual(
+    mergeGuestProgress(
+      progress({ streakDays: 6, lastReadDate: '2026-09-09' }),
+      progress({ streakDays: 4, lastReadDate: '2026-09-09' })
+    ),
+    progress({ streakDays: 6, lastReadDate: '2026-09-09' })
+  );
+});
+
+test('a side that never read does not take the streak from a side that did', () => {
+  assert.deepEqual(
+    mergeGuestProgress(progress(), progress({ streakDays: 4, lastReadDate: '2026-09-09' })),
+    progress({ streakDays: 4, lastReadDate: '2026-09-09' })
+  );
+  assert.deepEqual(
+    mergeGuestProgress(progress({ streakDays: 5, lastReadDate: '2026-09-09' }), progress()),
+    progress({ streakDays: 5, lastReadDate: '2026-09-09' })
+  );
 });
