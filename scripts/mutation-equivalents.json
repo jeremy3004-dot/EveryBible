@@ -31,6 +31,68 @@
       "reason": "In the small hours, 04:00 the same local day is always at least 1 ms ahead, so floors of 0 and 1 never differ"
     }
   ],
+  "src/hooks/usePrivacyLock.ts": [
+    {
+      "key": "boolean-literal|false|true|let inactiveLockDeferred = false;|usePrivacyLock.inactiveLockDeferred",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "remove-statement|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|;|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "logical-swap|&&||||inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "equality-flip|===|!==|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "string-literal|'inactive'|''|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "remove-statement|awayLockTimer = null;|;|awayLockTimer = null;|usePrivacyLock.clearAwayLock",
+      "reason": "The leftover handle is only used to cancel the timer again, which does nothing"
+    },
+    {
+      "key": "remove-statement|awayLockTimer = null;|;|awayLockTimer = null;|usePrivacyLock.lockIfStillAway",
+      "reason": "The leftover handle is only used to cancel the timer again, which does nothing"
+    },
+    {
+      "key": "string-literal|'active'|''|if (previousState !== 'active' && shouldStayLocked()) {|usePrivacyLock.lockIfStillAway",
+      "reason": "The away timer is cancelled on every switch to 'active' and only set while away; lock() applies the same discreet-and-PIN condition"
+    },
+    {
+      "key": "logical-swap|&&||||if (previousState !== 'active' && shouldStayLocked()) {|usePrivacyLock.lockIfStillAway",
+      "reason": "The away timer is cancelled on every switch to 'active' and only set while away; lock() applies the same discreet-and-PIN condition"
+    },
+    {
+      "key": "number-literal|0|1|awayLockTimer = setTimeout(lockIfStillAway, Math.max(0, boundedDeadline - Date.now()));|usePrivacyLock.deferAwayLock",
+      "reason": "A 1 ms instead of a 0 ms timer for an overdue deadline is the same single wakeup"
+    },
+    {
+      "key": "nullish-drop-default|getPrivacyLockGraceDeadline() ?? Date.now()|getPrivacyLockGraceDeadline()|deferAwayLock(getPrivacyLockGraceDeadline() ?? Date.now());|usePrivacyLock.unsubscribeFromGrace",
+      "reason": "Grace listeners run right after the grace end was set to now + 1.5 s, so the deadline is never null there"
+    },
+    {
+      "key": "remove-statement|lockAfterPrivacyLockFailure(error);|;|lockAfterPrivacyLockFailure(error);|usePrivacyLock.unsubscribeFromGrace",
+      "reason": "Nothing inside the listener's try can throw (arithmetic, Date.now, setTimeout, clearTimeout)"
+    },
+    {
+      "key": "remove-statement|clearAwayLock();|;|clearAwayLock();|usePrivacyLock.subscription#2",
+      "reason": "The lock-now branch only finds a live timer after a background lock; it is cancelled on return or re-locks an already locked app"
+    },
+    {
+      "key": "string-literal|'active'|''|if (nextState === 'active' && leaving !== 'active') {|usePrivacyLock.subscription#1",
+      "reason": "A repeated 'active' (possible on Android) only re-runs the app icon check every foreground return already does"
+    },
+    {
+      "key": "remove-statement|unsubscribeFromGrace();|;|unsubscribeFromGrace();|usePrivacyLock",
+      "reason": "The hook is the only grace listener; after unmount it nulls its deadline and gets no app-state events"
+    }
+  ],
   "src/services/audio/download/chapterTransfer.ts": [
     {
       "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());|delay",
@@ -717,6 +779,88 @@
     {
       "key": "relational-boundary|>=|>|return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;|laterSession",
       "reason": "Equal indexes mean the same session key, so either side is returned"
+    }
+  ],
+  "src/services/privacy/privacyLockGrace.ts": [
+    {
+      "key": "number-literal|0|1|let graceUntil = 0;|graceUntil",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|let iconAlertWindowUntil = 0;|iconAlertWindowUntil",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|iconAlertWindowUntil = 0;|notePrivacyLockAppState",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|iconAlertWindowUntil = 0;|notePrivacyLockAppState#1",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|const deadline = Math.max(graceUntil, heldDeadline, getPendingPrivacyLockGraceDeadline() ?? 0);|getPrivacyLockGraceDeadline.deadline",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "boolean-literal|false|true|sawInactive: false,|withPrivacyLockGrace.entry.sawInactive",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-negation|!entry.sawInactive|entry.sawInactive|if (!entry.sawInactive) {|withPrivacyLockGrace",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|heldUntilActiveSince = settledAt;|;|heldUntilActiveSince = settledAt;|withPrivacyLockGrace",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|entry.sawInactive = true;|;|entry.sawInactive = true;|notePrivacyLockAppState",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "boolean-literal|true|false|entry.sawInactive = true;|notePrivacyLockAppState",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "equality-flip|===|!==|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "arithmetic-swap|+|-|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|graceListeners.delete(listener);|;|graceListeners.delete(listener);|subscribeToPrivacyLockGraceChanges",
+      "reason": "The hook is the only listener; after unmount it nulls its deadline and gets no app-state events, so a listener left subscribed never acts"
+    },
+    {
+      "key": "remove-statement|alertWaitTimer = null;|;|alertWaitTimer = null;|notePrivacyLockAppState",
+      "reason": "After the icon-alert fix, the stale timer handle is always cleared by the release that ends the alert before a cap can be set again"
+    },
+    {
+      "key": "remove-statement|inactiveUnderIconAlert = false;|;|inactiveUnderIconAlert = false;|notePrivacyLockAppState#1",
+      "reason": "After 'background' the flag is next read by an inactive lock decision, which cannot happen before the next 'active' resets it"
+    },
+    {
+      "key": "boolean-literal|false|true|inactiveUnderIconAlert = false;|notePrivacyLockAppState#1",
+      "reason": "After 'background' the flag is next read by an inactive lock decision, which cannot happen before the next 'active' resets it"
+    },
+    {
+      "key": "nullish-drop-default|getPendingPrivacyLockGraceDeadline() ?? 0|getPendingPrivacyLockGraceDeadline()|const deadline = Math.max(graceUntil, heldDeadline, getPendingPrivacyLockGraceDeadline() ?? 0);|getPrivacyLockGraceDeadline.deadline",
+      "reason": "Math.max(..., null) treats null as 0"
+    },
+    {
+      "key": "equality-flip|===|!==|if (end > now && (deadline === null || end > deadline)) {|getPendingPrivacyLockGraceDeadline",
+      "reason": "Pending requests are stored in start order, so the last unexpired one has the latest cap; only a clock jumping backwards between two open prompts differs"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (end > now && (deadline === null || end > deadline)) {|getPendingPrivacyLockGraceDeadline#1",
+      "reason": ">= against an equal cap picks the same value"
     }
   ],
   "src/services/sync/syncMerge.ts": [
