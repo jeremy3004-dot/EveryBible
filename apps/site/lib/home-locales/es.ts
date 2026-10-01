@@ -14,7 +14,7 @@ const copy: HomeCopy = {
     plans: 'Planes',
     app: 'La aplicación',
     mission: 'Misión',
-    give: 'Dar',
+    give: 'Donar',
     getApp: 'Obtén la aplicación',
     menu: 'Menú',
     closeMenu: 'Cerrar menú',

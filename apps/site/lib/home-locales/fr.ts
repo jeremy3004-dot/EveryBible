@@ -14,7 +14,7 @@ const copy: HomeCopy = {
     plans: 'Plans',
     app: 'L’application',
     mission: 'Mission',
-    give: 'Donner',
+    give: 'Faire un don',
     getApp: 'Obtenir l’application',
     menu: 'Menu',
     closeMenu: 'Fermer le menu',
@@ -91,7 +91,7 @@ const copy: HomeCopy = {
     eyebrow: 'Pourquoi Every Language existe',
     quote: 'La parole de Dieu est vivante et efficace, même dans les mains d’une enfant.',
     paragraphs: [
-      'Il y a six ans, nous avons fini de placer la Bible dans trente mille foyers d’une région montagneuse isolée de l’Himalaya. Il restait un village. Ses habitants avaient chassé nos équipes et promis des coups et des pierres si nous revenions. Dans une école du chef-lieu du district, nous avons distribué des Bibles, et une fillette a rapporté la sienne chez elle. Elle venait de ce village, et son père en était le grand prêtre. Elle a lu le Sermon sur la montagne, qui parle d’un Père céleste qui prend soin des oiseaux du ciel et des lis des champs, et elle lui a donné sa vie. Puis elle a conduit son frère, sa mère et son père au Seigneur. Le village a chassé la famille, et dans les jours qui ont suivi elle a conduit seize autres personnes à Jésus et écrit des dizaines de chants de louange.',
+      'Il y a six ans, nous avons fini de placer la Bible dans trente mille foyers d’une région montagneuse isolée de l’Himalaya. Il restait un village. Ses habitants avaient chassé nos équipes et promis des coups et des pierres si nous revenions. Dans une école du chef-lieu du district, nous avons distribué des Bibles, et une fillette a rapporté la sienne chez elle. Elle venait de ce village, et son père était le prêtre principal du village. Elle a lu le Sermon sur la montagne, qui parle d’un Père céleste qui prend soin des oiseaux du ciel et des lis des champs, et elle lui a donné sa vie. Puis elle a conduit son frère, sa mère et son père au Seigneur. Le village a chassé la famille, et dans les jours qui ont suivi elle a conduit seize autres personnes à Jésus et écrit des dizaines de chants de louange.',
       'La parole de Dieu est vivante et efficace, même dans les mains d’une enfant. La foi vient de ce qu’on entend, et l’Esprit se sert de cette Parole pour amener des personnes à Christ, et par elles des familles, des villages et des nations. Voilà pourquoi Every Language existe : pour que chaque peuple de la terre puisse entendre les Écritures dans sa propre langue, et pour que des gens de toute tribu et de toute langue se tiennent debout devant le trône, rachetés par le sang de l’Agneau.',
     ],
     giveCta: 'Soutenir l’œuvre',
