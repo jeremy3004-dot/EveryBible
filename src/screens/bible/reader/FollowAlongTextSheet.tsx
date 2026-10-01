@@ -12,7 +12,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants/books';
+import { getTranslatedPassageBookName } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { getReadingFontFamily } from '../../../design/fonts';
 import { layout, spacing, typography } from '../../../design/system';
@@ -92,7 +92,7 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
     [scaleValue, textLanguage]
   );
 
-  const title = `${getTranslatedBookName(track.bookId, t)} ${track.chapter}`;
+  const title = `${getTranslatedPassageBookName(track.bookId, t)} ${track.chapter}`;
   const eyebrow = text.isFallback
     ? (text.textTranslationId ?? '').toUpperCase()
     : translation?.abbreviation || track.translationId.toUpperCase();

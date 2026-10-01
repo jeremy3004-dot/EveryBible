@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 export interface ChapterActionsSheetProps {
@@ -99,7 +99,7 @@ export function ChapterActionsSheet({
               accessibilityRole="header"
               style={[styles.actionSheetTitle, { color: colors.biblePrimaryText }]}
             >
-              {getTranslatedBookName(bookId, t)} {chapter}
+              {getTranslatedPassageBookName(bookId, t)} {chapter}
             </Text>
 
             {[

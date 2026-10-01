@@ -5,7 +5,7 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAdjacentBibleChapter, getTranslatedBookName } from '../../../constants';
+import { getAdjacentBibleChapter, getTranslatedPassageBookName } from '../../../constants';
 import { findAdjacentAvailableChapter } from '../../../services/bible/contentAvailability';
 import { useAudioStore } from '../../../stores/audioStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../../stores/audioPlaybackSequenceModel';
@@ -205,7 +205,9 @@ export function useReaderChapterNavigation({
     // The arrows keep focus while the chapter swaps under them; say where they went,
     // as the read-mode swipe does.
     announceTarget: (target: { bookId: string; chapter: number }) => {
-      announceForAccessibility(`${getTranslatedBookName(target.bookId, t)} ${target.chapter}`);
+      announceForAccessibility(
+        `${getTranslatedPassageBookName(target.bookId, t)} ${target.chapter}`
+      );
     },
   };
 

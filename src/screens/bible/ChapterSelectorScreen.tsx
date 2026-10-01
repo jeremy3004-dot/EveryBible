@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
-import { getBookById, getTranslatedBookName } from '../../constants';
+import { getBookById, getTranslatedBookName, getTranslatedPassageBookName } from '../../constants';
 import { CompanionSection } from '../../components/bible/CompanionSection';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
@@ -199,7 +199,7 @@ export function ChapterSelectorScreen() {
             onPress={() => navigateToChapter(chapter)}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
+            accessibilityLabel={`${getTranslatedPassageBookName(bookId, t)} ${chapter}`}
             // Read / continue state is otherwise carried by fill colour alone.
             accessibilityValue={
               isContinueChapter

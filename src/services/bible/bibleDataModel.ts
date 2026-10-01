@@ -479,6 +479,14 @@ export function buildBibleSearchQuery(query: string): string | null {
   return words.length ? words.map((token) => `"${token.replace(/"/g, '""')}"*`).join(' ') : null;
 }
 
+// The query's words as one lowercase phrase, so a verse that contains them side by side can
+// outrank verses that only contain each word somewhere. Null for a single word, where there is
+// no adjacency to reward.
+export function buildBibleSearchPhrase(query: string): string | null {
+  const words = getIndexedBibleSearchWords(query);
+  return words.length > 1 ? words.join(' ').toLowerCase() : null;
+}
+
 const COMBINING_MARK_PATTERN = /\p{M}/u;
 const MARK_SENSITIVE_SCRIPT_PATTERN = /[\u0600-\u06FF]|[\u0900-\u0DFF]/u;
 
