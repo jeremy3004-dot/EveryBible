@@ -84,7 +84,15 @@ const stored = (key: string) => {
   return raw === undefined ? undefined : (JSON.parse(raw).state as Record<string, unknown>);
 };
 const userKey = (name: string, uid: string) => scope.privateDataStorageKey(name, uid);
-const marker = () => JSON.parse(mmkv.store.get(scope.PRIVATE_DATA_OWNER_KEY) ?? 'null');
+const rawMarker = () => JSON.parse(mmkv.store.get(scope.PRIVATE_DATA_OWNER_KEY) ?? 'null');
+// The marker minus the record of which stores it has scoped, which has its own tests.
+const marker = () => {
+  const raw = rawMarker();
+  if (raw === null) return null;
+  const rest = { ...raw };
+  delete rest.scopedStores;
+  return rest;
+};
 const authStorage = (lastSyncedUserId: string | null) =>
   JSON.stringify({ state: { preferences: {}, lastSyncedUserId }, version: 3 });
 
@@ -601,4 +609,110 @@ test('registering a store without a persist name is rejected', () => {
     () => scope.registerPrivateDataStore(unnamed, (account) => account),
     /has no persist name/
   );
+});
+
+// ---------------------------------------------------------------------------
+// Stores added to scoping after the owner marker was first written
+// (progress-storage). An install that already has a marker never runs the
+// no-marker migration, so the marker records which stores it has scoped.
+// ---------------------------------------------------------------------------
+
+const PROGRESS = 'progress-storage';
+const progressBlob = (chaptersRead: Record<string, number>) =>
+  blob({ chaptersRead, streakDays: 0, lastReadDate: null });
+const progressRead = (key: string) =>
+  (stored(key) as { chaptersRead?: Record<string, number> } | undefined)?.chaptersRead;
+
+test('an owner marker from before progress was scoped moves the device progress into the account', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+  assert.equal(mmkv.store.has(PROGRESS), false, 'the guest key no longer holds the account data');
+  assert.deepEqual(marker(), { owner: 'user-a' });
+  assert.ok(rawMarker().scopedStores.includes(PROGRESS));
+});
+
+test('the same upgrade while signed out leaves the progress in the guest bucket', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: null }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(PROGRESS), { GEN_1: 5 });
+  assert.ok(rawMarker().scopedStores.includes(PROGRESS));
+});
+
+test('a store the marker already scoped is never moved: its bare key is guest data', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(NOTES, blob({ notes: ['guest note'] }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(stored(NOTES), { notes: ['guest note'] });
+  assert.equal(mmkv.store.has(userKey(NOTES, 'user-a')), false);
+});
+
+test('the launch after the marker is upgraded moves nothing', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+  relaunch();
+  // Guest reading made after the upgrade lands in the bare key again.
+  mmkv.store.set(PROGRESS, progressBlob({ EXO_1: 9 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(PROGRESS), { EXO_1: 9 });
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+});
+
+test('device progress is merged into an account bucket that already holds different progress', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5, EXO_1: 1 }));
+  mmkv.store.set(userKey(PROGRESS, 'user-a'), progressBlob({ EXO_1: 9, LEV_1: 2 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5, EXO_1: 9, LEV_1: 2 });
+  assert.equal(mmkv.store.has(PROGRESS), false);
+});
+
+test('a marker killed mid-upgrade finishes the move on the next launch', () => {
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+  // Copied but the bare key and the marker were not updated before the kill.
+  mmkv.store.set(userKey(PROGRESS, 'user-a'), progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+  assert.equal(mmkv.store.has(PROGRESS), false);
+});
+
+test('an upgrade that also finds an unfinished adoption cleanup keeps the account progress', () => {
+  mmkv.store.set(
+    scope.PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ owner: 'user-a', clearGuest: true })
+  );
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+  assert.deepEqual(marker(), { owner: 'user-a' });
+});
+
+test('a marker with a malformed scopedStores list is read as the original four', () => {
+  mmkv.store.set(
+    scope.PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ owner: 'user-a', scopedStores: 'everything' })
+  );
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
 });

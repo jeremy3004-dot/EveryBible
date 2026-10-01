@@ -132,6 +132,7 @@ test('the first launch of the new build shows the signed-in reader their existin
   }
   assert.deepEqual(JSON.parse(mmkv.store.get(scope.PRIVATE_DATA_OWNER_KEY) ?? 'null'), {
     owner: 'user-a',
+    scopedStores: [...scope.PRIVATE_DATA_STORE_NAMES],
   });
 });
 
