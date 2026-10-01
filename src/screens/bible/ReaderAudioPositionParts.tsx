@@ -260,9 +260,16 @@ export const ReaderAudioPortionPreviewGuard = memo(function ReaderAudioPortionPr
   onReachEnd,
 }: ReaderAudioPortionPreviewGuardProps) {
   const { currentPosition } = useAudioPosition(track);
+  // The preview seeks to the clip's start, which lands a moment after this mounts. A
+  // playhead already past the end belongs to the listening before the preview, not to it.
+  const hasBeenInsideRangeRef = useRef(false);
 
   useEffect(() => {
     if (currentPosition < endMs) {
+      hasBeenInsideRangeRef.current = true;
+      return;
+    }
+    if (!hasBeenInsideRangeRef.current) {
       return;
     }
 
