@@ -23,9 +23,14 @@ export function useAppSessionAnalytics(enabled: boolean): void {
     }
 
     let sessionWasAuthenticated = false;
+    // iOS reports 'inactive' for a pulled-down notification centre, a permission dialog or the
+    // app switcher, and returns to 'active' without a background in between. That is the same
+    // foreground, so a session opens on the first 'active' and closes only on 'background'.
+    let sessionOpen = false;
     // Starts a session still waiting for the session restore, straight away.
     let startPendingSession: (() => void) | null = null;
     const startAnalyticsSessions = () => {
+      sessionOpen = true;
       void import('../services/analytics').then(
         ({
           startAnonymousUsageSession,
@@ -80,6 +85,7 @@ export function useAppSessionAnalytics(enabled: boolean): void {
     };
 
     const endAndFlushAnalyticsSessions = () => {
+      sessionOpen = false;
       void import('../services/analytics').then(
         ({
           endAnonymousUsageSession,
@@ -115,10 +121,10 @@ export function useAppSessionAnalytics(enabled: boolean): void {
       const previousAppState = appStateRef.current;
 
       if (previousAppState.match(/inactive|background/) && nextAppState === 'active') {
-        startAnalyticsSessions();
+        if (!sessionOpen) startAnalyticsSessions();
       }
 
-      if (previousAppState === 'active' && nextAppState.match(/inactive|background/)) {
+      if (nextAppState === 'background' && sessionOpen) {
         endAndFlushAnalyticsSessions();
       }
 
@@ -128,7 +134,7 @@ export function useAppSessionAnalytics(enabled: boolean): void {
     return () => {
       subscription.remove();
 
-      if (appStateRef.current === 'active') {
+      if (sessionOpen) {
         endAndFlushAnalyticsSessions();
       }
     };
