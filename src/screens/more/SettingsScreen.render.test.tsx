@@ -249,6 +249,14 @@ function switchNamed(view: View, label: string): ReactTestInstance {
   return found;
 }
 
+test('row labels and the theme heading pin their alignment so Arabic text cannot flip to the value side', async () => {
+  const view = await renderSettings();
+
+  for (const title of [t('settings.fontSize'), t('settings.themeMode')]) {
+    assert.equal(flattenStyle(view.getByText(title).props.style)?.textAlign, 'left', title);
+  }
+});
+
 // --- Reminders blocked by the system ------------------------------------------
 
 test('a reminder blocked by the system shows a translated notice that opens system settings', async () => {
