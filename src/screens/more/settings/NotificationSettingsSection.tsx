@@ -33,7 +33,7 @@ export function NotificationSettingsSection({
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
-  const switchColors = useSettingSwitchColors();
+  const switchColorsFor = useSettingSwitchColors();
   const systemBlock = useNotificationsBlockedBySystem(notificationsEnabled);
   // A reminder synced on from another device, on a device never asked: one tap asks.
   // Denied for good: only system settings can turn it back on.
@@ -72,7 +72,7 @@ export function NotificationSettingsSection({
             <Switch
               value={notificationsEnabled}
               onValueChange={onToggle}
-              {...switchColors}
+              {...switchColorsFor(notificationsEnabled)}
               accessibilityLabel={t('settings.dailyReminder')}
             />
           }

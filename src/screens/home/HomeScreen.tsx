@@ -24,7 +24,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BookOpen, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
-import { getBookById, getTranslatedBookName } from '../../constants/books';
+import {
+  getBookById,
+  getTranslatedBookName,
+  getTranslatedPassageBookName,
+} from '../../constants/books';
 import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { createThemeColors, useTheme } from '../../contexts/ThemeContext';
@@ -94,6 +98,13 @@ type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 function reportHomeVerseShareFailure(error: unknown) {
   void import('../../services/diagnostics/crashReportQueue')
     .then(({ reportHandledError }) => reportHandledError('home.shareImage', error))
+    .catch(() => undefined);
+}
+
+/** Records a plan shelf that failed to load. The crash queue loads only when something failed. */
+function reportHomePlansFailure(error: unknown) {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('home.readingPlans', error))
     .catch(() => undefined);
 }
 
@@ -498,15 +509,20 @@ export function HomeScreen() {
     let cancelled = false;
 
     const loadReadingPlans = async () => {
-      // The plan service and its bundled catalog load here rather than with
-      // Home, so they stay off the cold-start path until the card needs them.
-      const { listReadingPlans } = await import('../../services/plans/readingPlanService');
-      if (cancelled) {
-        return;
-      }
-      const result = await listReadingPlans();
-      if (!cancelled && result.success) {
-        setReadingPlans(result.data ?? []);
+      try {
+        // The plan service and its bundled catalog load here rather than with
+        // Home, so they stay off the cold-start path until the card needs them.
+        const { listReadingPlans } = await import('../../services/plans/readingPlanService');
+        if (cancelled) {
+          return;
+        }
+        const result = await listReadingPlans();
+        if (!cancelled && result.success) {
+          setReadingPlans(result.data ?? []);
+        }
+      } catch (error) {
+        // The shelf is optional on Home: stay without it rather than reject unhandled.
+        reportHomePlansFailure(error);
       }
     };
 
@@ -554,14 +570,14 @@ export function HomeScreen() {
 
   const dailyReferenceLabel = dailyScripture
     ? formatDailyScriptureReferenceLabel(
-        getTranslatedBookName(dailyScripture.bookId, t),
+        getTranslatedPassageBookName(dailyScripture.bookId, t),
         dailyScripture.chapter,
         dailyScripture.verse,
         dailyScripture.verseEnd
       )
     : null;
   const dailyPassageLabel = dailyScripture
-    ? `${getTranslatedBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}`
+    ? `${getTranslatedPassageBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}`
     : null;
   const dailyAudioAvailability =
     dailyScripture && currentTranslationInfo

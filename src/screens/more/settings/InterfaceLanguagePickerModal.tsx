@@ -161,13 +161,16 @@ const styles = StyleSheet.create({
   },
   languageNative: {
     ...typography.cardTitle,
+    textAlign: 'left',
     marginBottom: 2,
   },
   languageName: {
     ...typography.caption,
+    textAlign: 'left',
   },
   languageHint: {
     ...typography.micro,
+    textAlign: 'left',
     marginTop: spacing.xs,
   },
 });

@@ -566,8 +566,6 @@ export const pt = {
     recommendedLanguages: 'Idiomas bíblicos recomendados em {{country}}',
     moreLanguages: 'Outros idiomas encontrados',
     noLanguagesFound: 'Nenhum idioma encontrado',
-    noLanguagesFoundBody:
-      'Tente outra grafia ou pesquise em inglês ou na escrita local. A busca tolera pequenas variações.',
     catalogUnavailableTitle: 'Não foi possível acessar a biblioteca bíblica',
     catalogUnavailableBody:
       'Verifique sua conexão com a internet e tente novamente. As Bíblias abaixo já estão neste dispositivo e funcionam sem internet.',
@@ -1344,7 +1342,7 @@ export const pt = {
     startPlan: 'Iniciar plano',
     enrolled: 'Inscrito',
     dayOf: 'Dia {{current}} de {{total}}',
-    inSeason: 'Em época',
+    inSeason: 'Para esta época',
     seasonStarts: 'Começa em {{date}}',
     seasonStartsToday: 'Começa hoje',
     markComplete: 'Marcar como concluído',
@@ -1550,7 +1548,7 @@ export const pt = {
       lent: {
         title: 'Quaresma',
         description:
-          'Da Quarta-feira de Cinzas até a véspera do Domingo de Ramos: volte ao Senhor pelo deserto, pela sua misericórdia e pelo caminho até Jerusalém, até a ressurreição de Lázaro.',
+          'Da Quarta-feira de Cinzas até a véspera do Domingo de Ramos: volte ao Senhor pelo deserto, pela sua misericórdia e pelo caminho para Jerusalém, até a ressurreição de Lázaro.',
       },
       holyWeek: {
         title: 'Semana Santa',
@@ -1570,7 +1568,7 @@ export const pt = {
       pentecost: {
         title: 'Da Ascensão a Pentecostes',
         description:
-          'Onze dias da Ascensão até Pentecostes: espere e ore com os primeiros discípulos pelo Espírito Santo, que leva o evangelho a todas as línguas.',
+          'Onze dias da Ascensão até Pentecostes: espere e ore com os primeiros discípulos pela vinda do Espírito Santo, que leva o evangelho a todas as línguas.',
       },
       translationWeek: {
         title: 'A Palavra em todas as línguas',
@@ -1580,7 +1578,7 @@ export const pt = {
       allSaints: {
         title: 'Todos os Santos',
         description:
-          'A partir de 1º de novembro: a grande nuvem de testemunhas que correram a corrida antes de nós, e os santos fiéis e comuns que a Bíblia nomeia.',
+          'A partir de 1º de novembro: a grande nuvem de testemunhas que correram a carreira antes de nós, e os santos fiéis e comuns que a Bíblia nomeia.',
       },
       persecutedChurch: {
         title: 'A igreja perseguida',
@@ -1590,7 +1588,7 @@ export const pt = {
       hardChristmas: {
         title: 'Quando o Natal é difícil',
         description:
-          'A semana antes do Natal, para quando a época pesa com perda ou solidão: lamentos, consolo e a luz que brilha nas trevas.',
+          'A semana antes do Natal, para quando a perda ou a solidão tornam esta época pesada: lamentos, consolo e a luz que brilha nas trevas.',
       },
     },
     lifeSituations: {

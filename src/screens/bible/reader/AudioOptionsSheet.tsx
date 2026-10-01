@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -51,6 +52,12 @@ export interface AudioOptionsSheetProps {
 
 // The sheet leaves this much of the screen above it, so the backdrop stays tappable.
 const SHEET_TOP_GAP = spacing.xxl;
+// Android gesture navigation: the modal window can stop a few points short of the
+// physical bottom edge, leaving the reader's text showing in a sliver below the sheet,
+// and the footer buttons sat right against the gesture bar. The sheet surface runs on
+// below its edge and the content gets a little more room above the inset.
+const ANDROID_SHEET_SKIRT = spacing.xl;
+const ANDROID_SHEET_EXTRA_BOTTOM = spacing.sm;
 
 /**
  * The top audio button's sheet: playback settings on its first page, with the sound
@@ -155,10 +162,23 @@ export function AudioOptionsSheet({
               backgroundColor: colors.bibleSurface,
               borderColor: colors.bibleDivider,
               maxHeight: windowHeight - safeInsets.top - SHEET_TOP_GAP,
-              paddingBottom: Math.max(safeInsets.bottom, spacing.md) + spacing.md,
+              paddingBottom:
+                Math.max(safeInsets.bottom, spacing.md) +
+                spacing.md +
+                (Platform.OS === 'android' ? ANDROID_SHEET_EXTRA_BOTTOM : 0),
             },
           ]}
         >
+          {Platform.OS === 'android' ? (
+            <View
+              pointerEvents="none"
+              testID="audio-sheet-skirt"
+              style={[
+                styles.skirt,
+                { backgroundColor: colors.bibleSurface, height: ANDROID_SHEET_SKIRT },
+              ]}
+            />
+          ) : null}
           <View style={[styles.handle, { backgroundColor: colors.bibleDivider }]} />
           <View style={styles.header}>
             {page !== 'main' ? (
@@ -245,6 +265,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.lg,
     ...shadows.floating,
+  },
+  skirt: {
+    position: 'absolute',
+    start: 0,
+    end: 0,
+    bottom: -ANDROID_SHEET_SKIRT,
   },
   handle: {
     width: 36,

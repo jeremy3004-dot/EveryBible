@@ -274,6 +274,19 @@ test('Note opens a composer under the verse preview, prefilled with the existing
   assert.equal(view.queryByRole('button', { name: t('annotations.copy') }), null);
 });
 
+// A note joined from several adoptions can pass the typing limit. A field capped below
+// its own value is cut on Android, and the next Done would save the cut note.
+test('the note field never caps below the length of the note it opens with', async () => {
+  const longNote = 'a'.repeat(1500);
+  const { view } = await renderSheet({ existingNote: longNote });
+
+  await view.press(view.getByRole('button', { name: t('annotations.note') }));
+
+  const input = view.getByLabelText(t('annotations.noteHint'));
+  assert.equal(input.props.value, longNote);
+  assert.ok(input.props.maxLength >= longNote.length);
+});
+
 test('Done saves the trimmed note and closes the sheet', async () => {
   const { view, calls } = await renderSheet();
   await view.press(view.getByRole('button', { name: t('annotations.note') }));

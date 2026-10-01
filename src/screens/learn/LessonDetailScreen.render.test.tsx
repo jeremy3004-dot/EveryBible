@@ -26,6 +26,7 @@ import {
   mockSvgForCommonJs,
 } from './gatherRenderFixtures';
 import { assertDefined } from '../../utils/assertDefined';
+import { STORY_FIRST_PAINT_VERSES } from './lessonPassageModel';
 
 const harness = installRenderHarness(mock, { skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -287,6 +288,51 @@ function passageParagraph(view: View): ReactTestInstance {
 const heroRow = (view: View) =>
   enclosingView(enclosingView(view.getByRole('header', { name: FIRST_LESSON_TITLE() })));
 
+test('a long chapter lays out only its opening verses until interactions finish, then the rest', async () => {
+  const block = assertDefined(PASSAGE[0], 'PASSAGE[0]');
+  const original = block.verses;
+  block.verses = Array.from({ length: 31 }, (_, index) => ({
+    id: `gen-1-${index + 1}`,
+    bookId: 'GEN',
+    chapter: 1,
+    verse: index + 1,
+    text: `Verse ${index + 1} of the creation story.`,
+  }));
+  const { InteractionManager } = harness.rn;
+  const originalRun = InteractionManager.runAfterInteractions;
+  const held: Array<() => void> = [];
+  InteractionManager.runAfterInteractions = ((task?: () => void) => {
+    if (task) held.push(task);
+    return { then: () => {}, done: () => {}, cancel: () => {} };
+  }) as typeof originalRun;
+  const verseNumbers = (view: View) =>
+    view
+      .queryAllByType('Text')
+      .map((node) => textContent(node))
+      .filter((text) => /^\d+ $/.test(text)).length;
+  try {
+    const view = await renderLesson();
+
+    // First commit: a screenful of text nodes, not the whole chapter.
+    assert.equal(verseNumbers(view), STORY_FIRST_PAINT_VERSES);
+    assert.equal(view.queryByText('Verse 31 of the creation story.'), null);
+
+    await act(async () => held.forEach((task) => task()));
+    await view.flush();
+    assert.equal(verseNumbers(view), 31);
+    assert.ok(view.getByText('Verse 31 of the creation story.'));
+  } finally {
+    InteractionManager.runAfterInteractions = originalRun;
+    block.verses = original;
+  }
+});
+
+test('the listen capsule binds the chapter number to the book so a wrap cannot strand it', async () => {
+  const view = await renderLesson();
+
+  assert.ok(view.getByText(`${LISTEN()} · ${t('bible.books.GEN')}\u00a01`));
+});
+
 test('each verse number is followed by a plain space so it never touches the words', async () => {
   const view = await renderLesson();
 
@@ -412,7 +458,8 @@ test('the sections are a shared tablist that scrolls to the section chosen', asy
     )
     .filter(
       (node) =>
-        within(node).queryByText(`${t('gather.story')} · ${t('bible.books.GEN')} 1`) !== null
+        // The chapter number is bound to the book name with a no-break space.
+        within(node).queryByText(`${t('gather.story')} · ${t('bible.books.GEN')}\u00a01`) !== null
     )
     .at(-1) as ReactTestInstance;
   await view.fire(storySection, 'onLayout', { nativeEvent: { layout: { y: 840 } } });

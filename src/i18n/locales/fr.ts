@@ -575,8 +575,6 @@ export const fr = {
     recommendedLanguages: 'Langues bibliques recommandées dans {{country}}',
     moreLanguages: 'Autres langues correspondantes',
     noLanguagesFound: 'Aucune langue ne correspond pour l’instant',
-    noLanguagesFoundBody:
-      'Essayez une autre orthographe, ou cherchez en anglais ou dans l’écriture locale. La recherche approximative est activée.',
     catalogUnavailableTitle: 'Impossible d’accéder à la bibliothèque biblique',
     catalogUnavailableBody:
       'Vérifiez votre connexion Internet et réessayez. Les Bibles ci-dessous sont déjà sur cet appareil et fonctionnent hors connexion.',
@@ -619,7 +617,7 @@ export const fr = {
     verse: 'Verset',
     selectTranslation: 'Choisir une traduction',
     manageAudio: 'Gérer l’audio',
-    audioDownloads: 'Téléchargements audio',
+    audioDownloads: 'Audio',
     downloadBibleAudio: 'Télécharger l’audio de toute la Bible',
     audioSavedOffline: 'Enregistré pour l’écoute hors ligne',
     audioDownloadFailed: 'Nous n’avons pas pu télécharger cet audio pour le moment.',
@@ -1365,7 +1363,7 @@ export const fr = {
     startPlan: 'Commencer le plan',
     enrolled: 'Inscrit',
     dayOf: 'Jour {{current}} sur {{total}}',
-    inSeason: 'De saison',
+    inSeason: 'En ce moment',
     seasonStarts: 'Commence le {{date}}',
     seasonStartsToday: 'Commence aujourd’hui',
     markComplete: 'Marquer comme terminé',
@@ -1576,7 +1574,7 @@ export const fr = {
       lent: {
         title: 'Carême',
         description:
-          'Du mercredi des Cendres à la veille du dimanche des Rameaux : reviens au Seigneur à travers le désert, sa miséricorde et le chemin de Jérusalem, jusqu’à la résurrection de Lazare.',
+          'Du mercredi des Cendres à la veille du dimanche des Rameaux : revenez au Seigneur à travers le désert, sa miséricorde et le chemin de Jérusalem, jusqu’à la résurrection de Lazare.',
       },
       holyWeek: {
         title: 'Semaine sainte',
@@ -1596,12 +1594,12 @@ export const fr = {
       pentecost: {
         title: 'De l’Ascension à la Pentecôte',
         description:
-          'Onze jours de l’Ascension à la Pentecôte : attends et prie avec les premiers disciples le Saint-Esprit, qui porte l’Évangile à toutes les langues.',
+          'Onze jours de l’Ascension à la Pentecôte : attendez et priez avec les premiers disciples pour la venue du Saint-Esprit, qui porte l’Évangile dans toutes les langues.',
       },
       translationWeek: {
         title: 'La Parole dans toutes les langues',
         description:
-          'Une semaine qui s’achève à la Journée internationale de la traduction, le 30 septembre : la Parole lue, expliquée et portée à chaque tribu et à chaque langue. Prie pour les traducteurs de la Bible.',
+          'Une semaine qui s’achève le 30 septembre, Journée internationale de la traduction : la Parole lue, expliquée et portée à chaque tribu et à chaque langue. Priez pour les traducteurs de la Bible.',
       },
       allSaints: {
         title: 'La Toussaint',
@@ -1616,7 +1614,7 @@ export const fr = {
       hardChristmas: {
         title: 'Quand Noël est difficile',
         description:
-          'La semaine avant Noël, quand la saison est lourde de deuil ou de solitude : lamentations, consolation et la lumière qui brille dans les ténèbres.',
+          'La semaine avant Noël, pour les fêtes que le deuil ou la solitude rendent lourdes : lamentations, consolation et la lumière qui brille dans les ténèbres.',
       },
     },
     lifeSituations: {

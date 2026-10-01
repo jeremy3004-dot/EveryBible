@@ -556,8 +556,6 @@ export const de = {
     recommendedLanguages: 'Empfohlene Bibelsprachen in {{country}}',
     moreLanguages: 'Andere passende Sprachen',
     noLanguagesFound: 'Noch keine passende Sprache',
-    noLanguagesFoundBody:
-      'Probiere eine andere Schreibweise oder suche auf Englisch oder in der lokalen Schrift. Die Suche findet auch ähnliche Schreibweisen.',
     catalogUnavailableTitle: 'Die Bibelbibliothek ist nicht erreichbar',
     catalogUnavailableBody:
       'Prüfe deine Internetverbindung und versuche es noch einmal. Die Bibeln unten sind bereits auf diesem Gerät und funktionieren offline.',
@@ -1332,7 +1330,7 @@ export const de = {
     startPlan: 'Plan starten',
     enrolled: 'Gestartet',
     dayOf: 'Tag {{current}} von {{total}}',
-    inSeason: 'Jetzt dran',
+    inSeason: 'Für diese Zeit',
     seasonStarts: 'Beginnt am {{date}}',
     seasonStartsToday: 'Beginnt heute',
     markComplete: 'Als abgeschlossen markieren',
@@ -1547,7 +1545,7 @@ export const de = {
       holyWeek: {
         title: 'Karwoche',
         description:
-          'Vom Palmsonntag bis zum Ostersonntag, Tag für Tag: der Einzug in Jerusalem, das letzte Abendmahl, das Kreuz, das versiegelte Grab und das leere.',
+          'Vom Palmsonntag bis zum Ostersonntag, Tag für Tag: der Einzug in Jerusalem, das Letzte Abendmahl, das Kreuz, das versiegelte Grab und das leere.',
       },
       orthodoxHolyWeek: {
         title: 'Karwoche (orthodoxer Kalender)',
@@ -1557,7 +1555,7 @@ export const de = {
       easter: {
         title: 'Ostern',
         description:
-          'Vom Ostermontag bis zum Vorabend von Christi Himmelfahrt: der auferstandene Herr erscheint, und die Briefe und die Propheten zeigen, was seine Auferstehung bedeutet.',
+          'Vom Ostermontag bis zum Vorabend von Christi Himmelfahrt: Der auferstandene Herr erscheint, und die Briefe und die Propheten zeigen, was seine Auferstehung bedeutet.',
       },
       pentecost: {
         title: 'Von Himmelfahrt bis Pfingsten',
@@ -1582,7 +1580,7 @@ export const de = {
       hardChristmas: {
         title: 'Wenn Weihnachten schwerfällt',
         description:
-          'Die Woche vor Weihnachten, wenn die Zeit schwer von Verlust oder Einsamkeit ist: Klagen, Trost und das Licht, das in der Finsternis scheint.',
+          'Die Woche vor Weihnachten – für alle, denen Verlust oder Einsamkeit diese Zeit schwer macht: Klagen, Trost und das Licht, das in der Finsternis scheint.',
       },
     },
     lifeSituations: {

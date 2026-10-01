@@ -495,9 +495,18 @@ export function createReactNavigationFake(fake: NavigationFake) {
   };
 }
 
+// The real FlashList warns (and ignores the prop) when handed `style`; throwing here makes any
+// render test of a screen that does so fail instead of passing silently.
+export function FlashListFake(props: AnyProps) {
+  if (props.style !== undefined) {
+    throw new Error('FlashList does not support `style`; wrap the list in a View instead.');
+  }
+  return createElement(FlatList as ComponentType<AnyProps>, props);
+}
+
 export const simpleHostExports = {
   'expo-linear-gradient': () => ({ LinearGradient: hostComponent('LinearGradient') }),
   'expo-blur': () => ({ BlurView: hostComponent('BlurView') }),
   // FlashList renders like the eager FlatList fake (every item, header/empty/footer).
-  '@shopify/flash-list': () => ({ FlashList: FlatList as ComponentType<AnyProps> }),
+  '@shopify/flash-list': () => ({ FlashList: FlashListFake }),
 } satisfies Record<string, () => Record<string, ComponentType<AnyProps>>>;

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Alert, Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
   getAnnotationsForChapter,
@@ -96,7 +96,7 @@ export function useVerseSelection({
   const selectedVerseReferenceLabel =
     selectedVerses.length > 0
       ? formatBibleSelectionReference({
-          bookName: getTranslatedBookName(bookId, t),
+          bookName: getTranslatedPassageBookName(bookId, t),
           chapter,
           verses: selectedVerses,
           translationLabel: translationShareLabel,
@@ -106,7 +106,7 @@ export function useVerseSelection({
   const selectedVerseImageReferenceLabel =
     selectedVerses.length > 0
       ? formatBibleSelectionReference({
-          bookName: getTranslatedBookName(bookId, t),
+          bookName: getTranslatedPassageBookName(bookId, t),
           chapter,
           verses: selectedVerses,
           translationLabel: '',

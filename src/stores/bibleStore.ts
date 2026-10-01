@@ -23,6 +23,7 @@ import {
   readRuntimeCatalogSnapshot,
   toPersistedTranslation,
 } from './bibleTranslationPersistence';
+import { createUnchangedStateStorage } from './unchangedStateStorage';
 import { settleInterruptedInstallState } from './bibleStoreModel';
 import type { BibleState } from './bible/bibleStoreTypes';
 import {
@@ -37,6 +38,23 @@ import { createTextPackMaintenanceSlice } from './bible/textPackMaintenanceSlice
 import { createAudioDownloadSlice } from './bible/audioDownloadSlice';
 import { recoverTextPackJournal } from './bible/textPackJournalRecovery';
 import { isTextPackReadinessBypassed } from './bible/textPackRuntime';
+
+// Rows are replaced, never mutated, so a row whose identity is unchanged has an unchanged
+// persisted delta. Reusing the previous array when every row matches lets the storage layer
+// see "nothing changed" by reference; a tick that rewrites one row still rebuilds the array.
+let lastPartializedSource: readonly BibleState['translations'][number][] = [];
+let lastPartializedTranslations: ReturnType<typeof toPersistedTranslation>[] = [];
+function partializeTranslations(translations: BibleState['translations']) {
+  if (
+    translations.length === lastPartializedSource.length &&
+    translations.every((translation, index) => translation === lastPartializedSource[index])
+  ) {
+    return lastPartializedTranslations;
+  }
+  lastPartializedSource = translations;
+  lastPartializedTranslations = translations.map(toPersistedTranslation);
+  return lastPartializedTranslations;
+}
 
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   console.log('[EB-T] bible:pre-create', Date.now());
@@ -54,7 +72,9 @@ export const useBibleStore = create<BibleState>()(
     {
       name: 'bible-storage',
       version: BIBLE_PERSISTED_STATE_VERSION,
-      storage: createJSONStorage(() => zustandStorage),
+      // Skips the stringify of the ~26KB catalog slice for sets that left it unchanged
+      // (download progress ticks, reader loading flags). See unchangedStateStorage.ts.
+      storage: createUnchangedStateStorage(createJSONStorage(() => zustandStorage)!),
       // Version 0 blobs inline every runtime translation's static catalog metadata. Migration
       // moves that metadata into its own MMKV key and leaves only the user-mutable delta here.
       // Zustand runs migrate BEFORE merge, and MMKV is synchronous, so the snapshot written here
@@ -76,7 +96,7 @@ export const useBibleStore = create<BibleState>()(
         currentTranslation: state.currentTranslation,
         currentTranslationChosenAt: state.currentTranslationChosenAt,
         preferredTranslationLanguage: state.preferredTranslationLanguage,
-        translations: state.translations.map(toPersistedTranslation),
+        translations: partializeTranslations(state.translations),
       }),
       merge: (persistedState, currentState) => {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {

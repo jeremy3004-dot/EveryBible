@@ -6,9 +6,10 @@
  * the same record, so all three resolve a day through `getLedgerDayState` here.
  */
 import {
-  formatScheduledPlanDayLabel,
+  formatPlanLedgerDayLabel,
   type CurrentPlanDaySummary,
 } from '../../../services/plans/readingPlanActivity';
+import { formatPlanMonthDay } from '../../../services/plans/planDateFormat';
 import {
   getDaySessionEntries,
   getPlanSeason,
@@ -177,7 +178,7 @@ export function getLedgerCellStates(
 
 /** Short cycle date for a ledger row ("7 Sep"), in the in-app language. */
 export function formatLedgerCycleDate(date: Date, locale?: string): string {
-  return date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
+  return formatPlanMonthDay(date, locale);
 }
 
 /**
@@ -268,7 +269,7 @@ export function buildPlanDayViewModels({
     const dateLabel = recurringCycleDate
       ? formatLedgerCycleDate(recurringCycleDate, locale)
       : progress && !isRecurringPlan(plan)
-        ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
+        ? formatPlanLedgerDayLabel(progress.started_at, dayNumber, currentDay, today)
         : null;
     const launchSessionKey = isMultiSession
       ? isCurrent && isEnrolled

@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
   TOP_ACTION_HIT_SLOP,
@@ -75,6 +75,16 @@ export function ReaderTopChrome({
         useAnimatedChrome ? topChromeAnimatedStyle : null,
       ]}
     >
+      {/* Verse text scrolls under the chips; without a backdrop it showed in the gaps between
+          them and above them. Opaque theme background, reaching up through the status bar. */}
+      <View
+        pointerEvents="none"
+        testID="reader-top-chrome-backdrop"
+        style={[
+          styles.floatingReaderTopBackdrop,
+          { top: -sharedTopChromeTop, backgroundColor: colors.bibleBackground },
+        ]}
+      />
       <View style={styles.floatingReaderReferenceCluster}>
         {showPlanSessionChrome ? (
           <TouchableOpacity
@@ -106,7 +116,7 @@ export function ReaderTopChrome({
             activeOpacity={0.85}
             onPress={handleOpenBookPicker}
             accessibilityRole="button"
-            accessibilityLabel={`${getTranslatedBookName(bookId, t)} ${chapter}`}
+            accessibilityLabel={`${getTranslatedPassageBookName(bookId, t)} ${chapter}`}
             accessibilityHint={t('bible.openBookAndChapterPickerHint')}
           >
             <Text
@@ -256,6 +266,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  floatingReaderTopBackdrop: {
+    position: 'absolute',
+    left: -24,
+    right: -22,
+    bottom: -spacing.xs,
   },
   floatingReaderReferenceCluster: {
     flexDirection: 'row',

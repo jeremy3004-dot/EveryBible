@@ -124,9 +124,21 @@ export const getDailyChapterCounts = (ledgers: DailyActivityLedgers): Map<string
   const raise = (dateKey: string, count: number) => {
     if (count > (counts.get(dateKey) ?? 0)) counts.set(dateKey, count);
   };
-  for (const day of Object.values(groupChaptersByDay(ledgers))) {
-    raise(day.dateKey, day.chapterKeys.length);
-  }
+  // Only the distinct-chapter count per day is needed here, so a Set per day replaces the
+  // full day summaries (key lists, first and last touch) groupChaptersByDay builds.
+  const chapterKeysByDateKey = new Map<string, Set<string>>();
+  const tally = (ledger: Record<string, number>) => {
+    for (const [chapterKey, timestamp] of Object.entries(ledger)) {
+      if (!Number.isFinite(timestamp)) continue;
+      const dateKey = formatLocalDateKey(new Date(timestamp));
+      const chapterKeys = chapterKeysByDateKey.get(dateKey);
+      if (chapterKeys) chapterKeys.add(chapterKey);
+      else chapterKeysByDateKey.set(dateKey, new Set([chapterKey]));
+    }
+  };
+  tally(ledgers.chaptersRead);
+  tally(ledgers.chaptersListened ?? {});
+  chapterKeysByDateKey.forEach((chapterKeys, dateKey) => raise(dateKey, chapterKeys.size));
   for (const [dateKey, count] of Object.entries(ledgers.chaptersByDate ?? {})) {
     raise(dateKey, count);
   }
@@ -141,6 +153,9 @@ const groupChaptersByDay = (
   ledgers: DailyActivityLedgers
 ): Record<string, ReadingActivityDaySummary> => {
   const daysByDateKey: Record<string, ReadingActivityDaySummary> = {};
+  // The same chapter can sit in both ledgers; a Set per day keeps the dedupe linear, where
+  // chapterKeys.includes() made a day with every chapter on it (a sync, "mark all read") quadratic.
+  const seenByDateKey = new Map<string, Set<string>>();
   const add = (ledger: Record<string, number>) => {
     for (const [chapterKey, timestamp] of Object.entries(ledger)) {
       if (!Number.isFinite(timestamp)) {
@@ -151,7 +166,9 @@ const groupChaptersByDay = (
       const existing = daysByDateKey[dateKey];
 
       if (existing) {
-        if (!existing.chapterKeys.includes(chapterKey)) {
+        const seen = seenByDateKey.get(dateKey)!;
+        if (!seen.has(chapterKey)) {
+          seen.add(chapterKey);
           existing.chapterKeys.push(chapterKey);
         }
         existing.firstReadAt = Math.min(existing.firstReadAt, timestamp);
@@ -164,6 +181,7 @@ const groupChaptersByDay = (
           lastReadAt: timestamp,
           chapterKeys: [chapterKey],
         };
+        seenByDateKey.set(dateKey, new Set([chapterKey]));
       }
     }
   };

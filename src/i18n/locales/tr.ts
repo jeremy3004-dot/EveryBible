@@ -552,8 +552,6 @@ export const tr = {
     recommendedLanguages: '{{country}} için önerilen Kutsal Kitap dilleri',
     moreLanguages: 'Diğer eşleşen diller',
     noLanguagesFound: 'Henüz dil eşleşmesi yok',
-    noLanguagesFoundBody:
-      'Başka bir yazım deneyin ya da İngilizce veya yerel alfabeyle arayın. Yaklaşık eşleşme açıktır.',
     catalogUnavailableTitle: 'Kutsal Kitap kütüphanesine ulaşılamıyor',
     catalogUnavailableBody:
       'İnternet bağlantınızı kontrol edip tekrar deneyin. Aşağıdaki Kutsal Kitaplar zaten bu cihazda ve çevrimdışı da çalışır.',
@@ -673,7 +671,7 @@ export const tr = {
       },
       size: 'Metin boyutu',
       sizeMaxed: 'Ulaşılabilecek en büyük boyut: kelimeler fotoğrafı tamamen dolduruyor',
-      backgroundOption: 'Arka plan {{position}} / {{total}}',
+      backgroundOption: 'Arka plan {{position}}, toplam {{total}}',
     },
     chooseVerseImageBackground: 'Bir arka plan seçin',
     books: {
@@ -1317,7 +1315,7 @@ export const tr = {
     startPlan: 'Planı başlat',
     enrolled: 'Kayıtlı',
     dayOf: '{{total}} günün {{current}}. günü',
-    inSeason: 'Mevsimine özel',
+    inSeason: 'Bu döneme özel',
     seasonStarts: 'Başlangıç: {{date}}',
     seasonStartsToday: 'Bugün başlıyor',
     markComplete: 'Tamamlandı olarak işaretle',
@@ -1518,27 +1516,27 @@ export const tr = {
       epiphany: {
         title: 'Epifani: Uluslara Işık',
         description:
-          '6 Ocak’tan itibaren: İsa’nın dünyanın ışığı olarak görünmesi; vaftizinden ve ilk belirtisinden taht önündeki her ulusa, kabileye ve dile kadar.',
+          '6 Ocak’tan itibaren: İsa’nın dünyanın ışığı olarak görünmesi; vaftizinden ve ilk belirtisinden taht önündeki her ulusa, oymağa ve dile kadar.',
       },
       lent: {
         title: 'Büyük Perhiz',
         description:
-          'Kül Çarşambası’ndan Palmiye Pazarı arifesine kadar: çölden, Rab’bin merhametinden ve Kudüs yolundan geçerek Lazar’ın diriltilmesine dek Rab’be dönün.',
+          'Kül Çarşambası’ndan Palmiye Pazarı arifesine kadar: çölden, Rab’bin merhametinden ve Yeruşalim yolundan geçerek Lazar’ın diriltilmesine dek Rab’be dönün.',
       },
       holyWeek: {
         title: 'Kutsal Hafta',
         description:
-          'Palmiye Pazarı’ndan Paskalya gününe kadar, gün gün: Kudüs’e giriş, Son Akşam Yemeği, çarmıh, mühürlenen mezar ve boş mezar.',
+          'Palmiye Pazarı’ndan Paskalya gününe kadar, gün gün: Yeruşalim’e giriş, Son Akşam Yemeği, çarmıh, mühürlenen mezar ve boş mezar.',
       },
       orthodoxHolyWeek: {
         title: 'Kutsal Hafta (Ortodoks takvimi)',
         description:
-          'Ortodoks tarihlerine göre Kutsal Hafta, Palmiye Pazarı’ndan Pascha’ya kadar: Kudüs’e giriş, Mistik Sofra, çarmıh, mezar ve diriliş.',
+          'Ortodoks tarihlerine göre Kutsal Hafta, Palmiye Pazarı’ndan Paskalya’ya kadar: Yeruşalim’e giriş, Son Akşam Yemeği, çarmıh, mezar ve diriliş.',
       },
       easter: {
         title: 'Paskalya',
         description:
-          'Paskalya Pazartesi’nden Göğe Yükseliş arifesine kadar: dirilmiş Rab görünür; mektuplar ve peygamberler dirilişinin ne anlama geldiğini gösterir.',
+          'Paskalya Pazartesisi’nden Göğe Yükseliş arifesine kadar: dirilmiş Rab görünür; mektuplar ve peygamberler dirilişinin ne anlama geldiğini gösterir.',
       },
       pentecost: {
         title: 'Göğe Yükseliş’ten Pentekost’a',
@@ -1548,12 +1546,12 @@ export const tr = {
       translationWeek: {
         title: 'Her Dilde Söz',
         description:
-          '30 Eylül Uluslararası Çeviri Günü’nde sona eren bir hafta: Söz okunur, açıklanır ve her kabileye, her dile taşınır. Kutsal Kitap çevirmenleri için dua edin.',
+          '30 Eylül Uluslararası Çeviri Günü’nde sona eren bir hafta: Söz okunur, açıklanır ve her oymağa, her dile taşınır. Kutsal Kitap çevirmenleri için dua edin.',
       },
       allSaints: {
         title: 'Azizler Günü',
         description:
-          '1 Kasım’dan itibaren: bizden önce yarışı koşmuş büyük şahitler bulutu ve Kutsal Kitap’ın adını andığı sadık, sıradan azizler.',
+          '1 Kasım’dan itibaren: bizden önce yarışı koşmuş büyük tanıklar bulutu ve Kutsal Kitap’ın adını andığı sadık, sıradan azizler.',
       },
       persecutedChurch: {
         title: 'Zulüm Gören Kilise',

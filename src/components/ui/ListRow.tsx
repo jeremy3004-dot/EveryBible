@@ -114,7 +114,11 @@ export function ListRow({
       ) : null}
       <View style={styles.textColumn}>
         <Text
-          style={[typography.rowTitle, { color: titleColor, fontWeight: titleWeight }]}
+          style={[
+            typography.rowTitle,
+            styles.leftAligned,
+            { color: titleColor, fontWeight: titleWeight },
+          ]}
           // The row is `minHeight`, not a fixed height, so a wrapped title grows
           // the row instead of being cut off at large Dynamic Type.
           numberOfLines={2}
@@ -122,7 +126,10 @@ export function ListRow({
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[typography.caption, { color: colors.secondaryText }]} numberOfLines={2}>
+          <Text
+            style={[typography.caption, styles.leftAligned, { color: colors.secondaryText }]}
+            numberOfLines={2}
+          >
             {subtitle}
           </Text>
         ) : null}
@@ -204,6 +211,11 @@ const styles = StyleSheet.create({
   },
   leading: {
     marginRight: LEADING_GAP,
+  },
+  // The row lays out left to right in every language (see rtlPolicy), but a Text's default
+  // alignment follows its first strong character, so Arabic labels sat against the value.
+  leftAligned: {
+    textAlign: 'left',
   },
   textColumn: {
     flex: 1,

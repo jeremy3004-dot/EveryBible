@@ -15,8 +15,28 @@ import { assertDefined } from '../../utils/assertDefined';
 const harness = installRenderHarness(mock);
 
 const useBibleStore = create(() => ({
-  translations: [{ id: 'bsb', abbreviation: 'BSB', isDownloaded: true }],
+  translations: [
+    {
+      id: 'bsb',
+      abbreviation: 'BSB',
+      language: 'English',
+      isDownloaded: true,
+      hasText: true,
+      source: 'bundled',
+    },
+  ] as Array<{
+    id: string;
+    abbreviation: string;
+    language: string;
+    isDownloaded: boolean;
+    hasText: boolean;
+    source: 'bundled' | 'runtime';
+  }>,
   currentTranslation: 'bsb',
+}));
+const useTranslationPreferenceStore = create(() => ({
+  pinnedIds: [] as string[],
+  hiddenIds: [] as string[],
 }));
 const useProgressStore = create(() => ({
   streakDays: 0,
@@ -27,6 +47,9 @@ const useProgressStore = create(() => ({
 }));
 const useAnnotationStore = create(() => ({ annotations: [] as unknown[] }));
 mockModule(mock, sourcePath('stores/bibleStore.ts'), { useBibleStore });
+mockModule(mock, sourcePath('stores/translationPreferenceStore.ts'), {
+  useTranslationPreferenceStore,
+});
 mockModule(mock, sourcePath('stores/progressStore.ts'), {
   useProgressStore,
   selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
@@ -473,4 +496,34 @@ test('failed local sign-out shows a localized error and allows another attempt',
   assert.equal(error.title, t('common.error'));
   assert.equal(error.message, t('common.unexpectedError'));
   assert.ok(view.getByRole('button', { name: t('more.signOut'), busy: false, disabled: false }));
+});
+
+test('the Bible translations row counts the same offline Bibles that My Translations lists', async () => {
+  const bible = (id: string, isDownloaded = true) => ({
+    id,
+    abbreviation: id.toUpperCase(),
+    language: 'English',
+    isDownloaded,
+    hasText: isDownloaded,
+    source: 'bundled' as const,
+  });
+  const original = useBibleStore.getState();
+  useBibleStore.setState({
+    translations: [bible('bsb'), bible('asv'), bible('nasb'), bible('kjv'), bible('ylt')],
+    currentTranslation: 'bsb',
+  });
+  useTranslationPreferenceStore.setState({ hiddenIds: ['ylt'] });
+  try {
+    const view = await renderMore();
+    // kjv is withdrawn and ylt is hidden, so neither is listed under My Translations.
+    assert.ok(
+      view.getByRole('button', {
+        name: rowNamed(t('more.translations')),
+      })
+    );
+    assert.ok(view.getByText(t('more.translationsValue', { abbreviation: 'BSB', count: 3 })));
+  } finally {
+    useBibleStore.setState(original, true);
+    useTranslationPreferenceStore.setState({ hiddenIds: [] });
+  }
 });

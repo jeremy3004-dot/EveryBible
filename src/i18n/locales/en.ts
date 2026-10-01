@@ -533,8 +533,6 @@ export const en = {
     recommendedLanguages: 'Recommended Bible languages in {{country}}',
     moreLanguages: 'Other matching languages',
     noLanguagesFound: 'No language matches yet',
-    noLanguagesFoundBody:
-      'Try another spelling or search in English or the local script. Fuzzy search is enabled.',
     catalogUnavailableTitle: "Can't reach the Bible library",
     catalogUnavailableBody:
       'Check your internet connection and try again. The Bibles below are already on this device and work offline.',

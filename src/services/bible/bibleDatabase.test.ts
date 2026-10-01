@@ -29,7 +29,11 @@ import {
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { mockModule } from '../../testing/mockModules';
-import { BUNDLED_BIBLE_SCHEMA_VERSION, buildBibleSearchQuery } from './bibleDataModel';
+import {
+  BUNDLED_BIBLE_SCHEMA_VERSION,
+  buildBibleSearchPhrase,
+  buildBibleSearchQuery,
+} from './bibleDataModel';
 import { bibleBooks } from '../../constants/books';
 import { assertDefined } from '../../utils/assertDefined';
 import type { Verse } from '../../types';
@@ -2287,16 +2291,17 @@ function searchEveryTranslationThenFilter(
 ): VerseKey[] {
   const ftsQuery = buildBibleSearchQuery(query);
   assert.ok(ftsQuery, `"${query}" must be searchable`);
+  const phrase = buildBibleSearchPhrase(query);
   const database = new DatabaseSync(path, { readOnly: true });
   try {
     const rows = database
       .prepare(
         `SELECT v.* FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid
          WHERE verses_fts MATCH ? AND v.translation_id = ?
-         ORDER BY bm25(verses_fts), ${CANONICAL_BOOK_ORDER_SQL}, v.chapter, v.verse
+         ORDER BY ${phrase ? 'instr(lower(v.text), ?) > 0 DESC, ' : ''}bm25(verses_fts), ${CANONICAL_BOOK_ORDER_SQL}, v.chapter, v.verse
          LIMIT ?`
       )
-      .all(ftsQuery, translationId, limit) as {
+      .all(ftsQuery, translationId, ...(phrase ? [phrase] : []), limit) as {
       id: number;
       book_id: string;
       chapter: number;
@@ -2334,6 +2339,29 @@ test('searchVerses ranks and limits exactly like ranking every translation then 
     }
   }
   assert.ok(compared > 200, 'the fixture needs plenty of matches for the comparison to mean much');
+});
+
+test('searchVerses ranks verses holding the query as a phrase above scattered matches', async () => {
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  const path = seedInstalledPack('phrase-rank');
+  // Copy the shipped bundled database so the ranking is checked against the real text.
+  copyFileSync(
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url).href),
+    path
+  );
+  setBibleDatabaseSourceResolver((id) =>
+    id === 'bsb' ? installedSource('bsb', 'phrase-rank.db') : null
+  );
+
+  const refs = verseRefs(await searchVerses('bsb', 'living water', 200));
+  const rank = (ref: string) => refs.indexOf(ref);
+  for (const phraseRef of ['JHN 4:10', 'ZEC 14:8', 'REV 7:17']) {
+    for (const scatteredRef of ['GEN 9:15', 'LEV 11:46']) {
+      assert.ok(rank(phraseRef) >= 0, `${phraseRef} is a result`);
+      assert.ok(rank(scatteredRef) >= 0, `${scatteredRef} is a result`);
+      assert.ok(rank(phraseRef) < rank(scatteredRef), `${phraseRef} before ${scatteredRef}`);
+    }
+  }
 });
 
 test('a verse added to a translation after a search is found once it is indexed', async () => {

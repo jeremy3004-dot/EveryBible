@@ -81,20 +81,22 @@ export function LocaleSetupList<TItem extends LocaleSetupListItemBase>({
   );
 
   return (
-    <FlashList
-      ref={listRef}
-      style={styles.list}
-      data={data}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      getItemType={getItemType}
-      estimatedItemSize={LOCALE_SETUP_ESTIMATED_ITEM_SIZE}
-      ListHeaderComponent={header}
-      contentContainerStyle={contentContainerStyle}
-      extraData={extraData}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    />
+    // FlashList warns on (and ignores) `style`, so the flex fill lives on a wrapper.
+    <View style={styles.list}>
+      <FlashList
+        ref={listRef}
+        data={data}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        getItemType={getItemType}
+        estimatedItemSize={LOCALE_SETUP_ESTIMATED_ITEM_SIZE}
+        ListHeaderComponent={header}
+        contentContainerStyle={contentContainerStyle}
+        extraData={extraData}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      />
+    </View>
   );
 }
 

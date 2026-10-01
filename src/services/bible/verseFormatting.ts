@@ -120,7 +120,15 @@ const findLineSpan = (text: string, needle: string, from: number): [number, numb
     return null;
   }
 
-  const match = new RegExp(words.map(escapeRegExp).join('\\s+')).exec(text.slice(from));
+  // A merged trailing mark ("lies?") may sit after a stray space in the text ("lies ?").
+  const last = words.length - 1;
+  const tail = /^(.+?)([?!.,;:)\]’”]+)$/.exec(words[last] ?? '');
+  const patterns = words.map((word, index) =>
+    index === last && tail
+      ? `${escapeRegExp(tail[1] ?? '')}\\s*${escapeRegExp(tail[2] ?? '')}`
+      : escapeRegExp(word)
+  );
+  const match = new RegExp(patterns.join('\\s+')).exec(text.slice(from));
   return match ? [from + match.index, from + match.index + match[0].length] : null;
 };
 
@@ -178,16 +186,19 @@ export const reconcileVerseFormattingWithText = (
 // lead-ins above, so the 45 MB database is not rebuilt. A space after a quote is the
 // legitimate nested pair ("’ ”"), and a quote followed by a letter is an apostrophe or an
 // opening quote, so neither is touched.
-const STRAY_CLOSING_QUOTE_SPACE = /(?<=[^\s‘“’”]) +(?=[’”](?![\p{L}\p{N}]))/gu;
-const QUOTE_ONLY_LINE = /^[’”]+$/;
+// The preceding character is captured and put back rather than matched with a lookbehind,
+// so this module (loaded on every chapter read) never depends on lookbehind support.
+const STRAY_CLOSING_QUOTE_SPACE = /([^\s‘“’”]) +(?=[’”](?![\p{L}\p{N}]))/gu;
+const CLOSING_ONLY_LINE = /^[?!.,;:)\]’”]+$/;
 const QUOTE_CHAR_AT_END = /[’”]$/;
+const QUOTE_CHAR_AT_START = /^[’”]/;
 
 export const normalizeClosingQuoteSpacing = (text: string): string =>
-  typeof text === 'string' ? text.replace(STRAY_CLOSING_QUOTE_SPACE, '') : text;
+  typeof text === 'string' ? text.replace(STRAY_CLOSING_QUOTE_SPACE, '$1') : text;
 
 /**
  * Remove the stray space before closing quotes inside each line and fold a line made only of
- * closing quotes into the line before it. Returns the input untouched (same identity) when
+ * closing punctuation and/or closing quotes (Psalm 4:2's lone "?") into the line before it. Returns the input untouched (same identity) when
  * nothing needs fixing.
  */
 export const normalizeVerseFormattingQuotes = (
@@ -203,10 +214,11 @@ export const normalizeVerseFormattingQuotes = (
   for (const line of formatting.lines) {
     const text = normalizeClosingQuoteSpacing(line.text);
     const previous = lines[lines.length - 1];
-    if (previous && QUOTE_ONLY_LINE.test(text)) {
+    if (previous && CLOSING_ONLY_LINE.test(text)) {
       // Keep the nested-pair space the verse text has ("’ ”") so the merged line still
       // matches the text during reconcileVerseFormattingWithText.
-      const joiner = QUOTE_CHAR_AT_END.test(previous.text) ? ' ' : '';
+      const joiner =
+        QUOTE_CHAR_AT_END.test(previous.text) && QUOTE_CHAR_AT_START.test(text) ? ' ' : '';
       lines[lines.length - 1] = { ...previous, text: `${previous.text}${joiner}${text}` };
       changed = true;
       continue;

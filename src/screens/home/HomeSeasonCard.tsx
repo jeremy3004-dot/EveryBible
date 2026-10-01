@@ -7,6 +7,7 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import { radius, spacing, typography } from '../../design/system';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
+import { useLargeText } from '../../hooks/useLargeText';
 import { PlanCover } from '../plans/plansHome/PlanCover';
 import type { HomeSeasonPlan } from './homeSeasonPlanModel';
 
@@ -25,6 +26,7 @@ export function HomeSeasonCard({ seasonPlan, onOpenPlan }: HomeSeasonCardProps) 
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const displayFont = useDisplayFont();
+  const { isLargeText } = useLargeText();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { plan, season, daysUntilStart } = seasonPlan;
 
@@ -61,17 +63,18 @@ export function HomeSeasonCard({ seasonPlan, onOpenPlan }: HomeSeasonCardProps) 
         <Text
           maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
           style={[styles.eyebrow, displayFont.regular]}
-          numberOfLines={1}
+          numberOfLines={isLargeText ? 2 : 1}
         >
           {t('readingPlans.inSeason')}
         </Text>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={styles.title} numberOfLines={isLargeText ? 4 : 2}>
           {title}
         </Text>
         <Text
           maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
+          // "Starts Wed, 10 Feb" is the card's one fact: at large text it wraps.
           style={[styles.meta, displayFont.regular]}
-          numberOfLines={1}
+          numberOfLines={isLargeText ? undefined : 1}
         >
           {meta}
         </Text>

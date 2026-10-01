@@ -221,6 +221,29 @@ test('hydration shows a spinner and holds back the empty card', () => {
   );
 });
 
+test('search results are never pinned or labelled as a recommendation', () => {
+  const primaryOption = option('nepali');
+  const items = buildBibleLanguageListItems(
+    bibleInput({
+      primaryOption,
+      isSearching: true,
+      sections: [{ groupLabel: 'N', options: [primaryOption, option('newari')] }],
+    })
+  );
+
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ['eyebrow-N', 'option-nepali', 'option-newari']
+  );
+  assert.equal(
+    buildBibleLanguageListItems(
+      bibleInput({ primaryOption: null, isPrimaryOptionPending: true, isSearching: true })
+    ).some((item) => item.type === 'primaryOptionPlaceholder'),
+    false,
+    'no placeholder for a recommendation that a search has set aside'
+  );
+});
+
 test('a failed catalog load keeps its retry card above whatever is already bundled', () => {
   const items = buildBibleLanguageListItems(
     bibleInput({

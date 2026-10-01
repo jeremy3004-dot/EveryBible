@@ -9,7 +9,7 @@ import {
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
 
-async function renderBar(isCollapsed: boolean) {
+async function renderBar(isCollapsed: boolean, onOpenPlan: () => void = () => {}) {
   const { PlanSessionBottomBar } = await import('./PlanSessionBottomBar');
   const noop = async () => {};
   return harness.render(
@@ -29,6 +29,7 @@ async function renderBar(isCollapsed: boolean) {
       hasOtherIncompletePlanSessions={false}
       hasPrevChapter
       isCollapsed={isCollapsed}
+      onOpenPlan={onOpenPlan}
       isLastPlanChapter={false}
       planDayNumber={1}
       planSessionBottomBarAnimatedStyle={{ transform: [{ translateY: 0 }], opacity: 1 }}
@@ -54,4 +55,14 @@ test('once the plan strip scrolls out it leaves the screen reader and stops taki
   assert.equal(isHiddenFromAccessibility(next), true);
   const strip = hostAncestors(next).find((node) => node.props.accessibilityElementsHidden === true);
   assert.equal(strip?.props.pointerEvents, 'none', 'invisible buttons take no taps');
+});
+
+test('tapping the plan title and day opens the plan', async () => {
+  let opened = 0;
+  const view = await renderBar(false, () => {
+    opened += 1;
+  });
+
+  await view.press(view.getByRole('button', { name: 'Gospels in 60 days' }));
+  assert.equal(opened, 1);
 });

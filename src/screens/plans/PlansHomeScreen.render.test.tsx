@@ -126,6 +126,8 @@ const service = {
   unenrollThrows: null as unknown,
   unenrollGate: null as Gate | null,
   listCalls: 0,
+  /** Makes the catalog call reject, as a lazy chunk that fails to load does. */
+  listThrows: false,
   hydrateCalls: 0,
   unenrolled: [] as string[],
 };
@@ -133,6 +135,7 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   listReadingPlans: async () => {
     service.listCalls += 1;
     await service.catalogGate?.promise;
+    if (service.listThrows) throw new Error('catalog chunk failed to load');
     // A fresh array of the same plans each call, as the real service sorts a copy.
     return { success: true, data: [...CATALOG] };
   },
@@ -222,6 +225,7 @@ afterEach(async () => {
     unenrollThrows: null,
     unenrollGate: null,
     listCalls: 0,
+    listThrows: false,
     hydrateCalls: 0,
     unenrolled: [],
   });
@@ -433,7 +437,7 @@ test('the first open loads the catalog once, a later focus reloads once more, an
 
   await refocus();
   assert.equal(service.listCalls, 2, 'a later focus');
-  assert.equal(service.hydrateCalls, 2, 'a later focus');
+  assert.equal(service.hydrateCalls, 1, 'a later focus inside the freshness window');
 
   const [page] = view.queryAllByType('ScrollView');
   await act(async () => {
@@ -442,7 +446,7 @@ test('the first open loads the catalog once, a later focus reloads once more, an
     )();
   });
   assert.equal(service.listCalls, 3, 'pull to refresh');
-  assert.equal(service.hydrateCalls, 3, 'pull to refresh');
+  assert.equal(service.hydrateCalls, 2, 'pull to refresh always hydrates');
 });
 
 test('the skeleton shows only while the catalog itself is still loading', async () => {
@@ -461,12 +465,34 @@ test('the skeleton shows only while the catalog itself is still loading', async 
   assert.ok(view.getByText(t('readingPlans.noActivePlans')));
 });
 
+test('a catalog load that rejects clears the skeleton and reports it, with no unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    service.listThrows = true;
+    const view = await renderHome();
+    await view.flush();
+
+    assert.equal(await skeletonCount(view), 0, 'the skeleton does not hang');
+    assert.deepEqual(
+      handledErrors.map((entry) => entry.source),
+      ['plans.catalog']
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});
+
 test('returning to the screen reloads quietly, so a plan started elsewhere appears in My Plans', async () => {
   const view = await renderHome();
   assert.ok(view.getByText(t('readingPlans.noActivePlans')));
   const { listCalls, hydrateCalls } = service;
 
-  // Meanwhile the plan was started on another screen and synced down.
+  // Meanwhile the plan was started on another device and synced down. The previous server
+  // read is older than the freshness window, so this focus reads again.
+  mock.timers.tick(10 * 60 * 1000);
   service.catalogGate = gate();
   service.onHydrate = () => {
     void seed(progressRow(PSALMS, { current_day: 3 }));
