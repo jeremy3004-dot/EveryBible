@@ -647,3 +647,37 @@ test('changing chapters clears the previous chapter manual drag and fling owners
   await act(async () => audioStore.setState({ currentPosition: 6_000 }));
   assert.deepEqual(scrollCalls(), [{ y: 720, animated: true }]);
 });
+
+test('a new chapter never scrolls by the previous chapter row offsets', async () => {
+  chapterTimings['bsb:JHN:3'] = JOHN_3_TIMINGS;
+  chapterTimings['bsb:JHN:4'] = JOHN_3_TIMINGS;
+  await playJohn3At(1_000);
+  const { view, props } = await renderReadAlong();
+  await layOut(view);
+
+  // Playback resumes in the middle of John 4, whose rows have not been measured yet.
+  await act(async () => audioStore.setState({ currentChapter: 4, currentPosition: 6_000 }));
+  harness.refCalls.length = 0;
+  const { FollowAlongTextSheet } = await import('./FollowAlongTextSheet');
+  await view.rerender(
+    <FollowAlongTextSheet
+      {...props}
+      track={{ translationId: 'bsb', bookId: 'JHN', chapter: 4 }}
+      readerVerses={JOHN_3.map((item) => ({ ...item, id: item.id + 1_000, chapter: 4 }))}
+    />
+  );
+  await view.flush();
+  assert.deepEqual(
+    scrollCalls().filter((call) => call.y !== 0),
+    [],
+    'verse 2 of John 3 sat at 900; John 4 has not been measured'
+  );
+
+  const [scroll] = view.queryAllByType('ScrollView');
+  assert.ok(scroll);
+  await view.fire(scroll, 'onLayout', { nativeEvent: { layout: { height: 600, width: 390 } } });
+  await view.fire(view.getByTestId('read-along-verse-2'), 'onLayout', {
+    nativeEvent: { layout: { y: 500, height: 400, width: 390 } },
+  });
+  assert.deepEqual(scrollCalls().at(-1), { y: 500 - 180, animated: false });
+});
