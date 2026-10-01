@@ -48,16 +48,16 @@ afterEach(() => {
 
 const VERSES: Verse[] = [
   { id: 43_003_016, bookId: 'JHN', chapter: 3, verse: 16, text: 'For God so loved the world.' },
+  { id: 43_003_017, bookId: 'JHN', chapter: 3, verse: 17, text: 'For God did not send his Son.' },
 ];
 
-async function mountSelection() {
+async function mountSelection(initialSelection: number[] = [16]) {
   const { useVerseSelection } = await import('./useVerseSelection');
   const box: { result?: ReturnType<typeof useVerseSelection> } = {};
   const capture = (result: ReturnType<typeof useVerseSelection>) => {
     box.result = result;
   };
-  const selectedVerses = [16];
-  function Probe() {
+  function Probe({ selectedVerses }: { selectedVerses: number[] }) {
     capture(
       useVerseSelection({
         annotations: [],
@@ -80,10 +80,12 @@ async function mountSelection() {
     );
     return null;
   }
-  const view = await harness.render(<Probe />);
+  const view = await harness.render(<Probe selectedVerses={initialSelection} />);
   const selection = box.result;
   assert.ok(selection);
-  return { selection, view };
+  const select = (selectedVerses: number[]) =>
+    view.rerender(<Probe selectedVerses={selectedVerses} />);
+  return { selection, view, select };
 }
 
 async function settleRejections(view: { flush: () => Promise<void> }) {
@@ -134,4 +136,20 @@ test('copying verses still reaches the clipboard when nothing fails', async () =
   assert.deepEqual(unhandled, []);
   assert.deepEqual(handledErrors, []);
   assert.deepEqual(alerts, []);
+});
+
+test('selecting verses speaks the passage once, when the action tray opens', async () => {
+  const spoken = harness.rn.__recorded.announcements;
+  const { select } = await mountSelection([]);
+  assert.deepEqual(spoken, [], 'nothing selected, nothing said');
+
+  await select([16]);
+  assert.deepEqual(spoken, [`${harness.i18n.t('annotations.selected')}: John 3:16`]);
+
+  await select([16, 17]);
+  assert.equal(spoken.length, 1, 'extending the selection leaves the tray as it was');
+
+  await select([]);
+  await select([17]);
+  assert.equal(spoken.length, 2);
 });

@@ -112,6 +112,16 @@ export function useVerseSelection({
           translationLabel: '',
         })
       : '';
+  // The action tray appears at the bottom of the screen, away from the verse that was
+  // tapped; say what is now selected, once per tray opening rather than per extended verse.
+  const isTrayOpen = selectedVerses.length > 0;
+  const trayAnnouncementRef = useRef(selectedVerseImageReferenceLabel);
+  trayAnnouncementRef.current = selectedVerseImageReferenceLabel;
+  useEffect(() => {
+    if (isTrayOpen) {
+      announceForAccessibility(`${t('annotations.selected')}: ${trayAnnouncementRef.current}`);
+    }
+  }, [isTrayOpen, t]);
   const selectedVerseText =
     selectedVerses.length > 0 ? extractBibleSelectionText(verses, selectedVerses) : '';
   const selectedVerseShareText =
