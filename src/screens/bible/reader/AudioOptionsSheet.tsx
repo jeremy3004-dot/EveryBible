@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   Modal,
   ScrollView,
@@ -16,6 +16,7 @@ import { layout, radius, shadows, spacing, typography } from '../../../design/sy
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BackArrowIcon } from '../../../components/ui/IconButton';
 import { useAudioStore } from '../../../stores/audioStore';
+import { announceForAccessibility } from '../../../utils/a11y';
 import type {
   BackgroundMusicChoice,
   PlaybackRate,
@@ -110,6 +111,15 @@ export function AudioOptionsSheet({
       : page === 'passage'
         ? t('audio.passagePickerTitle')
         : t('audio.sheetTitle');
+
+  // The page swaps under the control that was tapped, so focus is left on a view that is
+  // gone; speak the page the reader landed on. Opening the sheet announces itself (modal).
+  const shownPageRef = useRef(page);
+  useEffect(() => {
+    if (shownPageRef.current === page) return;
+    shownPageRef.current = page;
+    if (showAudioOptionsSheet) announceForAccessibility(title);
+  }, [page, showAudioOptionsSheet, title]);
 
   return (
     <Modal

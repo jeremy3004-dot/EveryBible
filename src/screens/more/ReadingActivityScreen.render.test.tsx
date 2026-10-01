@@ -10,6 +10,7 @@ import {
   flattenStyle,
   hostAncestors,
   installRenderHarness,
+  isHiddenFromAccessibility,
   textContent,
   within,
 } from '../../testing/render';
@@ -166,6 +167,14 @@ test('the calendar grid runs Monday-first under single-letter weekday headers', 
     'Wednesday, September 30'
   );
   assert.equal(textContent(assertDefined(cells[1], 'cells[1]')), '1');
+});
+
+test('the single-letter weekday headers are hidden: each day button already names its weekday', async () => {
+  const view = await renderScreen();
+
+  const initials = view.getAllByText(/^[A-Z]$/);
+  assert.equal(initials.length, 7);
+  assert.ok(initials.every((node) => isHiddenFromAccessibility(node)));
 });
 
 test('each day is a button named by its full date, and only the chosen day is announced as selected', async () => {

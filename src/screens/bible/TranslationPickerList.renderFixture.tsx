@@ -392,7 +392,7 @@ export function installPickerRenderFixture(
   }
 
   const closeManageSheet = async (view: View, sheet: ReactTestInstance) => {
-    const [, closeButton] = within(sheet).getAllByRole('button', { name: t('interface.close') });
+    const closeButton = within(sheet).getByRole('button', { name: t('interface.close') });
     assert.ok(closeButton, 'the sheet header has a close button');
     await view.press(closeButton);
   };

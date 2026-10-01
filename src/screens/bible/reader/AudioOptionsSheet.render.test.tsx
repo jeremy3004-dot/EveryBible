@@ -561,6 +561,22 @@ test('sounds still to download carry a cloud badge, and one downloading a spinne
 
 // ---- Dismissal and footer --------------------------------------------------------
 
+test('moving between pages speaks the new page title, and opening the sheet stays quiet', async () => {
+  const { view } = await renderSheet();
+  const spoken = harness.rn.__recorded.announcements;
+  assert.deepEqual(spoken, []);
+
+  await view.press(view.getByRole('button', { name: t('audio.backgroundSound') }));
+  await view.press(view.getByRole('button', { name: t('common.back') }));
+  await view.press(view.getByRole('button', { name: t('audio.repeatOptionPassage') }));
+
+  assert.deepEqual(spoken, [
+    t('audio.backgroundSound'),
+    t('audio.sheetTitle'),
+    t('audio.passagePickerTitle'),
+  ]);
+});
+
 test('Android back leaves a pushed page first, then closes the sheet', async () => {
   const { view, calls } = await renderSheet();
   const modal = assertDefined(view.queryAllByType('Modal')[0], 'modal');

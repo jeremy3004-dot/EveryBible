@@ -275,6 +275,7 @@ test('the manage sheet downloads the text without a prompt and shows it busy whi
   const busy = within(sheet).getByRole('button', { name: t('audio.showText') });
   assert.deepEqual(busy.props.accessibilityValue, { text: '60%' });
   assert.equal(busy.props.disabled, true);
+  assert.equal(busy.props.accessibilityState?.busy, true, 'a running download is announced busy');
   assert.equal(
     within(sheet).queryByRole('button', { name: t('translations.delete') }),
     null,

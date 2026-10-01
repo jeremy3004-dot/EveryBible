@@ -1,7 +1,6 @@
 import { Modal, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { useI18n } from '../../../hooks/useI18n';
 import type { BibleTranslation } from '../../../types';
 import { pickerStyles as styles } from './pickerStyles';
 import { TranslationManageSheet } from './TranslationManageSheet';
@@ -21,7 +20,6 @@ export function TranslationManageModal({
   handleDownloadTextTranslation: (translation: BibleTranslation) => Promise<void>;
 }) {
   const { colors } = useTheme();
-  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -43,10 +41,13 @@ export function TranslationManageModal({
           style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('interface.close')}
+          // The sheet has a visible Close; a second, unlabelled-by-sight one would only repeat it.
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
         />
         <View
+          accessibilityViewIsModal
           style={[
             styles.modalContent,
             {

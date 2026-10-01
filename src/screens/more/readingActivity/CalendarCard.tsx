@@ -83,7 +83,12 @@ export function CalendarCard({
         </View>
       </View>
 
-      <View style={styles.weekdayRow}>
+      {/* Seven stray "M T W T F S S" stops otherwise; every day button names its weekday. */}
+      <View
+        style={styles.weekdayRow}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      >
         {weekdayInitials.map((initial, index) => (
           <Text key={`weekday-${index}`} style={[styles.weekday, displayFont.regular]}>
             {initial}
