@@ -1,5 +1,6 @@
 {
   "groupLabels": {
+    "church-year": "Church year",
     "daily-rhythms": "Daily rhythms",
     "life-situation": "Seasons of life",
     "chronological": "Whole Bible",
@@ -2016,6 +2017,72 @@
         {"day":5,"sessions":[{"label":null,"readings":[{"book":"GEN","chapter":27},{"book":"GEN","chapter":33}]}]},
         {"day":6,"sessions":[{"label":null,"readings":[{"book":"GEN","chapter":44,"toChapter":45}]}]},
         {"day":7,"sessions":[{"label":null,"readings":[{"book":"GAL","chapter":4},{"book":"PSA","chapter":133}]}]}
+      ]
+    },
+    {
+      "id": "advent",
+      "slug": "advent",
+      "title": "Advent",
+      "description": "From the first Sunday of Advent to Christmas Eve: a week each of hope, peace, joy, and love, from the prophets’ promises to the angel’s visit to Mary.",
+      "category": "church-year",
+      "durationDays": 28,
+      "schedule": "advent",
+      "sessions": [],
+      "cover": "advent",
+      "days": [
+        {"day":1,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":40},{"book":"PSA","chapter":25}]}]},
+        {"day":2,"sessions":[{"label":null,"readings":[{"book":"GEN","chapter":3},{"book":"PSA","chapter":130}]}]},
+        {"day":3,"sessions":[{"label":null,"readings":[{"book":"GEN","chapter":12},{"book":"ROM","chapter":4}]}]},
+        {"day":4,"sessions":[{"label":null,"readings":[{"book":"2SA","chapter":7},{"book":"PSA","chapter":89}]}]},
+        {"day":5,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":11},{"book":"PSA","chapter":72}]}]},
+        {"day":6,"sessions":[{"label":null,"readings":[{"book":"JER","chapter":33},{"book":"ROM","chapter":15}]}]},
+        {"day":7,"sessions":[{"label":null,"readings":[{"book":"LAM","chapter":3},{"book":"PSA","chapter":80}]}]},
+        {"day":8,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":9},{"book":"PSA","chapter":85}]}]},
+        {"day":9,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":2},{"book":"PSA","chapter":122}]}]},
+        {"day":10,"sessions":[{"label":null,"readings":[{"book":"MIC","chapter":4,"toChapter":5}]}]},
+        {"day":11,"sessions":[{"label":null,"readings":[{"book":"MAL","chapter":3,"toChapter":4}]}]},
+        {"day":12,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":52},{"book":"MAT","chapter":3}]}]},
+        {"day":13,"sessions":[{"label":null,"readings":[{"book":"ZEC","chapter":9},{"book":"EPH","chapter":2}]}]},
+        {"day":14,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":32},{"book":"2PE","chapter":3}]}]},
+        {"day":15,"sessions":[{"label":null,"readings":[{"book":"ZEP","chapter":3},{"book":"PHP","chapter":4}]}]},
+        {"day":16,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":35},{"book":"MAT","chapter":11}]}]},
+        {"day":17,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":61},{"book":"LUK","chapter":4}]}]},
+        {"day":18,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":12},{"book":"PSA","chapter":126}]}]},
+        {"day":19,"sessions":[{"label":null,"readings":[{"book":"PSA","chapter":16},{"book":"1TH","chapter":5}]}]},
+        {"day":20,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":55},{"book":"PSA","chapter":98}]}]},
+        {"day":21,"sessions":[{"label":null,"readings":[{"book":"HAB","chapter":3},{"book":"PSA","chapter":96}]}]},
+        {"day":22,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":7},{"book":"MAT","chapter":1},{"book":"LUK","chapter":1}]}]},
+        {"day":23,"sessions":[{"label":null,"readings":[{"book":"JHN","chapter":3},{"book":"PSA","chapter":145}]}]},
+        {"day":24,"sessions":[{"label":null,"readings":[{"book":"HOS","chapter":11},{"book":"PSA","chapter":103}]}]},
+        {"day":25,"sessions":[{"label":null,"readings":[{"book":"1JN","chapter":3,"toChapter":4}]}]},
+        {"day":26,"sessions":[{"label":null,"readings":[{"book":"ROM","chapter":5},{"book":"PSA","chapter":136}]}]},
+        {"day":27,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":54},{"book":"1CO","chapter":13}]}]},
+        {"day":28,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":62},{"book":"PSA","chapter":24}]}]}
+      ]
+    },
+    {
+      "id": "twelve-days-of-christmas",
+      "slug": "twelve-days-of-christmas",
+      "title": "The Twelve Days of Christmas",
+      "description": "From Christmas Day to 5 January: the birth of Jesus, the Word made flesh, and the wise men who followed the star.",
+      "category": "church-year",
+      "durationDays": 12,
+      "schedule": "christmas",
+      "sessions": [],
+      "cover": "christmas",
+      "days": [
+        {"day":1,"sessions":[{"label":null,"readings":[{"book":"LUK","chapter":2},{"book":"JHN","chapter":1}]}]},
+        {"day":2,"sessions":[{"label":null,"readings":[{"book":"HEB","chapter":1},{"book":"PSA","chapter":2}]}]},
+        {"day":3,"sessions":[{"label":null,"readings":[{"book":"TIT","chapter":2,"toChapter":3}]}]},
+        {"day":4,"sessions":[{"label":null,"readings":[{"book":"PSA","chapter":8},{"book":"HEB","chapter":2}]}]},
+        {"day":5,"sessions":[{"label":null,"readings":[{"book":"COL","chapter":1},{"book":"1JN","chapter":1}]}]},
+        {"day":6,"sessions":[{"label":null,"readings":[{"book":"JER","chapter":31},{"book":"PSA","chapter":147}]}]},
+        {"day":7,"sessions":[{"label":null,"readings":[{"book":"PSA","chapter":90},{"book":"ECC","chapter":3}]}]},
+        {"day":8,"sessions":[{"label":null,"readings":[{"book":"NUM","chapter":6},{"book":"PHP","chapter":2}]}]},
+        {"day":9,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":42},{"book":"PSA","chapter":67}]}]},
+        {"day":10,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":49},{"book":"EPH","chapter":3}]}]},
+        {"day":11,"sessions":[{"label":null,"readings":[{"book":"EPH","chapter":1},{"book":"GAL","chapter":4}]}]},
+        {"day":12,"sessions":[{"label":null,"readings":[{"book":"ISA","chapter":60},{"book":"MAT","chapter":2}]}]}
       ]
     }
   ]

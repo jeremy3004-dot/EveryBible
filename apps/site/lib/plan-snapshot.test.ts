@@ -26,6 +26,7 @@ test('every plan has a web cover', () => {
 const TEXT: Record<string, string> = {
   'plan.title': 'Plan',
   'plan.description': 'A plan.',
+  'readingPlans.churchYear.heading': 'Church year',
   'readingPlans.dailyRhythms': 'Daily rhythms',
   'readingPlans.categoryLifeSituations': 'Seasons of life',
   'readingPlans.categoryChronological': 'Whole Bible',

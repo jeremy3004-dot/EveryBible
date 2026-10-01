@@ -104,7 +104,11 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 
 /** A weekly plan's day 1 is Sunday, as in the app; every other plan counts days. */
 export function dayLabel(plan: Pick<SitePlan, 'schedule'>, day: number): string {
-  return plan.schedule === 'weekly' ? WEEKDAYS[day - 1] : `Day ${day}`;
+  if (plan.schedule === 'weekly') return WEEKDAYS[day - 1];
+  // The Twelve Days always fall on the same dates: 25 December to 5 January.
+  if (plan.schedule === 'christmas')
+    return day <= 7 ? `${24 + day} December` : `${day - 7} January`;
+  return `Day ${day}`;
 }
 
 /**
@@ -115,6 +119,8 @@ export function dayLabel(plan: Pick<SitePlan, 'schedule'>, day: number): string 
 export function planLengthLabel(plan: Pick<SitePlan, 'schedule' | 'durationDays'>): string {
   if (plan.schedule === 'monthly') return 'Every month';
   if (plan.schedule === 'weekly') return 'Every week';
+  if (plan.schedule === 'advent') return 'Every Advent';
+  if (plan.schedule === 'christmas') return 'Every Christmas';
   return `${plan.durationDays} ${plan.durationDays === 1 ? 'day' : 'days'}`;
 }
 
@@ -140,6 +146,16 @@ export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions
       'This plan follows the days of the week: each Sunday you read Sunday’s reading, and it begins again every week.' +
       sessions
     );
+  // Mirrors the app's getPlanSeason: Advent is 22 to 28 days, so a short year
+  // stops at Christmas Eve before the last readings.
+  if (plan.schedule === 'advent')
+    return (
+      'This plan follows the church year: Day 1 is the first Sunday of Advent, between 27 November and 3 December, ' +
+      'and the last reading falls on Christmas Eve. Advent lasts 22 to 28 days, so in a shorter year the plan ' +
+      'ends on Christmas Eve before its final readings.'
+    );
+  if (plan.schedule === 'christmas')
+    return 'This plan follows the church year: it begins on Christmas Day and ends on 5 January, the twelfth day of Christmas.';
   return (
     'Day 1 is the day you start. EveryBible keeps your place, marks each day you read and opens every reading in the Bible reader.' +
     sessions
@@ -265,20 +281,27 @@ export interface PlanGroup {
   plans: SitePlan[];
 }
 
-/** Recurring plans all sit in the app's "Daily rhythms" section, whatever their category. */
+/**
+ * Monthly and weekly plans all sit in the app's "Daily rhythms" section,
+ * whatever their category; church-year plans keep their own section.
+ */
 export function planGroupId(plan: Pick<SitePlan, 'schedule' | 'category'>): string {
-  return plan.schedule === 'sequential' ? plan.category : DAILY_RHYTHMS_GROUP;
+  return plan.schedule === 'monthly' || plan.schedule === 'weekly'
+    ? DAILY_RHYTHMS_GROUP
+    : plan.category;
 }
 
 /**
- * The app's Find plans layout (plansHomeModel.groupCatalogPlans): Daily
- * rhythms, then Seasons of life, then each other category in catalog order.
+ * The app's Find plans layout (plansHomeModel.groupCatalogPlans): Church
+ * year, Daily rhythms, then Seasons of life, then each other category in
+ * catalog order.
  */
 export function groupPlans(
   plans: readonly SitePlan[],
   labels: Readonly<Record<string, string>> = planSnapshot.groupLabels
 ): PlanGroup[] {
   const groups = new Map<string, SitePlan[]>([
+    ['church-year', []],
     [DAILY_RHYTHMS_GROUP, []],
     ['life-situation', []],
   ]);
@@ -323,10 +346,12 @@ export function planHeading(plan: Pick<SitePlan, 'title' | 'category'>): string 
   return plan.category === 'life-situation' ? `Bible Reading Plan for ${plan.title}` : plan.title;
 }
 
-/** "365-Day", "Monthly", "Weekly". */
+/** "365-Day", "Monthly", "Weekly", "Advent", "Christmas". */
 function planKind(plan: Pick<SitePlan, 'schedule' | 'durationDays'>): string {
   if (plan.schedule === 'monthly') return 'Monthly';
   if (plan.schedule === 'weekly') return 'Weekly';
+  if (plan.schedule === 'advent') return 'Advent';
+  if (plan.schedule === 'christmas') return 'Christmas';
   return `${plan.durationDays}-Day`;
 }
 
@@ -335,16 +360,20 @@ export function planPageTitle(
 ): string {
   const heading = planHeading(plan);
   const kind = planKind(plan);
+  // A season names itself: "Advent Bible Reading Plan", not "Advent — Advent …".
+  const seasonal = plan.schedule === 'advent' || plan.schedule === 'christmas';
   const candidates =
     plan.category === 'life-situation'
       ? [`${heading} — ${plan.durationDays} Days | ${SITE_NAME}`, heading]
-      : [
-          `${heading} — ${kind} Bible Reading Plan | ${SITE_NAME}`,
-          `${heading} — ${kind} Reading Plan | ${SITE_NAME}`,
-          `${heading} — ${kind} Reading Plan`,
-          `${heading} | ${SITE_NAME}`,
-          heading,
-        ];
+      : seasonal
+        ? [`${heading} Bible Reading Plan | ${SITE_NAME}`, `${heading} | ${SITE_NAME}`, heading]
+        : [
+            `${heading} — ${kind} Bible Reading Plan | ${SITE_NAME}`,
+            `${heading} — ${kind} Reading Plan | ${SITE_NAME}`,
+            `${heading} — ${kind} Reading Plan`,
+            `${heading} | ${SITE_NAME}`,
+            heading,
+          ];
   return firstThatFits(candidates, TITLE_MAX_LENGTH);
 }
 
@@ -352,15 +381,16 @@ export function planPageTitle(
 export function planPageDescription(
   plan: Pick<SitePlan, 'title' | 'description' | 'category' | 'schedule' | 'durationDays'>
 ): string {
+  const kind = planKind(plan);
+  // Season names stay capitalised; "free" always takes "A".
   const noun =
     plan.category === 'life-situation'
       ? `Bible reading plan for ${plan.title.toLowerCase()}`
-      : `${planKind(plan).toLowerCase()} Bible reading plan`;
-  const article = /^[aeiou8]/i.test(noun) ? 'An' : 'A';
+      : `${plan.schedule === 'advent' || plan.schedule === 'christmas' ? kind : kind.toLowerCase()} Bible reading plan`;
   return firstThatFits(
     [
-      `${plan.description} ${article} free ${noun} with every day’s readings, in the EveryBible app.`,
-      `${plan.description} ${article} free ${noun} in the EveryBible app.`,
+      `${plan.description} A free ${noun} with every day’s readings, in the EveryBible app.`,
+      `${plan.description} A free ${noun} in the EveryBible app.`,
       `${plan.description} Free in the EveryBible app.`,
       plan.description,
     ],

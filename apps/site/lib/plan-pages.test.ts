@@ -18,6 +18,7 @@ import {
   planPageDescription,
   planPageMetadata,
   planPageTitle,
+  planScheduleSentence,
   planScopeSentence,
   plansHubDescription,
   PLANS_HUB_TITLE,
@@ -87,6 +88,19 @@ test('lengths say how recurring plans repeat instead of counting 31 days', () =>
   assert.equal(planLengthLabel(plan('week-of-christ')), 'Every week');
   assert.equal(planMetaLabel(plan('kathisma-weekly')), 'Every week · Morning + Evening');
   assert.equal(planMetaLabel(plan('common-prayer-psalter')), 'Every month · Morning + Evening');
+  assert.equal(planLengthLabel(plan('advent')), 'Every Advent');
+  assert.equal(planLengthLabel(plan('twelve-days-of-christmas')), 'Every Christmas');
+});
+
+test('the Twelve Days are labelled by date; Advent counts days because its start moves', () => {
+  const christmas = plan('twelve-days-of-christmas');
+  assert.equal(dayLabel(christmas, 1), '25 December');
+  assert.equal(dayLabel(christmas, 7), '31 December');
+  assert.equal(dayLabel(christmas, 8), '1 January');
+  assert.equal(dayLabel(christmas, 12), '5 January');
+  assert.equal(dayLabel(plan('advent'), 22), 'Day 22');
+  assert.match(planScheduleSentence(plan('advent')), /first Sunday of Advent/);
+  assert.match(planScheduleSentence(christmas), /Christmas Day and ends on 5 January/);
 });
 
 test('weekly plans name the weekday, starting on Sunday', () => {
@@ -96,13 +110,25 @@ test('weekly plans name the weekday, starting on Sunday', () => {
   assert.equal(dayLabel(plan('bible-in-1-year'), 200), 'Day 200');
 });
 
-test('the catalog follows the app: Daily rhythms, Seasons of life, then categories', () => {
+test('the catalog follows the app: Church year, Daily rhythms, Seasons of life, then categories', () => {
   const groups = groupPlans(getPlans());
   assert.deepEqual(
     groups.map((group) => group.label),
-    ['Daily rhythms', 'Seasons of life', 'Whole Bible', 'Book study', 'Topical', 'Devotional']
+    [
+      'Church year',
+      'Daily rhythms',
+      'Seasons of life',
+      'Whole Bible',
+      'Book study',
+      'Topical',
+      'Devotional',
+    ]
   );
-  const rhythms = groups[0].plans.map((item) => item.slug);
+  assert.deepEqual(
+    groups[0].plans.map((item) => item.slug),
+    ['advent', 'twelve-days-of-christmas']
+  );
+  const rhythms = groups[1].plans.map((item) => item.slug);
   assert.deepEqual(rhythms, [
     'proverbs-31-days',
     'kathisma-weekly',
@@ -116,7 +142,7 @@ test('the catalog follows the app: Daily rhythms, Seasons of life, then categori
     getPlans().length
   );
   // A recurring devotional plan is a rhythm, never listed twice.
-  assert.ok(!groups[5].plans.some((item) => item.schedule !== 'sequential'));
+  assert.ok(!groups[6].plans.some((item) => item.schedule !== 'sequential'));
 });
 
 test('related plans come from the same section, after this plan and wrapping round', () => {
@@ -196,6 +222,8 @@ test('titles and descriptions fit search results and name the plan', () => {
     planPageTitle(plan('proverbs-31-days')),
     'Daily Proverbs Chapter — Monthly Reading Plan | EveryBible'
   );
+  assert.equal(planPageTitle(plan('advent')), 'Advent Bible Reading Plan | EveryBible');
+  for (const item of getPlans()) assert.doesNotMatch(planPageDescription(item), /\bAn free\b/);
   assert.ok(PLANS_HUB_TITLE.length <= TITLE_MAX_LENGTH);
   assert.ok(plansHubDescription().length <= DESCRIPTION_MAX_LENGTH);
 });

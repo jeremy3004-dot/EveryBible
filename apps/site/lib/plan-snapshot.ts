@@ -11,9 +11,11 @@ import { bibleBookById } from './bible-books';
  * How a plan's days map onto the calendar, mirroring the app's schedule modes:
  * `sequential` starts on the day you join, `monthly` reads the day matching
  * the date (calendar-day-of-month), `weekly` the day matching the weekday,
- * with day 1 on Sunday (calendar-day-of-week).
+ * with day 1 on Sunday (calendar-day-of-week). `advent` starts on the first
+ * Sunday of Advent and `christmas` on 25 December, every year (the app's
+ * church-year seasons, calendar-advent and calendar-christmas).
  */
-export type PlanSchedule = 'sequential' | 'monthly' | 'weekly';
+export type PlanSchedule = 'sequential' | 'monthly' | 'weekly' | 'advent' | 'christmas';
 
 /** One passage. Omitted fields mean a whole chapter; `toChapter` ends a chapter range. */
 export interface PlanReading {
@@ -70,7 +72,12 @@ export interface AppPlan {
   category: string | null;
   sort_order: number;
   coverKey: string;
-  scheduleMode?: 'relative' | 'calendar-day-of-month' | 'calendar-day-of-week';
+  scheduleMode?:
+    | 'relative'
+    | 'calendar-day-of-month'
+    | 'calendar-day-of-week'
+    | 'calendar-advent'
+    | 'calendar-christmas';
   format?: 'single-session' | 'multi-session';
   sessionOrder?: string[];
 }
@@ -100,6 +107,7 @@ export const DAILY_RHYTHMS_GROUP = 'daily-rhythms';
 
 /** The app's section heading keys (plansHomeModel.ts and FindPlansSection.tsx). */
 const GROUP_LABEL_KEYS: Record<string, string> = {
+  'church-year': 'readingPlans.churchYear.heading',
   [DAILY_RHYTHMS_GROUP]: 'readingPlans.dailyRhythms',
   'life-situation': 'readingPlans.categoryLifeSituations',
   chronological: 'readingPlans.categoryChronological',
@@ -123,6 +131,8 @@ function required(source: PlanSnapshotSource, key: string): string {
 function schedule(plan: AppPlan): PlanSchedule {
   if (plan.scheduleMode === 'calendar-day-of-month') return 'monthly';
   if (plan.scheduleMode === 'calendar-day-of-week') return 'weekly';
+  if (plan.scheduleMode === 'calendar-advent') return 'advent';
+  if (plan.scheduleMode === 'calendar-christmas') return 'christmas';
   return 'sequential';
 }
 
