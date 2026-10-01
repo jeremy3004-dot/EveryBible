@@ -236,6 +236,8 @@ export function VerseImageShareSheet({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={t(`bible.verseImage.colors.${color.id}`)}
+            // The cell is an eighth of the row, a hair under 44pt on a 390pt screen.
+            hitSlop={{ left: 4, right: 4 }}
             style={styles.verseImageSwatchCell}
             onPress={() => setStyle((current) => ({ ...current, colorId: color.id }))}
           >

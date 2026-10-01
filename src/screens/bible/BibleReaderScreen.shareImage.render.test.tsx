@@ -448,3 +448,16 @@ test('each background tile says its position in the rail', async () => {
     })
   );
 });
+
+test('colour swatches keep a 44pt touch target on a 390pt screen', async () => {
+  const view = await renderReader();
+  const sheet = await openPicker(view);
+  await view.press(within(sheet).getByRole('tab', { name: t('bible.verseImage.tabs.color') }));
+
+  const swatch = within(sheet).getByRole('button', { name: t('bible.verseImage.colors.white') });
+  // A cell is an eighth of the row, about 43pt wide on a 390pt screen; hitSlop makes up the rest.
+  const cellWidth = 43;
+  const slop = swatch.props.hitSlop as { left: number; right: number } | undefined;
+  assert.ok(slop, 'the swatch widens its touch target');
+  assert.ok(cellWidth + slop.left + slop.right >= 44, `hitSlop ${JSON.stringify(slop)}`);
+});
