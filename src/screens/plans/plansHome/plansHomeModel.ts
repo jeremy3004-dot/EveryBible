@@ -38,8 +38,8 @@ export function formatProgressPercent(progress: number): string {
 export function sortProgressNewestFirst(
   progressByPlanId: Record<string, UserReadingPlanProgress>
 ): UserReadingPlanProgress[] {
-  return Object.values(progressByPlanId).sort((left, right) =>
-    getPlanLastActivityTime(right) - getPlanLastActivityTime(left)
+  return Object.values(progressByPlanId).sort(
+    (left, right) => getPlanLastActivityTime(right) - getPlanLastActivityTime(left)
   );
 }
 
