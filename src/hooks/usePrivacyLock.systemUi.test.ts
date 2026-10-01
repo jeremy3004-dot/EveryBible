@@ -529,6 +529,28 @@ test('the lock after enabling discreet mode waits for the icon alert to be answe
   assert.equal(usePrivacyStore.getState().isLocked, true, 'locked once the alert is answered');
 });
 
+test('the lock after enabling discreet mode waits for the answer when the icon alert is already up', async () => {
+  const { runAfterPrivacyIconAlert } = await import('../services/privacy/privacyLockGrace');
+  alertDuringChange = true;
+  homeScreenIcon = 'standard';
+  inactiveTestClock += 100_000;
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: inactiveTestClock });
+  const lock = mountPrivacyLock();
+
+  await usePrivacyStore.getState().saveConfiguration({ mode: 'discreet', pinInput: '1234' });
+  const alert$ = nextIconAlert();
+  mock.timers.tick(400);
+  await alert$;
+  // The preferences screen queues its lock once its navigation has settled, which can be
+  // after iOS has put the alert up.
+  runAfterPrivacyIconAlert(() => usePrivacyStore.getState().lock());
+  mock.timers.tick(ICON_ALERT_OPEN_MS);
+  assert.equal(lock.locks.length, 0, 'not locked under the alert, however long it stays up');
+
+  rn.AppState.emit('active');
+  assert.equal(usePrivacyStore.getState().isLocked, true, 'locked once the alert is answered');
+});
+
 test('the lock after enabling discreet mode is not held when the icon already matches', async () => {
   const { runAfterPrivacyIconAlert } = await import('../services/privacy/privacyLockGrace');
   homeScreenIcon = 'discreet';

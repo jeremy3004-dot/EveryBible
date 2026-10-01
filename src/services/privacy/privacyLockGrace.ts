@@ -94,7 +94,10 @@ export function runAfterPrivacyIconAlert(run: () => void): void {
     return;
   }
   alertWaiters.push(run);
-  alertWaitTimer ??= setTimeout(releaseAlertWaiters, PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+  // The cap is for an alert that never comes; one already up waits for the reader's answer.
+  if (!inactiveUnderIconAlert) {
+    alertWaitTimer ??= setTimeout(releaseAlertWaiters, PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+  }
 }
 
 /** Allows an inactive lock timer to shorten when a prompt settles. */
