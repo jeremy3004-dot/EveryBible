@@ -463,6 +463,22 @@ test('setUserTranslationPreferences merges the change into the saved row', async
   assert.deepEqual(upsert.options, { onConflict: 'user_id' });
 });
 
+test('setUserTranslationPreferences reads back only the columns it merges', async () => {
+  const { setUserTranslationPreferences } = await loadModule();
+  signIn('user-7');
+  supabaseFake.respondTo('user_translation_preferences', (call) =>
+    call.operation === 'upsert' ? { data: null } : { data: makePreferences({ user_id: 'user-7' }) }
+  );
+
+  await setUserTranslationPreferences({ primary: 'ylt' });
+
+  const read = assertDefined(supabaseFake.callsFor('user_translation_preferences')[0], 'read call');
+  assert.equal(
+    read.columns,
+    'primary_translation,secondary_translation,audio_translation,synced_at'
+  );
+});
+
 test('setUserTranslationPreferences creates a first row that defaults the primary to BSB', async () => {
   const { setUserTranslationPreferences } = await loadModule();
   signIn();

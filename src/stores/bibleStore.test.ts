@@ -818,6 +818,8 @@ test('persisting the store keeps the reading position and translation preference
 });
 
 test('persisting the store never writes the loaded chapter text', () => {
+  // A set that touches only transient fields writes nothing, so force a real persisted write.
+  useBibleStore.getState().setCurrentChapter(7);
   useBibleStore
     .getState()
     .setVerses([{ id: 1, bookId: 'GEN', chapter: 1, verse: 1, text: 'In the beginning' }]);

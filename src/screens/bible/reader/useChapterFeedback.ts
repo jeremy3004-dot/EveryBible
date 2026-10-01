@@ -17,6 +17,7 @@ import {
   normalizeChapterFeedbackComment,
   shouldEnableChapterFeedbackSubmit,
 } from '../bibleReaderFeedbackModel';
+import { reportReaderFailure } from './reportReaderFailure';
 import { useChapterFeedbackAudio } from './useChapterFeedbackAudio';
 
 export interface ChapterFeedbackInput {
@@ -163,72 +164,84 @@ export function useChapterFeedback({
     }
     setFeedbackSubmitError(null);
 
-    const audioUploadResult = feedbackAudioDraft
-      ? await uploadChapterFeedbackAudio(feedbackAudioDraft, {
-          translationId: currentTranslation,
-          bookId,
-          chapter,
-        })
-      : null;
+    // Both steps resolve failures into results, but the outbox can still throw (a full
+    // device store, a connectivity read). Left uncaught it kept the form submitting for good.
+    try {
+      const audioUploadResult = feedbackAudioDraft
+        ? await uploadChapterFeedbackAudio(feedbackAudioDraft, {
+            translationId: currentTranslation,
+            bookId,
+            chapter,
+          })
+        : null;
 
-    // Local voice-file preparation happens before the outbox captures its account.
-    if (!isCurrent()) return;
-    if (audioUploadResult && !audioUploadResult.success) {
-      setIsSubmittingFeedback(false);
-      setFeedbackAudioState('error');
-      setFeedbackSubmitError(t('bible.chapterFeedbackAudioUploadError'));
-      return;
-    }
-
-    // Offline, a written response is kept on the device and sent by the next sync.
-    const result = await submitChapterFeedbackOrQueue({
-      translationId: currentTranslation,
-      translationLanguage: currentTranslationInfo?.language ?? translationLabel,
-      bookId,
-      chapter,
-      sentiment: feedbackSentiment,
-      comment: normalizeChapterFeedbackComment(feedbackComment),
-      interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
-      contentLanguageCode,
-      contentLanguageName,
-      participantName: savedChapterFeedbackIdentity?.name ?? null,
-      participantRole: savedChapterFeedbackIdentity?.role ?? null,
-      contributorCategory:
-        participationMode === 'scripture_council' ? 'scripture_council' : 'community',
-      councilPasscode: participationMode === 'scripture_council' ? councilPasscode : undefined,
-      audioResponse: audioUploadResult?.data ?? null,
-      sourceScreen,
-      appPlatform: Platform.OS,
-      appVersion: config.version,
-    });
-
-    if (!isCurrent()) return;
-    setIsSubmittingFeedback(false);
-
-    if (result.success) {
-      if (sourceScreen === 'reader') {
-        setShowFeedbackModal(false);
-      }
-      resetFeedbackDraft();
-
-      if (result.queued) {
-        Alert.alert(t('bible.chapterFeedbackQueuedTitle'), t('bible.chapterFeedbackQueued'));
+      // Local voice-file preparation happens before the outbox captures its account.
+      if (!isCurrent()) return;
+      if (audioUploadResult && !audioUploadResult.success) {
+        setIsSubmittingFeedback(false);
+        setFeedbackAudioState('error');
+        setFeedbackSubmitError(t('bible.chapterFeedbackAudioUploadError'));
         return;
       }
-      Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
-      return;
-    }
 
-    if (feedbackAudioDraft) {
-      setFeedbackAudioState('preview');
+      // Offline, a written response is kept on the device and sent by the next sync.
+      const result = await submitChapterFeedbackOrQueue({
+        translationId: currentTranslation,
+        translationLanguage: currentTranslationInfo?.language ?? translationLabel,
+        bookId,
+        chapter,
+        sentiment: feedbackSentiment,
+        comment: normalizeChapterFeedbackComment(feedbackComment),
+        interfaceLanguage: i18n.resolvedLanguage ?? i18n.language ?? 'en',
+        contentLanguageCode,
+        contentLanguageName,
+        participantName: savedChapterFeedbackIdentity?.name ?? null,
+        participantRole: savedChapterFeedbackIdentity?.role ?? null,
+        contributorCategory:
+          participationMode === 'scripture_council' ? 'scripture_council' : 'community',
+        councilPasscode: participationMode === 'scripture_council' ? councilPasscode : undefined,
+        audioResponse: audioUploadResult?.data ?? null,
+        sourceScreen,
+        appPlatform: Platform.OS,
+        appVersion: config.version,
+      });
+
+      if (!isCurrent()) return;
+      setIsSubmittingFeedback(false);
+
+      if (result.success) {
+        if (sourceScreen === 'reader') {
+          setShowFeedbackModal(false);
+        }
+        resetFeedbackDraft();
+
+        if (result.queued) {
+          Alert.alert(t('bible.chapterFeedbackQueuedTitle'), t('bible.chapterFeedbackQueued'));
+          return;
+        }
+        Alert.alert(t('bible.chapterFeedbackSuccessTitle'), t('bible.chapterFeedbackSuccess'));
+        return;
+      }
+
+      if (feedbackAudioDraft) {
+        setFeedbackAudioState('preview');
+      }
+      setFeedbackSubmitError(
+        result.offline
+          ? t('bible.chapterFeedbackOffline')
+          : result.requiresSignIn
+            ? t('bible.chapterFeedbackSignInRequired')
+            : t('common.unexpectedError')
+      );
+    } catch (error) {
+      reportReaderFailure('reader.feedbackSubmit', error);
+      if (!isCurrent()) return;
+      setIsSubmittingFeedback(false);
+      if (feedbackAudioDraft) {
+        setFeedbackAudioState('preview');
+      }
+      setFeedbackSubmitError(t('common.unexpectedError'));
     }
-    setFeedbackSubmitError(
-      result.offline
-        ? t('bible.chapterFeedbackOffline')
-        : result.requiresSignIn
-          ? t('bible.chapterFeedbackSignInRequired')
-          : t('common.unexpectedError')
-    );
   };
 
   return {

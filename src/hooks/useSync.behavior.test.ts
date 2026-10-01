@@ -257,6 +257,52 @@ test('a foreground return pulls before it pushes when nothing has been pulled ye
   assert.equal(syncAllCalls.length, 1);
 });
 
+test('quick foreground bounces sync once, but a return after the window syncs again', async () => {
+  mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  try {
+    mountWithoutInitialSync();
+
+    rn.AppState.emit('background');
+    rn.AppState.emit('active');
+    await flush();
+    mock.timers.tick(10_000);
+    rn.AppState.emit('background');
+    rn.AppState.emit('active');
+    await flush();
+
+    assert.equal(syncAllCalls.length, 1, 'a bounce inside the window must not re-sync');
+    // Auto-refresh still follows every foreground return, throttled or not.
+    assert.equal(authMethodCalls('startAutoRefresh'), 3);
+
+    mock.timers.tick(60_000);
+    rn.AppState.emit('background');
+    rn.AppState.emit('active');
+    await flush();
+
+    assert.equal(syncAllCalls.length, 2);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('a reconnect inside the foreground window still syncs', async () => {
+  mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  try {
+    mountWithoutInitialSync();
+    rn.AppState.emit('background');
+    rn.AppState.emit('active');
+    await flush();
+
+    netInfoListener?.({ isConnected: false, isInternetReachable: false });
+    netInfoListener?.({ isConnected: true, isInternetReachable: true });
+    await flush();
+
+    assert.equal(syncAllCalls.length, 2);
+  } finally {
+    mock.timers.reset();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Connectivity driven syncing
 // ---------------------------------------------------------------------------

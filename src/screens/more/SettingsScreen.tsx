@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Alert, View, Text, StyleSheet, ScrollView } from 'react-native';
 import { layout, spacing, typography } from '../../design/system';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import { useDisplayFont } from '../../hooks/useDisplayFont';
 import { useI18n } from '../../hooks/useI18n';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { syncPreferences } from '../../services/sync';
+import { reportHandledError } from '../../services/diagnostics/crashReportQueue';
 import { type LanguageCode } from '../../constants/languages';
 import { localeSearchEngine } from '../../services/onboarding/localeSelection';
 import { resolveLocaleSummary } from './settingsLocaleSummaryModel';
@@ -109,8 +110,16 @@ export function SettingsScreen() {
   };
 
   const handleLanguageSelect = async (languageCode: LanguageCode) => {
-    // A choice a newer request superseded must not close the list under that request.
-    if ((await setLanguage(languageCode)) === false) return;
+    try {
+      // A choice a newer request superseded must not close the list under that request.
+      if ((await setLanguage(languageCode)) === false) return;
+    } catch (error) {
+      // setLanguage rethrows a locale that fails to load. The list stays open, so the
+      // reader can pick again, and is told why nothing changed.
+      reportHandledError('settings.language', error);
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+      return;
+    }
     setShowLanguagePicker(false);
   };
 

@@ -5,6 +5,7 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
 import {
+  flattenStyle,
   hostAncestors,
   installRenderHarness,
   isHiddenFromAccessibility,
@@ -610,4 +611,34 @@ test('Share clip opens the share sheet; Download closes the sheet before downloa
   await view.press(view.getByRole('button', { name: t('bible.shareChapterAudio') }));
   await view.press(view.getByRole('button', { name: t('bible.downloadBookAudio') }));
   assert.deepEqual(calls, [['share'], ['setShowAudioOptionsSheet', false], ['download']]);
+});
+
+// ---- Android gesture navigation ------------------------------------------------------
+
+test('on Android the sheet surface runs below its edge and clears the gesture bar by more', async () => {
+  const ios = await renderSheet();
+  assert.equal(ios.view.queryByTestId('audio-sheet-skirt'), null, 'iOS is unchanged');
+  const title = assertDefined(ios.view.getAllByRole('header')[0], 'title');
+  const iosSheet = assertDefined(hostAncestors(title)[1], 'sheet');
+  const iosPadding = flattenStyle(iosSheet.props.style)?.paddingBottom as number;
+  await ios.view.unmount();
+
+  harness.rn.Platform.OS = 'android';
+  try {
+    const { view } = await renderSheet();
+    const skirt = view.getByTestId('audio-sheet-skirt');
+    const sheet = assertDefined(hostAncestors(skirt)[0], 'sheet');
+    const sheetStyle = flattenStyle(sheet.props.style);
+    const skirtStyle = flattenStyle(skirt.props.style);
+
+    assert.equal(skirtStyle?.backgroundColor, sheetStyle?.backgroundColor);
+    assert.equal(skirtStyle?.bottom, -(skirtStyle?.height as number), 'hangs below the sheet');
+    assert.ok(
+      (sheetStyle?.paddingBottom as number) > iosPadding,
+      'footer buttons sit higher above the gesture bar'
+    );
+    assert.ok((sheetStyle?.paddingBottom as number) >= harness.insets.bottom);
+  } finally {
+    harness.rn.Platform.OS = 'ios';
+  }
 });

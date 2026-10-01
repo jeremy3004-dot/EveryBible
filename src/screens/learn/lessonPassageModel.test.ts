@@ -1,7 +1,43 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildStoryPassageView, resolveStoryStatus } from './lessonPassageModel';
+import {
+  buildStoryPassageView,
+  keepReferenceTogether,
+  limitStoryPassageView,
+  resolveStoryStatus,
+} from './lessonPassageModel';
+
+test('limiting a story keeps its first verses across blocks and leaves a short story untouched', () => {
+  const block = (key: string, count: number) => ({
+    key,
+    heading: null,
+    verses: verses('GEN', 1, count),
+  });
+  const view = {
+    blocks: [block('a', 5), block('b', 5)],
+    verseCount: 10,
+    translationNames: ['BSB'],
+  };
+
+  assert.equal(limitStoryPassageView(view, 10), view);
+  const limited = limitStoryPassageView(view, 7);
+  assert.deepEqual(
+    limited.blocks.map((item) => [item.key, item.verses.length]),
+    [
+      ['a', 5],
+      ['b', 2],
+    ]
+  );
+  assert.equal(limited.verseCount, 7);
+  assert.equal(limitStoryPassageView(view, 5).blocks.length, 1);
+});
+
+test('a reference keeps its book and chapter together, whatever the book name', () => {
+  assert.equal(keepReferenceTogether('Genesis 1'), 'Genesis\u00a01');
+  assert.equal(keepReferenceTogether('1 Samuel 3:1–10'), '1 Samuel\u00a03:1–10');
+  assert.equal(keepReferenceTogether('Song of Songs 2'), 'Song of Songs\u00a02');
+});
 import type { PassageBlock } from '../../services/gather/gatherBibleService';
 import type { Verse } from '../../types';
 

@@ -667,6 +667,35 @@ test('backward navigation is the header icon button only, and in settings it clo
   assert.ok(view.getByRole('header', { name: t('onboarding.countryTitle') }));
 });
 
+test('finishing settings still completes when the app language fails to load, without an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  fakes.changeLanguage.impl = async () => {
+    throw new Error('locale bundle missing');
+  };
+  const warn = mock.method(console, 'warn', () => {});
+  try {
+    let completed = 0;
+    const view = await renderSettings({ onComplete: () => completed++ });
+
+    await view.press(view.getByRole('button', { name: 'India, 2 languages' }));
+    await view.press(view.getByRole('button', { name: 'Continue with India' }));
+    await view.flush();
+    await view.press(view.getByRole('button', { name: 'हिन्दी, Hindi, Recommended' }));
+    await view.press(view.getByRole('button', { name: t('onboarding.finish') }));
+    await view.flush();
+
+    assert.equal(completed, 1, 'Finish is not a dead button');
+    assert.equal(harness.authStore.getState().preferences.onboardingCompleted, true);
+    assert.equal(harness.authStore.getState().preferences.countryCode, 'IN');
+    assert.deepEqual(unhandled, []);
+  } finally {
+    warn.mock.restore();
+    process.off('unhandledRejection', onUnhandled);
+  }
+});
+
 test('finishing settings stores the nation and Bible language, marks onboarding done and syncs', async () => {
   let completed = 0;
   const view = await renderSettings({ onComplete: () => completed++ });

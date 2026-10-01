@@ -79,3 +79,14 @@ export const TAB_BAR_GLASS_TINT_ALPHA = 0.35;
 export function getTabBarGlassTint(color: string): string {
   return hexWithAlpha(color.slice(0, 7), TAB_BAR_GLASS_TINT_ALPHA);
 }
+
+/**
+ * Android has no native glass and its blur does not sample the content behind the
+ * bar, so the 84% paper fill showed verse text straight through the controls (worst
+ * in dark mode). Android gets the surface itself, near-opaque.
+ */
+export const TAB_BAR_ANDROID_FILL_ALPHA = 0.97;
+
+export function getTabBarAndroidFill(color: string): string {
+  return hexWithAlpha(color.slice(0, 7), TAB_BAR_ANDROID_FILL_ALPHA);
+}
