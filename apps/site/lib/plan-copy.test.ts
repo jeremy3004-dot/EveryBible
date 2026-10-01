@@ -128,13 +128,15 @@ function dayNumber(plan: SitePlan, label: string): number {
   return found.day;
 }
 
-/** "Day 2" and "Days 31–90" count days; weekly and Twelve Days plans name them. */
+/** "Day 2" and "Days 31–90" count days; weekly plans and dated seasons name them. */
 function highlightDays(plan: SitePlan, days: string): [number, number] {
   const counted = /^Days? (\d+)(?:–(\d+))?$/.exec(days);
   if (counted) {
-    assert.ok(plan.schedule !== 'weekly' && plan.schedule !== 'christmas', `${plan.slug}: ${days}`);
     const first = Number(counted[1]);
     const last = Number(counted[2] ?? counted[1]);
+    // Weekly plans and the dated seasons name their days (Friday, 25 December), never count them.
+    assert.equal(dayLabel(plan, first), `Day ${first}`, `${plan.slug}: ${days}`);
+    assert.equal(dayLabel(plan, last), `Day ${last}`, `${plan.slug}: ${days}`);
     assert.ok(first >= 1 && first <= last && last <= plan.days.length, `${plan.slug}: ${days}`);
     return [first, last];
   }

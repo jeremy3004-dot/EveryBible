@@ -70,7 +70,7 @@ export interface HomeCopy {
   };
   plans: {
     eyebrow: string;
-    /** Used when a church-year season (Advent, Christmas) is near. */
+    /** Used when a dated plan (Advent, Lent, All Saints, …) is near. */
     seasonTitle: string;
     /** Used the rest of the year. */
     title: string;

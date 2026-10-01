@@ -11,11 +11,66 @@ import { bibleBookById } from './bible-books';
  * How a plan's days map onto the calendar, mirroring the app's schedule modes:
  * `sequential` starts on the day you join, `monthly` reads the day matching
  * the date (calendar-day-of-month), `weekly` the day matching the weekday,
- * with day 1 on Sunday (calendar-day-of-week). `advent` starts on the first
- * Sunday of Advent and `christmas` on 25 December, every year (the app's
- * church-year seasons, calendar-advent and calendar-christmas).
+ * with day 1 on Sunday (calendar-day-of-week). Every other mode is a dated
+ * season that comes round each year (the app's calendar-advent, calendar-lent
+ * and so on): see SEASONAL_SCHEDULES and the app's churchCalendar.ts for when
+ * each one runs.
  */
-export type PlanSchedule = 'sequential' | 'monthly' | 'weekly' | 'advent' | 'christmas';
+export type PlanSchedule =
+  | 'sequential'
+  | 'monthly'
+  | 'weekly'
+  | 'advent'
+  | 'christmas'
+  | 'hard-christmas'
+  | 'new-year'
+  | 'epiphany'
+  | 'lent'
+  | 'holy-week'
+  | 'orthodox-holy-week'
+  | 'easter'
+  | 'pentecost'
+  | 'translation-week'
+  | 'all-saints'
+  | 'persecuted-church';
+
+/** The dated seasons, in the order of the church year from Advent. */
+export const SEASONAL_SCHEDULES = [
+  'advent',
+  'christmas',
+  'hard-christmas',
+  'new-year',
+  'epiphany',
+  'lent',
+  'holy-week',
+  'orthodox-holy-week',
+  'easter',
+  'pentecost',
+  'translation-week',
+  'all-saints',
+  'persecuted-church',
+] as const satisfies readonly PlanSchedule[];
+
+export function isSeasonalSchedule(schedule: PlanSchedule): boolean {
+  return (SEASONAL_SCHEDULES as readonly PlanSchedule[]).includes(schedule);
+}
+
+/** The app's scheduleMode for each dated season. */
+const SEASONAL_MODES: Readonly<Record<string, PlanSchedule>> = {
+  'calendar-advent': 'advent',
+  'calendar-christmas': 'christmas',
+  'calendar-hard-christmas': 'hard-christmas',
+  'calendar-new-year': 'new-year',
+  'calendar-epiphany': 'epiphany',
+  'calendar-lent': 'lent',
+  'calendar-holy-week': 'holy-week',
+  'calendar-orthodox-holy-week': 'orthodox-holy-week',
+  'calendar-easter': 'easter',
+  'calendar-pentecost': 'pentecost',
+  'calendar-translation-week': 'translation-week',
+  'calendar-all-saints': 'all-saints',
+  'calendar-persecuted-church': 'persecuted-church',
+};
 
 /** One passage. Omitted fields mean a whole chapter; `toChapter` ends a chapter range. */
 export interface PlanReading {
@@ -77,7 +132,18 @@ export interface AppPlan {
     | 'calendar-day-of-month'
     | 'calendar-day-of-week'
     | 'calendar-advent'
-    | 'calendar-christmas';
+    | 'calendar-christmas'
+    | 'calendar-hard-christmas'
+    | 'calendar-new-year'
+    | 'calendar-epiphany'
+    | 'calendar-lent'
+    | 'calendar-holy-week'
+    | 'calendar-orthodox-holy-week'
+    | 'calendar-easter'
+    | 'calendar-pentecost'
+    | 'calendar-translation-week'
+    | 'calendar-all-saints'
+    | 'calendar-persecuted-church';
   format?: 'single-session' | 'multi-session';
   sessionOrder?: string[];
 }
@@ -105,8 +171,16 @@ export interface PlanSnapshotSource {
 /** Group id of the app's "Daily rhythms" section: every recurring plan. */
 export const DAILY_RHYTHMS_GROUP = 'daily-rhythms';
 
-/** The app's section heading keys (plansHomeModel.ts and FindPlansSection.tsx). */
+/** Group id of the dated plans: the app's "In season" grid, here one section for all of them. */
+export const SEASONAL_GROUP = 'seasonal';
+
+/**
+ * The app's section heading keys (plansHomeModel.ts and FindPlansSection.tsx).
+ * `church-year` stays labelled because it is a catalog category, though the site
+ * lists church-year and other dated plans together under the `seasonal` group.
+ */
 const GROUP_LABEL_KEYS: Record<string, string> = {
+  [SEASONAL_GROUP]: 'readingPlans.inSeason',
   'church-year': 'readingPlans.churchYear.heading',
   [DAILY_RHYTHMS_GROUP]: 'readingPlans.dailyRhythms',
   'life-situation': 'readingPlans.categoryLifeSituations',
@@ -131,9 +205,7 @@ function required(source: PlanSnapshotSource, key: string): string {
 function schedule(plan: AppPlan): PlanSchedule {
   if (plan.scheduleMode === 'calendar-day-of-month') return 'monthly';
   if (plan.scheduleMode === 'calendar-day-of-week') return 'weekly';
-  if (plan.scheduleMode === 'calendar-advent') return 'advent';
-  if (plan.scheduleMode === 'calendar-christmas') return 'christmas';
-  return 'sequential';
+  return (plan.scheduleMode && SEASONAL_MODES[plan.scheduleMode]) || 'sequential';
 }
 
 /** Whole numbers only; a chapter or verse outside the book is a catalog bug. */

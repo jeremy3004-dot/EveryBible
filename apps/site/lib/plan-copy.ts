@@ -6,6 +6,7 @@
  * highlight names must really be in that plan's schedule).
  */
 import { bibleChapterPath, SITE_BIBLE_BOOKS, type SiteBibleBook } from './bible-books';
+import { PLAN_COPY_DATED } from './plan-copy-dated';
 import { PLAN_COPY_SEASONS } from './plan-copy-seasons';
 import { PLAN_COPY_STUDY } from './plan-copy-study';
 
@@ -30,6 +31,7 @@ export interface PlanCopy {
 export const PLAN_COPY: Readonly<Record<string, PlanCopy>> = {
   ...PLAN_COPY_STUDY,
   ...PLAN_COPY_SEASONS,
+  ...PLAN_COPY_DATED,
 };
 
 export function getPlanCopy(slug: string): PlanCopy | undefined {

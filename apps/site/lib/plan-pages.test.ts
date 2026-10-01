@@ -112,12 +112,41 @@ test('weekly plans name the weekday, starting on Sunday', () => {
   assert.equal(dayLabel(plan('bible-in-1-year'), 200), 'Day 200');
 });
 
-test('the catalog follows the app: Church year, Daily rhythms, Seasons of life, then categories', () => {
+test('the dated seasons name their days and say when they run', () => {
+  assert.equal(planLengthLabel(plan('lent')), 'Every Lent');
+  assert.equal(dayLabel(plan('when-christmas-is-hard'), 1), '18 December');
+  assert.equal(dayLabel(plan('when-christmas-is-hard'), 7), '24 December');
+  assert.equal(dayLabel(plan('new-year'), 7), '7 January');
+  assert.equal(dayLabel(plan('epiphany'), 1), '6 January');
+  assert.equal(dayLabel(plan('word-in-every-language'), 7), '30 September');
+  assert.equal(dayLabel(plan('all-saints'), 1), '1 November');
+  assert.equal(dayLabel(plan('persecuted-church'), 1), 'Sunday');
+  assert.equal(dayLabel(plan('holy-week'), 5), 'Maundy Thursday');
+  assert.equal(dayLabel(plan('orthodox-holy-week'), 8), 'Pascha');
+  assert.equal(dayLabel(plan('lent'), 39), 'Day 39');
+  // Easter-based plans never hard-code a year, only how they follow Easter.
+  for (const slug of [
+    'lent',
+    'holy-week',
+    'orthodox-holy-week',
+    'easter',
+    'ascension-to-pentecost',
+  ])
+    assert.match(planScheduleSentence(plan(slug)) ?? '', /moves|change/, slug);
+  assert.match(planScheduleSentence(plan('lent')) ?? '', /Ash Wednesday/);
+  assert.match(planScheduleSentence(plan('easter')) ?? '', /Easter Monday/);
+  assert.match(planScheduleSentence(plan('ascension-to-pentecost')) ?? '', /Ascension Day/);
+  assert.match(planScheduleSentence(plan('persecuted-church')) ?? '', /second Sunday of November/);
+  for (const item of getPlans())
+    assert.doesNotMatch(planScheduleSentence(item) ?? '', /\b20\d\d\b/, item.slug);
+});
+
+test('the catalog follows the app: In season, Daily rhythms, Seasons of life, then categories', () => {
   const groups = groupPlans(getPlans());
   assert.deepEqual(
     groups.map((group) => group.label),
     [
-      'Church year',
+      'In season',
       'Daily rhythms',
       'Seasons of life',
       'Whole Bible',
@@ -128,7 +157,21 @@ test('the catalog follows the app: Church year, Daily rhythms, Seasons of life, 
   );
   assert.deepEqual(
     groups[0].plans.map((item) => item.slug),
-    ['advent', 'twelve-days-of-christmas']
+    [
+      'advent',
+      'twelve-days-of-christmas',
+      'when-christmas-is-hard',
+      'new-year',
+      'epiphany',
+      'lent',
+      'holy-week',
+      'orthodox-holy-week',
+      'easter',
+      'ascension-to-pentecost',
+      'word-in-every-language',
+      'all-saints',
+      'persecuted-church',
+    ]
   );
   const rhythms = groups[1].plans.map((item) => item.slug);
   assert.deepEqual(rhythms, [

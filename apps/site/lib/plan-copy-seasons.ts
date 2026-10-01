@@ -1,5 +1,6 @@
 /**
- * Copy for the Seasons of life plans and the church-year plans.
+ * Copy for the Seasons of life plans, Advent and the Twelve Days of Christmas.
+ * The other dated plans are in plan-copy-dated.ts.
  * See plan-copy.ts; plan-copy.test.ts checks every highlight against the schedule.
  */
 import type { PlanCopy } from './plan-copy';
