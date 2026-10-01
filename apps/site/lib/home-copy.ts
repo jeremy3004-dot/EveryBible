@@ -54,6 +54,8 @@ export interface HomeCopy {
     lede: string;
     promises: string[];
     shots: Array<{ alt: string }>;
+    /** Screenshot rail controls. */
+    rail: { label: string; previous: string; next: string };
     download: {
       title: string;
       desktopHint: string;
@@ -154,6 +156,7 @@ export const homeCopyEn: HomeCopy = {
       { alt: 'Choosing a Bible translation by language.' },
       { alt: 'Listening to Psalm 23 with the verse being read marked.' },
     ],
+    rail: { label: 'App screenshots', previous: 'Previous screenshot', next: 'Next screenshot' },
     download: {
       title: 'Get EveryBible',
       desktopHint: 'Scan with your phone, or choose your store.',

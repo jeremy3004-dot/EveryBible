@@ -17,11 +17,6 @@ export interface SiteNavigationItem {
   href: string;
 }
 
-export interface AppStoreScreenshot {
-  src: string;
-  alt: string;
-}
-
 export interface FooterColumn {
   title: string;
   links: Array<{
@@ -44,25 +39,6 @@ export const siteNavigation: SiteNavigationItem[] = [
   { key: 'app', label: 'The app', href: '/#app' },
   { key: 'mission', label: 'Mission', href: '/about' },
   { key: 'give', label: 'Give', href: '/give' },
-];
-
-export const appStoreScreenshots: AppStoreScreenshot[] = [
-  {
-    src: '/everybible/app-store-screenshots/01-home.png',
-    alt: 'EveryBible home screen with a daily Scripture, reading progress, and Foundations pathway.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/02-bible.png',
-    alt: 'EveryBible Bible reader showing Psalm 19 with audio, search, and reading controls.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/03-gather.png',
-    alt: 'EveryBible Gather screen showing Foundations discipleship pathways.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/04-plans.png',
-    alt: 'EveryBible Reading Plans screen showing daily rhythms and chronological plans.',
-  },
 ];
 
 export const footerColumns: FooterColumn[] = [
