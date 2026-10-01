@@ -3,6 +3,7 @@ import test, { mock } from 'node:test';
 import type { TFunction } from 'i18next';
 import { mockMmkvStorage } from '../../../testing/mockModules';
 import { RHYTHM_PRESET_LIBRARY, type RhythmPreset } from '../../../services/plans/rhythmPresets';
+import { assertDefined } from '../../../utils/assertDefined';
 
 // The model reads its error codes from the reading-plans store, which persists to MMKV.
 mockMmkvStorage(mock);
@@ -74,7 +75,7 @@ test('the time-of-day chips run All, Morning, Midday, Evening, Any time', async 
 
 test('a tradition is translated through the first preset of that tradition', async () => {
   const { getTraditionLabelKey } = await load();
-  const first = RHYTHM_PRESET_LIBRARY[0];
+  const first = assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]');
   assert.equal(
     getTraditionLabelKey(first.tradition),
     `interface.rhythmPresets.${first.id}.tradition`
