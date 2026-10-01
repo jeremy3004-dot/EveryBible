@@ -6,7 +6,7 @@
  * the same record, so all three resolve a day through `getLedgerDayState` here.
  */
 import {
-  formatScheduledPlanDayLabel,
+  formatPlanLedgerDayLabel,
   type CurrentPlanDaySummary,
 } from '../../../services/plans/readingPlanActivity';
 import {
@@ -268,7 +268,7 @@ export function buildPlanDayViewModels({
     const dateLabel = recurringCycleDate
       ? formatLedgerCycleDate(recurringCycleDate, locale)
       : progress && !isRecurringPlan(plan)
-        ? formatScheduledPlanDayLabel(progress.started_at, dayNumber)
+        ? formatPlanLedgerDayLabel(progress.started_at, dayNumber, currentDay, today)
         : null;
     const launchSessionKey = isMultiSession
       ? isCurrent && isEnrolled

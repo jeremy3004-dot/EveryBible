@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fc from 'fast-check';
 import type {
   ReadingPlan,
   ReadingPlanEntry,
@@ -8,6 +9,7 @@ import type {
 import {
   buildPlanDayViewModels,
   getDominantPlanBook,
+  formatLedgerCycleDate,
   getLedgerCellStates,
   getLedgerDayCompletionKey,
   getLedgerDayState,
@@ -339,4 +341,53 @@ test('an Advent ledger dates each day from this year’s first Sunday, and is la
     new Date(2026, 11, 24)
   );
   assert.equal(getPlanCadenceLabelKey(advent), 'readingPlans.churchYear.heading');
+});
+
+function ledgerLabels(daysSinceStart: number, currentDay: number, total: number) {
+  const today = new Date(2026, 9, 1, 12);
+  const dayNumbers = Array.from({ length: total }, (_, index) => index + 1);
+  const entries = dayNumbers.map((day) => entry(day));
+  return buildPlanDayViewModels({
+    plan: makePlan({ duration_days: total }),
+    progress: makeProgress({
+      started_at: new Date(2026, 9, 1 - daysSinceStart, 9).toISOString(),
+    }),
+    entries,
+    entriesByDay: groupEntriesByDay(entries),
+    ledgerDayNumbers: dayNumbers,
+    currentDay,
+    currentDaySummary: null,
+    nextDayNumber: currentDay + 1,
+    isMultiSession: false,
+    today,
+    locale: 'en',
+  }).map((model) => model.dateLabel);
+}
+
+test('after reading day 1 ahead on Oct 1, days 2..7 are Oct 1..Oct 6 with no gap', () => {
+  assert.deepEqual(ledgerLabels(0, 2, 7).slice(1), [
+    'Oct 1',
+    'Oct 2',
+    'Oct 3',
+    'Oct 4',
+    'Oct 5',
+    'Oct 6',
+  ]);
+});
+
+test('property: from the current day on, each day is exactly one date after the last', () => {
+  fc.assert(
+    fc.property(
+      fc.integer({ min: 0, max: 40 }),
+      fc.integer({ min: 1, max: 30 }),
+      fc.integer({ min: 1, max: 60 }),
+      (daysSinceStart, currentDay, daysAhead) =>
+        ledgerLabels(daysSinceStart, currentDay, currentDay + daysAhead)
+          .slice(currentDay - 1)
+          .every(
+            (label, offset) => label === formatLedgerCycleDate(new Date(2026, 9, 1 + offset), 'en')
+          )
+    ),
+    { numRuns: 100 }
+  );
 });
