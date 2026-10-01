@@ -92,6 +92,8 @@ function FakeTabNavigator({
   );
 }
 
+let bottomTabBarRenders = 0;
+
 function FakeBottomTabBar({
   state,
   descriptors,
@@ -99,6 +101,7 @@ function FakeBottomTabBar({
   state: typeof tabState;
   descriptors: Record<string, Descriptor>;
 }) {
+  bottomTabBarRenders += 1;
   const focused = descriptors[state.routes[state.index].key].options;
   return createElement(
     'BottomTabBar',
@@ -984,4 +987,27 @@ test('a plan-session display-only hide clears the capsule transform through the 
   const restored = styleOf(hostAncestors(view.getByTestId('player-bar'))[0].props.style);
   assert.doesNotThrow(() => nativeTransformUpdate(next.transform, restored.transform));
   assert.deepEqual(restored.transform, [{ translateY: 12 }]);
+});
+
+test('the tab row is not rebuilt when the bar re-renders with the same state, descriptors and navigation', async () => {
+  focusTab('Home');
+  const { ReaderAwareTabBar } = await import('./tabNavigatorParts/ReaderAwareTabBar');
+  const navigation = {};
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  const descriptors = Object.fromEntries(
+    tabState.routes.map((route) => [route.key, { route, options: {} }])
+  );
+  const barProps = () => ({ state: tabState, descriptors, navigation, insets });
+  // React Navigation hands the bar a fresh props object on every render.
+  const bar = () => (
+    <ReaderAwareTabBar {...(barProps() as unknown as Parameters<typeof ReaderAwareTabBar>[0])} />
+  );
+  const view = await harness.render(bar());
+  const rendersAfterMount = bottomTabBarRenders;
+  assert.ok(rendersAfterMount > 0);
+
+  await view.rerender(bar());
+  await view.rerender(bar());
+
+  assert.equal(bottomTabBarRenders, rendersAfterMount);
 });
