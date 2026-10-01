@@ -70,5 +70,19 @@
       "key": "boolean-literal|true|false|store.setState(store.getInitialState(), true);",
       "reason": "Every private store's initial state holds all of its keys, so replacing and merging it give the same state"
     }
+  ],
+  "src/stores/readingPlans/planProgressModel.ts": [
+    {
+      "key": "nullish-drop-default|leftAt ?? ''|leftAt|.map((leftAt) => Date.parse(leftAt ?? ''))",
+      "reason": "Date.parse(undefined) and Date.parse('') are both NaN, which the filter drops"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|.map((leftAt) => Date.parse(leftAt ?? ''))",
+      "reason": "Date.parse('__mutant__') is NaN like Date.parse(''), which the filter drops"
+    },
+    {
+      "key": "number-literal|0|1|const now = new Date(Math.max(Date.now(), notBeforeMs ?? 0)).toISOString();",
+      "reason": "Date.now() is always above 1, so Math.max ignores either floor"
+    }
   ]
 }
