@@ -103,29 +103,22 @@ export function VerseImageShareSheet({
     if (isSizeMaxedShown) announceLiveRegionText(t('bible.verseImage.sizeMaxed'));
   }, [isSizeMaxedShown, t]);
 
-  const modalProps = {
-    transparent: true,
-    statusBarTranslucent: true,
-    navigationBarTranslucent: true,
-    animationType: 'fade' as const,
-    onRequestClose: handleCloseVerseImageSheet,
-    onDismiss: handleDismiss,
-  };
-  if (!isContentPresent) {
-    return <Modal visible={false} {...modalProps} />;
-  }
-
-  const selectedFontId = canVerseImageFontDraw(style.fontId, selectedVerseText)
-    ? style.fontId
-    : 'classic';
+  const selectedFontId =
+    isContentPresent && canVerseImageFontDraw(style.fontId, selectedVerseText)
+      ? style.fontId
+      : 'classic';
   // Each chip shows a word from the verse, so the sample is in the verse's own script.
-  const fontSample = getVerseImageFontSample(selectedVerseText);
-  const tabs: { key: EditorTab; label: string }[] = [
-    { key: 'picture', label: t('bible.verseImage.tabs.picture') },
-    ...(canChooseFont ? [{ key: 'font' as const, label: t('bible.verseImage.tabs.font') }] : []),
-    { key: 'color', label: t('bible.verseImage.tabs.color') },
-    { key: 'size', label: t('bible.verseImage.tabs.size') },
-  ];
+  const fontSample = isContentPresent ? getVerseImageFontSample(selectedVerseText) : '';
+  const tabs: { key: EditorTab; label: string }[] = isContentPresent
+    ? [
+        { key: 'picture', label: t('bible.verseImage.tabs.picture') },
+        ...(canChooseFont
+          ? [{ key: 'font' as const, label: t('bible.verseImage.tabs.font') }]
+          : []),
+        { key: 'color', label: t('bible.verseImage.tabs.color') },
+        { key: 'size', label: t('bible.verseImage.tabs.size') },
+      ]
+    : [];
 
   const renderPicturePanel = () => (
     <ScrollView
@@ -324,151 +317,161 @@ export function VerseImageShareSheet({
   );
 
   return (
-    <Modal visible={showVerseImageSheet} {...modalProps}>
-      <View
-        style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}
-        // VoiceOver's escape gesture closes it, as Android back does.
-        onAccessibilityEscape={handleCloseVerseImageSheet}
-      >
-        <TouchableOpacity
-          style={styles.verseImageSheetBackdrop}
-          activeOpacity={1}
-          accessible={false}
-          importantForAccessibility="no-hide-descendants"
-          onPress={handleCloseVerseImageSheet}
-        />
+    <Modal
+      visible={showVerseImageSheet}
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType="fade"
+      onRequestClose={handleCloseVerseImageSheet}
+      onDismiss={handleDismiss}
+    >
+      {isContentPresent ? (
         <View
-          style={[
-            styles.verseImageSheetCard,
-            {
-              backgroundColor: colors.bibleSurface,
-              borderColor: colors.bibleDivider,
-            },
-          ]}
+          style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}
+          // VoiceOver's escape gesture closes it, as Android back does.
+          onAccessibilityEscape={handleCloseVerseImageSheet}
         >
-          {/* The card stops at 88% of the screen; at the largest text sizes its header,
-              preview and buttons outgrow that, so they scroll rather than being clipped. */}
-          <ScrollView
-            testID="verse-image-sheet-scroll"
-            style={styles.verseImageSheetScroll}
-            showsVerticalScrollIndicator={false}
+          <TouchableOpacity
+            style={styles.verseImageSheetBackdrop}
+            activeOpacity={1}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            onPress={handleCloseVerseImageSheet}
+          />
+          <View
+            style={[
+              styles.verseImageSheetCard,
+              {
+                backgroundColor: colors.bibleSurface,
+                borderColor: colors.bibleDivider,
+              },
+            ]}
           >
-            <View style={styles.verseImageSheetHeader}>
-              <View style={styles.verseImageSheetHeaderCopy}>
-                <Text
-                  accessibilityRole="header"
-                  style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
-                >
-                  {activeTab === 'picture'
-                    ? t('bible.chooseVerseImageBackground')
-                    : t(`bible.verseImage.tabs.${activeTab}`)}
-                </Text>
-                <Text
-                  style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
-                  numberOfLines={2}
-                >
-                  {selectedVerseReferenceLabel}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetCloseButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                accessibilityRole="button"
-                accessibilityLabel={t('interface.close')}
-                onPress={handleCloseVerseImageSheet}
-              >
-                <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <VerseImageSharePreview
-              previewRef={verseImageSharePreviewRef}
-              backgroundSource={selectedVerseImageBackground}
-              referenceLabel={selectedVerseReferenceLabel}
-              selectedText={selectedVerseText}
-              style={style}
-              onFitChange={handleFitChange}
-            />
-
-            <TabSwitch
-              segments={tabs}
-              value={activeTab}
-              onChange={(key) => setTab(key as EditorTab)}
-              fullWidth
-              size="md"
-              accessibilityLabel={t('bible.verseImage.tabsLabel')}
-              style={styles.verseImageTabs}
-            />
-
-            <View style={styles.verseImagePanel}>
-              {activeTab === 'picture'
-                ? renderPicturePanel()
-                : activeTab === 'font'
-                  ? renderFontPanel()
-                  : activeTab === 'color'
-                    ? renderColorPanel()
-                    : renderSizePanel()}
-            </View>
-
-            <View style={styles.verseImageSheetActions}>
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  {
-                    backgroundColor: colors.bibleElevatedSurface,
-                    borderColor: colors.bibleDivider,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={handleCloseVerseImageSheet}
-                accessibilityRole="button"
-              >
-                <Text
-                  style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}
-                >
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.verseImageSheetActionButton,
-                  styles.verseImageSheetShareButton,
-                  {
-                    backgroundColor: colors.accentPrimary,
-                    borderColor: colors.accentPrimary,
-                  },
-                ]}
-                activeOpacity={0.88}
-                onPress={() => {
-                  void handleShareSelectedVerseImage();
-                }}
-                disabled={isSharingVerseImage}
-                accessibilityRole="button"
-                // The label text is swapped for a spinner while sharing.
-                accessibilityLabel={t('groups.share')}
-                accessibilityState={{ disabled: isSharingVerseImage, busy: isSharingVerseImage }}
-              >
-                {isSharingVerseImage ? (
-                  <ActivityIndicator size="small" color={colors.bibleBackground} />
-                ) : (
+            {/* The card stops at 88% of the screen; at the largest text sizes its header,
+              preview and buttons outgrow that, so they scroll rather than being clipped. */}
+            <ScrollView
+              testID="verse-image-sheet-scroll"
+              style={styles.verseImageSheetScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.verseImageSheetHeader}>
+                <View style={styles.verseImageSheetHeaderCopy}>
                   <Text
-                    style={[styles.verseImageSheetActionText, { color: colors.bibleBackground }]}
+                    accessibilityRole="header"
+                    style={[styles.verseImageSheetTitle, { color: colors.biblePrimaryText }]}
                   >
-                    {t('groups.share')}
+                    {activeTab === 'picture'
+                      ? t('bible.chooseVerseImageBackground')
+                      : t(`bible.verseImage.tabs.${activeTab}`)}
                   </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+                  <Text
+                    style={[styles.verseImageSheetReference, { color: colors.bibleSecondaryText }]}
+                    numberOfLines={2}
+                  >
+                    {selectedVerseReferenceLabel}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.verseImageSheetCloseButton,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                  activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('interface.close')}
+                  onPress={handleCloseVerseImageSheet}
+                >
+                  <Ionicons name="close" size={18} color={colors.bibleSecondaryText} />
+                </TouchableOpacity>
+              </View>
+
+              <VerseImageSharePreview
+                previewRef={verseImageSharePreviewRef}
+                backgroundSource={selectedVerseImageBackground}
+                referenceLabel={selectedVerseReferenceLabel}
+                selectedText={selectedVerseText}
+                style={style}
+                onFitChange={handleFitChange}
+              />
+
+              <TabSwitch
+                segments={tabs}
+                value={activeTab}
+                onChange={(key) => setTab(key as EditorTab)}
+                fullWidth
+                size="md"
+                accessibilityLabel={t('bible.verseImage.tabsLabel')}
+                style={styles.verseImageTabs}
+              />
+
+              <View style={styles.verseImagePanel}>
+                {activeTab === 'picture'
+                  ? renderPicturePanel()
+                  : activeTab === 'font'
+                    ? renderFontPanel()
+                    : activeTab === 'color'
+                      ? renderColorPanel()
+                      : renderSizePanel()}
+              </View>
+
+              <View style={styles.verseImageSheetActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.verseImageSheetActionButton,
+                    {
+                      backgroundColor: colors.bibleElevatedSurface,
+                      borderColor: colors.bibleDivider,
+                    },
+                  ]}
+                  activeOpacity={0.88}
+                  onPress={handleCloseVerseImageSheet}
+                  accessibilityRole="button"
+                >
+                  <Text
+                    style={[styles.verseImageSheetActionText, { color: colors.biblePrimaryText }]}
+                  >
+                    {t('common.cancel')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.verseImageSheetActionButton,
+                    styles.verseImageSheetShareButton,
+                    {
+                      backgroundColor: colors.accentPrimary,
+                      borderColor: colors.accentPrimary,
+                    },
+                  ]}
+                  activeOpacity={0.88}
+                  onPress={() => {
+                    void handleShareSelectedVerseImage();
+                  }}
+                  disabled={isSharingVerseImage}
+                  accessibilityRole="button"
+                  // The label text is swapped for a spinner while sharing.
+                  accessibilityLabel={t('groups.share')}
+                  accessibilityState={{ disabled: isSharingVerseImage, busy: isSharingVerseImage }}
+                >
+                  {isSharingVerseImage ? (
+                    <ActivityIndicator size="small" color={colors.bibleBackground} />
+                  ) : (
+                    <Text
+                      style={[styles.verseImageSheetActionText, { color: colors.bibleBackground }]}
+                    >
+                      {t('groups.share')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-      </View>
+      ) : null}
     </Modal>
   );
 }
