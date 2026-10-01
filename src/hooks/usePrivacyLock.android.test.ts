@@ -144,6 +144,28 @@ test('returning after the cap locks even if no timer ran while the app was pause
   assert.equal(isLocked(), true);
 });
 
+test('a prompt open for the whole cap no longer excuses leaving the app', () => {
+  mountPrivacyLock();
+  openOwnPrompt('granted');
+  mock.timers.tick(grace.PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+
+  rn.AppState.emit('background');
+
+  // Not left to a timer: Android pauses JS timers in the background.
+  assert.equal(isLocked(), true);
+});
+
+test('returning at the very moment the cap runs out locks', () => {
+  mountPrivacyLock();
+  openOwnPrompt('granted');
+  rn.AppState.emit('background');
+  mock.timers.setTime(Date.now() + grace.PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+
+  rn.AppState.emit('active');
+
+  assert.equal(isLocked(), true);
+});
+
 test('a standard install is never locked by the grace timer', () => {
   usePrivacyStore.setState({ mode: 'standard', hasPin: false });
   mountPrivacyLock();

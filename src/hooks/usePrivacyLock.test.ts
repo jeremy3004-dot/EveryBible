@@ -442,6 +442,20 @@ test('a failed privacy-lock host leaves a standard install usable', (t) => {
   assert.equal(usePrivacyStore.getState().isLocked, false);
 });
 
+test('a failed privacy-lock host does not lock out a discreet install that has no PIN', (t) => {
+  t.mock.method(console, 'error', () => {});
+  usePrivacyStore.setState({
+    isInitialized: true,
+    mode: 'discreet',
+    hasPin: false,
+    isLocked: false,
+  });
+
+  lockAfterPrivacyLockFailure(new Error('host crashed'));
+
+  assert.equal(usePrivacyStore.getState().isLocked, false, 'there is no PIN to unlock it with');
+});
+
 // ─── app icon retry ───────────────────────────────────────────────────────────
 
 /** Replaces the store's icon reconcile with a counter; the real one is covered in privacyStore. */

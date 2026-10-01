@@ -31,6 +31,68 @@
       "reason": "In the small hours, 04:00 the same local day is always at least 1 ms ahead, so floors of 0 and 1 never differ"
     }
   ],
+  "src/hooks/usePrivacyLock.ts": [
+    {
+      "key": "boolean-literal|false|true|let inactiveLockDeferred = false;|usePrivacyLock.inactiveLockDeferred",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "remove-statement|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|;|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "logical-swap|&&||||inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "equality-flip|===|!==|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "string-literal|'inactive'|''|inactiveLockDeferred = lockDeferred && nextState === 'inactive';|usePrivacyLock.subscription",
+      "reason": "Only changes the deferred flag for a move between two away states while unlocked, which cannot happen: leaving the foreground already locked or deferred, and unlocking needs the foreground"
+    },
+    {
+      "key": "remove-statement|awayLockTimer = null;|;|awayLockTimer = null;|usePrivacyLock.clearAwayLock",
+      "reason": "The leftover handle is only used to cancel the timer again, which does nothing"
+    },
+    {
+      "key": "remove-statement|awayLockTimer = null;|;|awayLockTimer = null;|usePrivacyLock.lockIfStillAway",
+      "reason": "The leftover handle is only used to cancel the timer again, which does nothing"
+    },
+    {
+      "key": "string-literal|'active'|''|if (previousState !== 'active' && shouldStayLocked()) {|usePrivacyLock.lockIfStillAway",
+      "reason": "The away timer is cancelled on every switch to 'active' and only set while away; lock() applies the same discreet-and-PIN condition"
+    },
+    {
+      "key": "logical-swap|&&||||if (previousState !== 'active' && shouldStayLocked()) {|usePrivacyLock.lockIfStillAway",
+      "reason": "The away timer is cancelled on every switch to 'active' and only set while away; lock() applies the same discreet-and-PIN condition"
+    },
+    {
+      "key": "number-literal|0|1|awayLockTimer = setTimeout(lockIfStillAway, Math.max(0, boundedDeadline - Date.now()));|usePrivacyLock.deferAwayLock",
+      "reason": "A 1 ms instead of a 0 ms timer for an overdue deadline is the same single wakeup"
+    },
+    {
+      "key": "nullish-drop-default|getPrivacyLockGraceDeadline() ?? Date.now()|getPrivacyLockGraceDeadline()|deferAwayLock(getPrivacyLockGraceDeadline() ?? Date.now());|usePrivacyLock.unsubscribeFromGrace",
+      "reason": "Grace listeners run right after the grace end was set to now + 1.5 s, so the deadline is never null there"
+    },
+    {
+      "key": "remove-statement|lockAfterPrivacyLockFailure(error);|;|lockAfterPrivacyLockFailure(error);|usePrivacyLock.unsubscribeFromGrace",
+      "reason": "Nothing inside the listener's try can throw (arithmetic, Date.now, setTimeout, clearTimeout)"
+    },
+    {
+      "key": "remove-statement|clearAwayLock();|;|clearAwayLock();|usePrivacyLock.subscription#2",
+      "reason": "The lock-now branch only finds a live timer after a background lock; it is cancelled on return or re-locks an already locked app"
+    },
+    {
+      "key": "string-literal|'active'|''|if (nextState === 'active' && leaving !== 'active') {|usePrivacyLock.subscription#1",
+      "reason": "A repeated 'active' (possible on Android) only re-runs the app icon check every foreground return already does"
+    },
+    {
+      "key": "remove-statement|unsubscribeFromGrace();|;|unsubscribeFromGrace();|usePrivacyLock",
+      "reason": "The hook is the only grace listener; after unmount it nulls its deadline and gets no app-state events"
+    }
+  ],
   "src/services/audio/download/chapterTransfer.ts": [
     {
       "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());|delay",
@@ -253,6 +315,184 @@
     {
       "key": "string-literal|'Sign in cancelled'|''|return authFailure('cancelled', error, 'Sign in cancelled');|mapAppleAuthError",
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
+    }
+  ],
+  "src/services/bible/cloudTranslationService.ts": [
+    {
+      "key": "number-literal|0|1|await new Promise<void>((resolve) => setTimeout(resolve, 0));|yieldToRuntime",
+      "reason": "yieldToRuntime's 0 vs 1 ms delay only slows chunked hashing; the yield still happens between chunks"
+    },
+    {
+      "key": "nullish-drop-default|FileSystem.documentDirectory ?? ''|FileSystem.documentDirectory|const base = FileSystem.documentDirectory ?? '';|getTranslationsDirectory.base",
+      "reason": "documentDirectory is null only on web, where the legacy file API has no file operations; only which unusable path a failing call receives changes"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const base = FileSystem.documentDirectory ?? '';|getTranslationsDirectory.base",
+      "reason": "documentDirectory is null only on web, where the legacy file API has no file operations; only which unusable path a failing call receives changes"
+    },
+    {
+      "key": "string-literal|'translation id'|''|'translation id'|getStagingTranslationDbPath",
+      "reason": "Unreachable: the same id is checked for the final path first, so an unsafe id is always rejected there"
+    },
+    {
+      "key": "string-literal|'translation operation id'|''|'translation operation id'|getCatalogTextPackPaths.stagingPath",
+      "reason": "Unreachable: the same id.operationId is checked for the final path first"
+    },
+    {
+      "key": "nullish-drop-default|state[0]?.final ?? false|state[0]?.final|const finalMain = state[0]?.final ?? false;|recoverInterruptedCatalogTextPack.finalMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "boolean-literal|false|true|const finalMain = state[0]?.final ?? false;|recoverInterruptedCatalogTextPack.finalMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "nullish-drop-default|state[0]?.rollback ?? false|state[0]?.rollback|const rollbackMain = state[0]?.rollback ?? false;|recoverInterruptedCatalogTextPack.rollbackMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "boolean-literal|false|true|const rollbackMain = state[0]?.rollback ?? false;|recoverInterruptedCatalogTextPack.rollbackMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "nullish-drop-default|state[0]?.staging ?? false|state[0]?.staging|const stagingMain = state[0]?.staging ?? false;|recoverInterruptedCatalogTextPack.stagingMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "boolean-literal|false|true|const stagingMain = state[0]?.staging ?? false;|recoverInterruptedCatalogTextPack.stagingMain",
+      "reason": "state always has four entries and exists is always a boolean, so the ?? false default never applies"
+    },
+    {
+      "key": "number-literal|0|1|const stagingMain = state[0]?.staging ?? false;|recoverInterruptedCatalogTextPack.stagingMain",
+      "reason": "stagingMain is only OR-ed with state.some(staging), which already covers it"
+    },
+    {
+      "key": "negate-condition|state.some((artifact) => artifact.rollback) && !rollbackMain|!(state.some((artifact) => artifact.rollback) && !rollbackMain)|} else if (state.some((artifact) => artifact.rollback) && !rollbackMain) {|recoverInterruptedCatalogTextPack",
+      "reason": "The else-if branch body is empty (comments only), so its condition has no effect"
+    },
+    {
+      "key": "method-swap|some|every|} else if (state.some((artifact) => artifact.rollback) && !rollbackMain) {|recoverInterruptedCatalogTextPack",
+      "reason": "The else-if branch body is empty (comments only), so its condition has no effect"
+    },
+    {
+      "key": "logical-swap|&&||||} else if (state.some((artifact) => artifact.rollback) && !rollbackMain) {|recoverInterruptedCatalogTextPack",
+      "reason": "The else-if branch body is empty (comments only), so its condition has no effect"
+    },
+    {
+      "key": "remove-negation|!rollbackMain|rollbackMain|} else if (state.some((artifact) => artifact.rollback) && !rollbackMain) {|recoverInterruptedCatalogTextPack",
+      "reason": "The else-if branch body is empty (comments only), so its condition has no effect"
+    },
+    {
+      "key": "number-literal|1|0|expectedVerseCount = 1,|validateCatalogTextPack",
+      "reason": "Math.max(1, 0) is 1, so a default of 0 enforces the same one-verse minimum"
+    },
+    {
+      "key": "relational-boundary|>=|>|const directory = separator >= 0 ? finalPath.slice(0, separator) : undefined;|validateCatalogTextPack.directory",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "number-literal|0|1|const directory = separator >= 0 ? finalPath.slice(0, separator) : undefined;|validateCatalogTextPack.directory",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "relational-boundary|>=|>|const databaseName = separator >= 0 ? finalPath.slice(separator + 1) : finalPath;|validateCatalogTextPack.databaseName",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "number-literal|0|1|const databaseName = separator >= 0 ? finalPath.slice(separator + 1) : finalPath;|validateCatalogTextPack.databaseName",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "number-literal|1|0|const databaseName = separator >= 0 ? finalPath.slice(separator + 1) : finalPath;|validateCatalogTextPack.databaseName",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "number-literal|1|0|databaseName: stagingDbPath.slice(stagingDbPath.lastIndexOf('/') + 1),|downloadCatalogTextPackImpl.databaseName",
+      "reason": "expo-sqlite strips a leading slash from the database name and joins it to the same directory, so the same file opens"
+    },
+    {
+      "key": "nullish-drop-default|directory ?? ''|directory|directory: directory ?? '',|validateCatalogTextPack.directory",
+      "reason": "directory is undefined only for a path with no '/', and every caller passes an absolute path"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|directory: directory ?? '',|validateCatalogTextPack.directory",
+      "reason": "directory is undefined only for a path with no '/', and every caller passes an absolute path"
+    },
+    {
+      "key": "logical-swap|&&||||const size = info.exists && typeof info.size === 'number' ? info.size : 0;|verifyTextPackSha256.size",
+      "reason": "getInfoAsync reports a size only for an existing file; when the operands differ both produce no digest and the same decode error"
+    },
+    {
+      "key": "number-literal|0|1|const size = info.exists && typeof info.size === 'number' ? info.size : 0;|verifyTextPackSha256.size",
+      "reason": "Low value: differs only for a missing file, which no caller validates; both fail closed with a different message"
+    },
+    {
+      "key": "number-literal|0|1|size > 0|verifyTextPackSha256.digest",
+      "reason": "Low value: differs only for a 1-byte file, never a valid pack; it is rejected either way"
+    },
+    {
+      "key": "remove-statement|throw new TextPackDownloadCancelledError();|;|throw new TextPackDownloadCancelledError();|verifyTextPackSha256",
+      "reason": "The hash loop already checks for a cancel after its last chunk, and the caller re-checks and throws the same error"
+    },
+    {
+      "key": "nullish-drop-default|tableResult?.present ?? 0|tableResult?.present|if ((tableResult?.present ?? 0) === 0) {|verifyInstalledTranslationDatabase",
+      "reason": "SELECT COUNT(*) always returns exactly one row, so the result is never null"
+    },
+    {
+      "key": "number-literal|0|1|if ((tableResult?.present ?? 0) === 0) {|verifyInstalledTranslationDatabase",
+      "reason": "SELECT COUNT(*) always returns exactly one row, so the result is never null"
+    },
+    {
+      "key": "nullish-drop-default|countResult?.count ?? 0|countResult?.count|if ((countResult?.count ?? 0) < expectedVerseCount) {|verifyInstalledTranslationDatabase",
+      "reason": "SELECT COUNT(*) always returns exactly one row, so the result is never null"
+    },
+    {
+      "key": "number-literal|0|1|if ((countResult?.count ?? 0) < expectedVerseCount) {|verifyInstalledTranslationDatabase",
+      "reason": "SELECT COUNT(*) always returns exactly one row, so the result is never null"
+    },
+    {
+      "key": "number-literal|1|0|const expectedVerseCount = Math.max(1, params.expectedVerseCount ?? 1);|downloadCatalogTextPackImpl.expectedVerseCount#1",
+      "reason": "Math.max(1, 0) is 1, so a default of 0 enforces the same one-verse minimum"
+    },
+    {
+      "key": "string-literal|'transferring'|''|phase: 'transferring',|downloadCatalogTextPackImpl.operation.phase",
+      "reason": "operation.phase is only ever compared with 'activating'"
+    },
+    {
+      "key": "remove-statement|operation.phase = 'verifying';|;|operation.phase = 'verifying';|downloadCatalogTextPackImpl",
+      "reason": "operation.phase is only ever compared with 'activating'"
+    },
+    {
+      "key": "string-literal|'verifying'|''|operation.phase = 'verifying';|downloadCatalogTextPackImpl",
+      "reason": "operation.phase is only ever compared with 'activating'"
+    },
+    {
+      "key": "remove-statement|void promise.then(\n    () => {\n      if (activeCatalogTextDownloadSettlements.get(params.translationId) === promise) {\n        activeCatalogTextDownloadSettlements.delete(params.translationId);\n      }\n    },\n    () => {\n      if (activeCatalogTextDownloadSettlements.get(params.translationId) === promise) {\n        activeCatalogTextDownloadSettlements.delete(params.translationId);\n      }\n    }\n  );|;|void promise.then(|downloadCatalogTextPack",
+      "reason": "Without the cleanup the map keeps a settled promise, so a wait still resolves at once and the next download replaces the entry"
+    },
+    {
+      "key": "early-return|| return;|() => {|downloadCatalogTextPack",
+      "reason": "Without the cleanup the map keeps a settled promise, so a wait still resolves at once and the next download replaces the entry"
+    },
+    {
+      "key": "remove-statement|activeCatalogTextDownloadSettlements.delete(params.translationId);|;|activeCatalogTextDownloadSettlements.delete(params.translationId);|downloadCatalogTextPack",
+      "reason": "Without the cleanup the map keeps a settled promise, so a wait still resolves at once and the next download replaces the entry"
+    },
+    {
+      "key": "early-return|| return;|() => {|downloadCatalogTextPack#1",
+      "reason": "Without the cleanup the map keeps a settled promise, so a wait still resolves at once and the next download replaces the entry"
+    },
+    {
+      "key": "remove-statement|activeCatalogTextDownloadSettlements.delete(params.translationId);|;|activeCatalogTextDownloadSettlements.delete(params.translationId);|downloadCatalogTextPack#1",
+      "reason": "Without the cleanup the map keeps a settled promise, so a wait still resolves at once and the next download replaces the entry"
+    },
+    {
+      "key": "equality-flip|===|!==|if (activeCatalogTextDownloadSettlements.get(params.translationId) === promise) {|downloadCatalogTextPack",
+      "reason": "When the callback runs the entry is still this download's own promise, so the flipped check never deletes, as with no cleanup"
+    },
+    {
+      "key": "equality-flip|===|!==|if (activeCatalogTextDownloadSettlements.get(params.translationId) === promise) {|downloadCatalogTextPack#1",
+      "reason": "When the callback runs the entry is still this download's own promise, so the flipped check never deletes, as with no cleanup"
     }
   ],
   "src/services/bible/verseFormatting.ts": [
@@ -539,6 +779,88 @@
     {
       "key": "relational-boundary|>=|>|return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;|laterSession",
       "reason": "Equal indexes mean the same session key, so either side is returned"
+    }
+  ],
+  "src/services/privacy/privacyLockGrace.ts": [
+    {
+      "key": "number-literal|0|1|let graceUntil = 0;|graceUntil",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|let iconAlertWindowUntil = 0;|iconAlertWindowUntil",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|iconAlertWindowUntil = 0;|notePrivacyLockAppState",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|iconAlertWindowUntil = 0;|notePrivacyLockAppState#1",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "number-literal|0|1|const deadline = Math.max(graceUntil, heldDeadline, getPendingPrivacyLockGraceDeadline() ?? 0);|getPrivacyLockGraceDeadline.deadline",
+      "reason": "A timestamp of 1 instead of 0 is just as far in the past for any real clock"
+    },
+    {
+      "key": "boolean-literal|false|true|sawInactive: false,|withPrivacyLockGrace.entry.sawInactive",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-negation|!entry.sawInactive|entry.sawInactive|if (!entry.sawInactive) {|withPrivacyLockGrace",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|heldUntilActiveSince = settledAt;|;|heldUntilActiveSince = settledAt;|withPrivacyLockGrace",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|entry.sawInactive = true;|;|entry.sawInactive = true;|notePrivacyLockAppState",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "boolean-literal|true|false|entry.sawInactive = true;|notePrivacyLockAppState",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "equality-flip|===|!==|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "arithmetic-swap|+|-|heldUntilActiveSince === null ? 0 : heldUntilActiveSince + PRIVACY_LOCK_GRACE_MAX_PENDING_MS;|getPrivacyLockGraceDeadline.heldDeadline",
+      "reason": "Only changes the held-until-active deadline; the icon-alert window set from the same settle time lasts as long, so whenever the hold is live the hook takes the icon-alert branch"
+    },
+    {
+      "key": "remove-statement|graceListeners.delete(listener);|;|graceListeners.delete(listener);|subscribeToPrivacyLockGraceChanges",
+      "reason": "The hook is the only listener; after unmount it nulls its deadline and gets no app-state events, so a listener left subscribed never acts"
+    },
+    {
+      "key": "remove-statement|alertWaitTimer = null;|;|alertWaitTimer = null;|notePrivacyLockAppState",
+      "reason": "After the icon-alert fix, the stale timer handle is always cleared by the release that ends the alert before a cap can be set again"
+    },
+    {
+      "key": "remove-statement|inactiveUnderIconAlert = false;|;|inactiveUnderIconAlert = false;|notePrivacyLockAppState#1",
+      "reason": "After 'background' the flag is next read by an inactive lock decision, which cannot happen before the next 'active' resets it"
+    },
+    {
+      "key": "boolean-literal|false|true|inactiveUnderIconAlert = false;|notePrivacyLockAppState#1",
+      "reason": "After 'background' the flag is next read by an inactive lock decision, which cannot happen before the next 'active' resets it"
+    },
+    {
+      "key": "nullish-drop-default|getPendingPrivacyLockGraceDeadline() ?? 0|getPendingPrivacyLockGraceDeadline()|const deadline = Math.max(graceUntil, heldDeadline, getPendingPrivacyLockGraceDeadline() ?? 0);|getPrivacyLockGraceDeadline.deadline",
+      "reason": "Math.max(..., null) treats null as 0"
+    },
+    {
+      "key": "equality-flip|===|!==|if (end > now && (deadline === null || end > deadline)) {|getPendingPrivacyLockGraceDeadline",
+      "reason": "Pending requests are stored in start order, so the last unexpired one has the latest cap; only a clock jumping backwards between two open prompts differs"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (end > now && (deadline === null || end > deadline)) {|getPendingPrivacyLockGraceDeadline#1",
+      "reason": ">= against an equal cap picks the same value"
     }
   ],
   "src/services/sync/syncMerge.ts": [
