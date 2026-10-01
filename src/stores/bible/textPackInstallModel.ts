@@ -5,7 +5,10 @@
  * shapes they write are decided here so each transition can be tested on its own.
  */
 import type { BibleTranslation, TranslationDownloadProgress } from '../../types';
-import type { TextPackInstallJournalEntry } from '../../services/bible/textPackInstallJournalModel';
+import type {
+  TextPackInstallJournal,
+  TextPackInstallJournalEntry,
+} from '../../services/bible/textPackInstallJournalModel';
 import { clampPercent } from './audioDownloadJobModel';
 
 /** What cloudTranslationService reports while a pack is transferred and indexed. */
@@ -114,6 +117,93 @@ export function installStateAfterTextCancel(
   translation: BibleTranslation
 ): 'installed' | 'remote-only' {
   return translation.textPackLocalPath ? 'installed' : 'remote-only';
+}
+
+const PACK_DIRECTORY_MARKER = '/translations/';
+
+/**
+ * Installed packs are persisted as absolute paths, but iOS can hand the app a new container UUID
+ * after an update or restore, so every saved path then points at a directory that no longer
+ * exists. Pack files always live under `<documentDirectory>/translations/`, so the part from that
+ * directory onward is re-anchored on the current document directory. Paths that do not have the
+ * marker (or when there is no document directory) are returned untouched.
+ */
+export function rebaseTextPackPath<T extends string | null | undefined>(
+  path: T,
+  documentDirectory: string | undefined
+): T | string {
+  if (!path || !documentDirectory) return path;
+  const packsRoot = `${documentDirectory.replace(/\/$/, '')}${PACK_DIRECTORY_MARKER}`;
+  if (path.startsWith(packsRoot)) return path;
+  const markerIndex = path.indexOf(PACK_DIRECTORY_MARKER);
+  if (markerIndex < 0) return path;
+  return `${packsRoot}${path.slice(markerIndex + PACK_DIRECTORY_MARKER.length)}`;
+}
+
+/** Re-anchors every saved pack path on a translation list; returns the same array if none moved. */
+export function rebaseTranslationPackPaths(
+  translations: BibleTranslation[],
+  documentDirectory: string | undefined
+): BibleTranslation[] {
+  let changed = false;
+  const next = translations.map((translation) => {
+    const textPackLocalPath = rebaseTextPackPath(translation.textPackLocalPath, documentDirectory);
+    const pendingTextPackLocalPath = rebaseTextPackPath(
+      translation.pendingTextPackLocalPath,
+      documentDirectory
+    );
+    const rollbackTextPackLocalPath = rebaseTextPackPath(
+      translation.rollbackTextPackLocalPath,
+      documentDirectory
+    );
+    if (
+      textPackLocalPath === translation.textPackLocalPath &&
+      pendingTextPackLocalPath === translation.pendingTextPackLocalPath &&
+      rollbackTextPackLocalPath === translation.rollbackTextPackLocalPath
+    ) {
+      return translation;
+    }
+    changed = true;
+    return {
+      ...translation,
+      textPackLocalPath,
+      pendingTextPackLocalPath,
+      rollbackTextPackLocalPath,
+    };
+  });
+  return changed ? next : translations;
+}
+
+/** Re-anchors the paths inside the install/deletion journal; same object if none moved. */
+export function rebaseTextPackJournalPaths(
+  journal: TextPackInstallJournal,
+  documentDirectory: string | undefined
+): TextPackInstallJournal {
+  let changed = false;
+  const move = (path: string): string => {
+    const next = rebaseTextPackPath(path, documentDirectory);
+    if (next !== path) changed = true;
+    return next;
+  };
+  const installs = Object.fromEntries(
+    Object.entries(journal.installs).map(([id, entry]) => [
+      id,
+      {
+        ...entry,
+        finalPath: move(entry.finalPath),
+        stagingPath: move(entry.stagingPath),
+        rollbackPath: move(entry.rollbackPath),
+        ...(entry.previousPath ? { previousPath: move(entry.previousPath) } : {}),
+      },
+    ])
+  );
+  const deletions = Object.fromEntries(
+    Object.entries(journal.deletions).map(([id, entry]) => [
+      id,
+      { ...entry, paths: entry.paths.map(move) },
+    ])
+  );
+  return changed ? { installs, deletions } : journal;
 }
 
 /** Every file a translation's text install may have left on disk, each once. */

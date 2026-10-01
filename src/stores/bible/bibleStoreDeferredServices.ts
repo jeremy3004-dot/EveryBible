@@ -112,3 +112,10 @@ export function syncVerseTimestampMetadata(translations: BibleTranslation[]): vo
     })
     .catch(() => {});
 }
+
+// The app container's document directory as of this launch. iOS can change it across an update or
+// restore, so installed pack paths saved by an earlier launch are re-anchored on it.
+export async function getCurrentDocumentDirectory(): Promise<string | undefined> {
+  const FileSystem = await import('expo-file-system/legacy');
+  return FileSystem.documentDirectory ?? undefined;
+}

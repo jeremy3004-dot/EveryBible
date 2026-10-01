@@ -51,12 +51,29 @@ export function mergeRuntimeCatalogTranslations(
   return Array.from(mergedById.values());
 }
 
+/** Selection fields for a translation the store fell back to rather than the reader choosing. */
+export function fallbackSelectionFields(
+  translations: BibleTranslation[],
+  fallbackTranslationId: string
+): { currentTranslationChosenAt: null; preferredTranslationLanguage: string | null } {
+  const fallback = translations.find((translation) => translation.id === fallbackTranslationId);
+  return {
+    currentTranslationChosenAt: null,
+    preferredTranslationLanguage: fallback?.language?.trim() || null,
+  };
+}
+
 export function reconcileMissingRuntimeTranslationPacks(
   translations: BibleTranslation[],
   currentTranslation: string,
   missingTranslationIds: ReadonlySet<string>,
   fallbackTranslationId = 'bsb'
-): { translations: BibleTranslation[]; currentTranslation: string } {
+): {
+  translations: BibleTranslation[];
+  currentTranslation: string;
+  currentTranslationChosenAt?: null;
+  preferredTranslationLanguage?: string | null;
+} {
   if (missingTranslationIds.size === 0) {
     return { translations, currentTranslation };
   }
@@ -91,9 +108,16 @@ export function reconcileMissingRuntimeTranslationPacks(
       selectedTranslation.source !== 'runtime' ||
       Boolean(selectedTranslation.textPackLocalPath));
 
+  if (selectedTranslationIsReadable) {
+    return { translations: nextTranslations, currentTranslation };
+  }
+
+  // The fallback is not the reader's choice. Dropping the old choice's stamp keeps
+  // reconcilePrimaryTranslationPreference from uploading it as a newer account preference.
   return {
     translations: nextTranslations,
-    currentTranslation: selectedTranslationIsReadable ? currentTranslation : fallbackTranslationId,
+    currentTranslation: fallbackTranslationId,
+    ...fallbackSelectionFields(nextTranslations, fallbackTranslationId),
   };
 }
 
