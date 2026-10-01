@@ -234,7 +234,8 @@ function isStatementDeletable(statement: ts.Statement): boolean {
 
 function isInsideIfBody(statement: ts.Statement): boolean {
   const parent = statement.parent;
-  if (ts.isIfStatement(parent)) return parent.expression !== statement;
+  // A statement child of an if is its then or else branch (the condition is an expression).
+  if (ts.isIfStatement(parent)) return true;
   return ts.isBlock(parent) && ts.isIfStatement(parent.parent);
 }
 

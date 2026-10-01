@@ -178,7 +178,7 @@ function runTestFile(
   worker: Worker,
   testFile: string,
   timeoutMs: number,
-  extraEnv: NodeJS.ProcessEnv = {},
+  extraEnv: Record<string, string> = {},
   captureOutput = false
 ): Promise<TestOutcome> {
   const started = Date.now();
