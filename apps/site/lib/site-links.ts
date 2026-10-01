@@ -21,12 +21,13 @@ export const EVERYBIBLE_SMART_DOWNLOAD_URL = `${EVERYBIBLE_SITE_URL}${EVERYBIBLE
 export const EVERYBIBLE_SUPPORT_EMAIL_ADDRESS = 'hello@everybible.app';
 export const EVERYBIBLE_SUPPORT_EMAIL = `mailto:${EVERYBIBLE_SUPPORT_EMAIL_ADDRESS}`;
 
-export function resolveSmartDownloadTarget(userAgent: string | null | undefined): string {
+export type DevicePlatform = 'ios' | 'android' | 'other';
+
+/** Which store a visitor's device uses; anything unrecognised (desktop) is `other`. */
+export function detectPlatform(userAgent: string | null | undefined): DevicePlatform {
   const agent = userAgent?.toLowerCase() ?? '';
 
-  if (agent.includes('android')) {
-    return EVERYBIBLE_GOOGLE_PLAY_URL;
-  }
+  if (agent.includes('android')) return 'android';
 
   if (
     agent.includes('iphone') ||
@@ -35,8 +36,15 @@ export function resolveSmartDownloadTarget(userAgent: string | null | undefined)
     agent.includes('ios') ||
     (agent.includes('macintosh') && agent.includes('mobile'))
   ) {
-    return EVERYBIBLE_APP_STORE_URL;
+    return 'ios';
   }
 
+  return 'other';
+}
+
+export function resolveSmartDownloadTarget(userAgent: string | null | undefined): string {
+  const platform = detectPlatform(userAgent);
+  if (platform === 'android') return EVERYBIBLE_GOOGLE_PLAY_URL;
+  if (platform === 'ios') return EVERYBIBLE_APP_STORE_URL;
   return `${EVERYBIBLE_SITE_URL}/#${EVERYBIBLE_DOWNLOAD_ANCHOR}`;
 }
