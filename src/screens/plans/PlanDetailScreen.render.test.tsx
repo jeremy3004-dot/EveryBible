@@ -69,6 +69,12 @@ mockModule(mock, sourcePath('i18n/index.ts'), { default: harness.i18n });
 mockModule(mock, 'expo-constants', { default: { expoConfig: { extra: {} } } });
 // Plans are local-first; with no backend configured, enrolling stays on the device.
 mockSupabaseModule(mock, createSupabaseFake(), { configured: false });
+const handledErrors: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    handledErrors.push({ source, error });
+  },
+});
 const leaveService = { run: null as (() => Promise<{ success: boolean }>) | null };
 const enrollService = { before: null as (() => Promise<void>) | null };
 mockBarrel(mock, 'services/plans/readingPlanService.ts', {
@@ -119,6 +125,7 @@ async function loadStore() {
 beforeEach(() => {
   leaveService.run = null;
   enrollService.before = null;
+  handledErrors.length = 0;
   mock.timers.enable({ apis: ['Date'], now: new Date(TODAY) });
 });
 
@@ -407,6 +414,38 @@ test('before enrolling, the ledger lists every day of the plan without dates, un
   assert.ok(store.getState().progressByPlanId[PSALMS]);
   assert.equal(view.queryByRole('button', { name: t('readingPlans.startPlan') }), null);
   assert.ok(view.getByTestId('plan-detail-current-day-row'));
+});
+
+test('a Start plan that rejects re-enables the button, alerts, and reports without an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const store = await loadStore();
+    const view = await renderPlan(PSALMS);
+    enrollService.before = async () => {
+      throw new Error('enroll failed');
+    };
+    const alertsBefore = harness.rn.__recorded.alerts.length;
+
+    await view.press(view.getByRole('button', { name: t('readingPlans.startPlan') }));
+    await view.flush();
+
+    const start = view.getByRole('button', { name: t('readingPlans.startPlan') });
+    assert.notEqual(start.props.accessibilityState?.disabled, true, 'the button is usable again');
+    assert.equal(store.getState().progressByPlanId[PSALMS], undefined);
+    const alert = harness.rn.__recorded.alerts.at(-1);
+    assert.equal(harness.rn.__recorded.alerts.length, alertsBefore + 1);
+    assert.equal(alert?.title, t('common.error'));
+    assert.equal(alert?.message, t('common.unexpectedError'));
+    assert.deepEqual(
+      handledErrors.map((entry) => entry.source),
+      ['plans.enroll']
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 test('an enrolled plan dates each day from its start date, and today is the one current-day row', async () => {

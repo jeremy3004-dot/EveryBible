@@ -20,6 +20,7 @@ let reminderBlock: 'needs-permission' | 'blocked' | null = null;
 const languageCalls: string[] = [];
 // What the language hook reports: false when a newer request superseded this one.
 let languageApplied = true;
+let languageThrows = false;
 const countryNameCalls: string[] = [];
 const harness = installRenderHarness(mock);
 // Settings and its sections import each hook from its own module, not the hooks barrel.
@@ -45,6 +46,7 @@ mockModule(mock, sourcePath('hooks/useI18n.ts'), {
       currentLanguage: 'en',
       setLanguage: async (code: string) => {
         languageCalls.push(code);
+        if (languageThrows) throw new Error('locale failed to load');
         return languageApplied;
       },
       availableLanguages: { en: { nativeName: 'English' } },
@@ -133,12 +135,15 @@ const reminders: {
   promptsUnderLockGrace: boolean[];
   /** Thrown by scheduleDailyReminder, as when the OS refuses to schedule. */
   scheduleError: Error | null;
+  /** Thrown by cancelDailyReminder, as when the OS refuses to cancel. */
+  cancelError: Error | null;
 } = {
   permission: 'granted',
   calls: [],
   requests: 0,
   promptsUnderLockGrace: [],
   scheduleError: null,
+  cancelError: null,
 };
 mockModule(mock, sourcePath('services/notifications/index.ts'), {
   scheduleDailyReminder: async (hour: number, minute: number) => {
@@ -150,6 +155,7 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
   cancelDailyReminder: async () => {
     reminders.calls.push('cancel');
     await pauseReminderCancellation?.();
+    if (reminders.cancelError) throw reminders.cancelError;
     scheduledReminderTime = null;
   },
   reconcileDailyReminder: async (preferences: {
@@ -199,6 +205,7 @@ afterEach(async () => {
   reminders.requests = 0;
   reminders.promptsUnderLockGrace.length = 0;
   reminders.scheduleError = null;
+  reminders.cancelError = null;
   pauseReminderSchedule = null;
   pauseReminderCancellation = null;
   pauseReminderPermission = null;
@@ -496,6 +503,36 @@ test('a reminder time the system fails to schedule closes the picker, stays off 
   );
   assert.equal(syncCalls.length, 0);
   assert.deepEqual(reported, [{ source: 'settings.reminderSchedule', error: failure }]);
+});
+
+test('a reminder the system fails to cancel stays on, explains and is reported without an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    harness.authStore
+      .getState()
+      .setPreferences({ notificationsEnabled: true, reminderTime: '07:30' });
+    const failure = new Error('cancel refused');
+    reminders.cancelError = failure;
+    const view = await renderSettings();
+
+    const reported$ = nextReport();
+    await view.fire(switchNamed(view, t('settings.dailyReminder')), 'onValueChange', false);
+    await reported$;
+
+    assert.deepEqual(reminders.calls, ['cancel']);
+    assert.deepEqual(
+      harness.rn.__recorded.alerts.map((alert) => [alert.title, alert.message]),
+      [[t('common.error'), t('common.unexpectedError')]]
+    );
+    assert.equal(harness.authStore.getState().preferences.notificationsEnabled, true);
+    assert.equal(switchNamed(view, t('settings.dailyReminder')).props.value, true);
+    assert.deepEqual(reported, [{ source: 'settings.reminderSchedule', error: failure }]);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 // --- Privacy shortcut -------------------------------------------------------
@@ -1374,6 +1411,36 @@ test('a language choice that a newer request superseded leaves the list open', a
     assert.ok(view.getByRole('header', { name: t('settings.selectLanguage') }));
   } finally {
     languageApplied = true;
+  }
+});
+
+test('a language that fails to load keeps the list open, alerts, and reports without an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  languageThrows = true;
+  try {
+    const view = await renderSettings();
+    const reportsBefore = reported.length;
+    const alertsBefore = harness.rn.__recorded.alerts.length;
+
+    await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+    await view.press(view.getByRole('button', { name: /^Español/ }));
+    await view.flush();
+
+    assert.deepEqual(languageCalls, ['es']);
+    assert.ok(view.getByRole('header', { name: t('settings.selectLanguage') }));
+    assert.equal(harness.rn.__recorded.alerts.length, alertsBefore + 1);
+    assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('common.error'));
+    assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('common.unexpectedError'));
+    assert.deepEqual(
+      reported.slice(reportsBefore).map((entry) => entry.source),
+      ['settings.language']
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    languageThrows = false;
+    process.off('unhandledRejection', onUnhandled);
   }
 });
 

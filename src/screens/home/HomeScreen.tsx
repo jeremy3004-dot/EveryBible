@@ -96,6 +96,13 @@ function reportHomeVerseShareFailure(error: unknown) {
     .catch(() => undefined);
 }
 
+/** Records a plan shelf that failed to load. The crash queue loads only when something failed. */
+function reportHomePlansFailure(error: unknown) {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('home.readingPlans', error))
+    .catch(() => undefined);
+}
+
 // The hero is a photograph in both scopes, so its foreground cannot come from
 // theme tokens — light ink on a dark scrim is the only readable pairing on the
 // vellum scope too. These are the literal on-photo values the design spec names.
@@ -499,15 +506,20 @@ export function HomeScreen() {
     let cancelled = false;
 
     const loadReadingPlans = async () => {
-      // The plan service and its bundled catalog load here rather than with
-      // Home, so they stay off the cold-start path until the card needs them.
-      const { listReadingPlans } = await import('../../services/plans/readingPlanService');
-      if (cancelled) {
-        return;
-      }
-      const result = await listReadingPlans();
-      if (!cancelled && result.success) {
-        setReadingPlans(result.data ?? []);
+      try {
+        // The plan service and its bundled catalog load here rather than with
+        // Home, so they stay off the cold-start path until the card needs them.
+        const { listReadingPlans } = await import('../../services/plans/readingPlanService');
+        if (cancelled) {
+          return;
+        }
+        const result = await listReadingPlans();
+        if (!cancelled && result.success) {
+          setReadingPlans(result.data ?? []);
+        }
+      } catch (error) {
+        // The shelf is optional on Home: stay without it rather than reject unhandled.
+        reportHomePlansFailure(error);
       }
     };
 

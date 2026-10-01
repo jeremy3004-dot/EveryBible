@@ -260,7 +260,15 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     }
 
     const isCurrent = beginLanguageRequest();
-    const applied = await changeLanguage(selectedInterfaceLanguageCode, isCurrent);
+    let applied: boolean | undefined;
+    try {
+      applied = await changeLanguage(selectedInterfaceLanguageCode, isCurrent);
+    } catch (error) {
+      // changeLanguage rethrows a locale that fails to load. Finish must not strand the
+      // reader on this step with no feedback: the choice is still saved, as when picking
+      // the language, and the app keeps the strings it already has.
+      console.warn('[Onboarding] Failed to load interface language:', error);
+    }
     if (applied === false || !isCurrent()) return;
 
     setPreferences({

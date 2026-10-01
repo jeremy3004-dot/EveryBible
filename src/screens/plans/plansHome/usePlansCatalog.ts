@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { reportHandledError } from '../../../services/diagnostics/crashReportQueue';
 import { getUserPlanProgress, listReadingPlans } from '../../../services/plans/readingPlanService';
 import type { ReadingPlan } from '../../../services/plans/types';
 
@@ -37,11 +38,18 @@ export function usePlansCatalog() {
     async (quiet = false, force = false) => {
       if (!quiet) setLoading(true);
 
-      const allPlansResult = await listReadingPlans();
-      if (allPlansResult.success && allPlansResult.data) {
-        setAllPlans(allPlansResult.data);
+      // A rejection (a lazy catalog chunk that cannot load) still ends the first-load
+      // skeleton; the callers swallow it, which used to leave the skeleton up for good.
+      try {
+        const allPlansResult = await listReadingPlans();
+        if (allPlansResult.success && allPlansResult.data) {
+          setAllPlans(allPlansResult.data);
+        }
+      } catch (error) {
+        reportHandledError('plans.catalog', error);
+      } finally {
+        if (!quiet) setLoading(false);
       }
-      if (!quiet) setLoading(false);
 
       void hydratePlanProgress(force);
     },

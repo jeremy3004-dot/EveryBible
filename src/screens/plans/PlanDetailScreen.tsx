@@ -25,6 +25,7 @@ import { useLibraryStore } from '../../stores/libraryStore';
 import { useProgressStore } from '../../stores/progressStore';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import { useAuthStore } from '../../stores/authStore';
+import { reportHandledError } from '../../services/diagnostics/crashReportQueue';
 import { enrollInPlan, unenrollFromPlan } from '../../services/plans/readingPlanService';
 import {
   getCurrentPlanDaySummary,
@@ -246,11 +247,18 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
   const handleStartPlan = useCallback(async () => {
     if (!progress) {
       setEnrolling(true);
-      await enrollInPlan(planId);
-      setEnrolling(false);
-      successHaptic();
+      try {
+        await enrollInPlan(planId);
+        successHaptic();
+      } catch (error) {
+        // Without the catch a rejection left the Start plan button disabled for good.
+        reportHandledError('plans.enroll', error);
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
+      } finally {
+        setEnrolling(false);
+      }
     }
-  }, [planId, progress]);
+  }, [planId, progress, t]);
 
   const handleLeavePlan = useCallback(() => {
     if (!mountedRef.current) return;
