@@ -36,7 +36,7 @@ function walk(dir: string, out: string[]): string[] {
 
 function packageName(specifier: string): string {
   const parts = specifier.split('/');
-  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : (parts[0] ?? specifier);
 }
 
 test('every package the app source imports is declared in dependencies', () => {

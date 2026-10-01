@@ -187,6 +187,7 @@ test('the modal translucency scan actually finds the app modals and honours the 
 
   const withArrowProp = '<Modal onRequestClose={() => close({ a: 1 })} statusBarTranslucent>\n';
   const [arrowTag] = findModalOpeningTags(withArrowProp);
+  assert.ok(arrowTag, 'the scanner should detect the arrow-prop <Modal> tag');
   assert.match(
     arrowTag.tag,
     /statusBarTranslucent>$/,

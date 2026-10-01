@@ -90,7 +90,7 @@ npm run android        # Build and run on Android emulator
 npm run web            # Start web version (limited functionality)
 npm run lint           # ESLint check
 npm run typecheck      # TypeScript compile check (runs tsc, then typecheck:strict)
-npm run typecheck:strict # noUncheckedIndexedAccess etc. for non-UI code (tsconfig.strict.json)
+npm run typecheck:strict # noUncheckedIndexedAccess etc. for all of src/ (tsconfig.strict.json)
 npm run test:release   # Focused release regression suite
 npm run release:verify # Lint + typecheck + full test suite (npm test) + expo config check
 npm run lint:fix       # Auto-fix ESLint issues
@@ -98,7 +98,7 @@ npm run format         # Format code with Prettier
 npm run format:check   # Check code formatting
 ```
 
-`npm run typecheck` runs `tsc --noEmit` for the whole app, then `typecheck:strict` (`scripts/typecheck-strict.mjs`), which type-checks `tsconfig.strict.json` (`noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `noImplicitOverride`) but only fails on diagnostics inside its `include` (`src/services`, `src/stores`, `src/utils`, `src/hooks`, `src/constants`, `src/i18n`, minus an `exclude` list still covering `src/services/audio`, `src/stores/audio*`, `src/hooks/useAudioPlayer*`, `src/services/sync`, `src/services/notifications`, `src/services/privacy`, `src/services/diagnostics`). Run `node scripts/typecheck-strict.mjs --list-deferred` to see diagnostics outside that set — moving a directory into the strict set is then a one-line config change. Use `assertDefined` (`src/utils/assertDefined.ts`) instead of `!` where `noUncheckedIndexedAccess` can't follow reasoning the caller already did.
+`npm run typecheck` runs `tsc --noEmit` for the whole app, then `typecheck:strict` (`scripts/typecheck-strict.mjs`), which type-checks `tsconfig.strict.json` (`noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `noImplicitOverride`) over all of `src/` plus `App.tsx` and `index.ts` (since 2026-10-01; new folders are strict automatically). It only fails on diagnostics inside that set; build scripts that app tests import are reported as deferred (`node scripts/typecheck-strict.mjs --list-deferred`). Use `assertDefined` (`src/utils/assertDefined.ts`) instead of `!` where `noUncheckedIndexedAccess` can't follow reasoning the caller already did.
 
 ### EAS Build & Deploy
 

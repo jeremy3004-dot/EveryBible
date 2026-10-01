@@ -1,12 +1,11 @@
-// Type-checks the non-UI code under the stricter options in tsconfig.strict.json.
+// Type-checks the app (src/, App.tsx, index.ts) under the stricter options in
+// tsconfig.strict.json.
 //
 // TypeScript has no per-file compiler options: every module an included file imports
-// joins the program and is checked under the same flags. Running `tsc -p` on the
-// strict config would therefore also fail on screens, test fakes and the modules
-// listed in its `exclude` (other work is in flight there). This runner checks the same
-// program but only fails on diagnostics in files the config selects (`include` minus
-// `exclude`); diagnostics elsewhere are counted and reported as deferred, so moving a
-// directory into the strict set is a one-line config change.
+// joins the program and is checked under the same flags, including build scripts that
+// app tests import. This runner checks that program but only fails on diagnostics in
+// files the config selects (`include` minus any `exclude`); diagnostics elsewhere are
+// counted and reported as deferred.
 import path from 'node:path';
 import process from 'node:process';
 import ts from 'typescript';

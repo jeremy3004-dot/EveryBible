@@ -29,8 +29,8 @@ at exit, prefix it with `TSX_DISABLE_CACHE=1`.
 Any `*.test.ts` or `*.test.tsx` under `src/`, `scripts/`, `apps/`, `packages/`, or
 `supabase/functions` is picked up automatically. No registration needed.
 
-Tests under `src/services`, `src/stores`, `src/utils`, `src/hooks`, `src/constants` and
-`src/i18n` are also checked with `noUncheckedIndexedAccess` (`tsconfig.strict.json`).
+Every test under `src/` is also checked with `noUncheckedIndexedAccess`
+(`tsconfig.strict.json`).
 Read recorded calls by index through `assertDefined` from `src/utils/assertDefined.ts`
 when the test calls, mutates or compares the element with `undefined`; optional chaining
 is enough only when the assertion itself fails on a missing element.

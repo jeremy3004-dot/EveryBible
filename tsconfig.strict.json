@@ -5,27 +5,5 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true
   },
-  "include": [
-    "src/services/**/*",
-    "src/stores/**/*",
-    "src/utils/**/*",
-    "src/hooks/**/*",
-    "src/constants/**/*",
-    "src/i18n/**/*",
-    "src/screens/learn/**/*",
-    "src/screens/plans/**/*",
-    "src/screens/more/**/*",
-    "src/screens/bible/**/*",
-    "src/screens/home/**/*",
-    "src/screens/onboarding/**/*",
-    "src/screens/auth/**/*",
-    "src/navigation/**/*",
-    "src/components/**/*",
-    "src/data/**/*",
-    "src/design/**/*",
-    "src/contexts/**/*",
-    "src/config/**/*",
-    "src/testing/**/*",
-    "src/types/**/*"
-  ]
+  "include": ["src/**/*", "App.tsx", "index.ts"]
 }
