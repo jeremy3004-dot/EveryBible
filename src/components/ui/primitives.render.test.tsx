@@ -408,7 +408,9 @@ test('ProgressBar announces a named progress bar', async () => {
 test('ProgressBar treats a non-finite progress (an empty plan: 0 of 0) as no progress', async () => {
   const { ProgressBar } = await import('./ProgressBar');
   for (const progress of [Number.NaN, Number.POSITIVE_INFINITY]) {
-    const view = await harness.render(<ProgressBar progress={progress} accessibilityLabel="Plan" />);
+    const view = await harness.render(
+      <ProgressBar progress={progress} accessibilityLabel="Plan" />
+    );
 
     const bar = view.getByRole('progressbar', { name: 'Plan' });
     assert.equal(bar.props.accessibilityValue?.now, 0);
