@@ -1,7 +1,9 @@
 import type { TFunction } from 'i18next';
 
 export function formatRelativeTime(isoString: string, t: TFunction, now = Date.now()): string {
-  const minutes = Math.max(0, Math.floor((now - new Date(isoString).getTime()) / 60_000));
+  // An unparsable stamp is NaN, and Math.max passes NaN through; read it as "just now".
+  const elapsed = now - new Date(isoString).getTime();
+  const minutes = Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed / 60_000)) : 0;
   if (minutes < 1) return t('interface.justNow');
   if (minutes < 60) return t('interface.minutesAgo', { count: minutes });
   const hours = Math.floor(minutes / 60);
