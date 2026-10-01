@@ -806,3 +806,37 @@ test('closing the picker before hydration settles leaves its loading state untou
 
   assert.deepEqual(loadingStates, [true]);
 });
+
+test('a Korean query finds the Korean translations instead of matching every one', () => {
+  const translations = [
+    { id: 'krv', name: 'Korean Revised', language: 'Korean' },
+    { id: 'bsb', name: 'Berean Standard Bible', language: 'English' },
+    { id: 'hanguel', name: '한국어 성경', language: 'Korean' },
+  ];
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, '한국어').map(({ id }) => id),
+    ['krv', 'hanguel']
+  );
+  assert.deepEqual(
+    filterTranslationLanguagesBySearchQuery(translations, '한국어').map(({ value }) => value),
+    ['Korean']
+  );
+});
+
+test('a query in a script outside the old hand-written ranges still narrows the list', () => {
+  const translations = [
+    { id: 'pbi', name: 'ਪੰਜਾਬੀ ਬਾਈਬਲ', language: 'Punjabi' },
+    { id: 'bsb', name: 'Berean Standard Bible', language: 'English' },
+    { id: 'sbl', name: 'Ελληνική Βίβλος', language: 'Greek' },
+  ];
+
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'ਪੰਜਾਬੀ').map(({ id }) => id),
+    ['pbi']
+  );
+  assert.deepEqual(
+    filterTranslationsBySearchQuery(translations, 'Βίβλος').map(({ id }) => id),
+    ['sbl']
+  );
+});

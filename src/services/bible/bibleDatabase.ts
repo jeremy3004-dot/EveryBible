@@ -331,15 +331,19 @@ export function scheduleTextPackSearchIndexBuild(
   });
 }
 
+// The status that decided readiness is returned with the handle: inspecting again to report it
+// re-counted every bundled verse (about 124,000 rows) on the cold-start path.
+type BundledDatabaseOpen = { database: SQLite.SQLiteDatabase; status: BibleDatabaseStatus };
+
 async function ensureBundledDatabaseReady(
   minimumReadyVerseCount: number
-): Promise<SQLite.SQLiteDatabase> {
+): Promise<BundledDatabaseOpen> {
   try {
     const database = await openBundledDatabase(false);
     const status = await inspectOpenDatabase(database);
 
     if (isBundledBibleDatabaseReady(status, minimumReadyVerseCount)) {
-      return database;
+      return { database, status };
     }
   } catch (error) {
     console.warn('[Bible] Bundled database check failed, attempting recovery:', error);
@@ -357,17 +361,17 @@ async function ensureBundledDatabaseReady(
     );
   }
 
-  return recoveredDatabase;
+  return { database: recoveredDatabase, status: recoveredStatus };
 }
 
 // Shared by initDatabase/getDatabase/inspectBundledDatabaseStatus so concurrent cold-start
 // callers (e.g. isBibleDataReady() and initBibleData() firing close together) don't race each
 // other into duplicate imports/recovery cycles against the same underlying .db file.
-let bundledInitPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let bundledInitPromise: Promise<BundledDatabaseOpen> | null = null;
 
 function acquireBundledDatabaseSingleFlight(
   minimumReadyVerseCount: number
-): Promise<SQLite.SQLiteDatabase> {
+): Promise<BundledDatabaseOpen> {
   if (!bundledInitPromise) {
     bundledInitPromise = ensureBundledDatabaseReady(minimumReadyVerseCount).finally(() => {
       bundledInitPromise = null;
@@ -393,8 +397,7 @@ export async function initDatabase(
     }
   }
 
-  const database = await acquireBundledDatabaseSingleFlight(minimumReadyVerseCount);
-  return inspectOpenDatabase(database);
+  return (await acquireBundledDatabaseSingleFlight(minimumReadyVerseCount)).status;
 }
 
 function notReadyStatus(): BibleDatabaseStatus {
@@ -621,15 +624,19 @@ function toVerse(row: VerseRow): Verse {
   };
 }
 
-let canonicalBookOrderSql: string | null = null;
+const canonicalBookOrderSql = new Map<string, string>();
 
 // Pack row ids follow the upstream import, not the canon, so order by book explicitly.
-function getCanonicalBookOrderSql(): string {
-  canonicalBookOrderSql ??= `CASE book_id ${bibleBooks
-    .filter((book) => /^[A-Z0-9]+$/.test(book.id))
-    .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
-    .join(' ')} ELSE ${bibleBooks.length} END`;
-  return canonicalBookOrderSql;
+function getCanonicalBookOrderSql(column: 'book_id' | 'v.book_id' = 'book_id'): string {
+  let sql = canonicalBookOrderSql.get(column);
+  if (!sql) {
+    sql = `CASE ${column} ${bibleBooks
+      .filter((book) => /^[A-Z0-9]+$/.test(book.id))
+      .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
+      .join(' ')} ELSE ${bibleBooks.length} END`;
+    canonicalBookOrderSql.set(column, sql);
+  }
+  return sql;
 }
 
 // Devanagari and other Indic text writes zero-width joiners after a virama (परमेश्‍वर; 19,594
@@ -773,7 +780,7 @@ export async function searchVerses(
           AND verses_fts.rowid BETWEEN ? AND ?
           AND v.translation_id = ?
           ${verificationSql}
-        ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
+        ORDER BY bm25(verses_fts), ${getCanonicalBookOrderSql('v.book_id')}, v.chapter, v.verse
         LIMIT ?
       `,
       [ftsQuery, idRange.first, idRange.last, translationId, ...verificationTerms, limit]
