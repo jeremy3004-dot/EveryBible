@@ -653,7 +653,9 @@ npm run testflight:build-local
 
 # Android Production — always --local; never a bare cloud `eas build`.
 # In practice this runs in CI: .github/workflows/android-production-release.yml
-# builds on push to main via `eas build --platform android --profile production --local --non-interactive`.
+# builds on push to main via `eas build --platform android --profile production --local --non-interactive`,
+# except pushes that only touch the website/admin (apps/**), docs, store listing, supabase or *.md
+# (see `paths-ignore` there); run the workflow by hand from GitHub Actions to build anyway.
 eas build --platform android --profile production --local
 
 # Preflight iOS submission artifact
