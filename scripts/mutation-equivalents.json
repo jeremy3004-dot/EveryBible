@@ -829,10 +829,6 @@
     {
       "key": "number-literal|0|1|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;",
       "reason": "1 >= MIN_LISTENING_MS (60,000) is false, as with 0"
-    },
-    {
-      "key": "remove-statement|lastSavedProgress = undefined;|;|lastSavedProgress = undefined;",
-      "reason": "Every successful load replaces the ledgers with fresh objects, so a stale write cache can never match; only an unreadable blob is affected, and no ledger data differs"
     }
   ],
   "src/stores/readingPlans/planProgressModel.ts": [
