@@ -1,6 +1,28 @@
+import { getTranslatedBookName, getTranslatedPassageBookName } from '../../constants/books';
 import type { ReadingPlanEntry } from './types';
 
-export function formatPlanPassageReference(entry: ReadingPlanEntry, bookName: string): string {
+/**
+ * The entry's reference with the book named the way a citation reads it: one chapter takes
+ * the singular ("Psalm 71"), a range keeps the book name ("Psalms 1–3").
+ */
+export function formatPlanPassageLabel(
+  entry: Pick<
+    ReadingPlanEntry,
+    'book' | 'chapter_start' | 'chapter_end' | 'verse_start' | 'verse_end'
+  >,
+  t: (key: string) => string
+): string {
+  const singleChapter = (entry.chapter_end ?? entry.chapter_start) === entry.chapter_start;
+  const bookName = singleChapter
+    ? getTranslatedPassageBookName(entry.book, t)
+    : getTranslatedBookName(entry.book, t);
+  return formatPlanPassageReference(entry, bookName);
+}
+
+export function formatPlanPassageReference(
+  entry: Pick<ReadingPlanEntry, 'chapter_start' | 'chapter_end' | 'verse_start' | 'verse_end'>,
+  bookName: string
+): string {
   const endChapter = entry.chapter_end ?? entry.chapter_start;
   const start = `${entry.chapter_start}${entry.verse_start != null ? `:${entry.verse_start}` : ''}`;
   if (endChapter !== entry.chapter_start) {

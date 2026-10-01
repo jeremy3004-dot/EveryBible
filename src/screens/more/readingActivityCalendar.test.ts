@@ -213,3 +213,14 @@ test('the grid is laid out as week rows of seven, the last one padded with blank
   );
   assert.deepEqual(chunkCalendarWeeks([]), []);
 });
+
+test('a single Psalm is named in the singular, a run of Psalms in the plural', () => {
+  const resolve = (bookId: string) =>
+    bookId === 'PSA'
+      ? { name: 'Psalms', passageName: 'Psalm', order: 19 }
+      : { name: 'Genesis', order: 1 };
+
+  assert.equal(summarizeDayChapters(['PSA_4'], resolve), 'Psalm 4');
+  assert.equal(summarizeDayChapters(['PSA_4', 'PSA_5'], resolve), 'Psalms 4–5');
+  assert.equal(summarizeDayChapters(['GEN_1', 'PSA_23'], resolve), 'Genesis 1, Psalm 23');
+});

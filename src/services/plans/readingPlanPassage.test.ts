@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
-import { formatPlanPassageReference, getPlanChapterFocusVerse } from './readingPlanPassage';
+import {
+  formatPlanPassageLabel,
+  formatPlanPassageReference,
+  getPlanChapterFocusVerse,
+} from './readingPlanPassage';
 import { assertDefined } from '../../utils/assertDefined';
 
 test('Sermon on the Mount shows all seven exact verse assignments and focuses their first verse', () => {
@@ -42,4 +46,22 @@ test('whole-chapter assignments retain their references and default scroll posit
     'proverbs-31-days day 1'
   );
   assert.equal(formatPlanPassageReference(proverb, 'Proverbs'), 'Proverbs 1');
+});
+
+test('a plan entry of one Psalm reads in the singular, a range of Psalms in the plural', () => {
+  const t = (key: string) => key;
+  const entry = {
+    book: 'PSA',
+    chapter_start: 71,
+    chapter_end: null,
+    verse_start: null,
+    verse_end: null,
+  };
+
+  assert.equal(formatPlanPassageLabel(entry, t), 'Psalm 71');
+  assert.equal(
+    formatPlanPassageLabel({ ...entry, chapter_start: 1, chapter_end: 3 }, t),
+    'Psalms 1–3'
+  );
+  assert.equal(formatPlanPassageLabel({ ...entry, chapter_end: 71 }, t), 'Psalm 71');
 });

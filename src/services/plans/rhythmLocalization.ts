@@ -1,5 +1,9 @@
 import type { TFunction } from 'i18next';
-import { getBookById, getTranslatedBookName } from '../../constants/books';
+import {
+  getBookById,
+  getTranslatedBookName,
+  getTranslatedPassageBookName,
+} from '../../constants/books';
 import { RHYTHM_PRESET_LIBRARY, type RhythmPreset } from './rhythmPresets';
 import { RHYTHM_SLOT_META } from './rhythmSlots';
 
@@ -30,8 +34,8 @@ export function getLocalizedPassageTitle(
   // Existing user titles stay intact; only built-in reference labels follow the interface language.
   if (title && !defaultTitles.includes(title) && !(bookId === 'PSA' && title === `Psalm ${start}`))
     return title;
-  const reference = `${getTranslatedBookName(bookId, t)} ${start}`;
-  return start === end ? reference : `${reference}–${end}`;
+  if (start === end) return `${getTranslatedPassageBookName(bookId, t)} ${start}`;
+  return `${getTranslatedBookName(bookId, t)} ${start}–${end}`;
 }
 
 export function localizeRhythmPreset(preset: RhythmPreset, t: TFunction): RhythmPreset {

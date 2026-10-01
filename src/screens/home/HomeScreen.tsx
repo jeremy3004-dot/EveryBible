@@ -24,11 +24,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BookOpen, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
-import {
-  getBookById,
-  getTranslatedBookName,
-  getTranslatedPassageBookName,
-} from '../../constants/books';
+import { getBookById, getTranslatedPassageBookName } from '../../constants/books';
 import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { createThemeColors, useTheme } from '../../contexts/ThemeContext';
@@ -412,7 +408,7 @@ export function HomeScreen() {
       }),
     [clockMs, progressByPlanId, readingPlans]
   );
-  const currentBookName = getTranslatedBookName(currentBook, t);
+  const currentBookName = getTranslatedPassageBookName(currentBook, t);
   const currentBookInfo = getBookById(currentBook);
   const hasContinuePassage = hasReaderHistory && currentBookInfo != null;
   const currentPassageLabel = hasContinuePassage

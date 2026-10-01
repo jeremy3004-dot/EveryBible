@@ -164,6 +164,8 @@ export function buildWeekdayInitials(language: string): string[] {
 
 export interface ReadingActivityBook {
   name: string;
+  /** How one chapter of the book is cited ("Psalm 4"), when that differs from `name`. */
+  passageName?: string;
   order: number;
 }
 
@@ -219,7 +221,10 @@ export function summarizeDayChapters(
   resolveBook: (bookId: string) => ReadingActivityBook
 ): string {
   return groupDayChapters(chapterKeys, resolveBook)
-    .map(({ chapters, book }) => `${book.name} ${formatChapterRuns(chapters)}`)
+    .map(
+      ({ chapters, book }) =>
+        `${chapters.length === 1 ? (book.passageName ?? book.name) : book.name} ${formatChapterRuns(chapters)}`
+    )
     .join(', ');
 }
 

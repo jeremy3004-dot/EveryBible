@@ -274,7 +274,7 @@ test('sequence cards take a plan’s translated title and a passage’s localize
   assert.deepEqual(
     cards.map((card) => [card.segment.itemId, card.title, card.currentDaySummary]),
     [
-      ['a', 'Psalms 63', null],
+      ['a', 'Psalm 63', null],
       ['b', 'Psalms in a Month', null],
     ]
   );

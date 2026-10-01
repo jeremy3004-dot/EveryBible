@@ -20,7 +20,11 @@ export {
 } from './readingPlanService';
 
 export type { PlanServiceResult } from './readingPlanService';
-export { formatPlanPassageReference, getPlanChapterFocusVerse } from './readingPlanPassage';
+export {
+  formatPlanPassageLabel,
+  formatPlanPassageReference,
+  getPlanChapterFocusVerse,
+} from './readingPlanPassage';
 export type {
   GroupReadingPlan,
   ReadingPlan,

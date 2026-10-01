@@ -7,9 +7,8 @@ import { useDisplayFont } from '../../../hooks/useDisplayFont';
 import { useLargeText } from '../../../hooks/useLargeText';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import { AppButton, AppCard, IconButton, PressableScale } from '../../../components/ui';
-import { formatPlanPassageReference } from '../../../services/plans';
+import { formatPlanPassageLabel } from '../../../services/plans';
 import type { PlanSessionKey, ReadingPlanEntry } from '../../../services/plans/types';
-import { getTranslatedBookName } from '../../../constants';
 import {
   getPlanDayRowAccessibility,
   getPlanSessionAccessibilityValue,
@@ -28,7 +27,7 @@ function formatChapterRef(
   entry: ReadingPlanEntry,
   t: ReturnType<typeof useTranslation>['t']
 ): string {
-  return formatPlanPassageReference(entry, getTranslatedBookName(entry.book, t));
+  return formatPlanPassageLabel(entry, t);
 }
 
 interface DayRowProps {

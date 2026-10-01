@@ -1,5 +1,9 @@
 import type { TFunction } from 'i18next';
-import { getBookById, getTranslatedBookName } from '../../../constants/books';
+import {
+  getBookById,
+  getTranslatedBookName,
+  getTranslatedPassageBookName,
+} from '../../../constants/books';
 import {
   formatLocalDateKey,
   parseLocalDateKey,
@@ -99,6 +103,7 @@ export function buildSelectedDayCopy({
 }: SelectedDayCopyInput): SelectedDayCopy {
   const resolveBook = (bookId: string): ReadingActivityBook => ({
     name: getTranslatedBookName(bookId, t as (key: string) => string),
+    passageName: getTranslatedPassageBookName(bookId, t as (key: string) => string),
     order: getBookById(bookId)?.order ?? Number.MAX_SAFE_INTEGER,
   });
   const eyebrow = dateKey
