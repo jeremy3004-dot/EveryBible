@@ -11,6 +11,7 @@ import { lightHaptic } from '../../../utils/haptics';
 import { announceForAccessibility } from '../../../utils/a11y';
 import { resolveSwipeChapterNavigation } from '../bibleReaderModel';
 import { rootNavigationRef } from '../../../navigation/rootNavigation';
+import { reportReaderFailure } from './reportReaderFailure';
 
 export interface UseReaderSwipeNavigationInput {
   activePlanId: string | undefined;
@@ -53,19 +54,16 @@ export function useReaderSwipeNavigation({
       );
     }
 
-    if (direction === 'next') {
-      void handleNextReadChapter().finally(() => {
+    const navigate = direction === 'next' ? handleNextReadChapter : handlePreviousReadChapter;
+    // A failed navigation must still release the swipe lock and must not escape as an
+    // unhandled rejection from this fire-and-forget call.
+    void navigate()
+      .catch((error: unknown) => reportReaderFailure('reader.swipeNavigation', error))
+      .finally(() => {
         setTimeout(() => {
           swipeInFlightRef.current = false;
         }, 150);
       });
-    } else {
-      void handlePreviousReadChapter().finally(() => {
-        setTimeout(() => {
-          swipeInFlightRef.current = false;
-        }, 150);
-      });
-    }
   };
 
   // A plan session is opened from the Plans tab into the Bible tab's stack, so
