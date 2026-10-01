@@ -131,6 +131,7 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
 // ---------------------------------------------------------------------------
 
 let useAuthStore: typeof import('./authStore').useAuthStore;
+let authStoreModule: typeof import('./authStore');
 let useProgressStore: typeof import('./progressStore').useProgressStore;
 let readingPlansStore: typeof import('./readingPlansStore').readingPlansStore;
 let useFourFieldsStore: typeof import('./fourFieldsStore').useFourFieldsStore;
@@ -149,6 +150,7 @@ before(async () => {
   ({ useTranslatorReviewStore } = await import('./translatorReviewStore'));
   ({ defaultAuthPreferences } = await import('./persistedStateSanitizers'));
   privateDataScope = await import('./privateDataScope');
+  authStoreModule = await import('./authStore');
 });
 
 beforeEach(() => {
@@ -1224,6 +1226,64 @@ test('initialize does nothing once the store is already initialized', async () =
   await useAuthStore.getState().initialize();
 
   assert.deepEqual(supabaseFake.authCalls, []);
+});
+
+test('two overlapping initialize calls restore the session once and share the result', async () => {
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+  const generationBefore = useAuthStore.getState().authGeneration;
+
+  const first = useAuthStore.getState().initialize();
+  const second = useAuthStore.getState().initialize();
+  await Promise.all([first, second]);
+
+  const restores = supabaseFake.authCalls.filter((call) => call.method === 'getSession');
+  assert.equal(restores.length, 1);
+  assert.equal(useAuthStore.getState().authGeneration, generationBefore + 1);
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+});
+
+const UNREADABLE_SESSION = async () => ({
+  data: { session: null },
+  error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+});
+
+test('a launch that could not read the session restores it when the app next becomes active', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
+
+  // The keychain is readable again by the time the reader returns to the app.
+  Object.assign(supabaseFake.auth.handlers, defaultAuthHandlers);
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+  rn.AppState.emit('active');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(useAuthStore.getState().isAuthenticated, true);
+  // Restored: later foregrounds do not restore again.
+  const restores = () => supabaseFake.authCalls.filter((call) => call.method === 'getSession');
+  const restoresSoFar = restores().length;
+  rn.AppState.emit('active');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(restores().length, restoresSoFar);
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+test('foreground restore retries are bounded', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    rn.AppState.emit('active');
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  const restores = supabaseFake.authCalls.filter((call) => call.method === 'getSession');
+  // The launch itself plus three foreground retries, never more.
+  assert.equal(restores.length, 4);
+  authStoreModule.resetRestoreRetryForTests();
 });
 
 test('initialize survives a failure while reading the build configuration', async (t) => {

@@ -48,7 +48,6 @@ const OTHER_RECOVERY_URL =
   'com.everybible.app://reset-password?code=6f1c7a0e-2b7d-4a55-9d7e-3f0b8f2c1a91';
 
 for (const [path, name] of [
-  ['progressStore', 'useProgressStore'],
   ['bibleStore', 'useBibleStore'],
   ['readingPlansStore', 'readingPlansStore'],
   ['translatorReviewStore', 'useTranslatorReviewStore'],
@@ -248,7 +247,7 @@ test('signed-in recovery keeps the reset screen mounted while clearing the previ
   assert.equal(view.queryByText('ONBOARDING'), null);
   assert.equal(useAuthStore.getState().preferences.language, defaults.language);
   assert.equal(useAuthStore.getState().preferences.fontSize, defaults.fontSize);
-  assert.ok(resets.includes('progressStore'));
+  assert.ok(resets.includes('bibleStore'));
   assert.ok(owners.includes(null));
   await act(async () => {
     await authDeepLink.handleAuthDeepLinkUrl(OTHER_RECOVERY_URL);

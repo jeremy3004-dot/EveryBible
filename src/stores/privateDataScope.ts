@@ -2,7 +2,8 @@
  * Account-scoped persistence for private data that exists only on this device.
  *
  * Highlights, notes and bookmarks, the audio library, Gather lesson marks and
- * Four Fields progress and groups are never synced, so wiping them at an auth
+ * Four Fields progress and groups are never synced, and neither are the
+ * listening history and per-day tallies kept beside the reading ledger, so wiping them at an auth
  * boundary would delete the only copy. Each of these stores instead persists
  * into one bucket per owner: one per signed-in account, plus the guest bucket
  * used while signed out. Only the active owner's bucket is ever read.
@@ -30,6 +31,8 @@ import type { StateStorage } from 'zustand/middleware';
 import type { StoreApi } from 'zustand';
 import { mmkvInstance } from './mmkvStorage';
 import { createGuardedStringStorage } from './guardedMmkvStorage';
+import { mergeGuestProgress } from './privateDataAdoption';
+import { sanitizePersistedProgressState } from './sanitizers/progressState';
 
 /** MMKV key holding whose bucket is active: `{ owner: uid | null }`. */
 export const PRIVATE_DATA_OWNER_KEY = 'private-data-owner';
@@ -49,7 +52,18 @@ export const PRIVATE_DATA_STORE_NAMES = [
   'library-storage',
   'gather-storage',
   'four-fields-storage',
+  'progress-storage',
 ] as const;
+
+// The stores an owner marker without `scopedStores` was written by: the builds that
+// first scoped these four. Stores added later (progress-storage) are not in it, so on
+// such a marker their bare key still holds the signed-in owner's device-wide data.
+const ORIGINALLY_SCOPED_STORES: readonly string[] = [
+  'annotation-storage',
+  'library-storage',
+  'gather-storage',
+  'four-fields-storage',
+];
 
 export const privateDataStorageKey = (name: string, owner: string | null): string =>
   owner === null ? name : `${name}:user:${owner}`;
@@ -64,6 +78,10 @@ interface OwnerMarker {
   // the guest bucket is gone: the merge may already be (partly) in that account's
   // bucket, so the guest data belongs to it and must not be adopted by another.
   adoptingInto?: string;
+  // The stores whose bare key this marker has already treated as guest data. A
+  // store missing from it was added to scoping later, and its bare key is migrated
+  // once into the marker's owner. Absent on markers from before the field existed.
+  scopedStores?: string[];
 }
 
 type PersistedStore<S> = StoreApi<S> & {
@@ -103,8 +121,13 @@ const readOwnerMarker = (): OwnerMarker | null => {
     if (parsed.owner !== null && (typeof parsed.owner !== 'string' || parsed.owner === '')) {
       return null;
     }
+    const scoped = (parsed as { scopedStores?: unknown }).scopedStores;
     return {
       owner: parsed.owner,
+      scopedStores:
+        Array.isArray(scoped) && scoped.every((name) => typeof name === 'string')
+          ? (scoped as string[])
+          : [...ORIGINALLY_SCOPED_STORES],
       clearGuest: parsed.clearGuest === true,
       ...(typeof parsed.adoptingInto === 'string' && parsed.adoptingInto !== ''
         ? { adoptingInto: parsed.adoptingInto }
@@ -115,8 +138,12 @@ const readOwnerMarker = (): OwnerMarker | null => {
   }
 };
 
+// Every marker written by this code records that all current stores are scoped.
 const writeOwnerMarker = (marker: OwnerMarker): void => {
-  mmkvInstance.set(PRIVATE_DATA_OWNER_KEY, JSON.stringify(marker));
+  mmkvInstance.set(
+    PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ ...marker, scopedStores: [...PRIVATE_DATA_STORE_NAMES] })
+  );
 };
 
 // The owner marker for `owner`, carrying any unfinished adoption along.
@@ -148,11 +175,30 @@ const clearGuestBuckets = (): void => {
   }
 };
 
+// Stores whose device copy is merged into an account bucket that already holds
+// data, instead of being left behind in the guest bucket. Only progress qualifies:
+// its device copy was certainly this account's (it was reset at every sign-out), and
+// leaving it in the guest bucket would show the account's history to the next guest.
+const DEVICE_MERGERS: Record<string, (accountValue: string, deviceValue: string) => string> = {
+  'progress-storage': (accountValue, deviceValue) => {
+    const account = JSON.parse(accountValue) as { state?: unknown; version?: number };
+    const device = JSON.parse(deviceValue) as { state?: unknown };
+    const state = mergeGuestProgress(
+      sanitizePersistedProgressState(account.state),
+      sanitizePersistedProgressState(device.state)
+    );
+    return JSON.stringify({
+      state: { ...sanitizePersistedProgressState(account.state), ...state },
+      version: account.version ?? 0,
+    });
+  },
+};
+
 // Moves existing-install data into the owner's bucket. Every step is safe to
 // repeat: a kill after the copy leaves identical copies, which the rerun
 // resolves by deleting the device key; the marker is written last.
-const migrateDeviceDataTo = (owner: string): void => {
-  for (const name of PRIVATE_DATA_STORE_NAMES) {
+const migrateDeviceDataTo = (owner: string, names: readonly string[]): void => {
+  for (const name of names) {
     const deviceValue = mmkvInstance.getString(name);
     if (deviceValue === undefined) {
       continue;
@@ -165,6 +211,13 @@ const migrateDeviceDataTo = (owner: string): void => {
       mmkvInstance.delete(name);
     } else if (accountValue === deviceValue) {
       mmkvInstance.delete(name);
+    } else if (DEVICE_MERGERS[name]) {
+      try {
+        mmkvInstance.set(accountKey, DEVICE_MERGERS[name](accountValue, deviceValue));
+        mmkvInstance.delete(name);
+      } catch {
+        // Unreadable data: keep both copies, like any other conflict.
+      }
     }
     // Otherwise the account already has different data here. Neither copy is
     // discarded: the device copy simply stays in the guest bucket.
@@ -180,6 +233,22 @@ const resolveActiveOwner = (): string | null => {
   pendingAdoption = marker?.adoptingInto ?? null;
   if (marker) {
     activeOwner = marker.owner;
+    // Stores scoped after this marker was written: their bare key is the signed-in
+    // owner's device data (guest data when signed out, which stays put). Moved before
+    // the guest cleanup below, which would otherwise delete it.
+    const unscoped = PRIVATE_DATA_STORE_NAMES.filter(
+      (name) => !marker.scopedStores?.includes(name)
+    );
+    if (unscoped.length > 0) {
+      if (marker.owner !== null) {
+        migrateDeviceDataTo(marker.owner, unscoped);
+      }
+      writeOwnerMarker({
+        owner: marker.owner,
+        ...(marker.clearGuest ? { clearGuest: true } : {}),
+        ...(marker.adoptingInto ? { adoptingInto: marker.adoptingInto } : {}),
+      });
+    }
     if (marker.clearGuest && marker.owner !== null) {
       clearGuestBuckets();
       pendingAdoption = null;
@@ -190,7 +259,7 @@ const resolveActiveOwner = (): string | null => {
 
   const owner = readPersistedAuthOwner();
   if (owner !== null) {
-    migrateDeviceDataTo(owner);
+    migrateDeviceDataTo(owner, PRIVATE_DATA_STORE_NAMES);
   }
   activeOwner = owner;
   writeOwnerMarker({ owner });

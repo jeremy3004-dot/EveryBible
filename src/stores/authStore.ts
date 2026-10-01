@@ -72,6 +72,18 @@ let authSubscription: Subscription | null = null;
 // across its session restore: a change heard meanwhile is newer than the restore.
 let authChangesApplied = 0;
 
+// initialize() is started by the startup path and again by the privacy-retry
+// path; overlapping calls share one run so the session is restored and applied
+// once. Cleared when the run settles so a later call can start a fresh one.
+let initializeInFlight: Promise<void> | null = null;
+
+// A launch whose session could not be read (locked keychain) starts as a guest.
+// Retry the restore when the app next becomes active, a bounded number of times,
+// so the reader is not left looking signed out until the next launch.
+const RESTORE_RETRY_LIMIT = 3;
+let restoreRetriesUsed = 0;
+let restoreRetryListener: { remove: () => void } | null = null;
+
 // A confirmed recovery transition keeps its fresh navigation tree alive while
 // SIGNED_OUT clears the old account. No other account preference is retained.
 let preserveOnboardingDuringRecoverySignOut = false;
@@ -115,7 +127,7 @@ const clearGuestPlanTombstones = (): void => {
 // static import cycle (sync/services import authStore).
 const resetPerUserStores = (): void => {
   const stores: ResettableStore[] = [
-    require('./progressStore').useProgressStore,
+    // Reading/listening progress is account-scoped below rather than reset.
     require('./bibleStore').useBibleStore,
     // Exported as `readingPlansStore` (not the use-prefixed name).
     require('./readingPlansStore').readingPlansStore,
@@ -142,6 +154,7 @@ const loadPrivateDataStores = (): void => {
   require('./libraryStore');
   require('./gatherStore');
   require('./fourFieldsStore');
+  require('./progressStore');
 };
 
 const showPrivateDataOf = (userId: string | null): void =>
@@ -537,71 +550,12 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      initialize: async () => {
-        if (get().isInitialized) return;
-
-        set({ isLoading: true });
-
-        try {
-          const { isSupabaseConfigured } = getSupabaseModule();
-          const hasSupabaseConfig = isSupabaseConfigured();
-
-          // Subscribe before restoring. A password-reset link can be redeemed
-          // (exchangeCodeForSession emits SIGNED_IN) while the restore is still
-          // running, since the app renders once startup times out; a sign-in
-          // emitted before the subscription exists would never reach the store.
-          if (hasSupabaseConfig && !authSubscription) {
-            const { supabase } = getSupabaseModule();
-            const { data } = supabase.auth.onAuthStateChange((event, session) => {
-              if (session?.user) {
-                // Route auth callbacks through the same boundary-aware action
-                // as interactive sign-in so an account swap resets local
-                // per-user stores before any sync continuation can run.
-                authChangesApplied += 1;
-                get().setSession(session);
-              } else if (event === 'INITIAL_SESSION') {
-                // initialize() applies the restored session. A null here
-                // repeats a restore that could not be checked (offline
-                // refresh), which must not reset the account.
-              } else {
-                authChangesApplied += 1;
-                get().setSession(null);
-              }
-            });
-            authSubscription = data.subscription;
-          }
-
-          const changesBeforeRestore = authChangesApplied;
-          const restored = hasSupabaseConfig
-            ? await getAuthSessionModule().getCurrentSession()
-            : { session: null, user: null };
-          const restoredState = resolveInitializedAuthState(restored);
-
-          // Route restored sessions through the same synchronous boundary as
-          // interactive auth. This clears stale persisted A state before the
-          // initialized UI can render as B (or as signed-out guest).
-          // A restore that could not be checked (offline token refresh, locked
-          // keychain) is not a sign-out: auth-js still holds the session and
-          // will refresh it when the network returns. Treating it as one would
-          // erase the account's unsynced reading data on every offline launch.
-          // An offline launch restores the stored session without waiting for
-          // its token refresh; the subscription confirms or ends it.
-          // An auth change applied while the restore ran is newer than what the
-          // restore read, so the restore is dropped rather than undoing it.
-          const restoreIsCurrent = authChangesApplied === changesBeforeRestore;
-          if (
-            restoreIsCurrent &&
-            (restoredState.session || !('restoreFailed' in restored && restored.restoreFailed))
-          ) {
-            get().setSession(restoredState.session, {
-              awaitingTokenRefresh: restored.awaitingTokenRefresh === true,
-            });
-          }
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-        } finally {
-          set({ isLoading: false, isInitialized: true });
-        }
+      initialize: () => {
+        if (get().isInitialized) return Promise.resolve();
+        initializeInFlight ??= runInitialize().finally(() => {
+          initializeInFlight = null;
+        });
+        return initializeInFlight;
       },
     }),
     {
@@ -656,3 +610,116 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+// Restores the stored session and applies it through setSession. Returns true
+// when the restore could not be checked and yielded no session (keychain
+// unreadable), so the caller can retry later.
+async function restoreAndApplySession(): Promise<boolean> {
+  const changesBeforeRestore = authChangesApplied;
+  const restored = getSupabaseModule().isSupabaseConfigured()
+    ? await getAuthSessionModule().getCurrentSession()
+    : { session: null, user: null };
+  const restoredState = resolveInitializedAuthState(restored);
+  const restoreFailed = 'restoreFailed' in restored && restored.restoreFailed === true;
+
+  // Route restored sessions through the same synchronous boundary as
+  // interactive auth. This clears stale persisted A state before the
+  // initialized UI can render as B (or as signed-out guest).
+  // A restore that could not be checked (offline token refresh, locked
+  // keychain) is not a sign-out: auth-js still holds the session and
+  // will refresh it when the network returns. Treating it as one would
+  // erase the account's unsynced reading data on every offline launch.
+  // An offline launch restores the stored session without waiting for
+  // its token refresh; the subscription confirms or ends it.
+  // An auth change applied while the restore ran is newer than what the
+  // restore read, so the restore is dropped rather than undoing it.
+  const restoreIsCurrent = authChangesApplied === changesBeforeRestore;
+  if (restoreIsCurrent && (restoredState.session || !restoreFailed)) {
+    useAuthStore.getState().setSession(restoredState.session, {
+      awaitingTokenRefresh: restored.awaitingTokenRefresh === true,
+    });
+  }
+  return restoreIsCurrent && restoreFailed && !restoredState.session;
+}
+
+function stopRestoreRetry(): void {
+  restoreRetryListener?.remove();
+  restoreRetryListener = null;
+}
+
+/** Test seam: forgets the retry budget and listener left by an earlier launch. */
+export function resetRestoreRetryForTests(): void {
+  stopRestoreRetry();
+  restoreRetriesUsed = 0;
+}
+
+function scheduleRestoreRetry(): void {
+  if (restoreRetryListener || restoreRetriesUsed >= RESTORE_RETRY_LIMIT) return;
+  try {
+    const { AppState } = require('react-native') as typeof import('react-native');
+    let retrying = false;
+    restoreRetryListener = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || retrying) return;
+      if (useAuthStore.getState().user) {
+        stopRestoreRetry();
+        return;
+      }
+      retrying = true;
+      restoreRetriesUsed += 1;
+      restoreAndApplySession()
+        .then((failedAgain) => {
+          if (!failedAgain || restoreRetriesUsed >= RESTORE_RETRY_LIMIT) stopRestoreRetry();
+        })
+        .catch(() => {
+          if (restoreRetriesUsed >= RESTORE_RETRY_LIMIT) stopRestoreRetry();
+        })
+        .finally(() => {
+          retrying = false;
+        });
+    });
+  } catch {
+    // No AppState (non-native runtime): the next launch is the only retry.
+  }
+}
+
+async function runInitialize(): Promise<void> {
+  const { setState: set } = useAuthStore;
+  set({ isLoading: true });
+
+  try {
+    const hasSupabaseConfig = getSupabaseModule().isSupabaseConfigured();
+
+    // Subscribe before restoring. A password-reset link can be redeemed
+    // (exchangeCodeForSession emits SIGNED_IN) while the restore is still
+    // running, since the app renders once startup times out; a sign-in
+    // emitted before the subscription exists would never reach the store.
+    if (hasSupabaseConfig && !authSubscription) {
+      const { supabase } = getSupabaseModule();
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session?.user) {
+          // Route auth callbacks through the same boundary-aware action
+          // as interactive sign-in so an account swap resets local
+          // per-user stores before any sync continuation can run.
+          authChangesApplied += 1;
+          useAuthStore.getState().setSession(session);
+        } else if (event === 'INITIAL_SESSION') {
+          // initialize() applies the restored session. A null here
+          // repeats a restore that could not be checked (offline
+          // refresh), which must not reset the account.
+        } else {
+          authChangesApplied += 1;
+          useAuthStore.getState().setSession(null);
+        }
+      });
+      authSubscription = data.subscription;
+    }
+
+    if (await restoreAndApplySession()) {
+      scheduleRestoreRetry();
+    }
+  } catch (error) {
+    console.error('Auth initialization error:', error);
+  } finally {
+    set({ isLoading: false, isInitialized: true });
+  }
+}

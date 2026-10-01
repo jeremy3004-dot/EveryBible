@@ -106,7 +106,7 @@ test('only the six ledgers hydration restores are persisted, not the computed ge
 test('a mutation that leaves the persisted ledgers unchanged does not rewrite storage', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: localNoon(2026, 9, 8) });
   state().markChapterRead('GEN', 1);
-  const writes = t.mock.method(mmkv.zustandStorage, 'setItem');
+  const writes = t.mock.method(mmkv.mmkvInstance, 'set');
 
   state().updateStreak();
   useProgressStore.setState({});
@@ -1047,10 +1047,10 @@ for (const activity of ['read', 'listened', 'listening time'] as const) {
     recordActivity(1);
 
     const writes: string[] = [];
-    const save = mmkv.zustandStorage.setItem.bind(mmkv.zustandStorage);
-    t.mock.method(mmkv.zustandStorage, 'setItem', (name: string, value: string) => {
-      writes.push(value);
-      return save(name, value);
+    const save = mmkv.mmkvInstance.set.bind(mmkv.mmkvInstance);
+    t.mock.method(mmkv.mmkvInstance, 'set', (key: string, value: string) => {
+      if (key === 'progress-storage') writes.push(value);
+      return save(key, value);
     });
     t.mock.timers.setTime(localNoon(2026, 9, 9));
     recordActivity(2);

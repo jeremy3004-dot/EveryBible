@@ -1078,6 +1078,7 @@ test('resetPassword refuses to send mail when the backend is not configured', as
 
   assert.deepEqual(await authService.resetPassword('reader@example.com'), {
     success: false,
+    code: 'configuration',
     error: 'EveryBible backend is not configured for this build yet.',
   });
   assert.deepEqual(supabaseFake.authCalls, []);
@@ -1101,8 +1102,39 @@ test('resetPassword surfaces the Supabase error message', async () => {
 
   assert.deepEqual(await authService.resetPassword('reader@example.com'), {
     success: false,
+    code: 'unknown',
     error: 'rate limit exceeded',
   });
+});
+
+const SERVICE_UNAVAILABLE_RESET = {
+  success: false,
+  code: 'service_unavailable',
+  error: 'EveryBible could not reach the backend right now. Please try again in a moment.',
+};
+
+test('resetPassword reports a rate limit as service_unavailable so the screen can say so', async () => {
+  authHandlers.resetPasswordForEmail = async () => ({
+    data: {},
+    error: { name: 'AuthApiError', message: 'email rate limit exceeded', status: 429 },
+  });
+
+  assert.deepEqual(
+    await authService.resetPassword('reader@example.com'),
+    SERVICE_UNAVAILABLE_RESET
+  );
+});
+
+test('resetPassword reports an unreachable backend as service_unavailable', async () => {
+  authHandlers.resetPasswordForEmail = async () => ({
+    data: {},
+    error: { name: 'AuthRetryableFetchError', message: 'Network request failed', status: 0 },
+  });
+
+  assert.deepEqual(
+    await authService.resetPassword('reader@example.com'),
+    SERVICE_UNAVAILABLE_RESET
+  );
 });
 
 test('resetPassword surfaces a thrown transport error', async () => {
@@ -1112,17 +1144,19 @@ test('resetPassword surfaces a thrown transport error', async () => {
 
   assert.deepEqual(await authService.resetPassword('reader@example.com'), {
     success: false,
+    code: 'unknown',
     error: 'offline',
   });
 });
 
 test('resetPassword reports a generic message when something non-Error is thrown', async () => {
   authHandlers.resetPasswordForEmail = async () => {
-    throw { status: 500 };
+    throw { reason: 'opaque' };
   };
 
   assert.deepEqual(await authService.resetPassword('reader@example.com'), {
     success: false,
+    code: 'unknown',
     error: 'Unknown error',
   });
 });

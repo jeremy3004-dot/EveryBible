@@ -434,11 +434,9 @@ const endSessionOnThisDevice = async (isCurrent?: () => boolean): Promise<void> 
 };
 
 // Password reset
-export const resetPassword = async (
-  email: string
-): Promise<{ success: boolean; error?: string }> => {
+export const resetPassword = async (email: string): Promise<AuthResult> => {
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'EveryBible backend is not configured for this build yet.' };
+    return configurationAuthError();
   }
 
   try {
@@ -449,12 +447,12 @@ export const resetPassword = async (
     });
 
     if (error) {
-      return { success: false, error: error.message };
+      return mapSupabaseAuthError(error);
     }
 
     return { success: true };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Unknown error' };
+    return mapSupabaseAuthError(e);
   }
 };
 
