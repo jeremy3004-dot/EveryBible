@@ -44,6 +44,8 @@ interface DayRowProps {
   isLast?: boolean;
   /** Today card only: "Today's target: 1/3 chapters" or the chapter count. */
   subtitle?: string | null;
+  /** Today card only: Read would pick up past the day's first chapter. */
+  isResuming?: boolean;
   audioAvailable?: boolean;
   sessionActions?: PlanDaySessionAction[];
   onPress: (dayNumber: number, sessionKey?: PlanSessionKey) => void;
@@ -64,6 +66,7 @@ export const DayRow = memo(function DayRow({
   isFirst = false,
   isLast = false,
   subtitle,
+  isResuming = false,
   audioAvailable = false,
   sessionActions = NO_SESSION_ACTIONS,
   onPress,
@@ -179,7 +182,7 @@ export const DayRow = memo(function DayRow({
 
           <View style={styles.todayActions}>
             <AppButton
-              label={t('bible.read')}
+              label={isResuming ? t('common.continue') : t('bible.read')}
               size="md"
               fullWidth={false}
               onPress={() => onRead(dayNumber, launchSessionKey)}

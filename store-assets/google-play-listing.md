@@ -1,9 +1,11 @@
 # Every Bible - Google Play Store Listing
 
 ## App Name (50 characters max)
+
 Every Bible - Audio & Discipleship
 
 ## Short Description (80 characters max)
+
 Read and listen to the complete Bible. Track progress. Grow in faith daily.
 
 ## Full Description (4000 characters max)
@@ -15,10 +17,11 @@ Read the entire Bible in the clear, modern Berean Standard Bible (BSB) translati
 
 AUDIO BIBLE
 Listen to Scripture with our integrated audio player. Perfect for commutes, workouts, or when you simply want to rest your eyes. Features include:
-* Adjustable playback speed (0.75x to 2x)
-* Sleep timer for bedtime listening
-* Auto-advance to the next chapter
-* Background playback support
+
+- Adjustable playback speed (0.75x to 2x)
+- Sleep timer for bedtime listening
+- Auto-advance to the next chapter
+- Background playback support
 
 VERSE OF THE DAY
 Start each day with an encouraging verse displayed on your home screen. Let Scripture inspire your morning before you dive into the busyness of life.
@@ -28,19 +31,21 @@ Stay motivated with reading statistics that show your daily, weekly, monthly, an
 
 FOUR FIELDS DISCIPLESHIP
 Go beyond just reading with our unique Four Fields curriculum - a proven approach to spiritual growth and multiplication:
-* Entry: Finding people open to the Gospel
-* Gospel: Sharing your faith simply
-* Discipleship: The 7 Commands of Christ
-* Church: Simple church gatherings
-* Multiplication: Training others to lead
+
+- Entry: Finding people open to the Gospel
+- Gospel: Sharing your faith simply
+- Discipleship: The 7 Commands of Christ
+- Church: Simple church gatherings
+- Multiplication: Training others to lead
 
 Perfect for personal growth or small group study with built-in group features.
 
 CUSTOMIZABLE EXPERIENCE
-* Dark and light themes
-* Adjustable font sizes
-* Multiple languages (English, Spanish, Hindi, Nepali)
-* Daily reading reminders
+
+- Dark and light themes
+- Adjustable font sizes
+- Multiple languages (English, Spanish, Hindi, Nepali)
+- Daily reading reminders
 
 YOUR DATA, YOUR CONTROL
 Sign in to sync your progress across devices, or use the app completely offline. Your reading history and preferences are securely stored and never shared.
@@ -50,64 +55,62 @@ Download Every Bible today and begin your journey through Scripture.
 ---
 
 ## Category
+
 Books & Reference
 
 ## Content Rating
+
 Everyone
 
 ## Tags
+
 bible, scripture, audio bible, devotional, christian, discipleship, reading, church, spiritual growth, verse of the day
 
 ## Contact Email
+
 hello@everybible.app
 
 ## Privacy Policy URL
+
 https://everybible.app/privacy
 
 ## Feature Graphic Text (for 1024x500 image)
+
 "Every Bible - Read. Listen. Grow."
 
 ## Screenshot Pack
 
-Use the upload-ready set in:
-- `store-metadata/screenshots/google-play/`
-
-Recommended order:
-1. `01-read-offline.png`
-2. `02-track-habit.png`
-3. `03-highlight-verses.png`
-4. `04-share-verse-cards.png`
-5. `05-save-notes.png`
-6. `06-grow-foundations.png`
-7. `07-find-wisdom.png`
-
-Feature graphic:
-- `feature-graphic.png`
-- `feature-graphic.svg`
+Folders and order are listed only in `store-metadata/screenshots/AUTHORITATIVE.md`
+(`google-play-2026-09-29/`, with its `feature-graphic.png`). The old red April set was
+retired; never upload it.
 
 Authoritative cross-store upload guide:
+
 - `store-metadata/screenshots/AUTHORITATIVE.md`
 - `store-metadata/screenshots/UPLOAD-CHECKLIST.md`
 
 ## Promo Video
+
 (Not required for initial release)
 
 ## Release Notes
 
 **Version 1.0.0**
 Welcome to Every Bible! This initial release includes:
-* Complete Berean Standard Bible text
-* Audio Bible player with playback controls
-* Verse of the Day feature
-* Reading progress tracking
-* Four Fields discipleship curriculum
-* Group learning features
-* Dark and light themes
-* Multi-language support
+
+- Complete Berean Standard Bible text
+- Audio Bible player with playback controls
+- Verse of the Day feature
+- Reading progress tracking
+- Four Fields discipleship curriculum
+- Group learning features
+- Dark and light themes
+- Multi-language support
 
 ## Data Safety Section
 
 **Data Collection:**
+
 - App activity / App interactions - Anonymous analytics for:
   - minutes listened
   - sessions or time spent
@@ -124,12 +127,15 @@ Welcome to Every Bible! This initial release includes:
   - preferences
 
 **Data Sharing:**
+
 - No data is shared with third parties
 
 **Security:**
+
 - Data encrypted in transit (HTTPS)
 - Data can be deleted upon request
 
 **Data Deletion:**
+
 - Users can delete their account via Settings > Profile > Delete Account
 - Deletion instructions: https://jeremy3004-dot.github.io/EveryBible/delete-account.html

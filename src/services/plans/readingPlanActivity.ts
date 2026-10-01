@@ -208,6 +208,18 @@ export function resolvePlanDayPlaybackStartEntry(
   );
 }
 
+/** Whether a day launch would pick up past the day's first chapter, so the button says Continue. */
+export function isPlanDayResumingMidway(
+  entries: ReadingPlanEntry[],
+  resumeTarget?: AudioPlaybackSequenceEntry | null
+): boolean {
+  const first = buildPlanDayPlaybackSequenceEntries(entries)[0];
+  const start = resolvePlanDayPlaybackStartEntry(entries, resumeTarget);
+  return Boolean(
+    first && start && (start.bookId !== first.bookId || start.chapter !== first.chapter)
+  );
+}
+
 const getUniqueDayEntries = (entries: ReadingPlanEntry[], dayNumber: number): ReadingPlanEntry[] =>
   // Catalog order is intentional; lexical ids put part-10 before part-2.
   entries.filter((entry) => entry.day_number === dayNumber);

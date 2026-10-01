@@ -88,7 +88,7 @@ async function upload(token, editId, imageType, filePath, label) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'image/png',
+      'Content-Type': filePath.endsWith('.jpg') ? 'image/jpeg' : 'image/png',
     },
     body: fs.readFileSync(filePath),
   });
@@ -124,16 +124,16 @@ async function main() {
   const iconPath = path.join(generatedRoot, 'icon-512.png');
   await sharp(path.resolve('assets/icon.png')).resize(512, 512).png().toFile(iconPath);
 
-  const screenshotsDir = path.resolve('store-metadata/screenshots/google-play');
+  const screenshotsDir = path.resolve('store-metadata/screenshots/google-play-2026-09-29');
   const featureGraphicPath = path.join(screenshotsDir, 'feature-graphic.png');
   const screenshotFiles = [
-    '01-read-offline.png',
-    '02-track-habit.png',
-    '03-highlight-verses.png',
-    '04-share-verse-cards.png',
-    '05-save-notes.png',
-    '06-grow-foundations.png',
-    '07-find-wisdom.png',
+    '01-begin.jpg',
+    '02-light-dark.jpg',
+    '03-plans.jpg',
+    '04-highlight.jpg',
+    '05-gather.jpg',
+    '06-language.jpg',
+    '07-listen.jpg',
   ].map((file) => path.join(screenshotsDir, file));
 
   for (const file of [iconPath, featureGraphicPath, ...screenshotFiles]) {
