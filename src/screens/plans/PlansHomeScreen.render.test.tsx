@@ -433,7 +433,7 @@ test('the first open loads the catalog once, a later focus reloads once more, an
 
   await refocus();
   assert.equal(service.listCalls, 2, 'a later focus');
-  assert.equal(service.hydrateCalls, 2, 'a later focus');
+  assert.equal(service.hydrateCalls, 1, 'a later focus inside the freshness window');
 
   const [page] = view.queryAllByType('ScrollView');
   await act(async () => {
@@ -442,7 +442,7 @@ test('the first open loads the catalog once, a later focus reloads once more, an
     )();
   });
   assert.equal(service.listCalls, 3, 'pull to refresh');
-  assert.equal(service.hydrateCalls, 3, 'pull to refresh');
+  assert.equal(service.hydrateCalls, 2, 'pull to refresh always hydrates');
 });
 
 test('the skeleton shows only while the catalog itself is still loading', async () => {
@@ -466,7 +466,9 @@ test('returning to the screen reloads quietly, so a plan started elsewhere appea
   assert.ok(view.getByText(t('readingPlans.noActivePlans')));
   const { listCalls, hydrateCalls } = service;
 
-  // Meanwhile the plan was started on another screen and synced down.
+  // Meanwhile the plan was started on another device and synced down. The previous server
+  // read is older than the freshness window, so this focus reads again.
+  mock.timers.tick(10 * 60 * 1000);
   service.catalogGate = gate();
   service.onHydrate = () => {
     void seed(progressRow(PSALMS, { current_day: 3 }));
