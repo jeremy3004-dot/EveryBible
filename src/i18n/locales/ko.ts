@@ -1284,6 +1284,9 @@ export const ko = {
     startPlan: '계획 시작',
     enrolled: '등록됨',
     dayOf: '{{total}}일 중 {{current}}일',
+    inSeason: '이 절기',
+    seasonStarts: '{{date}} 시작',
+    seasonStartsToday: '오늘 시작',
     markComplete: '완료로 표시',
     completed: '완료됨',
     progress: '진행 상황',
@@ -1462,6 +1465,61 @@ export const ko = {
         title: '성탄절 열두 날',
         description:
           '성탄절부터 1월 5일까지, 예수님의 탄생과 육신이 되신 말씀, 별을 따라온 동방박사들을 읽습니다.',
+      },
+      newYear: {
+        title: '새해',
+        description:
+          '1월 첫째 주, 창조의 첫날부터 새 하늘과 새 땅까지 시작을 읽고, 길을 나서는 시편과 함께합니다.',
+      },
+      epiphany: {
+        title: '주현절: 만국의 빛',
+        description:
+          '1월 6일부터, 세상의 빛으로 나타나신 예수님을 세례와 첫 표적에서부터 보좌 앞의 모든 나라와 족속과 언어까지 읽습니다.',
+      },
+      lent: {
+        title: '사순절',
+        description:
+          '재의 수요일부터 종려주일 전날까지, 광야와 주님의 긍휼, 예루살렘으로 가는 길, 나사로의 살아남을 통해 주님께 돌아갑니다.',
+      },
+      holyWeek: {
+        title: '고난주간',
+        description:
+          '종려주일부터 부활절까지 하루씩, 예루살렘 입성, 마지막 만찬, 십자가, 봉인된 무덤, 그리고 빈 무덤을 읽습니다.',
+      },
+      orthodoxHolyWeek: {
+        title: '고난주간 (정교회 달력)',
+        description:
+          '정교회 날짜에 따른 고난주간, 종려주일부터 파스카까지, 예루살렘 입성, 신비한 만찬, 십자가, 무덤, 부활을 읽습니다.',
+      },
+      easter: {
+        title: '부활절',
+        description:
+          '부활절 다음 월요일부터 승천일 전날까지, 부활하신 주님이 나타나시고 서신서와 선지서가 그분의 부활의 의미를 보여 줍니다.',
+      },
+      pentecost: {
+        title: '승천절부터 성령강림절까지',
+        description:
+          '승천일부터 성령강림절까지 열하루, 첫 제자들과 함께 모든 언어에 복음을 전하게 하실 성령을 기다리며 기도합니다.',
+      },
+      translationWeek: {
+        title: '모든 언어로 듣는 말씀',
+        description:
+          '9월 30일 국제 번역의 날로 끝나는 한 주, 말씀을 읽고 풀어 모든 족속과 언어에 전합니다. 성경 번역가들을 위해 기도하세요.',
+      },
+      allSaints: {
+        title: '모든 성인의 날',
+        description:
+          '11월 1일부터, 우리보다 먼저 달려간 허다한 증인들과 성경에 이름이 나오는 신실하고 평범한 성도들을 읽습니다.',
+      },
+      persecutedChurch: {
+        title: '박해받는 교회',
+        description:
+          '11월 둘째 주일부터 한 주, 많은 교회가 예수님 때문에 고난받는 성도들을 위해 기도합니다. 사도행전의 담대한 증인들, 다니엘의 신실한 포로들, 힘든 길을 위한 약속을 읽습니다.',
+      },
+      hardChristmas: {
+        title: '성탄절이 힘들 때',
+        description:
+          '성탄절 전 한 주, 상실이나 외로움으로 절기가 무겁게 느껴질 때를 위해, 탄식과 위로, 어둠 속에 비치는 빛을 읽습니다.',
       },
     },
     lifeSituations: {

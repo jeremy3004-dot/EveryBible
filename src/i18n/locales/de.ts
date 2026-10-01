@@ -1330,6 +1330,9 @@ export const de = {
     startPlan: 'Plan starten',
     enrolled: 'Gestartet',
     dayOf: 'Tag {{current}} von {{total}}',
+    inSeason: 'Jetzt dran',
+    seasonStarts: 'Beginnt am {{date}}',
+    seasonStartsToday: 'Beginnt heute',
     markComplete: 'Als abgeschlossen markieren',
     completed: 'Abgeschlossen',
     progress: 'Fortschritt',
@@ -1523,6 +1526,61 @@ export const de = {
         title: 'Die zwölf Weihnachtstage',
         description:
           'Vom ersten Weihnachtstag bis zum 5. Januar: die Geburt Jesu, das Wort, das Fleisch wurde, und die Weisen, die dem Stern folgten.',
+      },
+      newYear: {
+        title: 'Ein neues Jahr',
+        description:
+          'Die erste Januarwoche: Anfänge, vom ersten Schöpfungstag bis zum neuen Himmel und der neuen Erde, mit Psalmen für den Aufbruch.',
+      },
+      epiphany: {
+        title: 'Epiphanias: Licht für die Völker',
+        description:
+          'Ab dem 6. Januar: Jesus als das Licht der Welt offenbart, von seiner Taufe und seinem ersten Zeichen bis zu allen Nationen, Stämmen und Sprachen vor dem Thron.',
+      },
+      lent: {
+        title: 'Passionszeit',
+        description:
+          'Vom Aschermittwoch bis zum Vorabend des Palmsonntags: Kehre um zum Herrn, durch die Wüste, seine Barmherzigkeit und den Weg nach Jerusalem bis zur Auferweckung des Lazarus.',
+      },
+      holyWeek: {
+        title: 'Karwoche',
+        description:
+          'Vom Palmsonntag bis zum Ostersonntag, Tag für Tag: der Einzug in Jerusalem, das letzte Abendmahl, das Kreuz, das versiegelte Grab und das leere.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Karwoche (orthodoxer Kalender)',
+        description:
+          'Die Karwoche nach orthodoxem Kalender, vom Palmsonntag bis Pascha: der Einzug in Jerusalem, das Mystische Abendmahl, das Kreuz, das Grab und die Auferstehung.',
+      },
+      easter: {
+        title: 'Ostern',
+        description:
+          'Vom Ostermontag bis zum Vorabend von Christi Himmelfahrt: der auferstandene Herr erscheint, und die Briefe und die Propheten zeigen, was seine Auferstehung bedeutet.',
+      },
+      pentecost: {
+        title: 'Von Himmelfahrt bis Pfingsten',
+        description:
+          'Elf Tage von Christi Himmelfahrt bis Pfingsten: Warte und bete mit den ersten Jüngern um den Heiligen Geist, der das Evangelium in alle Sprachen trägt.',
+      },
+      translationWeek: {
+        title: 'Das Wort in jeder Sprache',
+        description:
+          'Eine Woche bis zum Internationalen Übersetzertag am 30. September: das Wort gelesen, erklärt und zu jedem Stamm und jeder Sprache getragen. Bete für Bibelübersetzer.',
+      },
+      allSaints: {
+        title: 'Allerheiligen',
+        description:
+          'Ab dem 1. November: die große Wolke von Zeugen, die vor uns den Lauf vollendet haben, und die treuen, gewöhnlichen Heiligen, die die Bibel nennt.',
+      },
+      persecutedChurch: {
+        title: 'Die verfolgte Kirche',
+        description:
+          'Eine Woche ab dem zweiten Novembersonntag, wenn viele Kirchen für Gläubige beten, die um Jesu willen leiden: mutige Zeugen in der Apostelgeschichte, treue Verbannte bei Daniel und Verheißungen für den schweren Weg.',
+      },
+      hardChristmas: {
+        title: 'Wenn Weihnachten schwerfällt',
+        description:
+          'Die Woche vor Weihnachten, wenn die Zeit schwer von Verlust oder Einsamkeit ist: Klagen, Trost und das Licht, das in der Finsternis scheint.',
       },
     },
     lifeSituations: {

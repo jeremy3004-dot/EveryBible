@@ -64,7 +64,14 @@ test('reviewed Mwini identity preserves disputed geography and the separate Bara
 test('the full source snapshot retains separate identities, scoped coverage and usable geography', () => {
   assert.equal(byId.size, index.records.length, 'duplicate record IDs');
   assert.deepEqual(countRecords(index.records), index.counts);
-  assert.equal(index.records.filter((record) => record.id.startsWith('rolv:')).length, 12407);
+  // Every ROLV code survives, as its own record or, where GRN issued two codes
+  // for one variety, as an alternate ID of the record it was merged into.
+  const rolvIdentities = new Set(
+    index.records.flatMap((record) =>
+      [record.id, ...(record.alternateIds ?? [])].filter((id) => id.startsWith('rolv:'))
+    )
+  );
+  assert.equal(rolvIdentities.size, 12407);
   assert.equal(
     index.records.filter((record) => record.kind === 'dialect' && record.glottocode).length,
     13706

@@ -5,6 +5,7 @@ export type ReadingPlanCategory =
   | 'devotional'
   | 'life-situation'
   | 'church-year'
+  | 'seasonal'
   | 'custom';
 
 export type ReadingPlanScheduleMode =
@@ -12,7 +13,18 @@ export type ReadingPlanScheduleMode =
   | 'calendar-day-of-month'
   | 'calendar-day-of-week'
   | 'calendar-advent'
-  | 'calendar-christmas';
+  | 'calendar-christmas'
+  | 'calendar-new-year'
+  | 'calendar-epiphany'
+  | 'calendar-lent'
+  | 'calendar-holy-week'
+  | 'calendar-orthodox-holy-week'
+  | 'calendar-easter'
+  | 'calendar-pentecost'
+  | 'calendar-translation-week'
+  | 'calendar-all-saints'
+  | 'calendar-persecuted-church'
+  | 'calendar-hard-christmas';
 export type ReadingPlanFormat = 'single-session' | 'multi-session';
 export type PlanSessionKey = 'morning' | 'midday' | 'evening';
 type ReadingPlanWeekStartsOn = 'sunday' | 'monday';
@@ -61,7 +73,18 @@ export type ReadingPlanCoverKey =
   | 'lifeTemptation'
   | 'lifeFamily'
   | 'advent'
-  | 'christmas';
+  | 'christmas'
+  | 'newYear'
+  | 'epiphany'
+  | 'lent'
+  | 'holyWeek'
+  | 'orthodoxHolyWeek'
+  | 'easter'
+  | 'pentecost'
+  | 'translationWeek'
+  | 'allSaints'
+  | 'persecutedChurch'
+  | 'hardChristmas';
 
 export interface ReadingPlan {
   id: string;

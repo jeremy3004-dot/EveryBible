@@ -38,6 +38,60 @@ class PublicBoundary(unittest.TestCase):
         self.assertEqual(record["locations"][0]["latitude"], 28)
         self.assertEqual(source, before)
 
+    def test_projection_draws_one_dot_where_sources_place_a_record_at_the_same_spot(self):
+        # Glottolog and Every Language often supply the same reference point a
+        # few metres apart; each list entry is a map dot, so the record showed
+        # up twice in a cluster. Distinct places (other countries) stay.
+        source = self.fixture()
+        source["records"][0]["locations"] = [
+            {"latitude": -12.8322, "longitude": -60.9716, "sourceId": "glottolog", "label": "Glottolog"},
+            {"latitude": -12.832157, "longitude": -60.97156, "sourceId": "everylanguage", "label": "EL"},
+            {"latitude": -12.95, "longitude": -61.05, "sourceId": "grn", "label": "Within 25 km"},
+            {"latitude": -10.0, "longitude": -60.0, "sourceId": "everylanguage", "label": "Elsewhere"},
+        ]
+        before = copy.deepcopy(source)
+        record = public_projection(source)["records"][0]
+        self.assertEqual([point["label"] for point in record["locations"]], ["Glottolog", "Elsewhere"])
+        self.assertEqual(source, before)
+
+    def test_projection_hides_a_dialect_dot_that_repeats_a_nearby_same_named_record(self):
+        # Sources disagree on classification: one lists "Adang" as a language,
+        # another as its dialect at the same spot, so the globe showed the name
+        # twice. The dialect stays in the data and search, without its own dot.
+        def rec(record_id, kind, name, latitude, parent=None):
+            point = {"latitude": latitude, "longitude": 124.0, "sourceId": "glottolog", "label": record_id}
+            return {"id": record_id, "kind": kind, "name": name, "parentId": parent,
+                    "scriptureStatus": "unknown", "scriptureScope": "unknown",
+                    "location": point, "locations": [point]}
+        source = self.fixture()
+        source["records"] = [
+            rec("dialect:adang", "dialect", "Adang", -8.19, "iso:adn"),
+            rec("iso:adn", "language", "Adang", -8.20),
+            rec("dialect:penukal", "dialect", "Abab: Penukal", -3.0, "iso:abab"),
+            rec("glottolog:penukal", "dialect", "Penukal", -3.05, "glottolog:musi"),
+            rec("dialect:far", "dialect", "Adang", -1.0, "iso:other"),
+            rec("rolv:aro-east", "dialect", "Aro: East", 5.0, "iso:aro"),
+            rec("rolv:kombio-east", "dialect", "Kombio: East", 5.01, "iso:kombio"),
+            rec("iso:nbf", "language", "Naxi", 27.0),
+            rec("iso:nxq", "language", "Naxi", 27.01),
+            rec("iso:ste", "language", "Liana-Seti", -3.0 + 40),
+            rec("rolv:12925", "dialect", "Liana Seti", -3.01 + 40, "iso:ste"),
+            rec("iso:baz", "language", "Tunen", 4.7),
+            rec("iso:tvu", "language", "Tunen", 4.71),
+        ]
+        # A retired ISO code kept only as a Glottolog "Bookkeeping" reference
+        # row repeats the current language; it gives up its dot. Two current
+        # languages that share a name (Naxi above) both stay.
+        source["records"][-2].update(family="Bookkeeping", needsReview=True, sourceIds=["glottolog", "registry"])
+        source["records"][-1].update(sourceIds=["everylanguage", "glottolog", "registry"])
+        before = copy.deepcopy(source)
+        records = {record["id"]: record for record in public_projection(source)["records"]}
+        hidden = {record_id for record_id, record in records.items() if record["location"] is None}
+        self.assertEqual(hidden, {"dialect:adang", "glottolog:penukal", "rolv:12925", "iso:baz"})
+        self.assertNotIn("locations", records["dialect:adang"])
+        self.assertEqual(records["dialect:adang"]["name"], "Adang")
+        self.assertEqual(source, before)
+
     def test_projection_allowlists_exact_spoken_locations(self):
         source = self.fixture()
         source["records"][0]["spokenLocations"] = [{

@@ -1312,6 +1312,9 @@ export const id = {
     startPlan: 'Mulai rencana',
     enrolled: 'Terdaftar',
     dayOf: 'Hari {{current}} dari {{total}}',
+    inSeason: 'Sesuai musim',
+    seasonStarts: 'Mulai {{date}}',
+    seasonStartsToday: 'Mulai hari ini',
     markComplete: 'Tandai selesai',
     completed: 'Selesai',
     progress: 'Kemajuan',
@@ -1502,6 +1505,61 @@ export const id = {
         title: 'Dua belas hari Natal',
         description:
           'Dari hari Natal sampai 5 Januari: kelahiran Yesus, Firman yang menjadi manusia, dan orang-orang majus yang mengikuti bintang.',
+      },
+      newYear: {
+        title: 'Tahun Baru',
+        description:
+          'Pekan pertama Januari: permulaan, dari hari pertama penciptaan sampai langit baru dan bumi baru, dengan mazmur untuk memulai perjalanan.',
+      },
+      epiphany: {
+        title: 'Epifani: Terang bagi Bangsa-bangsa',
+        description:
+          'Mulai 6 Januari: Yesus dinyatakan sebagai terang dunia, dari baptisan dan tanda pertama-Nya sampai setiap bangsa, suku, dan bahasa di hadapan takhta.',
+      },
+      lent: {
+        title: 'Prapaskah',
+        description:
+          'Dari Rabu Abu sampai malam sebelum Minggu Palma: kembalilah kepada Tuhan melalui padang gurun, kemurahan-Nya, dan jalan menuju Yerusalem, sampai Lazarus dibangkitkan.',
+      },
+      holyWeek: {
+        title: 'Pekan Suci',
+        description:
+          'Dari Minggu Palma sampai Hari Paskah, hari demi hari: masuk ke Yerusalem, Perjamuan Terakhir, salib, kubur yang disegel, dan kubur yang kosong.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Pekan Suci (kalender Ortodoks)',
+        description:
+          'Pekan Suci pada tanggal Ortodoks, dari Minggu Palma sampai Paskah: masuk ke Yerusalem, Perjamuan Mistik, salib, kubur, dan kebangkitan.',
+      },
+      easter: {
+        title: 'Paskah',
+        description:
+          'Dari Senin Paskah sampai malam sebelum Kenaikan Tuhan: Tuhan yang bangkit menampakkan diri, dan surat-surat serta para nabi menunjukkan arti kebangkitan-Nya.',
+      },
+      pentecost: {
+        title: 'Kenaikan sampai Pentakosta',
+        description:
+          'Sebelas hari dari Kenaikan Tuhan sampai Pentakosta: menanti dan berdoalah bersama para murid pertama untuk Roh Kudus, yang membawa Injil kepada setiap bahasa.',
+      },
+      translationWeek: {
+        title: 'Firman dalam Setiap Bahasa',
+        description:
+          'Sepekan yang berakhir pada Hari Penerjemahan Internasional, 30 September: Firman dibaca, dijelaskan, dan dibawa kepada setiap suku dan bahasa. Doakan para penerjemah Alkitab.',
+      },
+      allSaints: {
+        title: 'Hari Semua Orang Kudus',
+        description:
+          'Mulai 1 November: awan saksi yang besar yang telah berlari mendahului kita, dan orang-orang kudus yang setia dan sederhana yang disebut Alkitab.',
+      },
+      persecutedChurch: {
+        title: 'Gereja yang Dianiaya',
+        description:
+          'Sepekan mulai Minggu kedua November, ketika banyak gereja berdoa bagi orang percaya yang menderita karena Yesus: saksi-saksi berani dalam Kisah Para Rasul, orang buangan yang setia dalam Daniel, dan janji-janji untuk jalan yang berat.',
+      },
+      hardChristmas: {
+        title: 'Ketika Natal Terasa Berat',
+        description:
+          'Pekan sebelum Natal, untuk saat musim ini terasa berat karena kehilangan atau kesepian: ratapan, penghiburan, dan terang yang bersinar dalam kegelapan.',
       },
     },
     lifeSituations: {

@@ -55,6 +55,8 @@ import { useVerseImageShare } from '../bible/reader/useVerseImageShare';
 import { getHeroScrimLocations, getHomeScreenLayout } from './homeLayoutModel';
 import { selectHomePlanShelf } from './homePlanShelfModel';
 import { HomePlanShelf } from './HomePlanShelf';
+import { HomeSeasonCard } from './HomeSeasonCard';
+import { selectHomeSeasonPlan } from './homeSeasonPlanModel';
 import { getHomeReadingStats } from './homeReadingStatsModel';
 import { HomeReadingHeatmap } from './HomeReadingHeatmap';
 import { buildHomeVerseShareMessage } from './homeVerseShareModel';
@@ -384,6 +386,15 @@ export function HomeScreen() {
   const planShelf = useMemo(
     () =>
       selectHomePlanShelf({
+        plans: readingPlans,
+        progressByPlanId,
+        today: new Date(clockMs),
+      }),
+    [clockMs, progressByPlanId, readingPlans]
+  );
+  const seasonPlan = useMemo(
+    () =>
+      selectHomeSeasonPlan({
         plans: readingPlans,
         progressByPlanId,
         today: new Date(clockMs),
@@ -965,6 +976,12 @@ export function HomeScreen() {
               })}
             </View>
           </Animated.View>
+
+          {seasonPlan ? (
+            <Animated.View entering={sectionEntering(1)}>
+              <HomeSeasonCard seasonPlan={seasonPlan} onOpenPlan={handleOpenPlan} />
+            </Animated.View>
+          ) : null}
 
           {planShelf.items.length > 0 ? (
             <Animated.View entering={sectionEntering(1)}>

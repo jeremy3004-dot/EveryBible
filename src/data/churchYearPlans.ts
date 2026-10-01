@@ -1,8 +1,14 @@
 import type { ReadingPlanCoverKey, ReadingPlanScheduleMode } from '../services/plans/types';
+import { AUTUMN_SEASON_PLANS } from './autumnSeasonPlans';
+import { EASTER_CYCLE_PLANS } from './easterCyclePlans';
 import type { LifeSituationChapter } from './lifeSituationPlans';
 
 /**
- * Plans dated to the church year, read afresh each year. Like the Seasons of life
+ * Plans dated to a season, read afresh each year: the church year, and a few
+ * other dated weeks. Each is offered only around its own dates (see
+ * churchCalendar.ts). The winter plans are here; the Easter cycle and the
+ * autumn weeks have their own files.
+ * Like the Seasons of life
  * plans every reading is a whole chapter (most translations carry no verse
  * markers), usually a prophecy or story with a psalm or letter beside it.
  *
@@ -14,7 +20,13 @@ import type { LifeSituationChapter } from './lifeSituationPlans';
  *
  * Christmas is the Twelve Days, from Christmas Day to the eve of Epiphany: the
  * birth and the Word made flesh, what the Incarnation means, and the Magi.
+ * The week before Christmas also has a plan for those who find it hard, and the
+ * new year opens with a week of beginnings, then Epiphany. These overlap, so no
+ * chapter repeats across the five winter plans.
  */
+/** One day's chapters, in reading order. */
+export type ChurchYearDay = readonly LifeSituationChapter[];
+
 export interface ChurchYearPlan {
   /** Plan id and slug. */
   id: string;
@@ -22,16 +34,19 @@ export interface ChurchYearPlan {
   key: string;
   coverKey: ReadingPlanCoverKey;
   scheduleMode: ReadingPlanScheduleMode;
+  /** `church-year` for the seasons of the church calendar, `seasonal` for other dated weeks. */
+  category: 'church-year' | 'seasonal';
   /** One list of chapters per day, in reading order. */
-  days: readonly (readonly LifeSituationChapter[])[];
+  days: readonly ChurchYearDay[];
 }
 
-export const CHURCH_YEAR_PLANS: readonly ChurchYearPlan[] = [
+const WINTER_PLANS: readonly ChurchYearPlan[] = [
   {
     id: 'advent',
     key: 'advent',
     coverKey: 'advent',
     scheduleMode: 'calendar-advent',
+    category: 'church-year',
     days: [
       // Week 1 · Hope: the promise from the garden to the house of David.
       [
@@ -158,6 +173,7 @@ export const CHURCH_YEAR_PLANS: readonly ChurchYearPlan[] = [
     key: 'christmas',
     coverKey: 'christmas',
     scheduleMode: 'calendar-christmas',
+    category: 'church-year',
     days: [
       // 25 December: the birth, and the Word made flesh.
       [
@@ -213,4 +229,130 @@ export const CHURCH_YEAR_PLANS: readonly ChurchYearPlan[] = [
       ],
     ],
   },
+  {
+    id: 'when-christmas-is-hard',
+    key: 'hardChristmas',
+    coverKey: 'hardChristmas',
+    scheduleMode: 'calendar-hard-christmas',
+    category: 'seasonal',
+    days: [
+      // 18 December. Naomi comes home empty, and the psalmist asks how long.
+      [
+        ['RUT', 1],
+        ['PSA', 13],
+      ],
+      [
+        ['2CO', 1],
+        ['PSA', 34],
+      ],
+      [
+        ['ISA', 41],
+        ['PSA', 139],
+      ],
+      [
+        ['1KI', 19],
+        ['PSA', 61],
+      ],
+      // Jesus wept at the grave of His friend.
+      [
+        ['JHN', 11],
+        ['PSA', 56],
+      ],
+      [
+        ['ROM', 8],
+        ['PSA', 46],
+      ],
+      // Christmas Eve: the light shines in the darkness.
+      [
+        ['ISA', 57],
+        ['PSA', 27],
+      ],
+    ],
+  },
+  {
+    id: 'new-year',
+    key: 'newYear',
+    coverKey: 'newYear',
+    scheduleMode: 'calendar-new-year',
+    category: 'seasonal',
+    days: [
+      // 1 January: in the beginning.
+      [
+        ['GEN', 1],
+        ['PSA', 1],
+      ],
+      [
+        ['JOS', 1],
+        ['PSA', 121],
+      ],
+      [
+        ['ISA', 43],
+        ['PSA', 40],
+      ],
+      [
+        ['2CO', 5],
+        ['PSA', 65],
+      ],
+      [
+        ['PHP', 3],
+        ['PSA', 37],
+      ],
+      [
+        ['MAT', 6],
+        ['ROM', 12],
+      ],
+      // 7 January: behold, I am making all things new.
+      [
+        ['REV', 21],
+        ['PSA', 23],
+      ],
+    ],
+  },
+  {
+    id: 'epiphany',
+    key: 'epiphany',
+    coverKey: 'epiphany',
+    scheduleMode: 'calendar-epiphany',
+    category: 'church-year',
+    days: [
+      // 6 January, the feast of the Epiphany: the light of the world.
+      [
+        ['JHN', 8],
+        ['PSA', 36],
+      ],
+      // The Baptism of the Lord.
+      [
+        ['MRK', 1],
+        ['PSA', 29],
+      ],
+      // Cana: the first of His signs.
+      [
+        ['JHN', 2],
+        ['PSA', 97],
+      ],
+      [
+        ['JON', 3],
+        ['JON', 4],
+      ],
+      [
+        ['ACT', 10],
+        ['PSA', 87],
+      ],
+      [
+        ['ROM', 10],
+        ['PSA', 117],
+      ],
+      [
+        ['REV', 7],
+        ['ISA', 25],
+      ],
+    ],
+  },
+];
+
+/** Every dated plan, in the order of the year from Advent. */
+export const CHURCH_YEAR_PLANS: readonly ChurchYearPlan[] = [
+  ...WINTER_PLANS,
+  ...EASTER_CYCLE_PLANS,
+  ...AUTUMN_SEASON_PLANS,
 ];

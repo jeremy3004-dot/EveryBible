@@ -51,7 +51,10 @@ export function PlansHomeScreen() {
   const today = useLocalToday();
 
   const { allPlans, loading, refreshing, refresh } = usePlansCatalog();
-  const { userProgress, activePlans, completedPlans, headerEyebrow } = usePlansProgress(allPlans);
+  const { userProgress, activePlans, completedPlans, headerEyebrow } = usePlansProgress(
+    allPlans,
+    today
+  );
 
   const handlePlanPress = useCallback(
     (planId: string) => {

@@ -9,7 +9,7 @@ const entriesIn = (byPlan: Record<string, ReadingPlanEntry[]>, planId: string) =
 test('bundled reading plans expose the bundled plans in sort order', async () => {
   const mod = await import('./readingPlans.generated');
 
-  assert.equal(mod.readingPlans.length, 44);
+  assert.equal(mod.readingPlans.length, 55);
   assert.deepEqual(
     mod.readingPlans.map((plan) => plan.slug),
     [
@@ -57,6 +57,17 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
       'life-family-7-days',
       'advent',
       'twelve-days-of-christmas',
+      'when-christmas-is-hard',
+      'new-year',
+      'epiphany',
+      'lent',
+      'holy-week',
+      'orthodox-holy-week',
+      'easter',
+      'ascension-to-pentecost',
+      'word-in-every-language',
+      'all-saints',
+      'persecuted-church',
     ]
   );
 
@@ -337,15 +348,28 @@ test('back-to-back chapters of one book in a Seasons of life day read as one ran
   );
 });
 
-test('Advent and the Twelve Days of Christmas are dated to their season, in whole chapters', async () => {
+test('seasonal plans are dated to their season, in whole chapters', async () => {
   const mod = await import('./readingPlans.generated');
-  const plans = mod.readingPlans.filter((plan) => plan.category === 'church-year');
+  const plans = mod.readingPlans.filter(
+    (plan) => plan.category === 'church-year' || plan.category === 'seasonal'
+  );
 
   assert.deepEqual(
     plans.map((plan) => [plan.id, plan.duration_days, plan.scheduleMode, plan.coverKey]),
     [
       ['advent', 28, 'calendar-advent', 'advent'],
       ['twelve-days-of-christmas', 12, 'calendar-christmas', 'christmas'],
+      ['when-christmas-is-hard', 7, 'calendar-hard-christmas', 'hardChristmas'],
+      ['new-year', 7, 'calendar-new-year', 'newYear'],
+      ['epiphany', 7, 'calendar-epiphany', 'epiphany'],
+      ['lent', 39, 'calendar-lent', 'lent'],
+      ['holy-week', 8, 'calendar-holy-week', 'holyWeek'],
+      ['orthodox-holy-week', 8, 'calendar-orthodox-holy-week', 'orthodoxHolyWeek'],
+      ['easter', 38, 'calendar-easter', 'easter'],
+      ['ascension-to-pentecost', 11, 'calendar-pentecost', 'pentecost'],
+      ['word-in-every-language', 7, 'calendar-translation-week', 'translationWeek'],
+      ['all-saints', 7, 'calendar-all-saints', 'allSaints'],
+      ['persecuted-church', 7, 'calendar-persecuted-church', 'persecutedChurch'],
     ]
   );
   for (const plan of plans) {
@@ -390,4 +414,47 @@ test('the shortest Advent still reaches the annunciations, and Christmas reads e
     assert.ok(all.includes(chapter), chapter);
   }
   assert.equal(new Set(all).size, all.length, 'no chapter is read twice across the two plans');
+});
+
+test('plans whose seasons run together never read the same chapter twice', async () => {
+  const mod = await import('./readingPlans.generated');
+  const chaptersOf = (planIds: string[]) =>
+    planIds.flatMap((planId) =>
+      mod.readingPlanEntriesByPlanId[planId].flatMap((entry: ReadingPlanEntry) =>
+        Array.from(
+          { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+          (_, index) => `${entry.book} ${entry.chapter_start + index}`
+        )
+      )
+    );
+  const duplicates = (chapters: string[]) =>
+    chapters.filter((chapter, index) => chapters.indexOf(chapter) !== index);
+
+  // Winter: Advent into Christmas, with the hard-Christmas week, New Year and Epiphany
+  // running alongside. The Easter cycle: Lent to Pentecost. Autumn: September to November.
+  for (const cluster of [
+    ['advent', 'twelve-days-of-christmas', 'when-christmas-is-hard', 'new-year', 'epiphany'],
+    ['lent', 'holy-week', 'easter', 'ascension-to-pentecost'],
+    ['word-in-every-language', 'all-saints', 'persecuted-church'],
+  ]) {
+    assert.deepEqual(duplicates(chaptersOf(cluster)), [], cluster.join());
+  }
+});
+
+test('Holy Week reads the week day by day, the same on both calendars', async () => {
+  const mod = await import('./readingPlans.generated');
+  const chaptersOn = (planId: string, day: number) =>
+    mod.readingPlanEntriesByPlanId[planId]
+      .filter((entry: ReadingPlanEntry) => entry.day_number === day)
+      .map((entry: ReadingPlanEntry) => `${entry.book} ${entry.chapter_start}`);
+
+  assert.deepEqual(chaptersOn('holy-week', 1), ['MAT 21', 'PSA 118']);
+  assert.deepEqual(chaptersOn('holy-week', 6), ['ISA 53', 'PSA 22', 'JHN 19']);
+  assert.deepEqual(chaptersOn('holy-week', 8), ['MAT 28', 'JHN 20']);
+  for (let day = 1; day <= 8; day += 1) {
+    assert.deepEqual(chaptersOn('orthodox-holy-week', day), chaptersOn('holy-week', day));
+  }
+  // Pentecost Sunday reads Acts 2; Ascension Day, Acts 1.
+  assert.deepEqual(chaptersOn('ascension-to-pentecost', 1), ['ACT 1', 'PSA 47']);
+  assert.deepEqual(chaptersOn('ascension-to-pentecost', 11), ['ACT 2', 'PSA 104']);
 });

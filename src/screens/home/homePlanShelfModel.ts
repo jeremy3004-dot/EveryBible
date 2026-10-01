@@ -2,6 +2,7 @@ import {
   getActivePlanDayNumber,
   getPlanDayCount,
   getVisibleCompletedEntryCount,
+  isSeasonalPlan,
 } from '../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import { selectHomeContinuePlans } from './homeReadingPlansModel';
@@ -73,7 +74,8 @@ export function selectHomePlanShelf({
     };
   }
 
-  const active = plans.filter((plan) => plan.is_active);
+  // Seasonal plans are offered in their season by the card above the shelf.
+  const active = plans.filter((plan) => plan.is_active && !isSeasonalPlan(plan));
   const byId = new Map(active.map((plan) => [plan.id, plan]));
   const curated = HOME_SUGGESTED_PLAN_IDS.flatMap((id) => {
     const plan = byId.get(id);

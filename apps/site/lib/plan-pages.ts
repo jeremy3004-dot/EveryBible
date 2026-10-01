@@ -15,11 +15,15 @@ import {
 } from './bible-books';
 import {
   DAILY_RHYTHMS_GROUP,
+  isSeasonalSchedule,
+  SEASONAL_GROUP,
   type PlanDay,
   type PlanReading,
+  type PlanSchedule,
   type PlanSnapshot,
   type SitePlan,
 } from './plan-snapshot';
+import { getPlanCopy } from './plan-copy';
 import { EVERYBIBLE_SITE_URL } from './site-links';
 import { pageMetadata, SITE_NAME } from './site-metadata';
 
@@ -102,14 +106,86 @@ function dayReadings(day: PlanDay): PlanReading[] {
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** A weekly plan's day 1 is Sunday, as in the app; every other plan counts days. */
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** Seasons that fall on the same dates every year: where day 1 lands, as month and day. */
+const FIXED_START: Partial<Record<PlanSchedule, readonly [month: number, day: number]>> = {
+  christmas: [12, 25],
+  'hard-christmas': [12, 18],
+  'new-year': [1, 1],
+  epiphany: [1, 6],
+  'translation-week': [9, 24],
+  'all-saints': [11, 1],
+};
+
+/** Holy Week names its days; the Orthodox plan uses the Orthodox names. */
+const HOLY_WEEK_DAYS = [
+  'Palm Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Maundy Thursday',
+  'Good Friday',
+  'Holy Saturday',
+  'Easter Day',
+];
+const ORTHODOX_HOLY_WEEK_DAYS = [
+  'Palm Sunday',
+  'Holy Monday',
+  'Holy Tuesday',
+  'Holy Wednesday',
+  'Holy Thursday',
+  'Holy Friday',
+  'Holy Saturday',
+  'Pascha',
+];
+
+/**
+ * A weekly plan, and the Persecuted Church week, which starts on a Sunday, name
+ * weekdays; Holy Week names its days and the fixed-date seasons give the date
+ * (25 December, 1 January); every other plan counts days.
+ */
 export function dayLabel(plan: Pick<SitePlan, 'schedule'>, day: number): string {
-  if (plan.schedule === 'weekly') return WEEKDAYS[day - 1];
-  // The Twelve Days always fall on the same dates: 25 December to 5 January.
-  if (plan.schedule === 'christmas')
-    return day <= 7 ? `${24 + day} December` : `${day - 7} January`;
+  if (plan.schedule === 'weekly' || plan.schedule === 'persecuted-church') return WEEKDAYS[day - 1];
+  if (plan.schedule === 'holy-week') return HOLY_WEEK_DAYS[day - 1];
+  if (plan.schedule === 'orthodox-holy-week') return ORTHODOX_HOLY_WEEK_DAYS[day - 1];
+  const start = FIXED_START[plan.schedule];
+  if (start) {
+    // The year is only there to count across a month end; 2027 is not a leap year.
+    const date = new Date(Date.UTC(2027, start[0] - 1, start[1] + day - 1));
+    return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
+  }
   return `Day ${day}`;
 }
+
+const SEASON_LENGTH_LABELS: Partial<Record<PlanSchedule, string>> = {
+  advent: 'Every Advent',
+  christmas: 'Every Christmas',
+  'hard-christmas': 'Every December',
+  'new-year': 'Every New Year',
+  epiphany: 'Every Epiphany',
+  lent: 'Every Lent',
+  'holy-week': 'Every Holy Week',
+  'orthodox-holy-week': 'Every Orthodox Holy Week',
+  easter: 'Every Eastertide',
+  pentecost: 'Every Pentecost',
+  'translation-week': 'Every September',
+  'all-saints': 'Every November',
+  'persecuted-church': 'Every November',
+};
 
 /**
  * "7 days", "365 days". A recurring plan runs by the calendar and never ends,
@@ -119,8 +195,8 @@ export function dayLabel(plan: Pick<SitePlan, 'schedule'>, day: number): string 
 export function planLengthLabel(plan: Pick<SitePlan, 'schedule' | 'durationDays'>): string {
   if (plan.schedule === 'monthly') return 'Every month';
   if (plan.schedule === 'weekly') return 'Every week';
-  if (plan.schedule === 'advent') return 'Every Advent';
-  if (plan.schedule === 'christmas') return 'Every Christmas';
+  const season = SEASON_LENGTH_LABELS[plan.schedule];
+  if (season) return season;
   return `${plan.durationDays} ${plan.durationDays === 1 ? 'day' : 'days'}`;
 }
 
@@ -129,8 +205,44 @@ export function planMetaLabel(plan: Pick<SitePlan, 'schedule' | 'durationDays' |
   return [planLengthLabel(plan), plan.sessions.join(' + ')].filter(Boolean).join(' · ');
 }
 
-/** How the plan's days meet the calendar, in the app's terms. */
-export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions'>): string {
+/**
+ * Dates as the app's churchCalendar.ts defines them. Seasons tied to Easter
+ * move each year, so they are described by Easter, never by a date.
+ */
+const SEASON_SENTENCES: Partial<Record<PlanSchedule, string>> = {
+  christmas:
+    'This plan follows the church year: it begins on Christmas Day and ends on 5 January, the twelfth day of Christmas.',
+  'hard-christmas':
+    'This plan follows the calendar: it runs for seven days, from 18 December to Christmas Eve, and begins again the next December.',
+  'new-year':
+    'This plan follows the calendar: it runs for seven days, from 1 to 7 January, and begins again every New Year.',
+  epiphany:
+    'This plan follows the church year: it begins on 6 January, the feast of the Epiphany, and runs for seven days, to 12 January.',
+  lent:
+    'This plan follows the church year: Day 1 is Ash Wednesday and Day 39 is the Saturday before Palm Sunday, so Holy Week can begin the next day. ' +
+    'Lent moves with Easter, so these dates change every year.',
+  'holy-week':
+    'This plan follows the church year: Day 1 is Palm Sunday and Day 8 is Easter Day. Holy Week moves with Easter, so these dates change every year.',
+  'orthodox-holy-week':
+    'This plan follows the Orthodox church year: Day 1 is Palm Sunday and Day 8 is Pascha, both on the Orthodox calendar. Pascha moves every year, ' +
+    'and in some years it falls on the same day as Western Easter. The readings are the same as in the Holy Week plan.',
+  easter:
+    'This plan follows the church year: Day 1 is Easter Monday, the day after Easter Day, and Day 38 is the eve of Ascension Day. Easter moves every year, so these dates change with it.',
+  pentecost:
+    'This plan follows the church year: Day 1 is Ascension Day, 39 days after Easter, and Day 11 is Pentecost, 49 days after Easter. Both move with Easter, so these dates change every year.',
+  'translation-week':
+    'This plan follows the calendar: it runs for seven days, from 24 to 30 September, and ends on International Translation Day.',
+  'all-saints':
+    'This plan follows the church year: it begins on All Saints’ Day, 1 November, and runs for seven days, to 7 November.',
+  'persecuted-church':
+    'This plan follows the church year: it begins on the second Sunday of November, when many churches pray for believers who suffer for their faith, and runs for seven days.',
+};
+
+/**
+ * How the plan's days meet the calendar, in the app's terms. A plan that simply
+ * starts the day you do has nothing to explain, so it has no sentence.
+ */
+export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions'>): string | null {
   const sessions =
     plan.sessions.length > 1
       ? ` Readings are set for the ${listNames(plan.sessions.map((name) => name.toLowerCase()))}.`
@@ -154,12 +266,9 @@ export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions
       'and the last reading falls on Christmas Eve. Advent lasts 22 to 28 days, so in a shorter year the plan ' +
       'ends on Christmas Eve before its final readings.'
     );
-  if (plan.schedule === 'christmas')
-    return 'This plan follows the church year: it begins on Christmas Day and ends on 5 January, the twelfth day of Christmas.';
-  return (
-    'Day 1 is the day you start. EveryBible keeps your place, marks each day you read and opens every reading in the Bible reader.' +
-    sessions
-  );
+  const season = SEASON_SENTENCES[plan.schedule];
+  if (season) return season;
+  return null;
 }
 
 /* ── Summaries ──────────────────────────────────────────────────── */
@@ -234,6 +343,25 @@ export function planPaceSentence(plan: Pick<SitePlan, 'days' | 'schedule'>): str
   return rounded <= 1 ? `1 or 2 chapters a day.` : `About ${rounded} chapters a day.`;
 }
 
+/**
+ * The numbers behind a plan, as a small secondary line: "16 chapters · 11 books ·
+ * about 2 chapters a day · 7 days". Counted from the schedule, like the sentences above.
+ */
+export function planFactsLine(plan: Pick<SitePlan, 'days' | 'schedule' | 'durationDays'>): string {
+  const scope = planScope(plan);
+  const pace = planPaceSentence(plan)?.replace(/\.$/, '');
+  return [
+    scope.passages
+      ? 'Selected passages'
+      : `${formatCount(scope.chapters)} chapter${scope.chapters === 1 ? '' : 's'}`,
+    `${scope.books.length} book${scope.books.length === 1 ? '' : 's'}`,
+    pace && `${pace.charAt(0).toLowerCase()}${pace.slice(1)}`,
+    planLengthLabel(plan).replace(/^Every/, 'every'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /* ── Long schedules ─────────────────────────────────────────────── */
 
 /** Plans longer than a month are shown in collapsible blocks of 30 days. */
@@ -283,17 +411,17 @@ export interface PlanGroup {
 
 /**
  * Monthly and weekly plans all sit in the app's "Daily rhythms" section,
- * whatever their category; church-year plans keep their own section.
+ * whatever their category. The dated seasons, church-year or not, share one
+ * "In season" section, as in the app.
  */
 export function planGroupId(plan: Pick<SitePlan, 'schedule' | 'category'>): string {
-  return plan.schedule === 'monthly' || plan.schedule === 'weekly'
-    ? DAILY_RHYTHMS_GROUP
-    : plan.category;
+  if (plan.schedule === 'monthly' || plan.schedule === 'weekly') return DAILY_RHYTHMS_GROUP;
+  return isSeasonalSchedule(plan.schedule) ? SEASONAL_GROUP : plan.category;
 }
 
 /**
- * The app's Find plans layout (plansHomeModel.groupCatalogPlans): Church
- * year, Daily rhythms, then Seasons of life, then each other category in
+ * The app's Find plans layout (plansHomeModel.groupCatalogPlans): In
+ * season, Daily rhythms, then Seasons of life, then each other category in
  * catalog order.
  */
 export function groupPlans(
@@ -301,7 +429,7 @@ export function groupPlans(
   labels: Readonly<Record<string, string>> = planSnapshot.groupLabels
 ): PlanGroup[] {
   const groups = new Map<string, SitePlan[]>([
-    ['church-year', []],
+    [SEASONAL_GROUP, []],
     [DAILY_RHYTHMS_GROUP, []],
     ['life-situation', []],
   ]);
@@ -346,12 +474,28 @@ export function planHeading(plan: Pick<SitePlan, 'title' | 'category'>): string 
   return plan.category === 'life-situation' ? `Bible Reading Plan for ${plan.title}` : plan.title;
 }
 
-/** "365-Day", "Monthly", "Weekly", "Advent", "Christmas". */
+const SEASON_KINDS: Partial<Record<PlanSchedule, string>> = {
+  advent: 'Advent',
+  christmas: 'Christmas',
+  'hard-christmas': 'Christmas',
+  'new-year': 'New Year',
+  epiphany: 'Epiphany',
+  lent: 'Lent',
+  'holy-week': 'Holy Week',
+  'orthodox-holy-week': 'Orthodox Holy Week',
+  easter: 'Easter',
+  pentecost: 'Pentecost',
+  'translation-week': 'Bible Translation',
+  'all-saints': 'All Saints',
+  'persecuted-church': 'Persecuted Church',
+};
+
+/** "365-Day", "Monthly", "Weekly", "Advent", "Lent". */
 function planKind(plan: Pick<SitePlan, 'schedule' | 'durationDays'>): string {
   if (plan.schedule === 'monthly') return 'Monthly';
   if (plan.schedule === 'weekly') return 'Weekly';
-  if (plan.schedule === 'advent') return 'Advent';
-  if (plan.schedule === 'christmas') return 'Christmas';
+  const season = SEASON_KINDS[plan.schedule];
+  if (season) return season;
   return `${plan.durationDays}-Day`;
 }
 
@@ -361,7 +505,7 @@ export function planPageTitle(
   const heading = planHeading(plan);
   const kind = planKind(plan);
   // A season names itself: "Advent Bible Reading Plan", not "Advent — Advent …".
-  const seasonal = plan.schedule === 'advent' || plan.schedule === 'christmas';
+  const seasonal = isSeasonalSchedule(plan.schedule);
   const candidates =
     plan.category === 'life-situation'
       ? [`${heading} — ${plan.durationDays} Days | ${SITE_NAME}`, heading]
@@ -377,16 +521,19 @@ export function planPageTitle(
   return firstThatFits(candidates, TITLE_MAX_LENGTH);
 }
 
-/** The plan's own description stays; the invitation shortens or goes to fit. */
+/** Without a hand-written one, the plan's own description stays; the invitation shortens or goes to fit. */
 export function planPageDescription(
-  plan: Pick<SitePlan, 'title' | 'description' | 'category' | 'schedule' | 'durationDays'>
+  plan: Pick<SitePlan, 'slug' | 'title' | 'description' | 'category' | 'schedule' | 'durationDays'>
 ): string {
+  // A hand-written description beats the template, where the copy module has one.
+  const written = getPlanCopy(plan.slug)?.metaDescription;
+  if (written) return written;
   const kind = planKind(plan);
   // Season names stay capitalised; "free" always takes "A".
   const noun =
     plan.category === 'life-situation'
       ? `Bible reading plan for ${plan.title.toLowerCase()}`
-      : `${plan.schedule === 'advent' || plan.schedule === 'christmas' ? kind : kind.toLowerCase()} Bible reading plan`;
+      : `${isSeasonalSchedule(plan.schedule) ? kind : kind.toLowerCase()} Bible reading plan`;
   return firstThatFits(
     [
       `${plan.description} A free ${noun} with every day’s readings, in the EveryBible app.`,

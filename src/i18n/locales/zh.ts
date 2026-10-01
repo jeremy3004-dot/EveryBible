@@ -1252,6 +1252,9 @@ export const zh = {
     startPlan: '开始计划',
     enrolled: '已加入',
     dayOf: '第 {{current}} 天（共 {{total}} 天）',
+    inSeason: '当季',
+    seasonStarts: '{{date}}开始',
+    seasonStartsToday: '今天开始',
     markComplete: '标记完成',
     completed: '已完成',
     progress: '进度',
@@ -1438,6 +1441,59 @@ export const zh = {
       christmas: {
         title: '圣诞十二日',
         description: '从圣诞节到1月5日：耶稣的降生、道成肉身，以及跟随星星而来的博士。',
+      },
+      newYear: {
+        title: '新的一年',
+        description: '一月的第一周：从创造的第一天读到新天新地，并以诗篇踏上新的旅程。',
+      },
+      epiphany: {
+        title: '显现节：万国之光',
+        description:
+          '从1月6日起：耶稣显明为世界的光，从祂的受洗和第一个神迹，读到宝座前来自各国、各族、各方言的人。',
+      },
+      lent: {
+        title: '四旬期',
+        description:
+          '从圣灰星期三到棕枝主日前夕：经过旷野，领受主的怜悯，踏上往耶路撒冷的路，直到拉撒路复活，一同归向主。',
+      },
+      holyWeek: {
+        title: '受难周',
+        description:
+          '从棕枝主日到复活节，每天一段：进入耶路撒冷、最后的晚餐、十字架、封闭的坟墓，以及空的坟墓。',
+      },
+      orthodoxHolyWeek: {
+        title: '受难周（东正教历）',
+        description:
+          '按东正教日期，从棕枝主日到帕斯卡：进入耶路撒冷、神秘晚餐、十字架、坟墓和复活。',
+      },
+      easter: {
+        title: '复活节',
+        description: '从复活节星期一到升天节前夕：复活的主显现，书信和先知书讲明祂复活的意义。',
+      },
+      pentecost: {
+        title: '从升天节到圣灵降临节',
+        description:
+          '从升天节到圣灵降临节的十一天：与最初的门徒一同等候、祷告，盼望圣灵降临，把福音带给每一种语言。',
+      },
+      translationWeek: {
+        title: '每种语言里的圣经',
+        description:
+          '以9月30日国际翻译日为终点的一周：阅读、讲解圣经，并把圣经带给每个民族和语言。请为圣经翻译者祷告。',
+      },
+      allSaints: {
+        title: '诸圣节',
+        description:
+          '从11月1日起：如云彩般围绕我们的众多见证人，他们在我们之前跑完了当跑的路，还有圣经中提到的忠心的平凡圣徒。',
+      },
+      persecutedChurch: {
+        title: '受迫害的教会',
+        description:
+          '从11月第二个主日起的一周，许多教会在此时为因耶稣受苦的信徒祷告：使徒行传中大胆的见证人、但以理书中忠心的被掳者，以及给艰难道路的应许。',
+      },
+      hardChristmas: {
+        title: '圣诞节不好过时',
+        description:
+          '圣诞节前一周，写给在这个节期被失去或孤单压得沉重的人：哀歌、安慰，以及在黑暗中照耀的光。',
       },
     },
     lifeSituations: {

@@ -1,9 +1,12 @@
 import type { TFunction } from 'i18next';
 import {
   getPlanDayCount,
+  getPlanSeason,
+  isJoinedPlanShownToday,
   isMultiSessionPlan,
   isPlanInSeason,
   isRecurringPlan,
+  isSeasonalPlan,
   type PlanSeason,
 } from '../../../services/plans/readingPlanModel';
 import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
@@ -42,7 +45,8 @@ export function sortProgressNewestFirst(
 /** Unfinished plans joined to their catalog entry; a plan missing from the catalog is dropped. */
 export function getActivePlanRows(
   allPlans: ReadingPlan[],
-  userProgress: UserReadingPlanProgress[]
+  userProgress: UserReadingPlanProgress[],
+  today: Date
 ): ActivePlanRow[] {
   return userProgress
     .filter((progress) => !progress.is_completed)
@@ -50,7 +54,8 @@ export function getActivePlanRows(
       const plan = allPlans.find((item) => item.id === progress.plan_id);
       return plan ? { progress, plan } : null;
     })
-    .filter((item): item is ActivePlanRow => item !== null);
+    .filter((item): item is ActivePlanRow => item !== null)
+    .filter(({ plan, progress }) => isJoinedPlanShownToday(plan, progress, today));
 }
 
 /** Finished plans joined to their catalog entry; a plan missing from the catalog is dropped. */
@@ -187,6 +192,7 @@ const CATEGORY_LABEL_KEYS: Record<string, string> = {
   devotional: 'readingPlans.categoryDevotional',
   'life-situation': 'readingPlans.categoryLifeSituations',
   'church-year': 'readingPlans.churchYear.heading',
+  seasonal: 'readingPlans.inSeason',
 };
 
 /** A catalog category's heading; an unknown one is title-cased from its slug. */
@@ -201,7 +207,7 @@ export function getPlanCategoryLabel(category: string, t: TFunction): string {
 }
 
 export interface CatalogPlanGroups {
-  churchYearPlans: ReadingPlan[];
+  seasonalPlans: ReadingPlan[];
   dailyRhythmPlans: ReadingPlan[];
   lifeSituationPlans: ReadingPlan[];
   categories: { category: string; plans: ReadingPlan[] }[];
@@ -209,8 +215,9 @@ export interface CatalogPlanGroups {
 
 /**
  * Section layout rule for Find plans:
- *   • "Church year" plans (Advent, Christmas) come first as a cover grid: they are
- *     dated to their season, and a reader looks for them by name.
+ *   • "In season" plans (Advent, Lent, Easter, All Saints, …) come first as a
+ *     cover grid, soonest first: each is in the catalog only around its own
+ *     dates (see isPlanOfferedToday), and a reader looks for them by name.
  *   • Recurring plans — the calendar-driven ones that repeat forever instead of
  *     running to an end date — are the featured "Daily rhythms" group and get the
  *     two-up cover grid, because their covers are the browse hook.
@@ -220,9 +227,12 @@ export interface CatalogPlanGroups {
  *     compact row list inside one paper card, so a long catalog stays scannable
  *     instead of turning into a wall of artwork. Categories keep catalog order.
  */
-export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
-  const churchYearPlans = plans.filter((plan) => plan.category === 'church-year');
-  const rest = plans.filter((plan) => plan.category !== 'church-year');
+export function groupCatalogPlans(plans: ReadingPlan[], today: Date): CatalogPlanGroups {
+  const seasonStart = (plan: ReadingPlan) => getPlanSeason(plan, today)?.start.getTime() ?? 0;
+  const seasonalPlans = plans
+    .filter((plan) => isSeasonalPlan(plan))
+    .sort((left, right) => seasonStart(left) - seasonStart(right));
+  const rest = plans.filter((plan) => !isSeasonalPlan(plan));
   const dailyRhythmPlans = rest.filter((plan) => isRecurringPlan(plan));
   const lifeSituationPlans = rest.filter(
     (plan) => !isRecurringPlan(plan) && plan.category === 'life-situation'
@@ -237,7 +247,7 @@ export function groupCatalogPlans(plans: ReadingPlan[]): CatalogPlanGroups {
     }, {});
 
   return {
-    churchYearPlans,
+    seasonalPlans,
     dailyRhythmPlans,
     lifeSituationPlans,
     categories: Object.entries(plansByCategory).map(([category, categoryPlans]) => ({

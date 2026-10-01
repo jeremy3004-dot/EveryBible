@@ -105,6 +105,10 @@ async function rowRendersDuring(action: () => Promise<unknown>): Promise<string[
 // The service boundary: the bundled catalog, the background progress hydration
 // and the unenroll call, each controllable. Unenrolling edits the real store.
 const CATALOG = [...readingPlans].sort((a, b) => a.sort_order - b.sort_order) as ReadingPlan[];
+// What Find plans lists on TODAY: a seasonal plan is listed only around its dates.
+const isSeasonal = (plan: ReadingPlan) =>
+  plan.category === 'church-year' || plan.category === 'seasonal';
+const OFFERED = CATALOG.filter((plan) => !isSeasonal(plan) || plan.id === 'word-in-every-language');
 type Gate = { promise: Promise<void>; open: () => void };
 const gate = (): Gate => {
   let open!: () => void;
@@ -284,7 +288,7 @@ test('the title is the display-hero heading, and the eyebrow falls back to the c
 
   const title = view.getByRole('header', { name: t('readingPlans.plans') });
   assert.equal(flattenStyle(title.props.style)?.fontSize, typography.displayHero.fontSize);
-  assert.ok(view.getByText(t('readingPlans.plansCount', { count: CATALOG.length })));
+  assert.ok(view.getByText(t('readingPlans.plansCount', { count: OFFERED.length })));
   assert.equal(view.queryByText(/active/), null, 'never "0 active"');
 });
 
@@ -331,7 +335,7 @@ test('the eyebrow counts only plans the catalog still has', async () => {
   await seed(progressRow('retired-plan'));
   const onlyRetired = await renderHome();
   assert.ok(onlyRetired.getByText(t('readingPlans.noActivePlans')));
-  assert.ok(onlyRetired.getByText(t('readingPlans.plansCount', { count: CATALOG.length })));
+  assert.ok(onlyRetired.getByText(t('readingPlans.plansCount', { count: OFFERED.length })));
   assert.equal(onlyRetired.queryByText(/active/), null);
 });
 
@@ -531,7 +535,7 @@ test('with nothing started, My Plans is one empty state, no section headers, who
   await view.press(view.getByRole('button', { name: t('readingPlans.addFirstPlan') }));
 
   assert.ok(view.getByRole('tab', { name: t('readingPlans.findPlans'), selected: true }));
-  assert.ok(view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length })));
+  assert.ok(view.getByLabelText(t('readingPlans.searchPlansCount', { count: OFFERED.length })));
 });
 
 test('active plans split into Daily readings and Daily rhythms, each card announcing its day and progress', async () => {
@@ -892,7 +896,7 @@ test('Find plans leads with a 44pt search strip naming the catalog size', async 
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
 
-  const label = t('readingPlans.searchPlansCount', { count: CATALOG.length });
+  const label = t('readingPlans.searchPlansCount', { count: OFFERED.length });
   const input = view.getByLabelText(label);
   assert.equal(input.props.placeholder, label);
   // The tab's content sits straight in the page's scroll surface.
@@ -917,7 +921,7 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
 
   const rhythms = sectionOf(view, t('readingPlans.dailyRhythms'));
   const recurring = CATALOG.filter(
-    (plan) => plan.scheduleMode?.startsWith('calendar-') && plan.category !== 'church-year'
+    (plan) => plan.scheduleMode?.startsWith('calendar-') && !isSeasonal(plan)
   ).map((plan) => plan.id);
   assert.ok(recurring.includes(PROVERBS) && recurring.includes(KATHISMA));
   assert.ok(within(rhythms).getByText(t('readingPlans.plansCount', { count: recurring.length })));
@@ -931,16 +935,16 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
     topical: 'readingPlans.categoryTopical',
     devotional: 'readingPlans.categoryDevotional',
   };
-  // Advent and Christmas lead as the Church year cover grid, dated to this year's season.
-  const churchYear = CATALOG.filter((plan) => plan.category === 'church-year');
-  assert.deepEqual(
-    churchYear.map((plan) => plan.id),
-    ['advent', 'twelve-days-of-christmas']
-  );
-  const churchYearSection = sectionOf(view, t('readingPlans.churchYear.heading'));
-  for (const plan of churchYear) {
-    const card = within(churchYearSection).getByRole('button', { name: t(plan.title_key) });
-    assert.match(card.props.accessibilityValue.text, / – /, plan.id);
+  // Seasonal plans lead as the In season cover grid, dated to this year's season, but
+  // only around their own dates: on 24 September that is the translation week alone.
+  const inSeasonSection = sectionOf(view, t('readingPlans.inSeason'));
+  const translationWeek = planById('word-in-every-language');
+  const card = within(inSeasonSection).getByRole('button', {
+    name: t(translationWeek.title_key),
+  });
+  assert.match(card.props.accessibilityValue.text, / – /);
+  for (const plan of CATALOG.filter((item) => isSeasonal(item) && item !== translationWeek)) {
+    assert.equal(view.queryByText(t(plan.title_key)), null, `${plan.id} is out of season`);
   }
 
   // Seasons of life follows Daily rhythms as its own cover grid, not a row list.
@@ -956,9 +960,7 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
 
   const sequential = CATALOG.filter(
     (plan) =>
-      !recurring.includes(plan.id) &&
-      plan.category !== 'life-situation' &&
-      plan.category !== 'church-year'
+      !recurring.includes(plan.id) && plan.category !== 'life-situation' && !isSeasonal(plan)
   );
   const categories = [...new Set(sequential.map((plan) => plan.category ?? 'other'))];
   assert.deepEqual(
@@ -967,7 +969,7 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
       .map((node) => node.props.children)
       .slice(1),
     [
-      t('readingPlans.churchYear.heading'),
+      t('readingPlans.inSeason'),
       t('readingPlans.dailyRhythms'),
       t('readingPlans.categoryLifeSituations'),
       ...categories.map((category) =>
@@ -1116,7 +1118,7 @@ test('a plan without artwork gets a gradient cover with its initial', async () =
 test('search narrows the catalog by title, forgives typos, and has its own empty state', async () => {
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
-  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length }));
+  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: OFFERED.length }));
 
   await view.changeText(input, 'proverbs');
   assert.ok(view.getByText(titleOf(PROVERBS)));
@@ -1138,7 +1140,7 @@ test('search narrows the catalog by title, forgives typos, and has its own empty
 test('a filtered plan result opens on its first press while the search input is active', async () => {
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
-  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length }));
+  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: OFFERED.length }));
   await view.changeText(input, 'Week');
 
   // The render harness does not run the native keyboard responder. Assert the
@@ -1169,7 +1171,7 @@ test('tapping a Daily rhythms card or the body of a browse row opens that plan',
 test('leaving Find plans and coming back starts a fresh search', async () => {
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
-  const label = t('readingPlans.searchPlansCount', { count: CATALOG.length });
+  const label = t('readingPlans.searchPlansCount', { count: OFFERED.length });
   await view.changeText(view.getByLabelText(label), 'proverbs');
   assert.equal(view.queryByText(titleOf(PSALMS)), null);
 
@@ -1403,11 +1405,11 @@ test('reading or listening elsewhere does not re-render the catalog or completed
 test('refining a search re-renders only the rows it changes', async () => {
   const view = await renderHome();
   await openTab(view, 'readingPlans.findPlans');
-  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: CATALOG.length }));
+  const input = view.getByLabelText(t('readingPlans.searchPlansCount', { count: OFFERED.length }));
   /** Each catalog row on screen, and whether it leads its card (no divider above it). */
   const catalogRows = () =>
     new Map(
-      CATALOG.flatMap((plan) => {
+      OFFERED.flatMap((plan) => {
         const row = view.queryByRole('button', { name: new RegExp(`^${titleOf(plan.id)}, `) });
         return row ? [[plan.id, flattenStyle(row.props.style)?.borderTopWidth === undefined]] : [];
       })
@@ -1418,7 +1420,7 @@ test('refining a search re-renders only the rows it changes', async () => {
   assert.deepEqual(await rowRendersDuring(() => view.changeText(input, 'proverbs ')), []);
 
   await view.changeText(input, 'gospels');
-  const shown = CATALOG.filter((plan) => view.queryByText(t(plan.title_key))).map(
+  const shown = OFFERED.filter((plan) => view.queryByText(t(plan.title_key))).map(
     (plan) => plan.id
   );
   const rowsBefore = catalogRows();
@@ -1431,7 +1433,7 @@ test('refining a search re-renders only the rows it changes', async () => {
   // shown only a row that stops leading its card, since it gains a divider.
   const drawn = await rowRendersDuring(() => view.changeText(input, ''));
   const rowsAfter = catalogRows();
-  const hidden = CATALOG.map((plan) => plan.id).filter((id) => !shown.includes(id));
+  const hidden = OFFERED.map((plan) => plan.id).filter((id) => !shown.includes(id));
   const lostTheLead = [...rowsBefore].filter(([id, leads]) => leads !== rowsAfter.get(id));
   assert.ok(lostTheLead.length < rowsBefore.size, 'some shown rows keep their place');
   assert.deepEqual(

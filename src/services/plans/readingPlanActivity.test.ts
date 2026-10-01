@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getSeason, isSeasonalScheduleMode, type SeasonalScheduleMode } from './churchCalendar';
 import { readingPlanEntriesByPlanId, readingPlansById } from '../../data/readingPlans.generated';
 
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
@@ -8,6 +9,7 @@ import type {
   ReadingPlan,
   ReadingPlanEntry,
   ReadingPlanRhythm,
+  ReadingPlanScheduleMode,
   UserReadingPlanProgress,
 } from './types';
 import {
@@ -41,10 +43,14 @@ function dateOfPlanDay(scheduleMode: string | undefined, dayNumber: number): Dat
     // Advent 2022 began on 27 November and ran its longest, 28 days.
     case 'calendar-advent':
       return new Date(2022, 10, dayNumber + 26, 12);
-    case 'calendar-christmas':
-      return new Date(2026, 11, dayNumber + 24, 12);
-    default:
+    default: {
+      // Any other season: the dated day in its run that starts after 1 January 2027.
+      if (isSeasonalScheduleMode(scheduleMode as ReadingPlanScheduleMode)) {
+        const { start } = getSeason(scheduleMode as SeasonalScheduleMode, new Date(2027, 0, 1, 12));
+        return new Date(start.getFullYear(), start.getMonth(), start.getDate() + dayNumber - 1, 12);
+      }
       return new Date(2026, 0, dayNumber, 12);
+    }
   }
 }
 

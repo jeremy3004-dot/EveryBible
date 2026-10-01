@@ -15,19 +15,19 @@ import {
   getPlans,
   planGroupId,
   planHeading,
+  planFactsLine,
   planMetaLabel,
-  planPaceSentence,
   planPageMetadata,
   planPageStructuredData,
   PLANS_PATH,
   planScheduleSentence,
-  planScopeSentence,
   planSnapshot,
   readingLabel,
   readingPath,
   relatedPlans,
   shouldBlockDays,
 } from '../../../lib/plan-pages';
+import { getPlanCopy, highlightLink } from '../../../lib/plan-copy';
 import type { PlanDay, PlanReading, SitePlan } from '../../../lib/plan-snapshot';
 import { EVERYBIBLE_SMART_DOWNLOAD_PATH } from '../../../lib/site-links';
 import { serializeJsonLd } from '../../../lib/site-metadata';
@@ -59,6 +59,42 @@ function Readings({ readings }: { readings: readonly PlanReading[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** The hand-written introduction, the passages worth knowing, and the plan's numbers. */
+function About({ plan }: { plan: SitePlan }) {
+  const copy = getPlanCopy(plan.slug);
+  const schedule = planScheduleSentence(plan);
+  return (
+    <section aria-labelledby="about-heading" className="plan-about">
+      <h2 id="about-heading">About this plan</h2>
+      {copy?.intro.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+      {copy && copy.highlights.length > 0 && (
+        <>
+          <h3 id="highlights-heading">What you’ll read</h3>
+          <ul className="plan-highlights" aria-labelledby="highlights-heading">
+            {copy.highlights.map((item) => {
+              const { first, rest, path } = highlightLink(item.refs);
+              return (
+                <li key={item.label}>
+                  <span className="plan-highlight__label">{item.label}</span>
+                  <span className="plan-highlight__days">{item.days}</span>
+                  <span className="plan-highlight__refs">
+                    <a href={path}>{first}</a>
+                    {rest && `, ${rest}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      <p className="plan-facts">{planFactsLine(plan)}</p>
+      {schedule && <p className="plan-note">{schedule}</p>}
+    </section>
   );
 }
 
@@ -114,7 +150,6 @@ export default async function PlanDetailPage({ params }: PlanRouteProps) {
 
   const group = planSnapshot.groupLabels[planGroupId(plan)];
   const related = relatedPlans(plan);
-  const pace = planPaceSentence(plan);
 
   return (
     <PlanLayout current={plan.title}>
@@ -136,14 +171,7 @@ export default async function PlanDetailPage({ params }: PlanRouteProps) {
       </section>
 
       <article className="static-page__content">
-        <section aria-labelledby="about-heading">
-          <h2 id="about-heading">About this plan</h2>
-          <p>
-            {planScopeSentence(plan)}
-            {pace && ` ${pace}`}
-          </p>
-          <p>{planScheduleSentence(plan)}</p>
-        </section>
+        <About plan={plan} />
 
         <section aria-labelledby="schedule-heading">
           <h2 id="schedule-heading">Reading schedule</h2>

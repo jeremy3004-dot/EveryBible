@@ -15,6 +15,7 @@ import {
   isCalendarDayOfMonthPlan,
   isCalendarDayOfWeekPlan,
   isRecurringPlan,
+  isSeasonalPlan,
   resolvePlanLedgerDayState,
   type ReadingPlanLedgerDayState,
 } from '../../../services/plans/readingPlanModel';
@@ -33,6 +34,7 @@ export const CATEGORY_LABEL_KEYS: Partial<Record<ReadingPlanCategory, string>> =
   topical: 'readingPlans.categoryTopical',
   devotional: 'readingPlans.categoryDevotional',
   'church-year': 'readingPlans.churchYear.heading',
+  seasonal: 'readingPlans.inSeason',
 };
 
 /** A book names the plan in its eyebrow once it carries this share of the entries. */
@@ -193,7 +195,7 @@ export function getDominantPlanBook(entries: ReadingPlanEntry[]): string | null 
 
 /** The translation key for the eyebrow's cadence: a rhythm, or the plan's category. */
 export function getPlanCadenceLabelKey(plan: ReadingPlan): string | undefined {
-  if (isRecurringPlan(plan) && plan.category !== 'church-year') return 'readingPlans.dailyRhythm';
+  if (isRecurringPlan(plan) && !isSeasonalPlan(plan)) return 'readingPlans.dailyRhythm';
   return plan.category ? CATEGORY_LABEL_KEYS[plan.category] : undefined;
 }
 

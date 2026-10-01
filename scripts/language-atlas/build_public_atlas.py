@@ -3,7 +3,10 @@ import argparse
 import gzip
 import hashlib
 import json
+import math
+import re
 import subprocess
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -29,16 +32,103 @@ def pick(value, fields):
     return {key: value[key] for key in fields if key in value}
 
 
+# Every entry in a record's locations list is drawn as its own dot. Sources often
+# place the same language a few metres (or a few km) apart, which made one
+# record appear twice in a cluster, so the public map keeps the first point of
+# any group closer than this. The admin index keeps every source placement.
+COLOCATED_KM = 25
+
+
+def distance_km(a, b):
+    lat1, lon1, lat2, lon2 = map(math.radians, (a["latitude"], a["longitude"], b["latitude"], b["longitude"]))
+    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(min(1.0, h)))
+
+
+def distinct_places(points):
+    kept = []
+    for point in points:
+        if all(distance_km(point, other) >= COLOCATED_KM for other in kept):
+            kept.append(point)
+    return kept
+
+
+# Labels that name many unrelated varieties ("Kombio: East", "Aro: East") never
+# count as the same place name.
+GENERIC_LEAF_WORDS = {
+    "east", "eastern", "west", "western", "north", "northern", "south", "southern",
+    "central", "standard", "common", "nuclear", "cluster", "proper", "upper", "lower",
+    "coastal", "high", "low", "highland", "lowland", "inner", "outer", "interior",
+    "northeast", "northeastern", "northwest", "northwestern", "southeast", "southeastern",
+    "southwest", "southwestern", "north-east", "north-west", "south-east", "south-west",
+    "dialect", "language", "group", "i", "ii", "iii", "iv", "a", "b",
+}
+
+
+def place_name(record):
+    """The variety's own label, without a "Language: " prefix, for spotting repeats."""
+    name = record.get("name") or ""
+    leaf = name.split(":", 1)[1] if ":" in name else name
+    leaf = unicodedata.normalize("NFC", leaf).casefold()
+    words = re.sub(r"[,()\-]", " ", leaf).split()
+    if not words or all(word in GENERIC_LEAF_WORDS for word in words):
+        return None
+    return " ".join(words)
+
+
+def retired_reference(record):
+    """A retired ISO code kept only as a Glottolog reference row (e.g. Naxi nbf beside nxq)."""
+    return record["kind"] == "language" and (
+        record.get("family") == "Bookkeeping"
+        or (bool(record.get("needsReview")) and set(record.get("sourceIds") or []) <= {"glottolog", "registry"})
+    )
+
+
+def hide_repeated_dots(records):
+    """Draw one dot where sources list the same variety twice under different classifications.
+
+    One source can call a variety a language and another its dialect, put it
+    under a different parent, or keep a retired ISO code beside the current
+    one, so the same name was drawn twice at one spot. Current languages always
+    keep their dots; a dialect or retired reference row loses its dot (not its
+    record) when a record with the same specific name already has a dot
+    within ``COLOCATED_KM``.
+    """
+    def hideable(record):
+        return record["kind"] == "dialect" or retired_reference(record)
+
+    order = sorted(
+        (record for record in records if record["kind"] in ("language", "dialect") and record.get("location")),
+        key=lambda record: (hideable(record), record["kind"] != "language",
+                            -len(record.get("sourceIds") or []), record["id"]),
+    )
+    drawn = {}
+    for record in order:
+        name = place_name(record)
+        points = record.get("locations") or [record["location"]]
+        if name is None:
+            continue
+        nearby = drawn.get(name, [])
+        if hideable(record) and nearby and all(
+            any(distance_km(point, other) < COLOCATED_KM for other in nearby) for point in points
+        ):
+            record["location"] = None
+            record.pop("locations", None)
+            continue
+        drawn.setdefault(name, []).extend(points)
+
+
 def public_projection(index):
     records = []
     for record in index["records"]:
         public = pick(record, RECORD_FIELDS)
         public["location"] = pick(record["location"], LOCATION_FIELDS) if record.get("location") else None
         if "locations" in record:
-            public["locations"] = [pick(point, LOCATION_FIELDS) for point in record["locations"]]
+            public["locations"] = [pick(point, LOCATION_FIELDS) for point in distinct_places(record["locations"])]
         if "spokenLocations" in record:
             public["spokenLocations"] = [pick(point, SPOKEN_LOCATION_FIELDS) for point in record["spokenLocations"]]
         records.append(public)
+    hide_repeated_dots(records)
     sources = []
     for source in index["sources"]:
         public = pick(source, SOURCE_FIELDS)

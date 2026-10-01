@@ -435,6 +435,120 @@ def christmas():  # the star over the stable, its light falling on the manger
           f'<ellipse cx="1215" cy="1238" rx="105" ry="40" fill="{EMBER}"/><circle cx="1098" cy="1226" r="38" fill="{EMBER}"/>'
           + stroke(700, 1400, 1700, 1400, STONE, 8, .8))
 
+def new_year():  # a gate swung open on the first morning (Rev 21:5, all things new)
+  return (f'<defs><clipPath id="sky"><rect width="2400" height="1240"/></clipPath></defs>'
+          f'<path d="M1020 1240 L1380 1240 L1700 1460 L700 1460 Z" fill="{OCHRE}" fill-opacity="0.25"/>'
+          f'<circle cx="1200" cy="1240" r="200" fill="{OCHRE}" clip-path="url(#sky)"/>'
+          f'<circle cx="1200" cy="1240" r="290" fill="none" stroke="{OCHRE}" stroke-width="6" stroke-opacity="0.35" clip-path="url(#sky)"/>'
+          + stroke(1020, 600, 1020, 1240, DEEP, 26) + stroke(1380, 600, 1380, 1240, DEEP, 26) +
+          f'<path d="M1020 660 L760 560 L760 1300 L1020 1240 Z" fill="{EMBER}"/>'
+          f'<path d="M1380 660 L1640 560 L1640 1300 L1380 1240 Z" fill="{EMBER}"/>'
+          + ''.join(stroke(x, 640, x, 1240, SAND, 8, .55) for x in (840, 920, 1480, 1560))
+          + stroke(560, 1240, 1840, 1240, DEEP, 8))
+
+def epiphany():  # the star, and its light falling on every people (Isa 60:3)
+  cy = 480
+  star = ''.join(f'<path d="M1200 {cy - l} L{1200 + w} {cy} L1200 {cy + l} L{1200 - w} {cy} Z" fill="{SAND}" transform="rotate({a} 1200 {cy})"/>'
+                 for a, l, w in [(0, 150, 28), (90, 150, 28), (45, 90, 18), (135, 90, 18)])
+  peoples = ''.join(f'<circle cx="{x}" cy="{1250 - abs(x - 1200) * 0.12:.0f}" r="{r}" fill="{c}"/>'
+                    for x, r, c in [(620, 44, STONE), (760, 52, OCHRE), (900, 46, EMBER), (1040, 56, SAND),
+                                    (1200, 50, OCHRE), (1360, 56, EMBER), (1500, 46, STONE), (1640, 52, SAND), (1780, 44, OCHRE)])
+  return (f'<path d="M1180 {cy + 40} L1220 {cy + 40} L1880 1320 L520 1320 Z" fill="{OCHRE}" fill-opacity="0.16"/>'
+          f'<circle cx="1200" cy="{cy}" r="130" fill="{SAND}" fill-opacity="0.16"/>' + star + peoples
+          + stroke(500, 1330, 1900, 1330, SAND, 6, .5))
+
+def lent():  # a path across the wilderness to the cross on the hill
+  dunes = (f'<path d="M0 1200 C620 1080 900 1120 1200 1060 C1500 1000 1820 1060 2400 1170 V1800 H0 Z" fill="{DEEP}" fill-opacity="0.55"/>'
+           f'<path d="M0 1320 C700 1220 1000 1260 1300 1230 C1600 1200 1900 1260 2400 1310 V1800 H0 Z" fill="{DEEP}"/>')
+  path = ''.join(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.0f}" fill="{SAND}" fill-opacity="{o:.2f}"/>'
+                 for i in range(14)
+                 for x, y, r, o in [(760 + i * 34 + 120 * math.sin(i / 2.2), 1440 - i * 26, 15 - i * 0.6, 1 - i * 0.045)])
+  return (f'<circle cx="1440" cy="560" r="110" fill="{OCHRE}" fill-opacity="0.5"/>' + dunes
+          + stroke(1260, 640, 1260, 1050, SAND, 28) + stroke(1150, 750, 1370, 750, SAND, 28) + path)
+
+def palm(x, y, length, angle, c):  # a palm branch: a stem with leaves swept along it
+  s = f'<g transform="rotate({angle} {x} {y})">' + stroke(x, y, x, y - length, c, 14)
+  for i in range(1, 12):
+    yy, w = y - length * i / 12, 150 * math.sin(math.pi * i / 12) + 30
+    s += (f'<path d="M{x} {yy} Q{x - w * 0.6} {yy - 30} {x - w} {yy + 40}" fill="none" stroke="{c}" stroke-width="12" stroke-linecap="round"/>'
+          f'<path d="M{x} {yy} Q{x + w * 0.6} {yy - 30} {x + w} {yy + 40}" fill="none" stroke="{c}" stroke-width="12" stroke-linecap="round"/>')
+  return s + '</g>'
+
+def holy_week():  # the palm laid down at the foot of the cross
+  return (f'<circle cx="1200" cy="760" r="420" fill="{EMBER}" fill-opacity="0.12"/>'
+          f'<rect x="1165" y="420" width="70" height="960" rx="10" fill="{SAND}"/>'
+          f'<rect x="960" y="620" width="480" height="70" rx="10" fill="{SAND}"/>'
+          + palm(1000, 1400, 560, 58, OCHRE) + stroke(600, 1400, 1800, 1400, STONE, 8, .8))
+
+def orthodox_holy_week():  # the Orthodox cross, its footrest slanting up to the right, and a candle
+  return (f'<circle cx="1200" cy="820" r="460" fill="{OCHRE}" fill-opacity="0.14"/>'
+          f'<rect x="1170" y="380" width="60" height="1020" rx="8" fill="{DEEP}"/>'
+          f'<rect x="1080" y="500" width="240" height="50" rx="8" fill="{DEEP}"/>'
+          f'<rect x="960" y="640" width="480" height="60" rx="8" fill="{DEEP}"/>'
+          f'<rect x="1060" y="1080" width="280" height="50" rx="8" fill="{DEEP}" transform="rotate(-24 1200 1105)"/>'
+          f'<rect x="1580" y="1080" width="56" height="300" rx="8" fill="{EMBER}"/>'
+          + flame(1608, 1070, 150, 44, OCHRE) + stroke(700, 1400, 1700, 1400, STONE, 8, .8))
+
+def easter():  # the stone rolled away, and morning at the door of the tomb
+  return (f'<defs><clipPath id="sky"><rect width="2400" height="1300"/></clipPath></defs>'
+          f'<circle cx="1640" cy="1300" r="230" fill="{OCHRE}" clip-path="url(#sky)"/>'
+          f'<circle cx="1640" cy="1300" r="320" fill="none" stroke="{OCHRE}" stroke-width="6" stroke-opacity="0.4" clip-path="url(#sky)"/>'
+          f'<path d="M500 1300 C540 900 760 700 1060 700 C1360 700 1520 940 1540 1300 Z" fill="{STONE}"/>'
+          f'<path d="{arch(880, 960, 300, 1300)}" fill="{INK}"/>'
+          f'<path d="M1080 1300 L1180 1180 L1360 1300 Z" fill="{SAND}" fill-opacity="0.35"/>'
+          f'<circle cx="1420" cy="1140" r="160" fill="{DEEP}"/><circle cx="1420" cy="1140" r="110" fill="none" stroke="{SAND}" stroke-width="6" stroke-opacity="0.4"/>'
+          + stroke(420, 1300, 1980, 1300, DEEP, 8))
+
+def pentecost():  # tongues of fire resting on each one (Acts 2:3)
+  s = ''.join(f'<circle cx="1200" cy="900" r="{r}" fill="none" stroke="{OCHRE}" stroke-width="5" stroke-opacity="{o}"/>' for r, o in [(470, .18), (560, .1)])
+  for i in range(12):
+    a = math.radians(-90 + i * 30)
+    x, y = 1200 + 380 * math.cos(a), 900 + 380 * math.sin(a)
+    s += flame(round(x), round(y + 55), 130, 40, [EMBER, OCHRE, SAND][i % 3])
+  return s + flame(1200, 1060, 330, 110, EMBER) + flame(1200, 1060, 200, 60, OCHRE)
+
+def translation_week():  # the open Book, its word going out in every tongue
+  s = (f'<path d="M1200 1080 C1050 1000 820 990 640 1040 V1380 C820 1330 1050 1340 1200 1420 Z" fill="{OCHRE}"/>'
+       f'<path d="M1200 1080 C1350 1000 1580 990 1760 1040 V1380 C1580 1330 1350 1340 1200 1420 Z" fill="#E2BC93"/>'
+       + stroke(1200, 1080, 1200, 1420, DEEP, 8))
+  for i in range(9):
+    a = math.radians(-160 + i * 17.5)
+    x1, y1 = 1200 + 200 * math.cos(a), 960 + 200 * math.sin(a)
+    x2, y2 = 1200 + (420 + 60 * (i % 3)) * math.cos(a), 960 + (420 + 60 * (i % 3)) * math.sin(a)
+    c = [EMBER, OCHRE, DEEP][i % 3]
+    s += stroke(round(x1), round(y1), round(x2), round(y2), c, 12) + f'<circle cx="{x2:.0f}" cy="{y2:.0f}" r="26" fill="{c}"/>'
+  return s
+
+def all_saints():  # a great cloud of witnesses around the race (Heb 12:1)
+  s = ''
+  for row, (r, n, size) in enumerate([(640, 23, 22), (540, 19, 26), (440, 15, 30)]):
+    for i in range(n):
+      a = math.radians(190 + i * 160 / (n - 1))
+      x, y = 1200 + r * math.cos(a), 1220 + r * 0.85 * math.sin(a)
+      s += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{size}" fill="{[SAND, OCHRE, STONE][(i + row) % 3]}" fill-opacity="{0.55 + row * 0.2:.2f}"/>'
+  return (s + f'<path d="M560 1340 C800 1240 1600 1240 1840 1340" fill="none" stroke="{EMBER}" stroke-width="20" stroke-linecap="round"/>'
+          + flame(1200, 1210, 200, 60, OCHRE) + flame(1200, 1210, 110, 30, SAND))
+
+def persecuted_church():  # a light kept burning inside a ring of thorns
+  s = f'<circle cx="1200" cy="900" r="330" fill="{OCHRE}" fill-opacity="0.12"/>'
+  for i in range(3):
+    pts = ' '.join(f'{1200 + (420 + 30 * math.sin(k / 3 + i * 2)) * math.cos(math.radians(k * 3 + i * 40)):.0f},'
+                   f'{900 + (420 + 30 * math.sin(k / 3 + i * 2)) * 0.62 * math.sin(math.radians(k * 3 + i * 40)):.0f}' for k in range(121))
+    s += f'<polyline points="{pts}" fill="none" stroke="{STONE}" stroke-width="16" stroke-linecap="round" stroke-opacity="0.85"/>'
+  for i in range(16):
+    a = math.radians(i * 22.5 + 8)
+    x, y = 1200 + 420 * math.cos(a), 900 + 420 * 0.62 * math.sin(a)
+    s += stroke(round(x), round(y), round(x + 70 * math.cos(a + 0.9)), round(y + 70 * math.sin(a + 0.9)), STONE, 10)
+  return s + flame(1200, 1040, 340, 110, EMBER) + flame(1200, 1040, 200, 58, OCHRE) + f'<rect x="1150" y="1040" width="100" height="220" rx="10" fill="{SAND}"/>'
+
+def hard_christmas():  # the longest night, and one candle in it (John 1:5)
+  return (scatter_stars(11, 14, (520, 420, 1880, 900)) + crescent(1660, 560, 110)
+          + f'<circle cx="1200" cy="1000" r="260" fill="{OCHRE}" fill-opacity="0.1"/>'
+          + f'<circle cx="1200" cy="1000" r="160" fill="{OCHRE}" fill-opacity="0.14"/>'
+          + f'<rect x="1150" y="1040" width="100" height="330" rx="10" fill="{SAND}"/>'
+          + flame(1200, 1030, 190, 56, OCHRE) + flame(1200, 1020, 100, 26, SAND)
+          + stroke(760, 1380, 1640, 1380, STONE, 8, .7))
+
 # file name (existing cover key file) -> (ground, mark, plan)
 COVERS = {
   'lakeLandscape': ('V', year, 'Bible in 1 Year'),
@@ -481,6 +595,17 @@ COVERS = {
   'lifeFamily': ('D', life_family, 'Seasons of life: Family'),
   'advent': ('D', advent, 'Advent'),
   'christmas': ('V', christmas, 'Twelve Days of Christmas'),
+  'newYear': ('V', new_year, 'A New Year'),
+  'epiphany': ('D', epiphany, 'Epiphany'),
+  'lent': ('T', lent, 'Lent'),
+  'holyWeek': ('D', holy_week, 'Holy Week'),
+  'orthodoxHolyWeek': ('V', orthodox_holy_week, 'Holy Week (Orthodox)'),
+  'easter': ('V', easter, 'Easter'),
+  'pentecost': ('D', pentecost, 'Ascension to Pentecost'),
+  'translationWeek': ('V', translation_week, 'The Word in Every Language'),
+  'allSaints': ('D', all_saints, 'All Saints'),
+  'persecutedChurch': ('D', persecuted_church, 'The Persecuted Church'),
+  'hardChristmas': ('D', hard_christmas, 'When Christmas Is Hard'),
 }
 
 GRAIN = ('<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>'

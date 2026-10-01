@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { bibleBookById } from './bible-books';
+import { getPlanCopy } from './plan-copy';
 import {
   blockSpanLabel,
   buildPlansSitemap,
@@ -11,6 +12,7 @@ import {
   getPlanBySlug,
   getPlans,
   groupPlans,
+  planFactsLine,
   planHeading,
   planLengthLabel,
   planMetaLabel,
@@ -99,8 +101,8 @@ test('the Twelve Days are labelled by date; Advent counts days because its start
   assert.equal(dayLabel(christmas, 8), '1 January');
   assert.equal(dayLabel(christmas, 12), '5 January');
   assert.equal(dayLabel(plan('advent'), 22), 'Day 22');
-  assert.match(planScheduleSentence(plan('advent')), /first Sunday of Advent/);
-  assert.match(planScheduleSentence(christmas), /Christmas Day and ends on 5 January/);
+  assert.match(planScheduleSentence(plan('advent')) ?? '', /first Sunday of Advent/);
+  assert.match(planScheduleSentence(christmas) ?? '', /Christmas Day and ends on 5 January/);
 });
 
 test('weekly plans name the weekday, starting on Sunday', () => {
@@ -110,12 +112,41 @@ test('weekly plans name the weekday, starting on Sunday', () => {
   assert.equal(dayLabel(plan('bible-in-1-year'), 200), 'Day 200');
 });
 
-test('the catalog follows the app: Church year, Daily rhythms, Seasons of life, then categories', () => {
+test('the dated seasons name their days and say when they run', () => {
+  assert.equal(planLengthLabel(plan('lent')), 'Every Lent');
+  assert.equal(dayLabel(plan('when-christmas-is-hard'), 1), '18 December');
+  assert.equal(dayLabel(plan('when-christmas-is-hard'), 7), '24 December');
+  assert.equal(dayLabel(plan('new-year'), 7), '7 January');
+  assert.equal(dayLabel(plan('epiphany'), 1), '6 January');
+  assert.equal(dayLabel(plan('word-in-every-language'), 7), '30 September');
+  assert.equal(dayLabel(plan('all-saints'), 1), '1 November');
+  assert.equal(dayLabel(plan('persecuted-church'), 1), 'Sunday');
+  assert.equal(dayLabel(plan('holy-week'), 5), 'Maundy Thursday');
+  assert.equal(dayLabel(plan('orthodox-holy-week'), 8), 'Pascha');
+  assert.equal(dayLabel(plan('lent'), 39), 'Day 39');
+  // Easter-based plans never hard-code a year, only how they follow Easter.
+  for (const slug of [
+    'lent',
+    'holy-week',
+    'orthodox-holy-week',
+    'easter',
+    'ascension-to-pentecost',
+  ])
+    assert.match(planScheduleSentence(plan(slug)) ?? '', /moves|change/, slug);
+  assert.match(planScheduleSentence(plan('lent')) ?? '', /Ash Wednesday/);
+  assert.match(planScheduleSentence(plan('easter')) ?? '', /Easter Monday/);
+  assert.match(planScheduleSentence(plan('ascension-to-pentecost')) ?? '', /Ascension Day/);
+  assert.match(planScheduleSentence(plan('persecuted-church')) ?? '', /second Sunday of November/);
+  for (const item of getPlans())
+    assert.doesNotMatch(planScheduleSentence(item) ?? '', /\b20\d\d\b/, item.slug);
+});
+
+test('the catalog follows the app: In season, Daily rhythms, Seasons of life, then categories', () => {
   const groups = groupPlans(getPlans());
   assert.deepEqual(
     groups.map((group) => group.label),
     [
-      'Church year',
+      'In season',
       'Daily rhythms',
       'Seasons of life',
       'Whole Bible',
@@ -126,7 +157,21 @@ test('the catalog follows the app: Church year, Daily rhythms, Seasons of life, 
   );
   assert.deepEqual(
     groups[0].plans.map((item) => item.slug),
-    ['advent', 'twelve-days-of-christmas']
+    [
+      'advent',
+      'twelve-days-of-christmas',
+      'when-christmas-is-hard',
+      'new-year',
+      'epiphany',
+      'lent',
+      'holy-week',
+      'orthodox-holy-week',
+      'easter',
+      'ascension-to-pentecost',
+      'word-in-every-language',
+      'all-saints',
+      'persecuted-church',
+    ]
   );
   const rhythms = groups[1].plans.map((item) => item.slug);
   assert.deepEqual(rhythms, [
@@ -179,6 +224,33 @@ test('summaries are counted from the schedule', () => {
   assert.match(planScopeSentence(plan('life-anxiety-7-days')), /^\d+ chapters from \d+ books/);
 });
 
+test('only calendar plans need a schedule sentence; the rest start the day you do', () => {
+  for (const item of getPlans()) {
+    const sentence = planScheduleSentence(item);
+    if (item.schedule === 'sequential') assert.equal(sentence, null, item.slug);
+    else assert.ok(sentence && sentence.length > 40, item.slug);
+  }
+  assert.match(planScheduleSentence(plan('kathisma-weekly')) ?? '', /morning and evening/);
+  assert.match(planScheduleSentence(plan('proverbs-31-days')) ?? '', /14th of any month/);
+});
+
+test('the facts line counts chapters, books and pace from the schedule', () => {
+  assert.equal(
+    planFactsLine(plan('bible-in-1-year')),
+    '1,189 chapters · 66 books · about 3 chapters a day · 365 days'
+  );
+  assert.equal(
+    planFactsLine(plan('acts-28-days')),
+    '28 chapters · 1 book · 1 chapter a day · 28 days'
+  );
+  assert.equal(planFactsLine(plan('proverbs-31-days')), '31 chapters · 1 book · every month');
+  assert.equal(
+    planFactsLine(plan('sermon-on-the-mount-7-days')),
+    'Selected passages · 1 book · 7 days'
+  );
+  assert.equal(planFactsLine(plan('week-of-christ')), '7 chapters · 5 books · every week');
+});
+
 test('long plans fold into 30-day blocks labelled by where they start and end', () => {
   const year = plan('bible-in-1-year');
   assert.ok(shouldBlockDays(year));
@@ -208,7 +280,9 @@ test('titles and descriptions fit search results and name the plan', () => {
     assert.ok(title.length <= TITLE_MAX_LENGTH, title);
     assert.ok(description.length <= DESCRIPTION_MAX_LENGTH, description);
     assert.ok(title.includes(planHeading(item)), title);
-    assert.ok(description.startsWith(item.description), description);
+    const written = getPlanCopy(item.slug)?.metaDescription;
+    if (written) assert.equal(description, written);
+    else assert.ok(description.startsWith(item.description), description);
   }
   assert.equal(
     planPageTitle(plan('life-anxiety-7-days')),

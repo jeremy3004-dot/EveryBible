@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-01",
+  "policy": "Reviewed fixes to individual source rows only (wrong code, parent or placement). Applied before reconciliation; every correction names its evidence.",
+  "corrections": [
+    {
+      "id": "el:65ab525e-1c8c-4108-b1ae-65afd17acf5c",
+      "set": {
+        "iso6393": "rmn",
+        "parentId": "iso:rom",
+        "countryCodes": [],
+        "location": null,
+        "scriptureStatus": "unknown",
+        "scriptureScope": "unknown"
+      },
+      "rationale": "Every Language lists Romani, Balkan under ISO rmm, which is Roma, an Austronesian language of Maluku. That row copied Roma's Indonesian placement and Scripture status. Balkan Romani is ISO rmn, which already has its own Balkan record. The code is corrected, and the copied Indonesian placement and status are removed.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/65ab525e-1c8c-4108-b1ae-65afd17acf5c",
+        "https://iso639-3.sil.org/code/rmn",
+        "https://iso639-3.sil.org/code/rmm"
+      ]
+    },
+    {
+      "id": "el:d04be05b-a178-420b-b145-8019cdd0da7e",
+      "set": {
+        "kind": "dialect",
+        "iso6393": "gmv",
+        "parentId": "iso:gmv",
+        "countryCodes": [
+          "ET"
+        ],
+        "location": null,
+        "scriptureStatus": "unknown",
+        "scriptureScope": "unknown"
+      },
+      "rationale": "Every Language lists Gamo: Dache as a language under ISO glv (Manx), so it was drawn on the Isle of Man with Manx's Scripture status. Dache is a variety of Gamo (ISO gmv, Ethiopia), as GRN's ROLV 25035 records. It is corrected to a Gamo dialect without the copied Manx placement or status.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/d04be05b-a178-420b-b145-8019cdd0da7e",
+        "https://globalrecordings.net/en/language/25035",
+        "https://iso639-3.sil.org/code/gmv",
+        "https://iso639-3.sil.org/code/glv"
+      ]
+    },
+    {
+      "id": "el:98671e1e-4b67-4344-8396-3f785ffe5db2",
+      "set": {
+        "iso6393": "gmv",
+        "parentId": "iso:gmv",
+        "family": "Ta-Ne-Omotic",
+        "countryCodes": [
+          "ET"
+        ],
+        "location": null
+      },
+      "rationale": "The same Gamo: Dache row was also attached as a dialect of Manx (ISO glv), inheriting Manx's family and Isle of Man placement. It is a Gamo (ISO gmv, Ethiopia) variety, as GRN's ROLV 25035 records.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/98671e1e-4b67-4344-8396-3f785ffe5db2",
+        "https://globalrecordings.net/en/language/25035",
+        "https://iso639-3.sil.org/code/gmv"
+      ]
+    },
+    {
+      "id": "el:21854042-b2cc-4a56-bfab-9ffe52c9cdd8",
+      "set": {
+        "parentId": null,
+        "family": "Atlantic-Congo",
+        "scriptureStatus": "unknown",
+        "scriptureScope": "unknown"
+      },
+      "rationale": "Olumarachi is the Every Language name for Marama (ISO lrm), which already has an ISO record. The Every Language row nests it under the Luyia macrolanguage and carries its own status and family labels. It is aligned with the ISO record so the two can be merged; the ISO record's Scripture status is kept.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/21854042-b2cc-4a56-bfab-9ffe52c9cdd8",
+        "https://iso639-3.sil.org/code/lrm"
+      ]
+    },
+    {
+      "id": "el:b2f8ed7d-2bd1-4bc6-aec6-767b1e939096",
+      "set": {
+        "parentId": "iso:zha"
+      },
+      "rationale": "This Every Language row has no code or placement and repeats the name of ISO zch, which belongs to the zha macrolanguage. It gets the same parent so the two records can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/b2f8ed7d-2bd1-4bc6-aec6-767b1e939096",
+        "https://iso639-3.sil.org/code/zch"
+      ]
+    },
+    {
+      "id": "el:274a4c68-2b03-4e17-9ee8-245ce094f5a2",
+      "set": {
+        "parentId": "iso:zha"
+      },
+      "rationale": "This Every Language row has no code or placement and repeats the name of ISO zgn, which belongs to the zha macrolanguage. It gets the same parent so the two records can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/274a4c68-2b03-4e17-9ee8-245ce094f5a2",
+        "https://iso639-3.sil.org/code/zgn"
+      ]
+    },
+    {
+      "id": "el:9eb8f68a-a0f7-4ff1-8780-7e1fd721ab62",
+      "set": {
+        "parentId": "iso:zha"
+      },
+      "rationale": "This Every Language row has no code or placement and repeats the name of ISO zqe, which belongs to the zha macrolanguage. It gets the same parent so the two records can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/9eb8f68a-a0f7-4ff1-8780-7e1fd721ab62",
+        "https://iso639-3.sil.org/code/zqe"
+      ]
+    },
+    {
+      "id": "el:38f711c1-eb00-4602-b1c1-91b72503c253",
+      "set": {
+        "parentId": "iso:msa"
+      },
+      "rationale": "This Every Language row has no code or placement and repeats the name of ISO zsm, which belongs to the msa macrolanguage. It gets the same parent so the two records can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/38f711c1-eb00-4602-b1c1-91b72503c253",
+        "https://iso639-3.sil.org/code/zsm"
+      ]
+    },
+    {
+      "id": "el:64ea8514-d457-463b-a6f3-abf67a886145",
+      "set": {
+        "kind": "language",
+        "iso6393": "rmn",
+        "parentId": "iso:rom",
+        "countryCodes": [],
+        "location": null,
+        "scriptureStatus": "unknown",
+        "scriptureScope": "unknown",
+        "family": "Indo-European",
+        "languageContextStatus": null
+      },
+      "rationale": "Every Language also lists Romani, Balkan as a dialect of Roma (ISO rmm, Maluku, Indonesia). The row took Roma's Indonesian placement. Balkan Romani is ISO rmn, an individual language in the Romany macrolanguage that already has its own Balkan record. The row is corrected to that language so the two can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/64ea8514-d457-463b-a6f3-abf67a886145",
+        "https://iso639-3.sil.org/code/rmn"
+      ]
+    },
+    {
+      "id": "el:baa03ae8-4846-48f3-938a-11225049a0bb",
+      "set": {
+        "kind": "language",
+        "iso6393": "rmn",
+        "parentId": "iso:rom",
+        "countryCodes": [],
+        "location": null,
+        "scriptureStatus": "unknown",
+        "scriptureScope": "unknown",
+        "family": "Indo-European",
+        "languageContextStatus": null
+      },
+      "rationale": "Every Language also lists Romani, Balkan as a dialect of the Romany macrolanguage, with no code. Balkan Romani is ISO rmn, an individual language in the Romany macrolanguage that already has its own Balkan record. The row is corrected to that language so the two can be merged.",
+      "evidence": [
+        "https://map.everylanguage.com/map/language/baa03ae8-4846-48f3-938a-11225049a0bb",
+        "https://iso639-3.sil.org/code/rmn"
+      ]
+    }
+  ]
+}

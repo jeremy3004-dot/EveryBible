@@ -13,6 +13,10 @@ from urllib.parse import urlsplit
 
 
 _UNIQUE_FIELDS = ("iso6393", "glottocode", "rolvCode")
+# GRN occasionally issues two ROLV codes for one variety. A reviewed decision
+# may name this field in ``allowedCodeConflicts``; ISO and Glottolog identities
+# are never relaxed.
+_RELAXABLE_CODE_FIELDS = {"rolvCode"}
 _SCRIPTURE_FIELDS = ("scriptureStatus", "scriptureScope")
 _DETAIL_LIST_FIELDS = ("evidence", "related", "notes", "links")
 _IDENTIFIER_MAP_NAMES = {"glottolog_ids", "iso_ids", "el_ids"}
@@ -107,6 +111,61 @@ def reconcile_records(builder, decisions):
     return report
 
 
+_CORRECTABLE_FIELDS = {
+    "kind", "iso6393", "parentId", "family", "countryCodes", "location",
+    "scriptureStatus", "scriptureScope", "languageContextStatus",
+}
+
+
+def correct_records(builder, corrections):
+    """Apply reviewed fixes to individual source rows before reconciliation.
+
+    Some provider rows carry a wrong identifier or placement (for example a
+    variety tagged with another language's ISO code).  Each correction names
+    the record, the fields it sets, why, and evidence; anything else fails
+    before the builder changes.  Clearing ``location`` also clears the
+    record's other placements, which came from the same wrong row.
+    """
+    records = builder.records
+    planned = []
+    for index, correction in enumerate(corrections):
+        if not isinstance(correction, Mapping):
+            raise ValueError(f"correction {index} must be a mapping")
+        record_id = correction.get("id")
+        if record_id not in records:
+            raise ValueError(f"correction {index} references a missing record: {record_id}")
+        values = correction.get("set")
+        if not isinstance(values, Mapping) or not values:
+            raise ValueError(f"correction {index} set must be a non-empty mapping")
+        unknown = sorted(set(values) - _CORRECTABLE_FIELDS)
+        if unknown:
+            raise ValueError(f"correction {index} cannot correct: {', '.join(unknown)}")
+        rationale = correction.get("rationale")
+        if not isinstance(rationale, str) or not rationale.strip():
+            raise ValueError(f"correction {index} requires a non-empty rationale")
+        evidence = correction.get("evidence")
+        if not isinstance(evidence, list) or not evidence or any(not _is_http_url(url) for url in evidence):
+            raise ValueError(f"correction {index} evidence must be a non-empty list of http(s) URLs")
+        planned.append((record_id, dict(values), rationale.strip(), list(evidence)))
+
+    for record_id, values, rationale, evidence in planned:
+        record = records[record_id]
+        for field, value in values.items():
+            record[field] = deepcopy(value)
+        if "location" in values and values["location"] is None:
+            record.pop("locations", None)
+        detail = builder.details.setdefault(record_id, {"id": record_id})
+        note = f"Source correction: {rationale}"
+        detail.setdefault("notes", [])
+        if note not in detail["notes"]:
+            detail["notes"].append(note)
+        detail.setdefault("links", [])
+        for url in evidence:
+            link = {"label": "Source correction evidence", "url": url, "sourceId": "registry"}
+            if link not in detail["links"]:
+                detail["links"].append(link)
+
+
 def _normalise_decisions(decisions):
     if isinstance(decisions, Mapping):
         if "groups" in decisions:
@@ -196,6 +255,12 @@ def _validate_plan(records, alias_owner, decisions):
             raise ValueError(f"decision {index} evidence must be a non-empty list of http(s) URLs")
         if len(set(evidence)) != len(evidence):
             raise ValueError(f"decision {index} repeats an evidence URL")
+        allowed_conflicts = decision.get("allowedCodeConflicts", [])
+        if (not isinstance(allowed_conflicts, list)
+                or any(field not in _RELAXABLE_CODE_FIELDS for field in allowed_conflicts)):
+            raise ValueError(
+                f"decision {index} allowedCodeConflicts may only name: {', '.join(sorted(_RELAXABLE_CODE_FIELDS))}"
+            )
 
         if canonical_id in claimed_canonicals or canonical_id in claimed_duplicates:
             raise ValueError(f"canonical ID is claimed by multiple decision groups: {canonical_id}")
@@ -231,6 +296,7 @@ def _validate_plan(records, alias_owner, decisions):
             "staleIds": stale_duplicates,
             "rationale": rationale.strip(),
             "evidence": list(evidence),
+            "allowedCodeConflicts": list(allowed_conflicts),
             "aliases": {},
         }
         for record_id in [canonical_id] + current_duplicates:
@@ -270,6 +336,8 @@ def _validate_group(records, group, alias_owner, aliases_to_claim):
         raise ValueError(f"identity group has unsupported kind: {next(iter(kinds))}")
 
     for field in _UNIQUE_FIELDS:
+        if field in group.get("allowedCodeConflicts", []):
+            continue
         values = {record.get(field) for record in member_records if record.get(field) not in (None, "")}
         if len(values) > 1:
             raise ValueError(f"identity group has conflicting {field} values: {member_ids}")
@@ -371,7 +439,7 @@ def _apply_group(records, details, group):
     for duplicate_id in duplicate_ids:
         duplicate = records[duplicate_id]
         alternate_ids.extend([duplicate_id] + list(duplicate.get("alternateIds", [])))
-        _merge_record(canonical, duplicate)
+        _merge_record(canonical, duplicate, group.get("allowedCodeConflicts", []))
         _merge_detail(details, canonical_id, duplicate_id)
         records.pop(duplicate_id, None)
         details.pop(duplicate_id, None)
@@ -383,7 +451,13 @@ def _apply_group(records, details, group):
     _add_reconciliation_metadata(details, canonical_id, group)
 
 
-def _merge_record(canonical, duplicate):
+def _merge_record(canonical, duplicate, allowed_conflicts=()):
+    for field in allowed_conflicts:
+        code = duplicate.get(field)
+        if code not in (None, "") and canonical.get(field) not in (None, "", code):
+            codes = canonical.setdefault("alternateCodes", {}).setdefault(field, [])
+            if code not in codes:
+                codes.append(code)
     if duplicate.get("name") and duplicate.get("name") != canonical.get("name"):
         canonical.setdefault("aliases", []).append(duplicate["name"])
     canonical.setdefault("aliases", []).extend(duplicate.get("aliases", []))

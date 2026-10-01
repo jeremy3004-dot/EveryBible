@@ -4,6 +4,22 @@ on:
   push:
     branches:
       - main
+    # Only pushes that can change the Android app build it. A push touching
+    # nothing but these paths (website, admin, docs, store listing, database,
+    # this trigger rule itself) is skipped; run the workflow by hand if needed.
+    paths-ignore:
+      - 'apps/**'
+      - 'workers/**'
+      - 'cloudflare/**'
+      - 'docs/**'
+      - 'legal/**'
+      - 'store-assets/**'
+      - 'store-metadata/**'
+      - 'supabase/**'
+      - 'scripts/vercel/**'
+      - '**/*.md'
+      - '.github/workflows/android-production-release.yml'
+      - '.github/workflows/google-play-listing.yml'
   workflow_dispatch:
     inputs:
       submit:

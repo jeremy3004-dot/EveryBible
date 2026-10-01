@@ -1342,6 +1342,9 @@ export const pt = {
     startPlan: 'Iniciar plano',
     enrolled: 'Inscrito',
     dayOf: 'Dia {{current}} de {{total}}',
+    inSeason: 'Em época',
+    seasonStarts: 'Começa em {{date}}',
+    seasonStartsToday: 'Começa hoje',
     markComplete: 'Marcar como concluído',
     completed: 'Concluída',
     progress: 'Progresso',
@@ -1531,6 +1534,61 @@ export const pt = {
         title: 'Os doze dias de Natal',
         description:
           'Do dia de Natal até 5 de janeiro: o nascimento de Jesus, o Verbo que se fez carne e os magos que seguiram a estrela.',
+      },
+      newYear: {
+        title: 'Um novo ano',
+        description:
+          'A primeira semana de janeiro: os começos, do primeiro dia da criação ao novo céu e à nova terra, com salmos para pôr-se a caminho.',
+      },
+      epiphany: {
+        title: 'Epifania: luz para as nações',
+        description:
+          'A partir de 6 de janeiro: Jesus revelado como a luz do mundo, do seu batismo e do seu primeiro sinal até toda nação, tribo e língua diante do trono.',
+      },
+      lent: {
+        title: 'Quaresma',
+        description:
+          'Da Quarta-feira de Cinzas até a véspera do Domingo de Ramos: volte ao Senhor pelo deserto, pela sua misericórdia e pelo caminho até Jerusalém, até a ressurreição de Lázaro.',
+      },
+      holyWeek: {
+        title: 'Semana Santa',
+        description:
+          'Do Domingo de Ramos ao Domingo de Páscoa, um dia de cada vez: a entrada em Jerusalém, a Última Ceia, a cruz, o túmulo selado e o túmulo vazio.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Semana Santa (calendário ortodoxo)',
+        description:
+          'A Semana Santa nas datas ortodoxas, do Domingo de Ramos à Páscoa: a entrada em Jerusalém, a Ceia Mística, a cruz, o túmulo e a ressurreição.',
+      },
+      easter: {
+        title: 'Páscoa',
+        description:
+          'Da segunda-feira de Páscoa até a véspera da Ascensão: o Senhor ressuscitado aparece, e as cartas e os profetas mostram o que significa a sua ressurreição.',
+      },
+      pentecost: {
+        title: 'Da Ascensão a Pentecostes',
+        description:
+          'Onze dias da Ascensão até Pentecostes: espere e ore com os primeiros discípulos pelo Espírito Santo, que leva o evangelho a todas as línguas.',
+      },
+      translationWeek: {
+        title: 'A Palavra em todas as línguas',
+        description:
+          'Uma semana que termina no Dia Internacional da Tradução, 30 de setembro: a Palavra lida, explicada e levada a toda tribo e língua. Ore pelos tradutores da Bíblia.',
+      },
+      allSaints: {
+        title: 'Todos os Santos',
+        description:
+          'A partir de 1º de novembro: a grande nuvem de testemunhas que correram a corrida antes de nós, e os santos fiéis e comuns que a Bíblia nomeia.',
+      },
+      persecutedChurch: {
+        title: 'A igreja perseguida',
+        description:
+          'Uma semana a partir do segundo domingo de novembro, quando muitas igrejas oram pelos cristãos que sofrem por Jesus: testemunhas corajosas em Atos, exilados fiéis em Daniel e promessas para o caminho difícil.',
+      },
+      hardChristmas: {
+        title: 'Quando o Natal é difícil',
+        description:
+          'A semana antes do Natal, para quando a época pesa com perda ou solidão: lamentos, consolo e a luz que brilha nas trevas.',
       },
     },
     lifeSituations: {

@@ -206,6 +206,48 @@ html.dark .plan-breadcrumb a {
   font-size: 14px;
 }
 
+/* "What you'll read": one row per highlight, label then days then passages. */
+.plan-about .plan-highlights {
+  max-width: 70ch;
+  margin: 8px 0 0;
+  padding: 0;
+  border-top: 1px solid hsl(var(--border));
+  list-style: none;
+}
+
+.plan-about .plan-highlights li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px 16px;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.plan-highlight__label {
+  color: hsl(var(--foreground));
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.plan-highlight__days {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.plan-highlight__refs {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The numbers behind the plan, kept quiet beneath the copy. */
+.static-page__content .plan-facts {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
 .static-page__content .plan-days {
   margin: 0;
   padding: 0;
@@ -320,6 +362,13 @@ html.dark .plan-breadcrumb a {
 
 .plan-stores img {
   display: block;
+}
+
+@media (min-width: 640px) {
+  .plan-about .plan-highlights li {
+    grid-template-columns: minmax(0, 1.1fr) 7.5rem minmax(0, 1.3fr);
+    align-items: baseline;
+  }
 }
 
 @media (max-width: 520px) {
