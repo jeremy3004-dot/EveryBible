@@ -1,4 +1,72 @@
 {
+  "src/services/audio/download/chapterTransfer.ts": [
+    {
+      "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());",
+      "reason": "Unreachable: delay is entered in the same synchronous step as the attempt's signal.aborted check"
+    },
+    {
+      "key": "remove-statement|return;|;|return;",
+      "reason": "Unreachable: delay is entered in the same synchronous step as the attempt's signal.aborted check"
+    },
+    {
+      "key": "remove-statement|clearTimeout(timer);|;|clearTimeout(timer);",
+      "reason": "After an abort rejected the backoff, the leftover timer only resolves a settled promise and removes a listener that already fired"
+    },
+    {
+      "key": "remove-statement|timer = null;|;|timer = null;",
+      "reason": "timer is only used to clear it again, and clearing a cleared or fired timer does nothing"
+    },
+    {
+      "key": "remove-statement|clearInactivityTimer();|;|clearInactivityTimer();",
+      "reason": "The finally block clears the timer; if it fires first while the transport stops, the outer abort is checked before timedOut"
+    },
+    {
+      "key": "nullish-drop-default|lastError ?? new Error('Chapter download failed.')|lastError|throw lastError ?? new Error('Chapter download failed.');",
+      "reason": "Every loop pass returns, throws or sets lastError, so it is never null after the loop"
+    },
+    {
+      "key": "remove-statement|return;|;|return;#1",
+      "reason": "With no items the one runner exits on its first index check"
+    }
+  ],
+  "src/services/audio/download/jobRegistry.ts": [
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|return createFallbackAudioDownloadJobStore(rootUri ?? DEFAULT_AUDIO_ROOT_URI);",
+      "reason": "Unreachable: createAudioDownloadJobStore never rejects (its own catch falls back)"
+    },
+    {
+      "key": "string-literal|'memory://everybible-audio-jobs/'|''|const MEMORY_JOB_STORE_KEY = 'memory://everybible-audio-jobs/';",
+      "reason": "The memory-store key only has to differ from real audio root URIs, and '' is no likelier to clash"
+    },
+    {
+      "key": "string-literal|'downloading'|''|status: AudioDownloadJobStatus = 'downloading',",
+      "reason": "Every createJobRecord call passes a status, so the default is never used"
+    },
+    {
+      "key": "string-literal|'failed'|''|error: status === 'failed' ? existing.error : undefined,",
+      "reason": "The only failed record is built by failAudioDownloadJob, which sets error right afterwards"
+    },
+    {
+      "key": "number-literal|0|1|let runSequence = 0;",
+      "reason": "Only uniqueness of run ids matters, and a counter starting at 1 is still unique"
+    },
+    {
+      "key": "update-swap|++|--|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;",
+      "reason": "A decreasing counter still gives distinct run ids"
+    },
+    {
+      "key": "number-literal|2|3|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;",
+      "reason": "The random suffix only adds entropy; the counter keeps ids unique"
+    },
+    {
+      "key": "number-literal|2|1|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;",
+      "reason": "The random suffix only adds entropy; the counter keeps ids unique"
+    },
+    {
+      "key": "nullish-drop-default|existing ?? undefined|existing|existing ?? undefined,",
+      "reason": "createJobRecord checks existing for truthiness, so null and undefined take the same branch"
+    }
+  ],
   "src/services/auth/authErrors.ts": [
     {
       "key": "relational-boundary|>|>=|error.code.length > 0",
