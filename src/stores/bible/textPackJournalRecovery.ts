@@ -15,11 +15,16 @@ import {
 } from '../../services/bible/textPackInstallJournalModel';
 import { resetTranslationDownloadState } from '../bibleStoreModel';
 import type { BibleStoreAccess } from './bibleStoreTypes';
-import { fileSystemPathIsUsableDatabase } from './bibleStoreDeferredServices';
+import {
+  fileSystemPathIsUsableDatabase,
+  getCurrentDocumentDirectory,
+} from './bibleStoreDeferredServices';
 import {
   journalRecoveredVersion,
   journalRecoveryExpectedSha256,
   markTextPackInstalled,
+  rebaseTextPackJournalPaths,
+  rebaseTranslationPackPaths,
 } from './textPackInstallModel';
 import {
   acquireTextPackMutationLock,
@@ -64,7 +69,16 @@ export async function recoverTextPackJournal(
   }
 
   textPackJournalRecoveryPromise = (async () => {
-    const journal = readTextPackInstallJournal();
+    // Saved pack paths are absolute and iOS can change the container they point into, so
+    // re-anchor them (and the journal's) before anything checks or deletes a file.
+    const documentDirectory = await getCurrentDocumentDirectory();
+    store.setState((state) => {
+      const translations = rebaseTranslationPackPaths(state.translations, documentDirectory);
+      return translations === state.translations ? state : { translations };
+    });
+    const storedJournal = readTextPackInstallJournal();
+    const journal = rebaseTextPackJournalPaths(storedJournal, documentDirectory);
+    if (journal !== storedJournal) saveTextPackJournal(journal);
     const completedDeletions = new Map<
       string,
       { deletionOperationId: string; installOperationId?: string }

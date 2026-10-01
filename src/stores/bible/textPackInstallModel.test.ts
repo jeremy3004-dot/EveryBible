@@ -10,8 +10,54 @@ import {
   journalRecoveryExpectedSha256,
   mapTextPackDownloadProgress,
   markTextPackInstalled,
+  rebaseTextPackPath,
+  rebaseTranslationPackPaths,
   restoreTextPackAfterFailedReadback,
 } from './textPackInstallModel';
+
+const CURRENT_DOCS = 'file:///var/mobile/Containers/Data/Application/NEW-UUID/Documents/';
+
+test('rebaseTextPackPath moves a pack path from an old app container onto the current one', () => {
+  assert.equal(
+    rebaseTextPackPath(
+      'file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/translations/esv1.db',
+      CURRENT_DOCS
+    ),
+    `${CURRENT_DOCS}translations/esv1.db`
+  );
+});
+
+test('rebaseTextPackPath leaves current, unrelated and unresolvable paths alone', () => {
+  const current = `${CURRENT_DOCS}translations/esv1.db`;
+  assert.equal(rebaseTextPackPath(current, CURRENT_DOCS), current);
+  assert.equal(rebaseTextPackPath('file:///packs/esv1.db', CURRENT_DOCS), 'file:///packs/esv1.db');
+  assert.equal(
+    rebaseTextPackPath('file:///old/Documents/translations/esv1.db', undefined),
+    'file:///old/Documents/translations/esv1.db'
+  );
+});
+
+test('rebaseTranslationPackPaths rewrites every pack path field and is a no-op when current', () => {
+  const old = 'file:///var/OLD/Documents/translations/';
+  const translations = [
+    makeRuntimeTranslation({
+      id: 'esv1',
+      textPackLocalPath: `${old}esv1.db`,
+      pendingTextPackLocalPath: `${old}esv1.p.db`,
+      rollbackTextPackLocalPath: `${old}esv1.db.rollback`,
+    }),
+    makeRuntimeTranslation({ id: 'bsb2', textPackLocalPath: null }),
+  ];
+  const rebased = rebaseTranslationPackPaths(translations, CURRENT_DOCS);
+  assert.equal(rebased[0]?.textPackLocalPath, `${CURRENT_DOCS}translations/esv1.db`);
+  assert.equal(rebased[0]?.pendingTextPackLocalPath, `${CURRENT_DOCS}translations/esv1.p.db`);
+  assert.equal(
+    rebased[0]?.rollbackTextPackLocalPath,
+    `${CURRENT_DOCS}translations/esv1.db.rollback`
+  );
+  assert.equal(rebased[1], translations[1]);
+  assert.equal(rebaseTranslationPackPaths(rebased, CURRENT_DOCS), rebased);
+});
 
 function makeJournalInstall(
   overrides: Partial<TextPackInstallJournalEntry> = {}
