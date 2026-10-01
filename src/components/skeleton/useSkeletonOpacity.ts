@@ -36,7 +36,12 @@ function getPulse(): Animated.AnimatedInterpolation<number> {
 
 function acquirePulse() {
   getPulse();
-  if (subscribers === 0) pulseLoop?.start();
+  if (subscribers === 0) {
+    // Animated.loop stays finished after stop(); without reset() a later start() does
+    // nothing and every skeleton after the first would sit still.
+    pulseLoop?.reset();
+    pulseLoop?.start();
+  }
   subscribers += 1;
 }
 
