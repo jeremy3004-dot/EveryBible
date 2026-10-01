@@ -161,8 +161,12 @@ export function useReaderPlanSession({
       ),
     [activePlanDayChapterItems, bookId, chapter]
   );
+  // Route params outlive an account switch. Progress is read from the signed-in owner's
+  // bucket, so no row means the plan is not this account's (a guest's plans are merged into
+  // the account at sign-in, so their row, and the session, carry over): read as a plain reader.
   const isInActivePlanSession =
     Boolean(activePlanId) &&
+    activePlanProgress != null &&
     typeof planDayNumber === 'number' &&
     returnToPlanOnComplete &&
     activePlanChapterIndex >= 0;
@@ -362,7 +366,12 @@ export function useReaderPlanSession({
         };
       }
 
-      if (activePlanId && typeof planDayNumber === 'number' && returnToPlanOnComplete) {
+      if (
+        activePlanId &&
+        activePlanProgress &&
+        typeof planDayNumber === 'number' &&
+        returnToPlanOnComplete
+      ) {
         return {
           planId: activePlanId,
           planDayNumber,
@@ -376,6 +385,7 @@ export function useReaderPlanSession({
     },
     [
       activePlanId,
+      activePlanProgress,
       activePlanSessionKey,
       activeRhythmSession,
       planDayNumber,

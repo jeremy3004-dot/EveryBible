@@ -217,7 +217,12 @@ export function installReaderRenderFixture(
   mockModule(mocker, sourcePath('stores/progressStore.ts'), { useProgressStore: progressStore });
 
   const readingPlansStore = create(() => ({
-    progressByPlanId: {} as Record<string, unknown>,
+    // The signed-in account is enrolled in the plans the route fixtures name: a plan session
+    // only shows for an account that has progress on the plan.
+    progressByPlanId: {
+      'gospels-60-days': { plan_id: 'gospels-60-days', is_completed: false, completed_entries: {} },
+      'gospels-30-days': { plan_id: 'gospels-30-days', is_completed: false, completed_entries: {} },
+    } as Record<string, unknown>,
     setPlanDayResume: () => {},
     clearPlanDayResume: () => {},
   }));

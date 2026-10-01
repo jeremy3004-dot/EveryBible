@@ -328,3 +328,83 @@ test('a rhythm reader keeps the captured occurrence across midnight, chapter hop
     'setParams must clear the prior plan occurrence'
   );
 });
+
+// Owner-switch fixtures: the screen feeds the hook the active owner's progress for the route plan.
+async function renderSessionWithProgress(
+  context: { mock: { timers: { enable: (options: { apis: 'Date'[]; now: Date }) => void } } },
+  today: Date
+) {
+  context.mock.timers.enable({ apis: ['Date'], now: today });
+  const { createReadingPlansStore } = await import('../../../stores/readingPlansStore');
+  const { useReaderPlanSession } = await import('./useReaderPlanSession');
+  const store = createReadingPlansStore({
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  });
+  const enrolled = store.getState().enrollPlan('psalms-30-days');
+  const state: {
+    progress: typeof enrolled | null;
+    session: ReturnType<typeof useReaderPlanSession> | undefined;
+  } = { progress: enrolled, session: undefined };
+  function ReaderSession() {
+    const current = useReaderPlanSession({
+      activeChapterKey: 'PSA_1',
+      activePlanId: 'psalms-30-days',
+      activePlanProgress: state.progress,
+      bookId: 'PSA',
+      chapter: 1,
+      chaptersRead: {},
+      getRootTabBarStyle: () => ({}),
+      getRootTabNavigation: () => null,
+      listeningHistory: [],
+      planDayNumber: 1,
+      planSessionKey: undefined,
+      playbackSequenceEntries: [],
+      requestedFocusVerse: undefined,
+      returnToPlanOnComplete: true,
+      sessionContext: undefined,
+      setPlanDayResume: store.getState().setPlanDayResume,
+      today,
+      todayDateKey: formatLocalDateKey(today),
+    });
+    useEffect(() => {
+      state.session = current;
+    }, [current]);
+    return null;
+  }
+  const view = await harness.render(<ReaderSession />);
+  return { enrolled, rerender: () => view.rerender(<ReaderSession />), state };
+}
+
+test('the reader drops the plan-session chrome when the signed-in account is not enrolled in the route plan', async (context) => {
+  const { rerender, state } = await renderSessionWithProgress(context, new Date(2026, 8, 27, 12));
+  assert.equal(state.session?.showPlanSessionChrome, true);
+  assert.deepEqual(state.session?.resolvePlanSessionRouteParams('PSA', 2), {
+    planId: 'psalms-30-days',
+    planDayNumber: 1,
+    returnToPlanOnComplete: true,
+  });
+
+  // Account B signs in: the plans store now holds B's progress, which has no such plan.
+  state.progress = null;
+  await rerender();
+
+  assert.equal(state.session?.showPlanSessionChrome, false);
+  assert.equal(state.session?.activePlanDaySummary, null);
+  assert.deepEqual(state.session?.resolvePlanSessionRouteParams('PSA', 2), {});
+});
+
+test('a guest plan session survives sign-in because adoption moves the plan into the account', async (context) => {
+  const { enrolled, rerender, state } = await renderSessionWithProgress(
+    context,
+    new Date(2026, 8, 27, 12)
+  );
+  assert.equal(state.session?.showPlanSessionChrome, true);
+
+  // Sign-in merges the guest bucket into the account: same plan, new progress object.
+  state.progress = { ...enrolled };
+  await rerender();
+
+  assert.equal(state.session?.showPlanSessionChrome, true);
+});

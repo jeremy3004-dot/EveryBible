@@ -235,6 +235,25 @@ test('on the last chapter of a plan day the dock completes the day and ends play
   assert.deepEqual(resumeCleared, [['gospels-60-days', 1]]);
 });
 
+test('a plan reader left open across a sign-out becomes a plain reader for an account outside the plan', async () => {
+  chapters.set('MAT:2', [verseOf(1, 'After Jesus was born in Bethlehem.', {}, 'MAT', 2)]);
+  const view = await renderReader({
+    bookId: 'MAT',
+    chapter: 2,
+    planId: 'gospels-60-days',
+    planDayNumber: 1,
+    returnToPlanOnComplete: true,
+  });
+  assert.ok(view.getByRole('button', { name: t('readingPlans.completeDayCta') }));
+
+  // Account B's bucket has no progress on the plan the open route names.
+  await act(async () => reader.readingPlansStore.setState({ progressByPlanId: {} }));
+  await view.flush();
+
+  assert.equal(view.queryByRole('button', { name: t('readingPlans.completeDayCta') }), null);
+  assert.equal(view.queryByText(t('readingPlans.gospels60.title')), null);
+});
+
 test('a plan reader left open overnight counts a listen for the new day, not against yesterday', async (context) => {
   context.after(() => mock.timers.reset());
   mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 24, 21, 0) });
