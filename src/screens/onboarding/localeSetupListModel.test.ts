@@ -221,6 +221,57 @@ test('hydration shows a spinner and holds back the empty card', () => {
   );
 });
 
+test('search results are never pinned or labelled as a recommendation', () => {
+  const primaryOption = option('nepali');
+  const items = buildBibleLanguageListItems(
+    bibleInput({
+      primaryOption,
+      isSearching: true,
+      sections: [{ groupLabel: 'N', options: [primaryOption, option('newari')] }],
+    })
+  );
+
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ['eyebrow-N', 'option-nepali', 'option-newari']
+  );
+  assert.equal(
+    buildBibleLanguageListItems(
+      bibleInput({ primaryOption: null, isPrimaryOptionPending: true, isSearching: true })
+    ).some((item) => item.type === 'primaryOptionPlaceholder'),
+    false,
+    'no placeholder for a recommendation that a search has set aside'
+  );
+});
+
+test('the spinner row keeps its height once hydration ends, so the list does not jump', () => {
+  const hydrating = buildBibleLanguageListItems(
+    bibleInput({ isHydratingRuntimeCatalog: true, reservesLoadingRow: true })
+  );
+  const settled = buildBibleLanguageListItems(
+    bibleInput({
+      reservesLoadingRow: true,
+      sections: [{ groupLabel: 'E', options: [option('english')] }],
+    })
+  );
+
+  assert.deepEqual(
+    hydrating.map((item) => item.type),
+    ['loading']
+  );
+  assert.deepEqual(settled.map((item) => item.type)[0], 'loadingSpacer');
+  assert.equal(
+    countLocaleSetupSearchMatches(settled),
+    1,
+    'the reserved gap is not a match, and it does not mean the catalog is still loading'
+  );
+  assert.equal(
+    buildBibleLanguageListItems(bibleInput()).some((item) => item.type === 'loadingSpacer'),
+    false,
+    'a catalog that never had to load reserves nothing'
+  );
+});
+
 test('a failed catalog load keeps its retry card above whatever is already bundled', () => {
   const items = buildBibleLanguageListItems(
     bibleInput({

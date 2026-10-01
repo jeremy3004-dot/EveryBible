@@ -570,8 +570,6 @@ export const es = {
     recommendedLanguages: 'Idiomas bíblicos recomendados en {{country}}',
     moreLanguages: 'Otros idiomas coincidentes',
     noLanguagesFound: 'Aún no hay idiomas que coincidan',
-    noLanguagesFoundBody:
-      'Prueba con otra grafía o busca en inglés o en la escritura local. La búsqueda aproximada está activada.',
     catalogUnavailableTitle: 'No se puede conectar con la biblioteca bíblica',
     catalogUnavailableBody:
       'Revisa tu conexión a internet e inténtalo de nuevo. Las Biblias de abajo ya están en este dispositivo y funcionan sin conexión.',
@@ -613,7 +611,7 @@ export const es = {
     verse: 'Versículo',
     selectTranslation: 'Seleccionar traducción',
     manageAudio: 'Administrar audio',
-    audioDownloads: 'Descargas de audio',
+    audioDownloads: 'Audio',
     downloadBibleAudio: 'Descargar audio completo de la Biblia',
     audioSavedOffline: 'Guardado para escucha sin conexión',
     audioDownloadFailed: 'No pudimos descargar este audio en este momento.',

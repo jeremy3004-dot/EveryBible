@@ -72,6 +72,7 @@ export type BibleLanguageListItem<TOption> =
   | LocaleSetupEyebrowItem
   | LocaleSetupEmptyItem
   | { type: 'loading'; id: string }
+  | { type: 'loadingSpacer'; id: string }
   | { type: 'catalogError'; id: string }
   | { type: 'primaryOption'; id: string; option: TOption; isRecommended: boolean }
   | { type: 'primaryOptionPlaceholder'; id: string }
@@ -98,6 +99,16 @@ export interface BibleLanguageListInput<TOption extends { key: string }> {
   hasAnyOptions: boolean;
   /** Already-translated label for the pinned recommendation eyebrow. */
   recommendedLabel: string;
+  /**
+   * A search is active. Its results are matches, not recommendations, so nothing is pinned or
+   * badged and the list is just the matching languages.
+   */
+  isSearching?: boolean;
+  /**
+   * The catalog spinner has shown in this list. Once it ends its row stays as a same-height
+   * gap, so the rows below do not jump up the moment the catalog arrives.
+   */
+  reservesLoadingRow?: boolean;
 }
 
 export function buildBibleLanguageListItems<TOption extends { key: string }>({
@@ -111,20 +122,25 @@ export function buildBibleLanguageListItems<TOption extends { key: string }>({
   runtimeCatalogLoadFailed,
   hasAnyOptions,
   recommendedLabel,
+  isSearching = false,
+  reservesLoadingRow = false,
 }: BibleLanguageListInput<TOption>): BibleLanguageListItem<TOption>[] {
   const items: BibleLanguageListItem<TOption>[] = [];
 
   if (isHydratingRuntimeCatalog) {
     items.push({ type: 'loading', id: 'loading' });
+  } else if (reservesLoadingRow) {
+    items.push({ type: 'loadingSpacer', id: 'loading-spacer' });
   }
 
   if (runtimeCatalogLoadFailed) {
     items.push({ type: 'catalogError', id: 'catalog-error' });
   }
 
-  const pinnedOption = showsPrimaryOption && !isPrimaryOptionPending ? primaryOption : null;
+  const pinsPrimaryOption = showsPrimaryOption && !isSearching;
+  const pinnedOption = pinsPrimaryOption && !isPrimaryOptionPending ? primaryOption : null;
 
-  if (showsPrimaryOption && isPrimaryOptionPending) {
+  if (pinsPrimaryOption && isPrimaryOptionPending) {
     items.push({
       type: 'eyebrow',
       id: 'eyebrow-recommended',

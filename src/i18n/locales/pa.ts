@@ -196,8 +196,6 @@ export const pa = {
     recommendedLanguages: '{{country}} ਵਿੱਚ ਸਿਫ਼ਾਰਸ਼ ਕੀਤੀਆਂ ਬਾਈਬਲ ਭਾਸ਼ਾਵਾਂ',
     moreLanguages: 'ਹੋਰ ਮੇਲ ਖਾਂਦੀਆਂ ਭਾਸ਼ਾਵਾਂ',
     noLanguagesFound: 'ਅਜੇ ਤੱਕ ਕੋਈ ਭਾਸ਼ਾ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ',
-    noLanguagesFoundBody:
-      'ਕੋਈ ਹੋਰ ਸਪੈਲਿੰਗ ਅਜ਼ਮਾਓ ਜਾਂ ਅੰਗਰੇਜ਼ੀ ਜਾਂ ਸਥਾਨਕ ਲਿਪੀ ਵਿੱਚ ਖੋਜ ਕਰੋ। ਫਜ਼ੀ ਖੋਜ ਚਾਲੂ ਹੈ।',
     catalogUnavailableTitle: 'ਬਾਈਬਲ ਲਾਇਬ੍ਰੇਰੀ ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕੇ',
     catalogUnavailableBody:
       'ਆਪਣਾ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਜਾਂਚੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ। ਹੇਠਾਂ ਦਿੱਤੀਆਂ ਬਾਈਬਲਾਂ ਪਹਿਲਾਂ ਹੀ ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਹਨ ਅਤੇ ਆਫ਼ਲਾਈਨ ਵੀ ਚੱਲਦੀਆਂ ਹਨ।',
@@ -239,7 +237,7 @@ export const pa = {
     verse: 'ਆਇਤ',
     selectTranslation: 'ਅਨੁਵਾਦ ਚੁਣੋ',
     manageAudio: 'ਆਡੀਓ ਦਾ ਪ੍ਰਬੰਧ',
-    audioDownloads: 'ਆਡੀਓ ਡਾਊਨਲੋਡ',
+    audioDownloads: 'ਆਡੀਓ',
     downloadBibleAudio: 'ਪੂਰੀ ਬਾਈਬਲ ਆਡੀਓ ਡਾਊਨਲੋਡ ਕਰੋ',
     audioSavedOffline: 'ਆਫ਼ਲਾਈਨ ਸੁਣਨ ਲਈ ਸੰਭਾਲਿਆ',
     audioDownloadFailed: 'ਅਸੀਂ ਇਹ ਆਡੀਓ ਇਸ ਵੇਲੇ ਡਾਊਨਲੋਡ ਨਹੀਂ ਕਰ ਸਕੇ।',

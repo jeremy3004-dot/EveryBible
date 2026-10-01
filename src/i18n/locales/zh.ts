@@ -528,7 +528,6 @@ export const zh = {
     recommendedLanguages: '{{country}} 的推荐圣经语言',
     moreLanguages: '其他匹配的语言',
     noLanguagesFound: '暂无匹配的语言',
-    noLanguagesFoundBody: '请换一种拼写，或使用英文或当地文字搜索。已启用模糊搜索。',
     catalogUnavailableTitle: '无法连接圣经库',
     catalogUnavailableBody: '请检查网络连接后重试。下方的圣经已在此设备上，离线也能使用。',
     recommendedBadge: '推荐',

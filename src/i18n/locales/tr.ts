@@ -552,8 +552,6 @@ export const tr = {
     recommendedLanguages: '{{country}} için önerilen Kutsal Kitap dilleri',
     moreLanguages: 'Diğer eşleşen diller',
     noLanguagesFound: 'Henüz dil eşleşmesi yok',
-    noLanguagesFoundBody:
-      'Başka bir yazım deneyin ya da İngilizce veya yerel alfabeyle arayın. Yaklaşık eşleşme açıktır.',
     catalogUnavailableTitle: 'Kutsal Kitap kütüphanesine ulaşılamıyor',
     catalogUnavailableBody:
       'İnternet bağlantınızı kontrol edip tekrar deneyin. Aşağıdaki Kutsal Kitaplar zaten bu cihazda ve çevrimdışı da çalışır.',

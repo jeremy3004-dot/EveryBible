@@ -198,7 +198,7 @@ export function TranslationManageSheet({
           const label = t(labelKey);
           return (
             <TouchableOpacity
-              key={action === 'unpin' ? 'pin' : action}
+              key={action}
               style={[
                 styles.groupRow,
                 groupRowStyle[groupPosition(index, model.libraryActions.length)],

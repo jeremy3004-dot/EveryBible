@@ -235,6 +235,7 @@ export function LocaleSetupFlow({ mode = 'initial', onClose, onComplete }: Local
     debouncedCountryQuery,
     languageResults,
     selectedCountryDisplayName,
+    debouncedTranslationQuery,
   });
 
   const activeSearchQuery = getActiveSearchQuery(step, {

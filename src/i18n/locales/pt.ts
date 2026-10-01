@@ -566,8 +566,6 @@ export const pt = {
     recommendedLanguages: 'Idiomas bíblicos recomendados em {{country}}',
     moreLanguages: 'Outros idiomas encontrados',
     noLanguagesFound: 'Nenhum idioma encontrado',
-    noLanguagesFoundBody:
-      'Tente outra grafia ou pesquise em inglês ou na escrita local. A busca tolera pequenas variações.',
     catalogUnavailableTitle: 'Não foi possível acessar a biblioteca bíblica',
     catalogUnavailableBody:
       'Verifique sua conexão com a internet e tente novamente. As Bíblias abaixo já estão neste dispositivo e funcionam sem internet.',

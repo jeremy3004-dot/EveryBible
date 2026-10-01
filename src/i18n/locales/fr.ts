@@ -575,8 +575,6 @@ export const fr = {
     recommendedLanguages: 'Langues bibliques recommandées dans {{country}}',
     moreLanguages: 'Autres langues correspondantes',
     noLanguagesFound: 'Aucune langue ne correspond pour l’instant',
-    noLanguagesFoundBody:
-      'Essayez une autre orthographe, ou cherchez en anglais ou dans l’écriture locale. La recherche approximative est activée.',
     catalogUnavailableTitle: 'Impossible d’accéder à la bibliothèque biblique',
     catalogUnavailableBody:
       'Vérifiez votre connexion Internet et réessayez. Les Bibles ci-dessous sont déjà sur cet appareil et fonctionnent hors connexion.',
@@ -619,7 +617,7 @@ export const fr = {
     verse: 'Verset',
     selectTranslation: 'Choisir une traduction',
     manageAudio: 'Gérer l’audio',
-    audioDownloads: 'Téléchargements audio',
+    audioDownloads: 'Audio',
     downloadBibleAudio: 'Télécharger l’audio de toute la Bible',
     audioSavedOffline: 'Enregistré pour l’écoute hors ligne',
     audioDownloadFailed: 'Nous n’avons pas pu télécharger cet audio pour le moment.',

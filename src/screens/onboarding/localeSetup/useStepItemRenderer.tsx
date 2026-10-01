@@ -38,7 +38,7 @@ interface StepItemRendererInput {
   eyebrowFont: TextStyle;
   selectedInterfaceLanguageCode: LanguageCode;
   onInterfaceLanguageSelect: (language: Language) => void;
-  bibleSelectionState: OnboardingBibleSelectionState;
+  bibleSelectionState: OnboardingBibleSelectionState & { finishingId: string | null };
   downloadProgress: TranslationDownloadProgress | null;
   translationDisplayDataById: Map<string, TranslationDisplayData>;
   onTranslationSelect: (translation: BibleTranslation) => void;
@@ -80,7 +80,8 @@ export function useStepItemRenderer({
       // downloading one, cannot be tapped again.
       const isInstalling =
         bibleSelectionState.downloadingId === translation.id ||
-        bibleSelectionState.queuedId === translation.id;
+        bibleSelectionState.queuedId === translation.id ||
+        bibleSelectionState.finishingId === translation.id;
       const progress =
         downloadProgress?.translationId === translation.id ? downloadProgress.progress : null;
       // Read precomputed availability/selection state (computed once per
@@ -252,6 +253,8 @@ export function useStepItemRenderer({
               <ActivityIndicator color={colors.accentPrimary} />
             </View>
           );
+        case 'loadingSpacer':
+          return <View style={styles.loadingRow} />;
         // Usually the device is offline. The card sits above the list, so its body can point
         // at the Bibles below it: they ship with the app and finish onboarding offline.
         case 'catalogError':
@@ -291,7 +294,7 @@ export function useStepItemRenderer({
           ) : (
             <LocaleSetupEmptyCard
               title={t('onboarding.noLanguagesFound')}
-              body={t('onboarding.noLanguagesFoundBody')}
+              body={t('onboarding.noNationsFoundBody')}
               colors={colors}
             />
           );
@@ -315,8 +318,13 @@ export function useStepItemRenderer({
   );
 }
 
+const LOADING_ROW_HEIGHT = 44;
+
 const styles = StyleSheet.create({
+  // The spinner row and the gap that replaces it share this height, so the list below does not
+  // move when the catalog arrives.
   loadingRow: {
+    height: LOADING_ROW_HEIGHT,
     paddingTop: spacing.lg,
   },
   listSection: {
