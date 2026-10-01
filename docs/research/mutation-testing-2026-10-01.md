@@ -5,18 +5,23 @@ tests still pass when the code they cover is broken, in the modules where a bug 
 trust — account-scoped private data, sync, reading-plan progress, audio downloads, offline text
 packs, and auth.
 
-**Result.** Before: 77.8% of 3,086 mutants were killed; 613 survived every test that reached them
+**Round 1 result** (18 modules). Before: 77.8% of 3,086 mutants were killed; 613 survived every test that reached them
 and 72 were reached by no test at all. After: every mutant that changes behaviour is killed except
 29 in exported reading-plan functions that nothing in the app calls (see "Dead code"). The other
 survivors (205) are equivalent mutants, recorded with a one-line reason each in
 `scripts/mutation-equivalents.json` so a rerun skips them. About 230 new tests in 23 files did it
 (8 of them new, all behavioural: real modules, asserted outputs and state, no source-text checks).
 
-**No production bug turned up.** Every behaviour-changing survivor was a path no test pinned, not a
-wrong line. The one bug found was in the mutation tooling itself (keys for equivalent mutants could
-drift onto a different mutant; fixed, see below).
+**Round 1 found no production bug.** Every behaviour-changing survivor was a path no test
+pinned, not a wrong line. The one bug was in the mutation tooling itself (keys for equivalent
+mutants could drift onto a different mutant; fixed, see below).
 
-## Results
+**Round 2** (later the same day, after the sprint's merges) covered ten privacy- and
+data-critical modules, six of them new. Those six went from 73.2% to every non-equivalent mutant
+killed, and one survivor exposed a real privacy-lock bug, fixed test-first: see
+[Round 2](#round-2-modules-that-changed-later-the-same-day).
+
+## Results (round 1)
 
 `killed` includes timeouts (a mutant that makes a test hang). Score = killed / (killed + survived +
 uncovered); equivalents are left out of the "after" score only. "Before" is the first run against
@@ -50,7 +55,94 @@ value), so a few totals differ.
 Remaining non-equivalent survivors: the 29 in `readingPlanModel.ts`'s dead code. Leaving out the
 mutants later found equivalent, the before score was 83.3%.
 
-## What the survivors were
+## Round 2: modules that changed later the same day
+
+The sprint coordinator asked for a second pass after the day's merges, over ten modules that guard
+privacy or data. Four were already covered in round 1 and were still fully killed
+(`privateDataScope`, `unchangedStateStorage`, `planProgressModel`, `readingPlanActivity`;
+their "before" columns already leave out the recorded equivalents). The six new ones went from
+73.2% (541 of 739 mutants killed) to every non-equivalent mutant killed, with 103 equivalents
+recorded. About 45 new tests, plus tightened existing ones; three new test files (`privacyLockGrace.test.ts`,
+`privacyLockGrace.launch.test.ts`, `useLocalToday.timezone.test.ts`).
+
+| Module                                        | Mutants (before → after) | Before: killed / survived / uncovered | Before score | After: killed / survived / uncovered / equivalent | After score |
+| --------------------------------------------- | ------------------------ | ------------------------------------- | ------------ | ------------------------------------------------- | ----------- |
+| `services/privacy/privacyLockGrace.ts`        | 89 → 90                  | 55 / 34 / 0                           | 61.8%        | 70 / 0 / 0 / 20                                   | 100.0%      |
+| `hooks/usePrivacyLock.ts`                     | 113 → 113                | 90 / 21 / 2                           | 79.6%        | 98 / 0 / 0 / 15                                   | 100.0%      |
+| `services/bible/cloudTranslationService.ts`   | 301 → 301                | 214 / 86 / 1                          | 71.1%        | 257 / 0 / 0 / 44                                  | 100.0%      |
+| `services/bible/verseFormatting.ts`           | 153 → 153                | 116 / 33 / 4                          | 75.8%        | 136 / 0 / 0 / 17                                  | 100.0%      |
+| `hooks/useLocalToday.ts`                      | 41 → 41                  | 33 / 8 / 0                            | 80.5%        | 40 / 0 / 0 / 1                                    | 100.0%      |
+| `hooks/audioPlayer/useSleepTimerCountdown.ts` | 42 → 42                  | 33 / 9 / 0                            | 78.6%        | 36 / 0 / 0 / 6                                    | 100.0%      |
+| `stores/privateDataScope.ts`                  | 162 → 162                | 150 / 0 / 0                           | 100.0%       | 150 / 0 / 0 / 12                                  | 100.0%      |
+| `stores/unchangedStateStorage.ts`             | 13 → 13                  | 13 / 0 / 0                            | 100.0%       | 13 / 0 / 0 / 0                                    | 100.0%      |
+| `stores/readingPlans/planProgressModel.ts`    | 56 → 56                  | 53 / 0 / 0                            | 100.0%       | 53 / 0 / 0 / 3                                    | 100.0%      |
+| `services/plans/readingPlanActivity.ts`       | 290 → 290                | 266 / 0 / 0                           | 100.0%       | 266 / 0 / 0 / 24                                  | 100.0%      |
+| **Total**                                     | 1260 → 1261              | 1023 / 191 / 7                        | 83.8%        | 1119 / 0 / 0 / 142                                | 100.0%      |
+
+### The bug: a lock under the icon-change alert
+
+Turning discreet mode on queues a lock that waits until iOS's icon-change alert is answered, with
+a 10 s cap for an alert that never comes; going inactive under the alert cancels the cap. But a
+lock queued after the alert was already up (the preferences screen queues it once its navigation
+has settled) armed a fresh cap, so an alert left open for more than 10 s put the lock screen up
+underneath it — the exact case the module's comments say must not happen. Surviving mutant #67
+(which stops a second queued lock from re-arming the cap) was the more correct code. Fixed in
+`fix(privacy): do not lock under an icon alert that is already up`: the cap is only armed while
+no icon alert is up; an alert already on screen waits for the reader's answer (the app active
+again locks, as does leaving the app). The failing test came first, in
+`usePrivacyLock.systemUi.test.ts`. It needs the preferences screen's interaction callback to run
+late, so it was rare in practice.
+
+### What the survivors were
+
+- **`privacyLockGrace` / `usePrivacyLock`**: the first app switcher after launch could be taken
+  for the icon alert, leaving scripture in the snapshot; the lock queued after enabling discreet
+  mode could be held after no alert came, run twice (locking out a reader who had just unlocked),
+  not be released when the app is left, or count its cap from an earlier request; a second prompt
+  soon after an answered one could inherit the first one's deadline and lock under it; a prompt
+  open for exactly the cap could still excuse an Android background (leaving the lock to a timer
+  Android pauses); an error while the grace timer locks could leave the app unlocked; a
+  lock-machinery failure could lock out a discreet install with no PIN.
+- **`cloudTranslationService`**: the stall watchdog (bytes that keep arriving must keep a slow
+  transfer alive; a timer that fires exactly 5 s late is still a stall, not a suspended app); a
+  user cancel must stop the native transfer, and a plain transfer failing after the cancel is a
+  cancel, never verified; every non-2xx status refused and every 2xx accepted; a catalog row
+  declaring zero verses still needing one; activation retiring the old generation with all its
+  sidecars and leaving no partial pack after a failed first install; recovery of WAL-mode rollback
+  packs and their sidecars. The existing killed-staging test was hollow: its "hot journal" was
+  plain text SQLite ignores, so it now builds a real one, and the file-system fake now models
+  expo-file-system's `idempotent` and `intermediates` errors.
+- **`verseFormatting`**: a null line or an object without `lines` throwing; prose flags lost or
+  added; the parsed-formatting cache returning a new object per verse, never caching, or growing
+  without bound across a whole Bible read; `reconcileVerseFormattingWithText` adding the whole
+  text as prose to formatting with no lines; a one-word line whose mark has a stray space ("lies
+  ?") making the verse bail out; a stray quote space fixed inside a line but the unfixed formatting
+  returned when no line needed folding.
+- **`useLocalToday`**: a timer that re-armed every millisecond through the small hours instead
+  of sleeping until 04:00; the rollover drifting late; the foreground no longer re-arming the
+  timer after a zone change (now tested from UTC to Tokyo).
+- **`useSleepTimerCountdown`**: a once-a-second countdown while audio plays with no sleep timer
+  set; an expired countdown that kept ticking until its owner re-rendered.
+
+### Also noticed (not changed)
+
+- `privacyLockGrace`: `heldUntilActiveSince` appears to have no effect any more alongside
+  `iconAlertWindowUntil` (7 of its equivalents), and `isPrivacyLockGraceActive` is only used by
+  tests.
+- The sleep-timer label shows a stale minute count for one render after resuming from a long pause
+  (33 instead of 3 after a 30-minute pause with 3 minutes left) before the effect corrects it.
+- `useSleepTimerCountdown`'s own "is running" check is redundant with the audio store, which only
+  holds an end time while the timer runs.
+- `cloudTranslationService` has an `else if` whose body is only comments (4 equivalents).
+
+### Tooling change
+
+The privacy run showed a gap in test selection: the new direct tests for `privacyLockGrace`
+filled the nearest-tests quota, which pushed `PrivacyPreferencesScreen.render.test.tsx` (the only
+test that kills one mutant) out of range, and the mutant reported as surviving. Survivors now get
+a second pass against the next 40 tests further out that reach them.
+
+## What the survivors were (round 1)
 
 Each item is a way the code could break — a surviving mutant did exactly this — with every test
 still passing. The shipped code was right in every case; what was missing was the test.
@@ -162,7 +254,8 @@ still passing. The shipped code was right in every case; what was missing was th
 - **Dead code** in `src/services/plans/readingPlanModel.ts`: `getPlanSessionOrder` and its helper
   `normalizePlanSessionOrder` (28 survivors) and `planCompletionPercent` (1) are exported and called
   only from tests; `getVisiblePlanDayNumbers` is also unused. Deleting them would remove the last
-  29 survivors.
+  29 survivors. (A follow-up branch, `claude/unruffled-goldstine-6a705f`, removes them along with
+  the next two items; not merged here.)
 - `readingPlanActivity.ts` `getRhythmDayNumber`: the `is_completed` branch is unreachable.
 - `textPackJournalRecovery.ts` L280: the second clause of the install-removal condition is
   redundant.
@@ -222,7 +315,8 @@ longer parse are reported as `invalid` and not run.
 it backwards from the module: tests that import it directly, widened one import hop at a time
 while fewer than three are found (a module reached only through a facade, like the audio download
 internals, has no direct tests). When those leave mutants uncovered, the next 40 tests further out
-are measured once and kept if they reach that code. `*Source.test.ts` import-graph guards are left
+are measured once and kept if they reach that code, and mutants that survive the nearest tests get
+a second pass against those further-out tests. `*Source.test.ts` import-graph guards are left
 out by default:
 they read the source text, so they "kill" mutants without testing any behaviour.
 `--include-source-tests` puts them back.
