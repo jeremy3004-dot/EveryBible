@@ -31,6 +31,9 @@ type CatalogTextDownloadOperation = {
   cancelNative: (() => Promise<void>) | null;
 };
 
+/** A text pack transfer that receives no bytes for this long is abandoned as failed. */
+const TEXT_PACK_STALL_TIMEOUT_MS = 30_000;
+
 const activeCatalogTextDownloads = new Map<string, CatalogTextDownloadOperation>();
 const activeCatalogTextDownloadSettlements = new Map<string, Promise<unknown>>();
 
@@ -496,11 +499,26 @@ async function downloadCatalogTextPackImpl(params: {
     ).createDownloadResumable;
     const download = resumableFactory
       ? await (async () => {
+          // A link that is up with no internet behind it never answers and never errors, and
+          // the native transfer has no timeout of its own. No bytes for this long ends it.
+          let stallTimer: ReturnType<typeof setTimeout> | null = null;
+          let rejectStalled: (error: Error) => void = () => {};
+          const stalled = new Promise<never>((_, reject) => {
+            rejectStalled = reject;
+          });
+          const armStallTimer = () => {
+            if (stallTimer !== null) clearTimeout(stallTimer);
+            stallTimer = setTimeout(() => {
+              void task.cancelAsync?.().catch(() => {});
+              rejectStalled(new Error('Translation download stalled: no data received.'));
+            }, TEXT_PACK_STALL_TIMEOUT_MS);
+          };
           const task = resumableFactory(
             resolvedDownloadUrl,
             stagingDbPath,
             {},
             ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+              armStallTimer();
               reportProgress({
                 phase: 'fetching',
                 versesDownloaded: 0,
@@ -513,11 +531,16 @@ async function downloadCatalogTextPackImpl(params: {
           operation.cancelNative = async () => {
             await task.cancelAsync?.();
           };
-          const result = await task.downloadAsync();
-          if (!result || operation.cancelled) {
-            throw new TextPackDownloadCancelledError();
+          armStallTimer();
+          try {
+            const result = await Promise.race([task.downloadAsync(), stalled]);
+            if (!result || operation.cancelled) {
+              throw new TextPackDownloadCancelledError();
+            }
+            return result;
+          } finally {
+            if (stallTimer !== null) clearTimeout(stallTimer);
           }
-          return result;
         })()
       : await FileSystem.downloadAsync(resolvedDownloadUrl, stagingDbPath);
 
