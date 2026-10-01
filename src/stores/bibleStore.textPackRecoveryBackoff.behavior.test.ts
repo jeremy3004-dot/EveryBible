@@ -53,3 +53,17 @@ test('an explicit reconcile still retries a stuck entry', async () => {
 
   assert.deepEqual(doubles.cloud.deletedArtifacts, [STUCK_PATH]);
 });
+
+test('a chapter read retries a stuck entry once a full minute has passed', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  const { useBibleStore } = await import('./bibleStore');
+  await useBibleStore.getState().reconcileTranslationPacks();
+
+  context.mock.timers.tick(59_999);
+  await doubles.database.readinessResolver?.('esv1');
+  assert.deepEqual(doubles.cloud.deletedArtifacts, [STUCK_PATH]);
+
+  context.mock.timers.tick(1);
+  await doubles.database.readinessResolver?.('esv1');
+  assert.deepEqual(doubles.cloud.deletedArtifacts, [STUCK_PATH, STUCK_PATH]);
+});
