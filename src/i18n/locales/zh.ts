@@ -1802,6 +1802,7 @@ export const zh = {
     unpin: '移出我的译本',
     hide: '从我的译本中隐藏',
     title: '圣经译本',
+    offlineNotice: '你目前处于离线状态。已下载的圣经仍可使用。',
     languagePreference: '语言偏好',
     myTranslations: '我的译本',
     primary: '主要译本',

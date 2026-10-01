@@ -1549,6 +1549,7 @@ export const hi = {
     unpin: 'मेरे अनुवाद से हटाएँ',
     hide: 'मेरे अनुवाद से छिपाएँ',
     title: 'बाइबल अनुवाद',
+    offlineNotice: 'आप ऑफ़लाइन हैं। डाउनलोड की गई बाइबल अब भी उपलब्ध हैं।',
     languagePreference: 'भाषा प्राथमिकता',
     myTranslations: 'मेरे अनुवाद',
     primary: 'प्राथमिक अनुवाद',

@@ -1923,6 +1923,7 @@ export const tr = {
     unpin: 'Sabitlemeyi kaldır',
     hide: 'Çevirilerimden gizle',
     title: 'Kutsal Kitap çevirileri',
+    offlineNotice: 'Çevrimdışısınız. İndirilen Kutsal Kitaplar hâlâ kullanılabilir.',
     languagePreference: 'Dil tercihi',
     myTranslations: 'Çevirilerim',
     primary: 'Birincil çeviri',

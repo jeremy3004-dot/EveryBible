@@ -1893,6 +1893,7 @@ export const ur = {
     unpin: 'میرے تراجم سے ہٹائیں',
     hide: 'میرے تراجم سے چھپائیں',
     title: 'بائبل کے تراجم',
+    offlineNotice: 'آپ آف لائن ہیں۔ ڈاؤن لوڈ کی ہوئی بائبلیں اب بھی دستیاب ہیں۔',
     languagePreference: 'زبان کی ترجیح',
     myTranslations: 'میرے تراجم',
     primary: 'بنیادی ترجمہ',

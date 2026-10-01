@@ -1955,6 +1955,7 @@ export const ru = {
     unpin: 'Открепить',
     hide: 'Скрыть из моих переводов',
     title: 'Переводы Библии',
+    offlineNotice: 'Вы не в сети. Скачанные Библии по-прежнему доступны.',
     languagePreference: 'Предпочитаемый язык',
     myTranslations: 'Мои переводы',
     primary: 'Основной перевод',

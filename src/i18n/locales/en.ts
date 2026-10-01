@@ -1908,6 +1908,7 @@ export const en = {
     unpin: 'Unpin',
     hide: 'Hide from My Translations',
     title: 'Bible Translations',
+    offlineNotice: "You're offline. Downloaded Bibles are still available.",
     languagePreference: 'Language Preference',
     myTranslations: 'My Translations',
     primary: 'Primary Translation',

@@ -2398,6 +2398,7 @@ export const es = {
     unpin: 'Quitar de mis traducciones',
     hide: 'Ocultar de mis traducciones',
     title: 'Traducciones bíblicas',
+    offlineNotice: 'No tienes conexión. Las Biblias descargadas siguen disponibles.',
     languagePreference: 'Preferencia de idioma',
     myTranslations: 'Mis traducciones',
     primary: 'Traducción principal',

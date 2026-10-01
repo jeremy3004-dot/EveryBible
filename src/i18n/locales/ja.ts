@@ -1868,6 +1868,7 @@ export const ja = {
     unpin: 'ピン留めを解除',
     hide: 'マイ翻訳から隠す',
     title: '聖書の翻訳',
+    offlineNotice: 'オフラインです。ダウンロード済みの聖書は引き続きご利用いただけます。',
     languagePreference: '言語設定',
     myTranslations: 'マイ翻訳',
     primary: 'メインの翻訳',

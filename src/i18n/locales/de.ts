@@ -1947,6 +1947,7 @@ export const de = {
     unpin: 'Nicht mehr anheften',
     hide: 'Aus meinen Übersetzungen ausblenden',
     title: 'Bibelübersetzungen',
+    offlineNotice: 'Du bist offline. Heruntergeladene Bibeln sind weiterhin verfügbar.',
     languagePreference: 'Bevorzugte Sprache',
     myTranslations: 'Meine Übersetzungen',
     primary: 'Hauptübersetzung',
