@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { getTranslatedBookName } from '../../../../constants/books';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../../design/system';
+import { useLargeText } from '../../../../hooks/useLargeText';
 import { useAudioPosition } from '../../../../hooks/useAudioPosition';
 import { useAudioStore } from '../../../../stores/audioStore';
 import { PLAYBACK_RATES, REPEAT_MODES, SLEEP_TIMER_OPTIONS } from '../../../../types/audio';
@@ -115,11 +116,13 @@ function FooterButton({
   icon: Icon,
   label,
   accessibilityLabel,
+  stacked,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
   accessibilityLabel: string;
+  stacked: boolean;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
@@ -127,6 +130,7 @@ function FooterButton({
     <TouchableOpacity
       style={[
         styles.footerButton,
+        stacked ? styles.footerButtonStacked : null,
         { backgroundColor: colors.bibleElevatedSurface, borderColor: colors.bibleDivider },
       ]}
       onPress={onPress}
@@ -157,6 +161,8 @@ export function AudioSheetMainPage({
 }: AudioSheetMainPageProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
+  // Beside a label the sliders and the sound name get a word's width at accessibility sizes.
+  const { isLargeText } = useLargeText();
   const narrationVolume = useAudioStore((state) => state.narrationVolume);
   const setNarrationVolume = useAudioStore((state) => state.setNarrationVolume);
   const backgroundMusicLevel = useAudioStore((state) => state.backgroundMusicLevel);
@@ -194,7 +200,11 @@ export function AudioSheetMainPage({
 
       <AudioSheetSection title={t('audio.soundSection')}>
         <TouchableOpacity
-          style={[styles.soundRow, { borderColor: colors.bibleDivider }]}
+          style={[
+            styles.soundRow,
+            isLargeText ? styles.soundRowStacked : null,
+            { borderColor: colors.bibleDivider },
+          ]}
           onPress={onOpenLibrary}
           accessibilityRole="button"
           accessibilityLabel={t('audio.backgroundSound')}
@@ -207,7 +217,7 @@ export function AudioSheetMainPage({
           <View style={styles.soundRowValue}>
             <Text
               style={[styles.soundName, { color: colors.bibleSecondaryText }]}
-              numberOfLines={1}
+              numberOfLines={isLargeText ? undefined : 1}
             >
               {soundName}
             </Text>
@@ -215,24 +225,24 @@ export function AudioSheetMainPage({
           </View>
         </TouchableOpacity>
 
-        <View style={styles.sliderRow}>
+        <View style={[styles.sliderRow, isLargeText ? styles.sliderRowStacked : null]}>
           <Text style={[styles.sliderLabel, { color: colors.biblePrimaryText }]}>
             {t('audio.voiceVolume')}
           </Text>
           <Slider
-            style={styles.slider}
+            style={isLargeText ? styles.sliderStacked : styles.slider}
             value={narrationVolume}
             onValueChange={setNarrationVolume}
             accessibilityLabel={t('audio.voiceVolume')}
             {...sliderColors}
           />
         </View>
-        <View style={styles.sliderRow}>
+        <View style={[styles.sliderRow, isLargeText ? styles.sliderRowStacked : null]}>
           <Text style={[styles.sliderLabel, { color: colors.biblePrimaryText }]}>
             {t('audio.soundVolume')}
           </Text>
           <Slider
-            style={styles.slider}
+            style={isLargeText ? styles.sliderStacked : styles.slider}
             value={backgroundMusicLevel}
             onValueChange={setBackgroundMusicLevel}
             // Nothing to turn up while no sound is chosen.
@@ -324,17 +334,19 @@ export function AudioSheetMainPage({
         </ChipRow>
       </AudioSheetSection>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, isLargeText ? styles.footerStacked : null]}>
         <FooterButton
           icon={Share2}
           label={t('audio.shareClip')}
           accessibilityLabel={t('bible.shareChapterAudio')}
+          stacked={isLargeText}
           onPress={onShareClip}
         />
         <FooterButton
           icon={Download}
           label={t('audio.download')}
           accessibilityLabel={t('bible.downloadBookAudio')}
+          stacked={isLargeText}
           onPress={onDownload}
         />
       </View>
@@ -378,6 +390,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  soundRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.sm,
+  },
   rowLabel: {
     ...typography.bodyMedium,
   },
@@ -396,12 +413,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  sliderRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: spacing.xs,
+  },
   sliderLabel: {
     ...typography.bodyMedium,
     minWidth: 56,
   },
   slider: {
     flex: 1,
+  },
+  // flex: 1 in a column of unknown height collapses to nothing.
+  sliderStacked: {
+    alignSelf: 'stretch',
   },
   readAlongButton: {
     minHeight: layout.minTouchTarget,
@@ -417,6 +443,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  footerStacked: {
+    flexDirection: 'column',
+  },
   footerButton: {
     flex: 1,
     minHeight: layout.minTouchTarget,
@@ -427,6 +456,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
+  },
+  // flex: 1 in a column of unknown height collapses; size to the label instead.
+  footerButtonStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
+    paddingVertical: spacing.sm,
   },
   footerLabel: {
     ...typography.label,

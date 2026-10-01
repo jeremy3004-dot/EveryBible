@@ -26,6 +26,14 @@ const SHEET_MAX_HEIGHT_SHARE = 0.9;
 export const NOTE_INPUT_MIN_HEIGHT = 124;
 const NOTE_INPUT_MAX_HEIGHT_SHARE = 0.2;
 
+// How much a note may be typed to. A saved note already longer (notes joined when a guest
+// account is adopted) keeps its full length: a field capped below its value is cut on Android.
+const NOTE_MAX_LENGTH = 1000;
+
+export function getNoteMaxLength(savedNote: string | undefined): number {
+  return Math.max(NOTE_MAX_LENGTH, savedNote?.length ?? 0);
+}
+
 export function getSheetMaxHeight(windowHeight: number, topInset: number): number {
   return Math.round((windowHeight - topInset) * SHEET_MAX_HEIGHT_SHARE);
 }

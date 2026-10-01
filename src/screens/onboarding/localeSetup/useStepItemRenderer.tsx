@@ -253,8 +253,6 @@ export function useStepItemRenderer({
               <ActivityIndicator color={colors.accentPrimary} />
             </View>
           );
-        case 'loadingSpacer':
-          return <View style={styles.loadingRow} />;
         // Usually the device is offline. The card sits above the list, so its body can point
         // at the Bibles below it: they ship with the app and finish onboarding offline.
         case 'catalogError':

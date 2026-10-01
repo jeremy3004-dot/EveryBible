@@ -9,6 +9,7 @@ interface NoteComposerProps {
   noteText: string;
   onChangeNoteText: (text: string) => void;
   noteInputMaxHeight: number;
+  noteMaxLength: number;
   canAnnotate: boolean;
   isSaving: boolean;
   onCancel: () => void;
@@ -24,6 +25,7 @@ export function NoteComposer({
   noteText,
   onChangeNoteText,
   noteInputMaxHeight,
+  noteMaxLength,
   canAnnotate,
   isSaving,
   onCancel,
@@ -66,7 +68,7 @@ export function NoteComposer({
           value={noteText}
           onChangeText={onChangeNoteText}
           multiline
-          maxLength={1000}
+          maxLength={noteMaxLength}
           autoFocus
           editable={canAnnotate}
         />

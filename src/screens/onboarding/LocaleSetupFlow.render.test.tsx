@@ -486,40 +486,6 @@ test('a search with no match says how to search, without developer wording', asy
   assert.equal(view.queryByText(/fuzzy/i), null);
 });
 
-test('the catalog spinner leaves a same-height gap, so the list does not jump when it ends', async () => {
-  let finishLoad: () => void = () => {};
-  fakes.catalog.impl = () =>
-    new Promise<void>((resolve) => {
-      finishLoad = resolve;
-    });
-  const view = await fakes.renderFlow();
-  const dataTypes = () =>
-    (fakes.flashList.props?.data as Array<{ type: string }>).map((item) => item.type);
-  const heightOf = (node: ReactTestInstance) =>
-    hostAncestors(node)
-      .map((ancestor) => flattenStyle(ancestor.props.style)?.height)
-      .find((height) => height !== undefined);
-
-  assert.equal(dataTypes()[0], 'loading');
-  const spinnerRowHeight = heightOf(
-    view.queryAllByType('ActivityIndicator')[0] as ReactTestInstance
-  );
-  assert.ok(spinnerRowHeight, 'the spinner row has a fixed height');
-
-  await act(async () => finishLoad());
-  await view.flush();
-
-  assert.equal(view.queryAllByType('ActivityIndicator').length, 0);
-  assert.equal(dataTypes()[0], 'loadingSpacer');
-  const spacer = assertDefined(
-    view
-      .queryAllByType('View')
-      .find((node) => flattenStyle(node.props.style)?.height === spinnerRowHeight),
-    'spacer'
-  );
-  assert.ok(spacer);
-});
-
 test('choosing a Bible shows its row busy while the app language switches', async () => {
   let finishSwitch: () => void = () => {};
   fakes.changeLanguage.impl = () =>

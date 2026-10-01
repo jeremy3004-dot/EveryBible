@@ -2,7 +2,9 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { Check, CloudDownload } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../../design/largeTextLayout';
 import { radius, spacing, typography } from '../../../../design/system';
+import { useLargeText } from '../../../../hooks/useLargeText';
 import { useBackgroundSoundAvailability } from '../../../../hooks/useBackgroundSoundAvailability';
 import { BACKGROUND_MUSIC_OPTIONS } from '../../../../services/audio/backgroundMusicCatalog';
 import type { BackgroundMusicChoice } from '../../../../types/audio';
@@ -12,6 +14,8 @@ import { soundLabelKey, soundLibraryChoices } from './audioSheetModel';
 type SoundAvailability = ReturnType<typeof useBackgroundSoundAvailability>[BackgroundMusicChoice];
 
 const COLUMNS = 3;
+// A third of the sheet is about 100pt: at accessibility sizes "Thunderstorm" breaks mid-word.
+const LARGE_TEXT_COLUMNS = 2;
 
 const needsDownload = (availability: SoundAvailability | undefined) =>
   availability === 'remote' || availability === 'failed';
@@ -50,7 +54,11 @@ function SoundTile({ choice, isSelected, availability, onSelect }: SoundTileProp
       accessibilityState={{ selected: isSelected, busy: isDownloading }}
     >
       <SoundIcon choice={choice} size={24} color={foreground} />
-      <Text style={[styles.tileName, { color: foreground }]} numberOfLines={2}>
+      <Text
+        style={[styles.tileName, { color: foreground }]}
+        numberOfLines={2}
+        maxFontSizeMultiplier={CONTROL_LABEL_MAX_FONT_SCALE}
+      >
         {name}
       </Text>
       {isSelected ? (
@@ -84,10 +92,12 @@ export function SoundLibraryPage({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const availability = useBackgroundSoundAvailability();
+  const { isLargeText } = useLargeText();
+  const columns = isLargeText ? LARGE_TEXT_COLUMNS : COLUMNS;
   const choices = soundLibraryChoices(BACKGROUND_MUSIC_OPTIONS);
   const rows: BackgroundMusicChoice[][] = [];
-  for (let index = 0; index < choices.length; index += COLUMNS) {
-    rows.push(choices.slice(index, index + COLUMNS));
+  for (let index = 0; index < choices.length; index += columns) {
+    rows.push(choices.slice(index, index + columns));
   }
 
   return (
@@ -104,7 +114,7 @@ export function SoundLibraryPage({
             />
           ))}
           {/* Keep a short last row on the same column grid. */}
-          {Array.from({ length: COLUMNS - row.length }, (_, index) => (
+          {Array.from({ length: columns - row.length }, (_, index) => (
             <View key={`spacer-${index}`} style={styles.spacer} />
           ))}
         </View>

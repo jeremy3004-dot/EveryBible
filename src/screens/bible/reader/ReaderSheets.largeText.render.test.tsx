@@ -5,6 +5,7 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { type ReactTestInstance } from 'react-test-renderer';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { flattenStyle, hostAncestors, installRenderHarness, within } from '../../../testing/render';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
@@ -98,4 +99,62 @@ test('at AX5 the verse image sheet scrolls its header, preview, backgrounds and 
     view.getByRole('button', { name: t('common.cancel') }),
     view.getByRole('button', { name: t('groups.share') }),
   ]);
+});
+
+async function renderVerseImageSheet(fontScale: number) {
+  harness.setFontScale(fontScale);
+  const { VerseImageShareSheet } = await import('./VerseImageShareSheet');
+  return harness.render(
+    <VerseImageShareSheet
+      handleSelectVerseImageBackground={noop}
+      handleShareSelectedVerseImage={noopAsync}
+      isSharingVerseImage={false}
+      selectedVerseImageBackground={{ uri: 'background.png' }}
+      selectedVerseImageBackgroundIndex={0}
+      selectedVerseReferenceLabel="John 3:16"
+      selectedVerseText="For God so loved the world"
+      handleCloseVerseImageSheet={noop}
+      showVerseImageSheet
+      verseImageBackgroundCount={3}
+      verseImageSharePreviewRef={{ current: null }}
+    />
+  );
+}
+
+test('at AX5 the verse image Cancel and Share buttons stack, each with the full width', async () => {
+  for (const [scale, direction] of [
+    [1, 'row'],
+    [AX5_FONT_SCALE, 'column-reverse'],
+  ] as const) {
+    const view = await renderVerseImageSheet(scale);
+    const cancel = view.getByRole('button', { name: t('common.cancel') });
+    const row = hostAncestors(cancel)[0];
+    assert.equal(flattenStyle(row?.props.style)?.flexDirection, direction, `at ${scale}`);
+    // flex: 1 in a column of unknown height collapses the button to its minimum.
+    if (scale > 1) assert.equal(flattenStyle(cancel.props.style)?.flex, 0);
+  }
+});
+
+test('at AX5 a font chip grows with its name and the name is capped like other control labels', async () => {
+  const view = await renderVerseImageSheet(AX5_FONT_SCALE);
+  await view.press(view.getByRole('tab', { name: t('bible.verseImage.tabs.font') }));
+
+  const chip = view.getByRole('button', { name: t('bible.verseImage.fonts.classic') });
+  const style = flattenStyle(
+    typeof chip.props.style === 'function' ? chip.props.style({ pressed: false }) : chip.props.style
+  );
+  assert.equal(style?.width, undefined, 'a fixed 92pt width broke names mid-word');
+  assert.equal(style?.minWidth, 92);
+  const name = within(chip).getByText(t('bible.verseImage.fonts.classic'));
+  assert.equal(name.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+});
+
+test('at AX5 the size row keeps the slider wide: both A glyphs are capped', async () => {
+  const view = await renderVerseImageSheet(AX5_FONT_SCALE);
+  await view.press(view.getByRole('tab', { name: t('bible.verseImage.tabs.size') }));
+
+  assert.equal(view.getAllByText('A').length, 2);
+  for (const glyph of view.getAllByText('A')) {
+    assert.equal(glyph.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+  }
 });

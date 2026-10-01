@@ -149,15 +149,17 @@ export const getHomeNextUpChapter = (
  * appears once every chapter has been read or listened to, and it is attributed
  * to the period that completed it, not to the period it was started in.
  */
-export const getBookCompletionTimes = (activity: HomeReadingActivity): Map<string, number> => {
-  const coverage = getChapterCoverageTimes(activity);
+export const getBookCompletionTimes = (
+  activity: HomeReadingActivity,
+  // A caller that already built the coverage map passes it in; building it walks the whole ledger.
+  coverage: Map<string, number> = getChapterCoverageTimes(activity)
+): Map<string, number> => {
   const touchedBooks = new Set<string>();
 
+  // Every key in the coverage map already passed parseChapterKey, so its book id is the part
+  // before the last underscore.
   for (const key of coverage.keys()) {
-    const parsed = parseChapterKey(key);
-    if (parsed) {
-      touchedBooks.add(parsed.bookId);
-    }
+    touchedBooks.add(key.slice(0, key.lastIndexOf('_')));
   }
 
   const completions = new Map<string, number>();
@@ -212,7 +214,7 @@ export const getHomeReadingStats = (
     }
   }
 
-  const booksFinished = [...getBookCompletionTimes(activity).entries()]
+  const booksFinished = [...getBookCompletionTimes(activity, coverage).entries()]
     .filter(([, completedAt]) => isInRange(completedAt, range))
     .map(([bookId]) => bookId)
     .sort((left, right) => (BOOK_ORDER.get(left) ?? 0) - (BOOK_ORDER.get(right) ?? 0));

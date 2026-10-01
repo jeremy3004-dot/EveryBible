@@ -290,13 +290,17 @@ let droppedWrites = 0;
  */
 export const privateDataStorage: StateStorage = {
   getItem: guardedBuckets.getItem,
+  // Nothing on success; false when the value did not reach the bucket, so a write gate
+  // (unchangedStateStorage) retries it rather than remembering it as saved.
   setItem: (name, value) => {
     if (writesSuspended) {
-      return;
+      return false;
     }
     if (!guardedBuckets.setItem(name, value)) {
       droppedWrites += 1;
+      return false;
     }
+    return undefined;
   },
   removeItem: (name) => {
     if (writesSuspended) {

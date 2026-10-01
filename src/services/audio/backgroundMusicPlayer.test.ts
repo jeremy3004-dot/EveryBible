@@ -221,7 +221,7 @@ test('starting a preset loads its bundled asset muted and fades it up to the cat
         shouldPlay: false,
         isLooping: false,
         volume: 0,
-        progressUpdateIntervalMillis: 250,
+        progressUpdateIntervalMillis: 1000,
       },
     },
   ]);
@@ -862,7 +862,7 @@ test('approaching the end of the loop crossfades into a fresh instance', async (
     shouldPlay: true,
     isLooping: false,
     volume: 0,
-    progressUpdateIntervalMillis: 250,
+    progressUpdateIntervalMillis: 1000,
   });
   // A retained SDK callback has no authority after its sound retires.
   assertDefined(outgoing, 'outgoing').emitStatus(nearEndOfLoop());
@@ -1458,4 +1458,25 @@ test('a cancelled crossfade that fails still permits looping after resume', asyn
   await flush();
 
   assert.equal(createCalls.length, 3);
+});
+
+test('the loop crossfade starts from the latest report a once-a-second cadence can deliver', async () => {
+  await mod.backgroundMusicPlayer.sync('ambient', true);
+  runFade();
+  const outgoing = assertDefined(sounds[0], 'sounds[0]');
+
+  // The report before this one said 3.3 s left (too early); the next lands a full
+  // second later, so the first one inside the window can have just over 2.25 s left.
+  outgoing.emitStatus(nearEndOfLoop(3300));
+  await flush();
+  assert.equal(sounds.length, 1, 'no replacement before the window opens');
+
+  outgoing.emitStatus(nearEndOfLoop(2300));
+  await flush();
+  assert.equal(sounds.length, 2, 'the replacement loads');
+
+  mock.timers.tick(2300);
+  assert.equal(outgoing.volumes().at(-1), 0, 'the old copy is silent before its file ends');
+  runFade();
+  assert.equal(assertDefined(sounds[1], 'sounds[1]').volumes().at(-1), AMBIENT_VOLUME);
 });

@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import { formatPlanMonthDay } from '../../../services/plans/planDateFormat';
 import {
   getPlanDayCount,
   getPlanSeason,
@@ -141,9 +142,7 @@ export function getLocalizedSessionLabel(sessionKey: PlanSessionKey, t: TFunctio
 /** "29 Nov – 24 Dec": the dates a seasonal plan runs this year, in the in-app language. */
 export function formatPlanSeasonDates({ start, dayCount }: PlanSeason, locale?: string): string {
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + dayCount - 1);
-  const format = (date: Date) =>
-    date.toLocaleDateString(locale || undefined, { month: 'short', day: 'numeric' });
-  return `${format(start)} – ${format(end)}`;
+  return `${formatPlanMonthDay(start, locale)} – ${formatPlanMonthDay(end, locale)}`;
 }
 
 /** "Morning + Evening" for a multi-session plan; null for any other. */

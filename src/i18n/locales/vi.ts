@@ -674,7 +674,7 @@ export const vi = {
       },
       size: 'Kích cỡ chữ',
       sizeMaxed: 'Kích cỡ tối đa: chữ đã lấp đầy toàn bộ hình ảnh',
-      backgroundOption: 'Nền {{position}} trên {{total}}',
+      backgroundOption: 'Ảnh nền {{position}} trên {{total}}',
     },
     chooseVerseImageBackground: 'Chọn ảnh nền',
     books: {
@@ -1314,7 +1314,7 @@ export const vi = {
     startPlan: 'Bắt đầu kế hoạch',
     enrolled: 'Đã đăng ký',
     dayOf: 'Ngày {{current}}/{{total}}',
-    inSeason: 'Đúng mùa',
+    inSeason: 'Mùa này',
     seasonStarts: 'Bắt đầu {{date}}',
     seasonStartsToday: 'Bắt đầu hôm nay',
     markComplete: 'Đánh dấu hoàn thành',
@@ -1512,7 +1512,7 @@ export const vi = {
       newYear: {
         title: 'Năm mới',
         description:
-          'Tuần đầu tháng 1: từ ngày sáng tạo đầu tiên đến trời mới đất mới, cùng những bài thi thiên để lên đường.',
+          'Tuần đầu tháng 1: những khởi đầu, từ ngày sáng tạo đầu tiên đến trời mới đất mới, cùng những bài thi thiên để lên đường.',
       },
       epiphany: {
         title: 'Lễ Hiển Linh: Ánh sáng cho muôn dân',
@@ -1527,12 +1527,12 @@ export const vi = {
       holyWeek: {
         title: 'Tuần Thánh',
         description:
-          'Từ Chúa nhật Lễ Lá đến Chúa nhật Phục Sinh, mỗi ngày một đoạn: vào thành Giê-ru-sa-lem, bữa tiệc cuối cùng, thập tự giá, ngôi mộ bị niêm phong và ngôi mộ trống.',
+          'Từ Chúa nhật Lễ Lá đến Chúa nhật Phục Sinh, mỗi ngày một đoạn: vào thành Giê-ru-sa-lem, Tiệc Ly, thập tự giá, ngôi mộ bị niêm phong và ngôi mộ trống.',
       },
       orthodoxHolyWeek: {
         title: 'Tuần Thánh (lịch Chính Thống giáo)',
         description:
-          'Tuần Thánh theo ngày của Chính Thống giáo, từ Chúa nhật Lễ Lá đến Lễ Pascha: vào thành Giê-ru-sa-lem, Bữa Tiệc Mầu Nhiệm, thập tự giá, ngôi mộ và sự phục sinh.',
+          'Tuần Thánh theo ngày của Chính Thống giáo, từ Chúa nhật Lễ Lá đến Lễ Phục Sinh: vào thành Giê-ru-sa-lem, Bữa Tiệc Mầu Nhiệm, thập tự giá, ngôi mộ và sự phục sinh.',
       },
       easter: {
         title: 'Mùa Phục Sinh',
@@ -1542,7 +1542,7 @@ export const vi = {
       pentecost: {
         title: 'Từ Lễ Thăng Thiên đến Lễ Ngũ Tuần',
         description:
-          'Mười một ngày từ Lễ Thăng Thiên đến Lễ Ngũ Tuần: cùng các môn đồ đầu tiên chờ đợi và cầu nguyện cho Đức Thánh Linh, Đấng đem Tin Lành đến mọi thứ tiếng.',
+          'Mười một ngày từ Lễ Thăng Thiên đến Lễ Ngũ Tuần: cùng các môn đồ đầu tiên chờ đợi và cầu nguyện, trông mong Đức Thánh Linh, Đấng đem Tin Lành đến mọi thứ tiếng.',
       },
       translationWeek: {
         title: 'Lời Chúa trong mọi ngôn ngữ',

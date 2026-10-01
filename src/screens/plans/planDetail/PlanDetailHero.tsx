@@ -94,7 +94,7 @@ export function PlanDetailHero({
         {eyebrow ? (
           <Text
             style={[styles.eyebrow, displayFont.regular, { color: colors.secondaryText }]}
-            numberOfLines={1}
+            numberOfLines={2}
             maxFontSizeMultiplier={1.4}
           >
             {eyebrow}
@@ -103,8 +103,9 @@ export function PlanDetailHero({
         <Text
           maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
           accessibilityRole="header"
+          // No line limit: the compact header repeats only a truncated title, so this is the
+          // one place the whole name shows. The display cap bounds its size.
           style={[styles.title, displayFont.bold, { color: colors.primaryText }]}
-          numberOfLines={2}
         >
           {title}
         </Text>

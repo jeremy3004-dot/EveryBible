@@ -186,13 +186,15 @@ export const reconcileVerseFormattingWithText = (
 // lead-ins above, so the 45 MB database is not rebuilt. A space after a quote is the
 // legitimate nested pair ("’ ”"), and a quote followed by a letter is an apostrophe or an
 // opening quote, so neither is touched.
-const STRAY_CLOSING_QUOTE_SPACE = /(?<=[^\s‘“’”]) +(?=[’”](?![\p{L}\p{N}]))/gu;
+// The preceding character is captured and put back rather than matched with a lookbehind,
+// so this module (loaded on every chapter read) never depends on lookbehind support.
+const STRAY_CLOSING_QUOTE_SPACE = /([^\s‘“’”]) +(?=[’”](?![\p{L}\p{N}]))/gu;
 const CLOSING_ONLY_LINE = /^[?!.,;:)\]’”]+$/;
 const QUOTE_CHAR_AT_END = /[’”]$/;
 const QUOTE_CHAR_AT_START = /^[’”]/;
 
 export const normalizeClosingQuoteSpacing = (text: string): string =>
-  typeof text === 'string' ? text.replace(STRAY_CLOSING_QUOTE_SPACE, '') : text;
+  typeof text === 'string' ? text.replace(STRAY_CLOSING_QUOTE_SPACE, '$1') : text;
 
 /**
  * Remove the stray space before closing quotes inside each line and fold a line made only of
