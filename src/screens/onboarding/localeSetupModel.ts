@@ -321,7 +321,7 @@ export function buildInitialOnboardingLanguageOptions<T extends InitialOnboardin
   }
 
   return Array.from(groupedTranslations.entries())
-    .map(([key, groupTranslations]) => {
+    .flatMap(([key, groupTranslations]) => {
       const translationsByPriority = [...groupTranslations].sort((left, right) => {
         const priorityDelta = getTranslationPriority(left) - getTranslationPriority(right);
         if (priorityDelta !== 0) {
@@ -331,15 +331,20 @@ export function buildInitialOnboardingLanguageOptions<T extends InitialOnboardin
         return collateLabels(left.name, right.name);
       });
       const primaryTranslation = translationsByPriority[0];
+      if (!primaryTranslation) {
+        return [];
+      }
       const label = getDisplayLanguageLabel(primaryTranslation.language);
 
-      return {
-        key,
-        label,
-        groupLabel: getLanguageGroupLabel(label),
-        primaryTranslation,
-        translations: translationsByPriority,
-      };
+      return [
+        {
+          key,
+          label,
+          groupLabel: getLanguageGroupLabel(label),
+          primaryTranslation,
+          translations: translationsByPriority,
+        },
+      ];
     })
     .sort(compareLanguageOptions);
 }
@@ -359,14 +364,15 @@ export function filterInitialOnboardingLanguageOptions<T extends InitialOnboardi
 
   for (const option of options) {
     const translations = option.translations.filter((translation) => matching.has(translation));
-    if (translations.length === 0) {
+    const [primaryTranslation] = translations;
+    if (!primaryTranslation) {
       continue;
     }
 
     filteredOptions.push(
       translations.length === option.translations.length
         ? option
-        : { ...option, primaryTranslation: translations[0], translations }
+        : { ...option, primaryTranslation, translations }
     );
   }
 

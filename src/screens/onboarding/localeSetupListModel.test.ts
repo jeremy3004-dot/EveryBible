@@ -9,6 +9,7 @@ import {
   isLastInLocaleSetupGroup,
   type BibleLanguageListInput,
 } from './localeSetupListModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 interface TestOption {
   key: string;
@@ -103,7 +104,7 @@ test('a recommendation still being ranked holds its slot with a placeholder, not
     items.map((item) => item.id),
     ['eyebrow-recommended', 'primary-placeholder', 'eyebrow-E', 'option-english', 'option-estonian']
   );
-  assert.equal(items[1].type, 'primaryOptionPlaceholder');
+  assert.equal(assertDefined(items[1], 'items[1]').type, 'primaryOptionPlaceholder');
 
   assert.deepEqual(
     buildBibleLanguageListItems(
@@ -138,7 +139,8 @@ test('the pinned recommendation is shown once and dropped from its alphabetical 
     ]
   );
 
-  const [recommendedEyebrow, primaryItem] = items;
+  const recommendedEyebrow = assertDefined(items[0], 'the recommended eyebrow');
+  const primaryItem = assertDefined(items[1], 'the primary option');
   assert.equal(recommendedEyebrow.type === 'eyebrow' && recommendedEyebrow.label, 'RECOMMENDED');
   assert.equal(
     recommendedEyebrow.type === 'eyebrow' && recommendedEyebrow.hasSectionSpacing,
@@ -320,7 +322,8 @@ test('a search with no suggestion opens straight into the results', () => {
     items.map((item) => item.id),
     ['eyebrow-countries', 'country-NP']
   );
-  assert.equal(items[1].type === 'country' && items[1].position, 'only');
+  const country = assertDefined(items[1], 'items[1]');
+  assert.equal(country.type === 'country' && country.position, 'only');
 });
 
 test('a nation search that matches nothing keeps its eyebrow and shows the empty card', () => {

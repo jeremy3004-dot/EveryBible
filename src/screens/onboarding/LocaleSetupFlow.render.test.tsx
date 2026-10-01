@@ -15,6 +15,7 @@ import {
   installLocaleSetupFlowFakes,
 } from './localeSetupFlowRenderFixtures';
 import { getRuntimeCatalogHydrationPolicy } from './localeSetupModel';
+import { assertDefined } from '../../utils/assertDefined';
 
 // iOS: the keyboard reports its frame up front (keyboardWillShow). Android's
 // hardware back and measured keyboard overlap live in the .android file.
@@ -515,7 +516,7 @@ test('at large text a Bible row puts its status chip under the name, keeping the
   harness.setFontScale(2);
   const view = await fakes.renderFlow();
 
-  const copy = copyColumnOf(view, 'Berean Standard Bible (BSB) · Text');
+  const copy = assertDefined(copyColumnOf(view, 'Berean Standard Bible (BSB) · Text'), 'copy');
   assert.ok(within(copy).getByText(t('onboarding.recommendedBadge')));
   const row = view.getByRole('button', { name: /^English, Berean Standard Bible/ });
   assert.equal(within(copy).queryAllByType('LucideIcon').length, 0);
@@ -525,7 +526,7 @@ test('at large text a Bible row puts its status chip under the name, keeping the
 test('at default size a Bible row keeps its status chip beside the name', async () => {
   const view = await fakes.renderFlow();
 
-  const copy = copyColumnOf(view, 'Berean Standard Bible (BSB) · Text');
+  const copy = assertDefined(copyColumnOf(view, 'Berean Standard Bible (BSB) · Text'), 'copy');
   assert.equal(within(copy).queryByText(t('onboarding.recommendedBadge')), null);
 });
 
@@ -543,7 +544,7 @@ test('with no footer on first run, the list only reserves the keyboard plus brea
 test('the header counts real steps and fills one rail segment per step reached', async () => {
   const view = await renderSettings();
   const railFor = (eyebrow: ReactTestInstance) => {
-    const [center] = hostAncestors(eyebrow);
+    const center = assertDefined(hostAncestors(eyebrow)[0], 'center');
     const bar = within(center)
       .queryAllByType('View')
       .find((node) => flattenStyle(node.props.style)?.width === 120);
@@ -605,13 +606,17 @@ test('at large text the suggested nation wraps its subtitle and drops its chip u
   const card = view.getByRole('button', { name: 'United States, 2 languages, Suggested' });
   const subtitle = within(card).getByText('2 languages');
   assert.equal(subtitle.props.numberOfLines, 2);
-  assert.ok(within(hostAncestors(subtitle)[0]).getByText('Suggested'));
+  assert.ok(
+    within(assertDefined(hostAncestors(subtitle)[0], 'hostAncestors(subtitle)[0]')).getByText(
+      'Suggested'
+    )
+  );
 });
 
 test('the footer fades the list out and its primary action names the chosen nation', async () => {
   const view = await renderSettings();
 
-  const [gradient] = view.queryAllByType('LinearGradient');
+  const gradient = assertDefined(view.queryAllByType('LinearGradient')[0], 'gradient');
   assert.deepEqual(gradient.props.colors, [
     'transparent',
     colors().background,

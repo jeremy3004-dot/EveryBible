@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mockModule, mockPackage, mockReactNative, sourcePath } from '../../../testing/mockModules';
 import { createReactHookRuntime } from '../../../testing/reactHookRuntime';
 import type { BibleTranslation } from '../../../types';
+import { assertDefined } from '../../../utils/assertDefined';
 
 // First run: picking a Bible finishes onboarding, a download is queued, and a failed
 // download or a failed finish tells the reader and lets them retry.
@@ -196,7 +197,7 @@ test('a Bible that needs a download finishes onboarding once it is installed', a
   assert.deepEqual(view.result.bibleSelectionState, { downloadingId: 'npiulb', queuedId: null });
   assert.equal(finished.count, 0);
 
-  downloads[0].resolve();
+  assertDefined(downloads[0], 'downloads[0]').resolve();
   await settle();
 
   assert.equal(finished.count, 1);
@@ -210,7 +211,7 @@ test('a failed download falls back to the bundled Bible for the region without a
 
   view.result.handleTranslationSelect(bible('npiulb', 'Nepali'));
   await settle();
-  downloads[0].reject(new Error('disk full'));
+  assertDefined(downloads[0], 'downloads[0]').reject(new Error('disk full'));
   await settle();
 
   await waitFor(() => reportedFailures.length === 1);
@@ -225,7 +226,7 @@ test('a failed download with no regional fallback asks, and Retry downloads it a
 
   view.result.handleTranslationSelect(bible('npiulb', 'Nepali'));
   await settle();
-  downloads[0].reject(new Error('network lost'));
+  assertDefined(downloads[0], 'downloads[0]').reject(new Error('network lost'));
   await settle();
 
   assert.equal(lastAlert()?.title, 'bible.translationDownloadFailedTitle');
@@ -237,7 +238,7 @@ test('a failed download with no regional fallback asks, and Retry downloads it a
     downloads.map((download) => download.id),
     ['npiulb', 'npiulb']
   );
-  downloads[1].resolve();
+  assertDefined(downloads[1], 'downloads[1]').resolve();
   await settle();
   assert.equal(finished.count, 1);
 });
