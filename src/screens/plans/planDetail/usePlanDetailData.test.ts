@@ -50,10 +50,17 @@ type EntriesResult = { success: boolean; data?: ReadingPlanEntry[] };
 const service = {
   plansResult: { success: true, data: [plan] } as PlansResult,
   entriesResult: { success: true, data: [entry('e1')] } as EntriesResult,
+  /** Holds a plan's entries call until the test releases it. */
+  entriesGates: new Map<string, Promise<void>>(),
+  entriesByPlan: new Map<string, EntriesResult>(),
 };
 mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   listReadingPlans: async () => service.plansResult,
-  getPlanEntries: async (_planId: string) => service.entriesResult,
+  getPlanEntries: async (planId: string) => {
+    const gate = service.entriesGates.get(planId);
+    if (gate) await gate;
+    return service.entriesByPlan.get(planId) ?? service.entriesResult;
+  },
   getPlansByCategory: async () => ({ success: true, data: [] }),
 });
 
@@ -68,6 +75,8 @@ afterEach(() => {
   runtime.unmountAll();
   service.plansResult = { success: true, data: [plan] };
   service.entriesResult = { success: true, data: [entry('e1')] };
+  service.entriesGates.clear();
+  service.entriesByPlan.clear();
 });
 
 const settle = async () => {
@@ -114,4 +123,49 @@ test('the plan and its entries both loading successfully report no error', async
   assert.deepEqual(result.plan, plan);
   assert.deepEqual(result.entries, [entry('e1')]);
   assert.equal(result.loading, false);
+});
+
+test('a slow load for the previous plan does not overwrite the plan the screen moved to', async () => {
+  const otherPlan: ReadingPlan = { ...plan, id: 'john-21-days', slug: 'john-21-days' };
+  service.plansResult = { success: true, data: [plan, otherPlan] };
+  let releasePrevious: () => void = () => undefined;
+  service.entriesGates.set(
+    PLAN_ID,
+    new Promise<void>((resolve) => {
+      releasePrevious = resolve;
+    })
+  );
+  service.entriesByPlan.set(PLAN_ID, { success: true, data: [entry('previous-plan-entry')] });
+  service.entriesByPlan.set(otherPlan.id, { success: true, data: [entry('current-plan-entry')] });
+
+  const view = runtime.mount(usePlanDetailData, PLAN_ID);
+  view.flushEffects();
+  // The route's params change to another plan while the first load is still out.
+  view.rerender(otherPlan.id);
+  view.flushEffects();
+  await settle();
+  releasePrevious();
+  await settle();
+
+  const result = view.rerender();
+  assert.equal(result.plan?.id, otherPlan.id);
+  assert.deepEqual(result.entries, [entry('current-plan-entry')]);
+});
+
+test('a failed load for a new plan does not keep the previous plan entries on screen', async () => {
+  const otherPlan: ReadingPlan = { ...plan, id: 'john-21-days', slug: 'john-21-days' };
+  service.plansResult = { success: true, data: [plan, otherPlan] };
+  const view = runtime.mount(usePlanDetailData, PLAN_ID);
+  view.flushEffects();
+  await settle();
+  assert.deepEqual(view.rerender().entries, [entry('e1')]);
+
+  service.entriesByPlan.set(otherPlan.id, { success: false });
+  view.rerender(otherPlan.id);
+  view.flushEffects();
+  await settle();
+
+  const result = view.rerender();
+  assert.deepEqual(result.entries, []);
+  assert.equal(result.error, 't:common.error');
 });
