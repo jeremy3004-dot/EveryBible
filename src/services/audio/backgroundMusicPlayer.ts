@@ -14,8 +14,13 @@ import { subscribeToDeviceOffline } from '../../utils/connectivity';
 
 const FADE_DURATION_MS = 2500;
 const FADE_STEP_MS = 50;
-/** How often expo-av reports the position, so the loop's end is seen in time. */
-const PROGRESS_UPDATE_INTERVAL_MS = 250;
+/**
+ * How often expo-av reports the position, so the loop's end is seen in time. The bed
+ * plays all night with the screen off, and every report is a JS wakeup: once a second is
+ * enough, because the crossfade starts 3.25 s before the end and so is seen by then with
+ * at least 2.25 s to spare.
+ */
+const PROGRESS_UPDATE_INTERVAL_MS = 1000;
 /**
  * Time allowed to load the replacement before its fade starts. The crossfade begins this
  * much before the fade itself would need to, so the outgoing copy reaches silence before

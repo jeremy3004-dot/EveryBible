@@ -43,6 +43,8 @@ interface LocaleSetupStepItemsInput {
   debouncedCountryQuery: string;
   languageResults: { recommended: LocaleLanguage[]; global: LocaleLanguage[] };
   selectedCountryDisplayName: string;
+  /** The Bible step's debounced search text; non-blank means its results are matches. */
+  debouncedTranslationQuery: string;
 }
 
 /**
@@ -69,8 +71,10 @@ export function useLocaleSetupStepItems({
   debouncedCountryQuery,
   languageResults,
   selectedCountryDisplayName,
+  debouncedTranslationQuery,
 }: LocaleSetupStepItemsInput): LocaleSetupStepItem[] {
   const { t } = useTranslation();
+  const isSearchingBibles = debouncedTranslationQuery.trim().length > 0;
 
   return useMemo<LocaleSetupStepItem[]>(() => {
     if (step === 'interfaceLanguage') {
@@ -89,6 +93,7 @@ export function useLocaleSetupStepItems({
         runtimeCatalogLoadFailed,
         hasAnyOptions: hasOnboardingLanguageOptions,
         recommendedLabel: t('onboarding.recommendedBadge'),
+        isSearching: isSearchingBibles,
       });
     }
 
@@ -120,6 +125,7 @@ export function useLocaleSetupStepItems({
     hasOnboardingLanguageOptions,
     isHydratingRuntimeCatalog,
     isPrimaryOptionPending,
+    isSearchingBibles,
     languageResults.global,
     languageResults.recommended,
     listedCountries,

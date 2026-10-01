@@ -522,6 +522,10 @@ test('while the line is dragged it thickens, follows the finger and shows where 
     '75%'
   );
   assert.ok(view.getByText('1:30'), 'the time it will land on');
+  // The bubble is a fixed 52pt wide: uncapped at AX5 "1:30" is wider than it is.
+  const landing = view.getByText('1:30');
+  assert.equal(landing.props.maxFontSizeMultiplier, 1.3);
+  assert.equal(landing.props.numberOfLines, 1);
 
   await act(async () => usePlayerBarScrubStore.setState({ fraction: null }));
   assert.equal(Number(line().height), restingHeight);

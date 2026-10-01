@@ -1,7 +1,22 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { useEffect, useRef } from 'react';
-import { InteractionManager, Platform, Share, View } from 'react-native';
+import { Alert, InteractionManager, Platform, Share, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import {
+  getVerseImageCaptureOptions,
+  VERSE_IMAGE_SHARE_MIME_TYPE,
+  VERSE_IMAGE_SHARE_UTI,
+} from './verseImage/verseImageCapture';
+
+// The picture handed to native sharing last. The recipient may keep reading it after the
+// share returns, so it is deleted when the next picture is captured, which keeps one
+// capture on disk instead of one per share for as long as the OS leaves the cache alone.
+let lastSharedImageUri: string | null = null;
+
+/** Test seam: forget the last shared picture so one test's file is not released in the next. */
+export function forgetLastSharedVerseImage() {
+  lastSharedImageUri = null;
+}
 
 export interface UseVerseImageShareInput {
   /** The words shared as text when a picture cannot be; empty means nothing to share. */
@@ -16,7 +31,7 @@ export interface UseVerseImageShareInput {
 }
 
 /**
- * Shares the verse-image picker's preview as a PNG, falling back to the words as text,
+ * Shares the verse-image picker's preview as a JPEG, falling back to the words as text,
  * for the reader's selected verses and Home's verse of the day alike. The picker's
  * open/closed and busy state stay with the caller, which renders VerseImageShareSheet.
  */
@@ -106,19 +121,29 @@ export function useVerseImageShare({
         if (available && verseImageSharePreviewRef.current) {
           const { captureRef, releaseCapture } = await import('react-native-view-shot');
           if (!isCurrent()) return;
-          const imageUri = await captureRef(verseImageSharePreviewRef, {
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-          });
+          const previousImageUri = lastSharedImageUri;
+          lastSharedImageUri = null;
+          if (previousImageUri) {
+            try {
+              releaseCapture(previousImageUri);
+            } catch {
+              // A stale file that cannot be deleted must not block this share.
+            }
+          }
+          const imageUri = await captureRef(
+            verseImageSharePreviewRef,
+            getVerseImageCaptureOptions()
+          );
           releaseUnsharedImage = () => releaseCapture(imageUri);
           if (!isCurrent()) return;
           shareImage = () => {
             // The recipient may keep reading this file after native sharing returns.
             releaseUnsharedImage = null;
+            lastSharedImageUri = imageUri;
             return Sharing.shareAsync(imageUri, {
               dialogTitle: t('groups.share'),
-              mimeType: 'image/png',
+              mimeType: VERSE_IMAGE_SHARE_MIME_TYPE,
+              UTI: VERSE_IMAGE_SHARE_UTI,
             });
           };
         }
@@ -148,6 +173,8 @@ export function useVerseImageShare({
     } catch (error) {
       if (!isCurrent()) return;
       reportFailure(error);
+      // Neither the picture nor the text went out: say so rather than end silently.
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
     } finally {
       if (!isCurrent()) {
         try {

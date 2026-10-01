@@ -21,13 +21,21 @@ export function TabBarSelection({
   const [width, setWidth] = useState(0);
   const reduceMotion = useReducedMotion();
   const position = useSharedValue(selectedIndex);
+  // The slot width lives in a shared value, not a worklet closure: the pill mounts
+  // only after the capsule is measured, and on Android the style it first attached
+  // kept the pre-measure (zero-width) offset, parking the pill on the first tab
+  // after the bar was hidden and shown again.
+  const slotWidth = useSharedValue(0);
   useEffect(() => {
     position.value = reduceMotion ? selectedIndex : withSpring(selectedIndex, motion.spring);
   }, [position, selectedIndex, reduceMotion]);
   const itemWidth = (width - TAB_BAR_CAPSULE_ROW_INSET * 2) / count;
+  useEffect(() => {
+    slotWidth.value = itemWidth;
+  }, [slotWidth, itemWidth]);
   const direction = I18nManager.isRTL ? -1 : 1;
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: position.value * itemWidth * direction }],
+    transform: [{ translateX: position.value * slotWidth.value * direction }],
   }));
 
   return (

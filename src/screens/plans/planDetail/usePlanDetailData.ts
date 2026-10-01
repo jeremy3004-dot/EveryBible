@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { reportHandledError } from '../../../services/diagnostics/crashReportQueue';
 import {
   getPlanEntries,
   getPlansByCategory,
@@ -44,51 +45,61 @@ export function usePlanDetailData(planId: string) {
     setLoading(true);
     setError(null);
 
-    const [plansResult, entriesResult] = await Promise.all([
-      listReadingPlans(),
-      getPlanEntries(planId),
-    ]);
-    if (!isCurrent()) return;
+    // The service resolves failures into results, but a rejection (a lazy catalog chunk
+    // that cannot load) must still end the load: left uncaught it kept the spinner up for good.
+    try {
+      const [plansResult, entriesResult] = await Promise.all([
+        listReadingPlans(),
+        getPlanEntries(planId),
+      ]);
+      if (!isCurrent()) return;
 
-    let foundPlan: ReadingPlan | null = null;
-    let nextError: string | null = null;
-    if (plansResult.success) {
-      foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
-      setPlan(foundPlan);
-      if (!foundPlan) {
-        // A persisted or notification-supplied id can outlive its catalog entry. Without
-        // this the page rendered an empty ledger under a Start plan button that enrolled
-        // the reader in a plan that does not exist.
+      let foundPlan: ReadingPlan | null = null;
+      let nextError: string | null = null;
+      if (plansResult.success) {
+        foundPlan = (plansResult.data ?? []).find((p) => p.id === planId) ?? null;
+        setPlan(foundPlan);
+        if (!foundPlan) {
+          // A persisted or notification-supplied id can outlive its catalog entry. Without
+          // this the page rendered an empty ledger under a Start plan button that enrolled
+          // the reader in a plan that does not exist.
+          nextError = t('common.error');
+        }
+      } else {
         nextError = t('common.error');
       }
-    } else {
-      nextError = t('common.error');
-    }
 
-    if (entriesResult.success) {
-      entriesRef.current = entriesResult.data ?? [];
-      setEntries(entriesRef.current);
-    } else if (entriesRef.current.length === 0) {
-      // Only surface an error when we have no entries to show; keep any
-      // previously loaded rows visible on a transient refresh failure.
-      nextError = t('common.error');
-    }
-
-    if (nextError) setError(nextError);
-
-    // Fetch related plans once we know the category
-    if (foundPlan?.category) {
-      const relatedResult = await getPlansByCategory(foundPlan.category);
-      if (!isCurrent()) return;
-      if (relatedResult.success) {
-        const filtered = (relatedResult.data ?? [])
-          .filter((p) => p.id !== planId)
-          .slice(0, RELATED_PLAN_LIMIT);
-        setRelatedPlans(filtered);
+      if (entriesResult.success) {
+        entriesRef.current = entriesResult.data ?? [];
+        setEntries(entriesRef.current);
+      } else if (entriesRef.current.length === 0) {
+        // Only surface an error when we have no entries to show; keep any
+        // previously loaded rows visible on a transient refresh failure.
+        nextError = t('common.error');
       }
-    }
 
-    setLoading(false);
+      if (nextError) setError(nextError);
+
+      // Fetch related plans once we know the category
+      if (foundPlan?.category) {
+        const relatedResult = await getPlansByCategory(foundPlan.category);
+        if (!isCurrent()) return;
+        if (relatedResult.success) {
+          const filtered = (relatedResult.data ?? [])
+            .filter((p) => p.id !== planId)
+            .slice(0, RELATED_PLAN_LIMIT);
+          setRelatedPlans(filtered);
+        }
+      }
+
+      setLoading(false);
+    } catch (loadError) {
+      reportHandledError('plans.detail', loadError);
+      if (!isCurrent()) return;
+      // Rows already on screen stay, as they do for a failed result.
+      if (entriesRef.current.length === 0) setError(t('common.error'));
+      setLoading(false);
+    }
   }, [planId, t]);
 
   useEffect(() => {

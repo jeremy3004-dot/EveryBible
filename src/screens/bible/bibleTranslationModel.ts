@@ -127,10 +127,8 @@ export function getTranslationLanguageDisplayLabel(language: string | null | und
   const normalizedLanguage = normalizeTranslationLanguage(language);
   const nativeLabel = TRANSLATION_LANGUAGE_NATIVE_LABELS[normalizedLanguage.toLowerCase()] ?? null;
 
-  if (
-    nativeLabel == null ||
-    nativeLabel.localeCompare(normalizedLanguage, undefined, { sensitivity: 'accent' }) === 0
-  ) {
+  // Case-insensitive, accent-sensitive, without ICU collation (each picker row asks).
+  if (nativeLabel == null || nativeLabel.toLowerCase() === normalizedLanguage.toLowerCase()) {
     return normalizedLanguage;
   }
 
@@ -537,6 +535,28 @@ export const buildTranslationPickerSections = <
     availableTranslations,
   };
 };
+
+/**
+ * How many of the Bibles under My Translations are readable without a network. The More row
+ * says "N offline" and the picker lists My Translations, so both read the same membership
+ * (withdrawn and user-hidden Bibles are in neither) rather than counting `isDownloaded`.
+ */
+export const countOfflineMyTranslations = <
+  T extends {
+    id: string;
+    language: string | null | undefined;
+    isDownloaded: boolean;
+    hasText: boolean;
+    source?: 'bundled' | 'runtime';
+    textPackLocalPath?: string | null;
+  },
+>(
+  translations: T[],
+  options: { pinnedIds?: string[]; hiddenIds?: string[]; currentTranslationId?: string }
+): number =>
+  buildTranslationPickerSections(translations, null, options).myTranslations.filter(
+    isTranslationReadableLocally
+  ).length;
 
 export const getVisibleTranslationsForPicker = <
   T extends {

@@ -5,6 +5,11 @@ import { type ChapterPresentationMode } from '../../../services/bible/presentati
 import type { Verse } from '../../../types';
 import { getInitialChapterSessionMode } from '../bibleReaderModel';
 import { invalidateReaderChapterLoad, type CancellableTask } from '../readerChapterLoader';
+import { perfMark, perfMarkAfterFrame } from '../../../services/diagnostics/perfMarks';
+import { useInteractionHandleUntil } from '../../../hooks/useInteractionHandleUntil';
+
+// How long the reader's first chapter may hold back after-interaction work (see below).
+const FIRST_CHAPTER_INTERACTION_HOLD_MS = 1500;
 
 export interface UseReaderChapterLifecycleInput {
   activeAudioBookId: string | null;
@@ -83,6 +88,11 @@ export function useReaderChapterLifecycle({
 }: UseReaderChapterLifecycleInput) {
   const sessionKeyRef = useRef<string | null>(null);
   const measuredChapterKeyRef = useRef<string | null>(null);
+  // Until the first chapter is on screen, runAfterInteractions work waits for it: the
+  // Bible browser that Home's Continue card mounts underneath, the next chapter's
+  // prefetch, search warm-ups. They otherwise ran between the reader's mount and its
+  // chapter, on the one JS thread.
+  useInteractionHandleUntil(hasLoadedRouteChapter, FIRST_CHAPTER_INTERACTION_HOLD_MS);
   useEffect(() => {
     setReadingPosition({ bookId, chapter });
   }, [bookId, chapter, setReadingPosition]);
@@ -94,6 +104,16 @@ export function useReaderChapterLifecycle({
 
     setPlaybackSequence(playbackSequenceEntriesForAudio);
   }, [playbackSequenceEntriesForAudio, setPlaybackSequence]);
+
+  useEffect(() => {
+    if (hasLoadedRouteChapter) {
+      // Committed: the chapter's view updates go to the native side when this JS batch
+      // ends. Painted: the next frame callback, which later JS work can delay.
+      const key = `${currentTranslation}:${bookId}:${chapter}`;
+      perfMark('reader:committed', key);
+      perfMarkAfterFrame('reader:painted', key);
+    }
+  }, [hasLoadedRouteChapter, bookId, chapter, currentTranslation]);
 
   useEffect(() => {
     void loadChapter();

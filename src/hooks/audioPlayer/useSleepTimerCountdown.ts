@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   hasSleepTimerExpired,
   sleepTimerRemainingMinutes,
@@ -29,8 +30,21 @@ export function useSleepTimerCountdown({
   clearSleepTimer,
   pause,
 }: SleepTimerCountdownInput): number | null {
-  const sleepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sleepTimerRef = useRef<
+    ReturnType<typeof setInterval> | ReturnType<typeof setTimeout> | null
+  >(null);
   const [sleepTimerNow, setSleepTimerNow] = useState(() => Date.now());
+  // The minutes label is only seen in the foreground, so a backgrounded reader needs
+  // just the expiry. Listening in the background (screen off, all night) would
+  // otherwise wake the CPU every second for a clock nobody can see.
+  const [isForeground, setIsForeground] = useState(() => AppState.currentState === 'active');
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      setIsForeground(state === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
 
   const sleepTimerRemaining = useMemo(
     () => sleepTimerRemainingMinutes(sleepTimerEndTime, sleepTimerNow, sleepTimerRemainingMs),
@@ -38,12 +52,17 @@ export function useSleepTimerCountdown({
   );
 
   useEffect(() => {
-    // Always clear any stale interval from a prior render before potentially
-    // starting a new one, so only one interval is ever active at a time.
-    if (sleepTimerRef.current) {
-      clearInterval(sleepTimerRef.current);
-      sleepTimerRef.current = null;
-    }
+    // Always clear any stale timer from a prior render before potentially
+    // starting a new one, so only one timer is ever active at a time.
+    const stopCountdown = () => {
+      if (sleepTimerRef.current) {
+        // Node and browsers share one id pool for both clear functions.
+        clearInterval(sleepTimerRef.current);
+        clearTimeout(sleepTimerRef.current);
+        sleepTimerRef.current = null;
+      }
+    };
+    stopCountdown();
 
     const isRunning =
       status === 'playing' || status === 'loading' || (selahActive && status === 'paused');
@@ -60,30 +79,31 @@ export function useSleepTimerCountdown({
             ? previous
             : now
         );
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- re-anchors the countdown clock
       advanceClock(Date.now());
-      sleepTimerRef.current = setInterval(() => {
+      const tick = () => {
         const now = Date.now();
-        advanceClock(now);
         // Read the live end time: a pause freezes the timer in the store before
         // this effect re-runs, and a frozen timer must not expire.
         if (hasSleepTimerExpired(useAudioStore.getState().sleepTimerEndTime, now)) {
           // Expire once and use the same cancellation/status path as Pause.
-          if (sleepTimerRef.current) clearInterval(sleepTimerRef.current);
-          sleepTimerRef.current = null;
+          stopCountdown();
           clearSleepTimer();
           void pause();
+          return;
         }
-      }, 1000);
+        if (isForeground) advanceClock(now);
+      };
+      if (isForeground) {
+        sleepTimerRef.current = setInterval(tick, 1000);
+      } else {
+        // One wakeup at the deadline (native progress also enforces expiry while it
+        // plays); the clock is re-anchored above when the app returns to the foreground.
+        sleepTimerRef.current = setTimeout(tick, Math.max(0, sleepTimerEndTime - Date.now()));
+      }
     }
 
-    return () => {
-      if (sleepTimerRef.current) {
-        clearInterval(sleepTimerRef.current);
-        sleepTimerRef.current = null;
-      }
-    };
-  }, [sleepTimerEndTime, status, selahActive, clearSleepTimer, pause]);
+    return stopCountdown;
+  }, [sleepTimerEndTime, status, selahActive, isForeground, clearSleepTimer, pause]);
 
   return sleepTimerRemaining;
 }

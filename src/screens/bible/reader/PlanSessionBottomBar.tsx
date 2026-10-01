@@ -22,6 +22,8 @@ export interface PlanSessionBottomBarProps {
   /** The strip has scrolled out with the rest of the reader chrome. */
   isCollapsed: boolean;
   isLastPlanChapter: boolean;
+  /** Tapping the plan's title and day opens the plan it belongs to. */
+  onOpenPlan: () => void;
   planDayNumber: number | undefined;
   planSessionBottomBarAnimatedStyle: { transform: { translateY: number }[]; opacity: number };
   rootTabBarBottomPadding: number;
@@ -44,6 +46,7 @@ export function PlanSessionBottomBar({
   hasPrevChapter,
   isCollapsed,
   isLastPlanChapter,
+  onOpenPlan,
   planDayNumber,
   planSessionBottomBarAnimatedStyle,
   rootTabBarBottomPadding,
@@ -133,7 +136,12 @@ export function PlanSessionBottomBar({
           <View style={styles.planSessionBottomBarArrowSpacer} />
         )}
 
-        <View
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onOpenPlan}
+          accessibilityRole="button"
+          accessibilityLabel={activePlanTitle}
+          accessibilityHint={t('bible.returnToPlanHint')}
           style={[
             styles.planSessionBottomBarCopy,
             showPlanChapterArrows
@@ -164,7 +172,7 @@ export function PlanSessionBottomBar({
               defaultValue: `${activePlanChapterIndex + 1} of ${activePlanDayChapterItems.length}`,
             })}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {showPlanChapterArrows ? (
           <TouchableOpacity

@@ -10,7 +10,7 @@ import type {
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { getPlanStepReadChapters } from '../../../services/plans/readingPlanActivity';
 import {
   markDayComplete,
@@ -247,7 +247,7 @@ export function usePlanDayCompletion({
     }
 
     lastListenCountedNoticeKeyRef.current = noticeKey;
-    const chapterReference = `${getTranslatedBookName(bookId, t)} ${chapter}`;
+    const chapterReference = `${getTranslatedPassageBookName(bookId, t)} ${chapter}`;
     setListenCountedNotice(
       t('readingPlans.listenChapterCounted', {
         reference: chapterReference,

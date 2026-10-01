@@ -248,6 +248,18 @@ test('a relaunch reads only the active owner bucket', () => {
   assert.equal(reads.includes(NOTES), false);
 });
 
+test('an owner marker saved under its persisted key by an earlier build is honoured', () => {
+  // The key is a storage contract: renaming it would show every signed-in
+  // install the guest bucket after an update.
+  mmkv.store.set('private-data-owner', JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(userKey(NOTES, 'user-a'), blob({ notes: ['a'] }));
+
+  relaunch();
+
+  assert.equal(scope.getPrivateDataOwner(), 'user-a');
+  assert.deepEqual(useNotes.getState().notes, ['a']);
+});
+
 test('an existing install moves device data to the signed-in account', () => {
   seedInstallFromBeforeScoping('user-a');
   mmkv.store.set(NOTES, blob({ notes: ['old note'] }));
@@ -262,6 +274,16 @@ test('an existing install moves device data to the signed-in account', () => {
   assert.equal(mmkv.store.has(NOTES), false);
   assert.equal(mmkv.store.has(LESSONS), false);
   assert.deepEqual(marker(), { owner: 'user-a' });
+});
+
+test('an existing install whose account id is a single character moves to that account', () => {
+  seedInstallFromBeforeScoping('u');
+  mmkv.store.set(NOTES, blob({ notes: ['old note'] }));
+
+  relaunch();
+
+  assert.equal(scope.getPrivateDataOwner(), 'u');
+  assert.deepEqual(stored(userKey(NOTES, 'u')), { notes: ['old note'] });
 });
 
 test('the existing-install migration is idempotent across relaunches', () => {
@@ -421,6 +443,66 @@ test('an adoption killed after the owner was saved clears the adopted guest buck
   assert.deepEqual(useNotes.getState().notes, []);
 });
 
+// A kill inside the guest-bucket cleanup: deleting `key` throws.
+const failDeletesOf = (t: TestContext, key: string) => {
+  const remove = mmkv.mmkvInstance.delete;
+  return t.mock.method(mmkv.mmkvInstance, 'delete', (candidate: string) => {
+    if (candidate === key) throw new Error('killed');
+    remove(candidate);
+  });
+};
+
+test('a sign-in killed while emptying the adopted guest bucket empties it on the next launch', (t) => {
+  useNotes.getState().addNote('guest note');
+  const kill = failDeletesOf(t, NOTES);
+  assert.throws(() => switchOwner('user-a'), /killed/);
+  kill.mock.restore();
+
+  relaunch();
+
+  assert.equal(scope.getPrivateDataOwner(), 'user-a');
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  assert.equal(mmkv.store.has(NOTES), false);
+  switchOwner(null);
+  assert.deepEqual(useNotes.getState().notes, [], 'the next guest does not see the adopted note');
+});
+
+test('a launch killed while finishing that cleanup during a marker upgrade finishes it next launch', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  // The marker predates progress scoping, so it is rewritten before the cleanup runs.
+  mmkv.store.set(
+    scope.PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ owner: 'user-a', clearGuest: true })
+  );
+  mmkv.store.set(NOTES, blob({ notes: ['guest note'] }));
+  mmkv.store.set(userKey(NOTES, 'user-a'), blob({ notes: ['guest note'] }));
+  const kill = failDeletesOf(t, NOTES);
+  relaunch();
+  kill.mock.restore();
+
+  relaunch();
+
+  assert.equal(mmkv.store.has(NOTES), false);
+  assert.deepEqual(marker(), { owner: 'user-a' });
+});
+
+for (const [label, adoptingInto] of [
+  ['an empty account id', ''],
+  ['a non-string account id', 42],
+] as const) {
+  test(`an unfinished-adoption marker naming ${label} is ignored by the next sign-in`, () => {
+    mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: null, adoptingInto }));
+    mmkv.store.set(NOTES, blob({ notes: ['guest note'] }));
+    relaunch();
+
+    switchOwner('user-b');
+
+    assert.deepEqual(useNotes.getState().notes, ['guest note']);
+    assert.deepEqual(stored(userKey(NOTES, 'user-b')), { notes: ['guest note'] });
+    assert.equal(mmkv.store.has(NOTES), false);
+  });
+}
+
 for (const [label, rawMarker] of [
   ['a non-string owner', '{"owner":42}'],
   ['an empty owner', '{"owner":""}'],
@@ -563,6 +645,19 @@ test('a private bucket that could not be read is not overwritten by the defaults
   assert.deepEqual(stored(NOTES), { notes: ['saved', 'new'] }, 'once read, writes resume');
 });
 
+// unchangedStateStorage remembers a slice as saved only when setItem returns nothing, so a
+// write that did not land must say so, or an unchanged slice would never be retried.
+test('privateDataStorage.setItem reports a write that did not reach the bucket', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const value = blob({ notes: ['kept in memory'] });
+  failWritesOf(t, NOTES);
+
+  assert.equal(scope.privateDataStorage.setItem(NOTES, value), false);
+  t.mock.restoreAll();
+  assert.equal(scope.privateDataStorage.setItem(NOTES, value), undefined);
+  assert.deepEqual(stored(NOTES), { notes: ['kept in memory'] });
+});
+
 test('a private store write still happens when the unchanged-payload check cannot read MMKV', (t) => {
   t.mock.method(console, 'warn', () => {});
   useNotes.getState().addNote('first');
@@ -583,6 +678,43 @@ test('a sign-in whose account bucket cannot be written keeps the guest data on d
 
   assert.deepEqual(useNotes.getState().notes, ['guest note']);
   assert.deepEqual(stored(NOTES), { notes: ['guest note'] }, 'the only copy is not deleted');
+});
+
+test('an adoption the account bucket refused is finished into that account, never another', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  useNotes.getState().addNote('guest note');
+  const fault = failWritesOf(t, userKey(NOTES, 'user-a'));
+  switchOwner('user-a');
+  fault.mock.restore();
+
+  assert.deepEqual(marker(), { owner: 'user-a', adoptingInto: 'user-a' });
+  relaunch();
+  assert.equal(scope.getPrivateDataOwner(), 'user-a', 'the account stays signed in on relaunch');
+
+  switchOwner(null);
+  switchOwner('user-b');
+
+  assert.deepEqual(useNotes.getState().notes, []);
+  assert.equal(stored(userKey(NOTES, 'user-b')), undefined);
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+  assert.equal(mmkv.store.has(NOTES), false);
+});
+
+test('deleting the account an unfinished adoption belonged to hands the guest data back', (t) => {
+  t.mock.method(console, 'warn', () => {});
+  useNotes.getState().addNote('guest note');
+  const fault = failWritesOf(t, userKey(NOTES, 'user-a'));
+  switchOwner('user-a');
+  fault.mock.restore();
+  switchOwner(null);
+
+  scope.deletePrivateDataOf('user-a');
+
+  assert.deepEqual(marker(), { owner: null });
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  switchOwner('user-b');
+  assert.deepEqual(useNotes.getState().notes, ['guest note']);
+  assert.deepEqual(stored(userKey(NOTES, 'user-b')), { notes: ['guest note'] });
 });
 
 test('a sign-in whose account bucket cannot be read keeps the guest data on disk', (t) => {
@@ -646,14 +778,22 @@ test('the same upgrade while signed out leaves the progress in the guest bucket'
 });
 
 test('a store the marker already scoped is never moved: its bare key is guest data', () => {
+  const originallyScoped = [
+    'annotation-storage',
+    'library-storage',
+    'gather-storage',
+    'four-fields-storage',
+  ];
   mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
-  mmkv.store.set(NOTES, blob({ notes: ['guest note'] }));
+  for (const name of originallyScoped) mmkv.store.set(name, blob({ guestOf: name }));
   mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
 
   relaunch();
 
-  assert.deepEqual(stored(NOTES), { notes: ['guest note'] });
-  assert.equal(mmkv.store.has(userKey(NOTES, 'user-a')), false);
+  for (const name of originallyScoped) {
+    assert.deepEqual(stored(name), { guestOf: name }, name);
+    assert.equal(mmkv.store.has(userKey(name, 'user-a')), false, name);
+  }
 });
 
 test('the launch after the marker is upgraded moves nothing', () => {
@@ -715,4 +855,49 @@ test('a marker with a malformed scopedStores list is read as the original four',
   relaunch();
 
   assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+});
+
+test('a marker upgrade keeps the unfinished adoption it finds', () => {
+  mmkv.store.set(
+    scope.PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ owner: null, adoptingInto: 'user-a' })
+  );
+  mmkv.store.set(NOTES, blob({ notes: ['guest note'] }));
+  relaunch();
+  assert.deepEqual(marker(), { owner: null, adoptingInto: 'user-a' });
+
+  relaunch();
+  switchOwner('user-b');
+
+  assert.deepEqual(stored(userKey(NOTES, 'user-a')), { notes: ['guest note'] });
+  assert.equal(stored(userKey(NOTES, 'user-b')), undefined);
+});
+
+test('a scopedStores list holding a non-string entry is read as the original four', () => {
+  mmkv.store.set(
+    scope.PRIVATE_DATA_OWNER_KEY,
+    JSON.stringify({ owner: 'user-a', scopedStores: [...scope.PRIVATE_DATA_STORE_NAMES, 42] })
+  );
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+
+  relaunch();
+
+  assert.deepEqual(progressRead(userKey(PROGRESS, 'user-a')), { GEN_1: 5 });
+});
+
+test('merged progress keeps the persist version 0 when the account copy recorded none', () => {
+  // A version the progress store does not expect (it has no migrate) would make
+  // zustand discard the whole merged bucket on hydration.
+  mmkv.store.set(scope.PRIVATE_DATA_OWNER_KEY, JSON.stringify({ owner: 'user-a' }));
+  mmkv.store.set(PROGRESS, progressBlob({ GEN_1: 5 }));
+  mmkv.store.set(
+    userKey(PROGRESS, 'user-a'),
+    JSON.stringify({ state: { chaptersRead: { EXO_1: 9 }, streakDays: 0, lastReadDate: null } })
+  );
+
+  relaunch();
+
+  const merged = JSON.parse(mmkv.store.get(userKey(PROGRESS, 'user-a')) ?? 'null');
+  assert.equal(merged.version, 0);
+  assert.deepEqual(merged.state.chaptersRead, { GEN_1: 5, EXO_1: 9 });
 });

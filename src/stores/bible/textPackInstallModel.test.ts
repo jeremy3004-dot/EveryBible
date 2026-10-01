@@ -10,6 +10,7 @@ import {
   journalRecoveryExpectedSha256,
   mapTextPackDownloadProgress,
   markTextPackInstalled,
+  rebaseTextPackJournalPaths,
   rebaseTextPackPath,
   rebaseTranslationPackPaths,
   restoreTextPackAfterFailedReadback,
@@ -57,6 +58,31 @@ test('rebaseTranslationPackPaths rewrites every pack path field and is a no-op w
   );
   assert.equal(rebased[1], translations[1]);
   assert.equal(rebaseTranslationPackPaths(rebased, CURRENT_DOCS), rebased);
+});
+
+test('rebaseTextPackPath leaves a current path alone even when the container itself has a translations folder', () => {
+  const docs = 'file:///data/translations/app/Documents/';
+  const current = `${docs}translations/esv1.db`;
+
+  assert.equal(rebaseTextPackPath(current, docs), current);
+});
+
+test('rebaseTextPackPath re-anchors a path that starts at the translations folder', () => {
+  assert.equal(
+    rebaseTextPackPath('/translations/esv1.db', CURRENT_DOCS),
+    `${CURRENT_DOCS}translations/esv1.db`
+  );
+});
+
+test('rebaseTranslationPackPaths returns the same list when every saved path is already current', () => {
+  const translations = [
+    makeRuntimeTranslation({
+      id: 'esv1',
+      textPackLocalPath: `${CURRENT_DOCS}translations/esv1.db`,
+    }),
+  ];
+
+  assert.equal(rebaseTranslationPackPaths(translations, CURRENT_DOCS), translations);
 });
 
 function makeJournalInstall(
@@ -134,6 +160,49 @@ test('without a byte total, progress falls back to verses indexed', () => {
       indeterminate: progress.isIndeterminate,
     },
     { progress: 25, status: 'installing', indeterminate: undefined }
+  );
+});
+
+test('a transfer whose length is unknown (-1) reports verses indexed instead', () => {
+  const progress = mapTextPackDownloadProgress('esv1', {
+    phase: 'fetching',
+    totalVerses: 400,
+    versesDownloaded: 100,
+    bytesDownloaded: 5_000,
+    bytesTotal: -1,
+  });
+
+  assert.equal(progress.progress, 25);
+});
+
+test('a transfer that knows its size but has written nothing yet is at 0%', () => {
+  const progress = mapTextPackDownloadProgress('esv1', {
+    phase: 'fetching',
+    totalVerses: 0,
+    versesDownloaded: 0,
+    bytesTotal: 100,
+  });
+
+  assert.equal(progress.progress, 0);
+});
+
+test('the smallest possible totals still measure progress', () => {
+  assert.deepEqual(
+    [
+      mapTextPackDownloadProgress('esv1', {
+        phase: 'fetching',
+        totalVerses: 0,
+        versesDownloaded: 0,
+        bytesDownloaded: 1,
+        bytesTotal: 1,
+      }).progress,
+      mapTextPackDownloadProgress('esv1', {
+        phase: 'indexing',
+        totalVerses: 1,
+        versesDownloaded: 1,
+      }).progress,
+    ],
+    [100, 100]
   );
 });
 
@@ -233,6 +302,18 @@ test('a failed read-back returns the row to the pack it had before the download'
   );
 });
 
+test('a failed read-back that falls back to an earlier pack marks the row readable again', () => {
+  const previous = makeRuntimeTranslation({
+    id: 'esv1',
+    textPackLocalPath: 'file:///packs/esv1.v2.db',
+    activeTextPackVersion: '2',
+  });
+
+  const restored = restoreTextPackAfterFailedReadback({ ...previous, hasText: false }, previous);
+
+  assert.equal(restored.hasText, true);
+});
+
 test('a failed first read-back leaves the row remote-only with no pack path', () => {
   const candidate = markTextPackInstalled(
     makeRuntimeTranslation({ id: 'esv1' }),
@@ -307,4 +388,45 @@ test('recovery registers the version of whichever pack ended up at the final pat
     ],
     ['3', '2', '2', '3', undefined, undefined]
   );
+});
+
+test('rebaseTextPackJournalPaths moves every install path, including the previous pack', () => {
+  const old = 'file:///var/OLD/Documents/translations/';
+  const journal = {
+    installs: {
+      esv1: makeJournalInstall({
+        previousPath: `${old}esv1.v2.db`,
+        finalPath: `${old}esv1.db`,
+        stagingPath: `${old}esv1.staging.db`,
+        rollbackPath: `${old}esv1.rollback.db`,
+      }),
+    },
+    deletions: {},
+  };
+
+  const rebased = rebaseTextPackJournalPaths(journal, CURRENT_DOCS);
+
+  assert.deepEqual(rebased.installs.esv1, {
+    ...journal.installs.esv1,
+    previousPath: `${CURRENT_DOCS}translations/esv1.v2.db`,
+    finalPath: `${CURRENT_DOCS}translations/esv1.db`,
+    stagingPath: `${CURRENT_DOCS}translations/esv1.staging.db`,
+    rollbackPath: `${CURRENT_DOCS}translations/esv1.rollback.db`,
+  });
+});
+
+test('rebaseTextPackJournalPaths returns the same journal when nothing moved', () => {
+  const journal = {
+    installs: { esv1: makeJournalInstall({ previousPath: undefined }) },
+    deletions: {
+      bsb2: {
+        operationId: 'bsb2:1',
+        translationId: 'bsb2',
+        paths: ['file:///packs/bsb2.db'],
+        updatedAt: 1,
+      },
+    },
+  };
+
+  assert.equal(rebaseTextPackJournalPaths(journal, CURRENT_DOCS), journal);
 });

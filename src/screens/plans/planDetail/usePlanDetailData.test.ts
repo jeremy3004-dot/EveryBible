@@ -53,15 +53,25 @@ const service = {
   /** Holds a plan's entries call until the test releases it. */
   entriesGates: new Map<string, Promise<void>>(),
   entriesByPlan: new Map<string, EntriesResult>(),
+  /** Makes the catalog call reject, as a lazy chunk that fails to load does. */
+  plansReject: false,
 };
 mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
-  listReadingPlans: async () => service.plansResult,
+  listReadingPlans: async () => {
+    if (service.plansReject) throw new Error('catalog chunk failed to load');
+    return service.plansResult;
+  },
   getPlanEntries: async (planId: string) => {
     const gate = service.entriesGates.get(planId);
     if (gate) await gate;
     return service.entriesByPlan.get(planId) ?? service.entriesResult;
   },
   getPlansByCategory: async () => ({ success: true, data: [] }),
+});
+
+const reported: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => reported.push({ source, error }),
 });
 
 type Hook = typeof import('./usePlanDetailData').usePlanDetailData;
@@ -77,6 +87,8 @@ afterEach(() => {
   service.entriesResult = { success: true, data: [entry('e1')] };
   service.entriesGates.clear();
   service.entriesByPlan.clear();
+  service.plansReject = false;
+  reported.length = 0;
 });
 
 const settle = async () => {
@@ -111,6 +123,29 @@ test('a later failed refresh keeps the entries already shown and does not report
   const result = view.rerender();
   assert.equal(result.error, null, 'no error when rows are already shown');
   assert.deepEqual(result.entries, [entry('e1')], 'the previous rows are kept');
+});
+
+test('a rejected catalog load ends the spinner with an error and no unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    service.plansReject = true;
+    const view = runtime.mount(usePlanDetailData, PLAN_ID);
+    view.flushEffects();
+    await settle();
+
+    const result = view.rerender();
+    assert.equal(result.loading, false, 'the spinner clears');
+    assert.equal(result.error, 't:common.error');
+    assert.deepEqual(unhandled, []);
+    assert.deepEqual(
+      reported.map((entry) => entry.source),
+      ['plans.detail']
+    );
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 test('the plan and its entries both loading successfully report no error', async () => {

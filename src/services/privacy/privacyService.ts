@@ -2,7 +2,7 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import type { PrivacyAppIconMode } from '../../types';
 import { getCurrentPrivacyAppIcon, setPrivacyAppIcon, supportsDynamicAppIcon } from './appIcon';
-import { withPrivacyLockGrace } from './privacyLockGrace';
+import { noPrivacyIconAlertExpected, withPrivacyLockGrace } from './privacyLockGrace';
 
 const privacySettingsKey = 'everybible.privacy.settings';
 
@@ -206,11 +206,18 @@ export const applyPrivacyAppIcon = (
   const isCurrent = () =>
     iconConfiguration === configuration && !configuration.pending && shouldApply();
   return runIconTransaction(async () => {
-    if (!isCurrent() || !supportsDynamicAppIcon()) return;
-    const currentIcon = await readIconWhileOwned(configuration.controller.signal);
-    if (!isCurrent() || currentIcon === mode) return;
-    if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode), { untilNextActive: true }))) {
-      throw new Error(`Failed to apply the ${mode} privacy app icon`);
+    // A change that took may leave an alert for the reader to answer (appIcon clears it off iOS).
+    let alertFollows = false;
+    try {
+      if (!isCurrent() || !supportsDynamicAppIcon()) return;
+      const currentIcon = await readIconWhileOwned(configuration.controller.signal);
+      if (!isCurrent() || currentIcon === mode) return;
+      if (!(await withPrivacyLockGrace(() => setPrivacyAppIcon(mode), { untilNextActive: true }))) {
+        throw new Error(`Failed to apply the ${mode} privacy app icon`);
+      }
+      alertFollows = true;
+    } finally {
+      if (!alertFollows) noPrivacyIconAlertExpected();
     }
   });
 };

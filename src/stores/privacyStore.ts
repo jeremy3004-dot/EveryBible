@@ -13,6 +13,7 @@ import {
   verifyPrivacyPinCandidates,
   writePrivacyLockHint,
 } from '../services/privacy';
+import { expectPrivacyIconChange } from '../services/privacy/privacyLockGrace';
 import { initializePrivacyWithTimeout } from '../services/privacy/privacyInitialization';
 import { PrivacyInstallationResetError } from '../services/privacy/privacyInstallation';
 import { initializePrivacyInstallationOnStartup } from '../services/privacy/privacyInstallationAdapter';
@@ -352,6 +353,7 @@ export const usePrivacyStore = create<PrivacyState>()((set, get) => {
 
         // Defer icon change until after navigation and re-renders complete to
         // prevent the concurrent Zustand + AppState cascade that OOMs Hermes GC.
+        expectPrivacyIconChange();
         setTimeout(() => {
           void get().reconcileAppIcon();
         }, 400);

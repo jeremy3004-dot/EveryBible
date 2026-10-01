@@ -198,6 +198,9 @@ export function installLocaleSetupFlowFakes(
   const FlashList = (props: Record<string, unknown>) => {
     flashList.props = props;
     flashList.renders += 1;
+    if (props.style !== undefined) {
+      throw new Error('FlashList does not support `style`; wrap the list in a View instead.');
+    }
     return createElement(FlatList, { ...props, virtualizedBy: 'FlashList' });
   };
   mockPackage(mocker, '@shopify/flash-list', { FlashList });

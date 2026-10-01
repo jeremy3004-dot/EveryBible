@@ -43,10 +43,13 @@ const service = {
     data?: ReadingPlan[];
   },
   failingEntries: new Set<string>(),
+  /** Makes the catalog call reject, as a lazy chunk that fails to load does. */
+  plansReject: false,
 };
 mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   listReadingPlans: async () => {
     service.calls.push('listReadingPlans');
+    if (service.plansReject) throw new Error('catalog chunk failed to load');
     return service.plansResult;
   },
   getPlanEntries: async (planId: string) => {
@@ -55,6 +58,11 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
       ? { success: false }
       : { success: true, data: [entry(planId)] };
   },
+});
+
+const reported: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => reported.push({ source, error }),
 });
 
 type Hook = typeof import('./useRhythmDetailData').useRhythmDetailData;
@@ -69,6 +77,8 @@ afterEach(() => {
   service.calls.length = 0;
   service.plansResult = { success: true, data: [plan('psalms')] };
   service.failingEntries.clear();
+  service.plansReject = false;
+  reported.length = 0;
 });
 
 const settle = async () => {
@@ -148,4 +158,27 @@ test('a rhythm of passages alone loads the catalog and no entries', async () => 
   assert.equal(result.loading, false);
   assert.deepEqual(result.planEntriesById, {});
   assert.deepEqual(service.calls, ['listReadingPlans']);
+});
+
+test('a rejected catalog load ends the spinner with an error and no unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    service.plansReject = true;
+    const view = runtime.mount(useRhythmDetailData, ['psalms']);
+    view.flushEffects();
+    await settle();
+
+    const result = view.rerender(['psalms']);
+    assert.equal(result.loading, false, 'the spinner clears');
+    assert.equal(result.error, 't:common.error');
+    assert.deepEqual(unhandled, []);
+    assert.deepEqual(
+      reported.map((entry) => entry.source),
+      ['plans.rhythmDetail']
+    );
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });

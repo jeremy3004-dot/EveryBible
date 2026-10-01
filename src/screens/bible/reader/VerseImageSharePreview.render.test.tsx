@@ -250,3 +250,17 @@ test('the shared card draws at its own size, whatever the OS text size', async (
   assert.equal(view.getByText('“For God so loved the world”').props.allowFontScaling, false);
   assert.equal(view.getByText('John 3:16').props.allowFontScaling, false);
 });
+
+test('a verse that quotes speech nests it as single quotes inside the card quotes', async () => {
+  const view = await renderCard('And God said, “Let there be light,” and there was light.');
+
+  assert.ok(view.getByText('“And God said, ‘Let there be light,’ and there was light.”'));
+});
+
+test('the reference pill stays on one line and shrinks to fit rather than wrapping', async () => {
+  const view = await renderCard('In the beginning');
+
+  const reference = view.getByText('John 3:16');
+  assert.equal(reference.props.numberOfLines, 1);
+  assert.equal(reference.props.adjustsFontSizeToFit, true);
+});

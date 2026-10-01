@@ -24,7 +24,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BookOpen, Flame, Play, Share as ShareGlyph } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { bibleTranslations } from '../../constants/translations';
-import { getBookById, getTranslatedBookName } from '../../constants/books';
+import {
+  getBookById,
+  getTranslatedBookName,
+  getTranslatedPassageBookName,
+} from '../../constants/books';
 import { config } from '../../constants/config';
 import { FONT_SIZE_SCALES } from '../../constants/fontSizeScales';
 import { createThemeColors, useTheme } from '../../contexts/ThemeContext';
@@ -85,6 +89,7 @@ import { assertDefined } from '../../utils/assertDefined';
 import { hexWithAlpha } from '../../utils/color';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
+import { perfMark } from '../../services/diagnostics/perfMarks';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
@@ -93,6 +98,13 @@ type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
 function reportHomeVerseShareFailure(error: unknown) {
   void import('../../services/diagnostics/crashReportQueue')
     .then(({ reportHandledError }) => reportHandledError('home.shareImage', error))
+    .catch(() => undefined);
+}
+
+/** Records a plan shelf that failed to load. The crash queue loads only when something failed. */
+function reportHomePlansFailure(error: unknown) {
+  void import('../../services/diagnostics/crashReportQueue')
+    .then(({ reportHandledError }) => reportHandledError('home.readingPlans', error))
     .catch(() => undefined);
 }
 
@@ -140,6 +152,7 @@ export function HomeScreen() {
     () =>
       createHomeReadyReporter({
         schedule: (report) => {
+          perfMark('home:first-layout');
           let frame: number | undefined;
           const interaction = InteractionManager.runAfterInteractions(() => {
             frame = requestAnimationFrame(report);
@@ -149,8 +162,7 @@ export function HomeScreen() {
             if (frame !== undefined) cancelAnimationFrame(frame);
           };
         },
-        // Unguarded on purpose: scripts/benchmark-android-startup.py times cold start
-        // to this line in release logcat (see the App:module-start note in App.tsx).
+        // Unguarded on purpose: the Android startup benchmark reads it from release logcat.
         report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
       }),
     []
@@ -497,15 +509,20 @@ export function HomeScreen() {
     let cancelled = false;
 
     const loadReadingPlans = async () => {
-      // The plan service and its bundled catalog load here rather than with
-      // Home, so they stay off the cold-start path until the card needs them.
-      const { listReadingPlans } = await import('../../services/plans/readingPlanService');
-      if (cancelled) {
-        return;
-      }
-      const result = await listReadingPlans();
-      if (!cancelled && result.success) {
-        setReadingPlans(result.data ?? []);
+      try {
+        // The plan service and its bundled catalog load here rather than with
+        // Home, so they stay off the cold-start path until the card needs them.
+        const { listReadingPlans } = await import('../../services/plans/readingPlanService');
+        if (cancelled) {
+          return;
+        }
+        const result = await listReadingPlans();
+        if (!cancelled && result.success) {
+          setReadingPlans(result.data ?? []);
+        }
+      } catch (error) {
+        // The shelf is optional on Home: stay without it rather than reject unhandled.
+        reportHomePlansFailure(error);
       }
     };
 
@@ -553,14 +570,14 @@ export function HomeScreen() {
 
   const dailyReferenceLabel = dailyScripture
     ? formatDailyScriptureReferenceLabel(
-        getTranslatedBookName(dailyScripture.bookId, t),
+        getTranslatedPassageBookName(dailyScripture.bookId, t),
         dailyScripture.chapter,
         dailyScripture.verse,
         dailyScripture.verseEnd
       )
     : null;
   const dailyPassageLabel = dailyScripture
-    ? `${getTranslatedBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}`
+    ? `${getTranslatedPassageBookName(dailyScripture.bookId, t)} ${dailyScripture.chapter}`
     : null;
   const dailyAudioAvailability =
     dailyScripture && currentTranslationInfo

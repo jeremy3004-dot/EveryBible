@@ -26,6 +26,7 @@ import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { usePrivacyStore } from '../../stores/privacyStore';
 import { getPrivacySettingsSavePlan } from '../../services/privacy/privacyPreferences';
 import { supportsDynamicAppIcon } from '../../services/privacy/appIcon';
+import { runAfterPrivacyIconAlert } from '../../services/privacy/privacyLockGrace';
 import type { PrivacyAppIconMode } from '../../types';
 import type { MoreStackParamList } from '../../navigation/types';
 import { radius, layout, spacing, typography } from '../../design/system';
@@ -166,7 +167,8 @@ export function PrivacyPreferencesScreen() {
 
       if (savePlan.input.mode === 'discreet') {
         InteractionManager.runAfterInteractions(() => {
-          lockPrivacy();
+          // iOS raises an alert for the icon change; locking under it strands the reader.
+          runAfterPrivacyIconAlert(lockPrivacy);
         });
       }
     } catch (error) {

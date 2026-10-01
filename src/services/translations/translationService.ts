@@ -154,6 +154,10 @@ export const getCurrentVersion = async (
 
 // ─── User Preferences ─────────────────────────────────────────────────────────
 
+// The merge in setUserTranslationPreferences needs only these; id/user_id/timestamps are not read.
+const MERGE_PREFERENCE_COLUMNS =
+  'primary_translation,secondary_translation,audio_translation,synced_at';
+
 /**
  * Get the current user's translation preferences from Supabase.
  * Returns null data when the user has not yet set preferences.
@@ -227,7 +231,7 @@ export const setUserTranslationPreferences = async (
     // Fetch current row so we can merge – upsert requires all non-nullable cols.
     const { data: existing, error: fetchError } = await supabase
       .from('user_translation_preferences')
-      .select('*')
+      .select(MERGE_PREFERENCE_COLUMNS)
       .eq('user_id', userId)
       .single();
 
@@ -238,7 +242,10 @@ export const setUserTranslationPreferences = async (
       return { success: false, error: fetchError.message };
     }
 
-    const current = existing as UserTranslationPreferences | null;
+    const current = existing as Pick<
+      UserTranslationPreferences,
+      'primary_translation' | 'secondary_translation' | 'audio_translation' | 'synced_at'
+    > | null;
 
     if (prefs.chosenAt && current && isStampLater(current.synced_at, prefs.chosenAt)) {
       return { success: true };

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildTranslationPickerSections,
+  countOfflineMyTranslations,
   buildTranslationLanguageFilters,
   buildTranslationLanguageOptions,
   filterTranslationLanguagesBySearchQuery,
@@ -479,6 +480,15 @@ test('translation language display labels include native scripts when available'
   assert.equal(getTranslationLanguageDisplayLabel('English'), 'English');
 });
 
+// Each picker row asks for this label. Hermes has no JIT and localeCompare with
+// options builds ICU collation state per call.
+test('translation language display labels never collate through localeCompare', (t) => {
+  const localeCompare = t.mock.method(String.prototype, 'localeCompare');
+  getTranslationLanguageDisplayLabel('Spanish');
+  getTranslationLanguageDisplayLabel('English');
+  assert.equal(localeCompare.mock.callCount(), 0);
+});
+
 test('translation language filters expose bilingual labels while preserving canonical values', () => {
   const filters = buildTranslationLanguageFilters([{ language: 'Nepali' }, { language: 'Hindi' }]);
 
@@ -838,5 +848,41 @@ test('a query in a script outside the old hand-written ranges still narrows the 
   assert.deepEqual(
     filterTranslationsBySearchQuery(translations, 'Βίβλος').map(({ id }) => id),
     ['sbl']
+  );
+});
+
+test('the offline count matches My Translations: withdrawn, user-hidden and online-only Bibles are left out', () => {
+  const local = (id: string) => ({
+    id,
+    language: 'English',
+    isDownloaded: true,
+    hasText: true,
+    source: 'bundled' as const,
+    textPackLocalPath: null,
+  });
+  const translations = [
+    local('bsb'),
+    local('asv'),
+    local('nasb'),
+    local('kjv'), // withdrawn: in no picker
+    local('ylt'), // downloaded, then hidden by the reader
+    { ...local('niv'), isDownloaded: false, hasText: false, source: 'runtime' as const },
+  ];
+  const options = {
+    pinnedIds: ['niv'],
+    hiddenIds: ['ylt'],
+    currentTranslationId: 'bsb',
+  };
+
+  const listed = buildTranslationPickerSections(translations, null, options).myTranslations;
+  assert.deepEqual(
+    listed.map(({ id }) => id),
+    ['bsb', 'niv', 'asv', 'nasb']
+  );
+  assert.equal(translations.filter((translation) => translation.isDownloaded).length, 5);
+  assert.equal(
+    countOfflineMyTranslations(translations, options),
+    3,
+    'pinned online-only is not offline'
   );
 });

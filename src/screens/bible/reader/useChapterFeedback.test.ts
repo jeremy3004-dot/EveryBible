@@ -62,7 +62,17 @@ mockModule(mock, 'react-i18next', {
 });
 mockModule(mock, sourcePath('utils/a11y.ts'), { announceLiveRegionText: () => {} });
 mockModule(mock, sourcePath('constants/config.ts'), { config: { version: 'test' } });
-mockModule(mock, sourcePath('utils/connectivity.ts'), { isDeviceOffline: async () => false });
+let outboxThrows = false;
+mockModule(mock, sourcePath('utils/connectivity.ts'), {
+  isDeviceOffline: async () => {
+    if (outboxThrows) throw new Error('connectivity read failed');
+    return false;
+  },
+});
+const handledFailures: Array<{ scope: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (scope: string, error: unknown) => handledFailures.push({ scope, error }),
+});
 mockModule(mock, 'expo-file-system/legacy', {
   getInfoAsync: async () => ({ exists: true, size: 3 }),
   readAsStringAsync: async () => {
@@ -138,6 +148,8 @@ beforeEach(() => {
   draft = null;
   response = { success: true, saved: true, exported: true };
   rn.__recorded.alerts.length = 0;
+  outboxThrows = false;
+  handledFailures.length = 0;
 });
 afterEach(() => runtime.unmountAll());
 const input = (chapter = 1): ChapterFeedbackInput => ({
@@ -367,4 +379,34 @@ test('a current submission failure keeps its draft and allows retry', async () =
   await failed.handleSubmitChapterFeedback('reader');
   assert.equal(dispatched.length, 2);
   assert.equal(mounted.rerender().feedbackComment, '');
+});
+
+test('a submission whose outbox throws releases the form, keeps the draft, and reports', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const mounted = mountDraft();
+    outboxThrows = true;
+
+    await mounted.result.handleSubmitChapterFeedback('reader');
+    await until(() => handledFailures.length > 0);
+
+    const failed = mounted.rerender();
+    assert.equal(failed.isSubmittingFeedback, false, 'the submit control is usable again');
+    assert.equal(failed.feedbackComment, 'A private draft');
+    assert.equal(failed.feedbackSubmitError, 'common.unexpectedError');
+    assert.deepEqual(
+      handledFailures.map((failure) => failure.scope),
+      ['reader.feedbackSubmit']
+    );
+    assert.deepEqual(dispatched, []);
+    assert.deepEqual(unhandled, []);
+
+    outboxThrows = false;
+    await failed.handleSubmitChapterFeedback('reader');
+    assert.equal(dispatched.length, 1, 'retry goes through');
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });

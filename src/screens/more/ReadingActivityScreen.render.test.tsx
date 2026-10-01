@@ -15,6 +15,7 @@ import {
   within,
 } from '../../testing/render';
 import { createReactNavigationFake } from '../../testing/nativePackageFakes';
+import { CONTROL_LABEL_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 import { assertDefined } from '../../utils/assertDefined';
 
 // The grid is built from the local calendar, so the zone and the clock are pinned.
@@ -175,6 +176,14 @@ test('the single-letter weekday headers are hidden: each day button already name
   const initials = view.getAllByText(/^[A-Z]$/);
   assert.equal(initials.length, 7);
   assert.ok(initials.every((node) => isHiddenFromAccessibility(node)));
+});
+
+test('the weekday initials are capped like the day numbers under them, so a letter stays in its column', async () => {
+  const view = await renderScreen();
+
+  for (const initial of view.getAllByText(/^[A-Z]$/)) {
+    assert.equal(initial.props.maxFontSizeMultiplier, CONTROL_LABEL_MAX_FONT_SCALE);
+  }
 });
 
 test('each day is a button named by its full date, and only the chosen day is announced as selected', async () => {

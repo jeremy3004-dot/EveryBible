@@ -234,25 +234,26 @@ export function TranslationPickerList({
           onBack={showTranslations}
         />
       ) : (
-        <FlashList
-          style={styles.translationList}
-          data={rows}
-          renderItem={renderTranslationRow}
-          ListHeaderComponent={
-            <TranslationPickerSearchField value={searchQuery} onChangeText={setSearchQuery} />
-          }
-          ListEmptyComponent={
-            searchQuery.trim().length > 0 ? <TranslationSearchEmptyState /> : null
-          }
-          keyExtractor={translationPickerRowKey}
-          contentContainerStyle={translationListContentStyle}
-          showsVerticalScrollIndicator={false}
-          estimatedItemSize={TRANSLATION_PICKER_ROW_ESTIMATED_SIZE}
-          getItemType={translationPickerRowType}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          extraData={extraData}
-        />
+        <View style={styles.translationList}>
+          <FlashList
+            data={rows}
+            renderItem={renderTranslationRow}
+            ListHeaderComponent={
+              <TranslationPickerSearchField value={searchQuery} onChangeText={setSearchQuery} />
+            }
+            ListEmptyComponent={
+              searchQuery.trim().length > 0 ? <TranslationSearchEmptyState /> : null
+            }
+            keyExtractor={translationPickerRowKey}
+            contentContainerStyle={translationListContentStyle}
+            showsVerticalScrollIndicator={false}
+            estimatedItemSize={TRANSLATION_PICKER_ROW_ESTIMATED_SIZE}
+            getItemType={translationPickerRowType}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            extraData={extraData}
+          />
+        </View>
       )}
 
       <TranslationManageModal

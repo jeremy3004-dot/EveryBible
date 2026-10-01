@@ -79,8 +79,18 @@ mockModule(mock, sourcePath('screens/bible/reader/verseImage/verseImageFonts.ts'
 // ---- Services ----------------------------------------------------------------
 // The plan catalog is the real bundled data; a test can empty it.
 let catalog: ReadingPlan[] = bundledReadingPlans;
+let catalogThrows = false;
 mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
-  listReadingPlans: async () => ({ success: true, data: catalog }),
+  listReadingPlans: async () => {
+    if (catalogThrows) throw new Error('catalog chunk failed to load');
+    return { success: true, data: catalog };
+  },
+});
+const reportedFailures: Array<{ source: string; error: unknown }> = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string, error: unknown) => {
+    reportedFailures.push({ source, error });
+  },
 });
 
 const JOHN_3_16 = 'For God so loved the world that He gave His one and only Son.';
@@ -173,6 +183,8 @@ beforeEach(() => {
   setToday(TODAY);
   isFocused = true;
   catalog = bundledReadingPlans;
+  catalogThrows = false;
+  reportedFailures.length = 0;
   dailyScripture = verseOf();
   remoteAudio.books = null;
   network.offline = false;
@@ -194,8 +206,10 @@ beforeEach(() => {
   gatherStore.setState({ completedLessons: {} });
 });
 
-afterEach(() => {
+afterEach(async () => {
   mock.timers.reset();
+  // Loaded here, after the module mocks are installed.
+  (await import('../bible/reader/useVerseImageShare')).forgetLastSharedVerseImage();
 });
 
 async function renderHome() {
@@ -595,18 +609,24 @@ test('the hero share control is an icon-only button named for the verse of the d
   assert.equal(view.getAllByRole('button', { name: t('home.shareVerseOfTheDay') }).length, 1);
 });
 
-test('sharing from the editor captures its picture as a PNG and opens the share sheet', async () => {
+test('sharing from the editor captures its picture as a JPEG and opens the share sheet', async () => {
   const view = await renderHome();
   const { editor } = await openShareEditor(view);
   await shareFromEditor(view, editor);
 
   assert.equal(sharing.captures.length, 1);
   const { options } = assertDefined(sharing.captures[0], 'the first capture');
-  assert.deepEqual(options, { format: 'png', quality: 1, result: 'tmpfile' });
+  assert.deepEqual(options, {
+    format: 'png',
+    quality: 1,
+    result: 'tmpfile',
+    width: 1080,
+    height: 1000,
+  });
   assert.deepEqual(sharing.sheets, [
     {
       uri: 'file:///tmp/verse-of-the-day.png',
-      options: { dialogTitle: t('groups.share'), mimeType: 'image/png' },
+      options: { dialogTitle: t('groups.share'), mimeType: 'image/png', UTI: 'public.png' },
     },
   ]);
   assert.deepEqual(harness.rn.__recorded.shares, []);
@@ -658,9 +678,9 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
   }
 });
 
-// scripts/benchmark-android-startup.py reads this line out of release logcat to time
-// cold start to an interactive Home, so it must not be dev-only.
-test('the interaction-ready timing log is written in release builds too', async (context) => {
+// scripts/benchmark-android-startup.py and android_startup_metrics.py read this line
+// from release logcat, so it must print whatever __DEV__ is (see App.tsx module-start).
+test('the interaction-ready timing line prints in release builds too', async (context) => {
   const lines: string[] = [];
   context.mock.method(console, 'log', (...args: unknown[]) => lines.push(String(args[0])));
   const globals = globalThis as {
@@ -687,8 +707,8 @@ test('the interaction-ready timing log is written in release builds too', async 
       });
       await view.flush();
       assert.equal(
-        lines.some((line) => line.includes('Home:interaction-ready')),
-        true,
+        lines.filter((line) => line.includes('Home:interaction-ready')).length,
+        1,
         `__DEV__=${dev}`
       );
       await view.unmount();
@@ -1065,6 +1085,26 @@ test('with an empty catalogue there is no shelf', async () => {
   const view = await renderHome();
 
   assert.equal(view.queryByRole('button', { name: t('readingPlans.findPlans') }), null);
+});
+
+test('a plan catalog that rejects leaves Home without a shelf, reported and not unhandled', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    catalogThrows = true;
+    const view = await renderHome();
+    await view.flush();
+
+    assert.equal(view.queryByRole('button', { name: t('readingPlans.findPlans') }), null);
+    assert.deepEqual(
+      reportedFailures.map((failure) => failure.source),
+      ['home.readingPlans']
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 // ---- Gather and the reading ledger ----------------------------------------------

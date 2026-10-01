@@ -654,3 +654,43 @@ test('normal readers see no feedback badges and never request the review summary
   assert.equal(view.queryAllByRole('image').length, 0);
   assert.equal(view.queryByRole('button', { name: t('translatorQueue.title') }), null);
 });
+
+// Home opens a chapter with the browser underneath the reader (back returns to it),
+// and both screens mount in one commit. The book list is invisible there until the
+// reader is popped, so it must not add to the reader's first render.
+test('under the reader the book list waits for the reader to draw, then fills in', async (context) => {
+  const deferred: Array<() => void> = [];
+  context.mock.method(
+    harness.rn.InteractionManager,
+    'runAfterInteractions',
+    (task?: () => void) => {
+      if (task) deferred.push(task);
+      return { then: () => {}, done: () => {}, cancel: () => {} };
+    }
+  );
+  harness.navigation.focused = false;
+
+  const view = await renderBrowser();
+  const bookLists = () =>
+    view.queryAllByType('FlatList').filter((node) => (node.props.data as unknown[]).length > 60);
+  assert.equal(bookLists().length, 0);
+
+  await act(async () => deferred.splice(0).forEach((task) => task()));
+  assert.ok(bookList(view));
+  assert.ok(view.getByRole('button', { name: 'John', expanded: true }));
+});
+
+test('opened as the Bible tab the book list draws with the screen', async (context) => {
+  const deferred: Array<() => void> = [];
+  context.mock.method(
+    harness.rn.InteractionManager,
+    'runAfterInteractions',
+    (task?: () => void) => {
+      if (task) deferred.push(task);
+      return { then: () => {}, done: () => {}, cancel: () => {} };
+    }
+  );
+
+  const view = await renderBrowser();
+  assert.ok(bookList(view));
+});

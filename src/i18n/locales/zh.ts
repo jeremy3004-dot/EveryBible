@@ -528,7 +528,6 @@ export const zh = {
     recommendedLanguages: '{{country}} 的推荐圣经语言',
     moreLanguages: '其他匹配的语言',
     noLanguagesFound: '暂无匹配的语言',
-    noLanguagesFoundBody: '请换一种拼写，或使用英文或当地文字搜索。已启用模糊搜索。',
     catalogUnavailableTitle: '无法连接圣经库',
     catalogUnavailableBody: '请检查网络连接后重试。下方的圣经已在此设备上，离线也能使用。',
     recommendedBadge: '推荐',
@@ -1254,7 +1253,7 @@ export const zh = {
     startPlan: '开始计划',
     enrolled: '已加入',
     dayOf: '第 {{current}} 天（共 {{total}} 天）',
-    inSeason: '当季',
+    inSeason: '当前节期',
     seasonStarts: '{{date}}开始',
     seasonStartsToday: '今天开始',
     markComplete: '标记完成',
@@ -1446,10 +1445,11 @@ export const zh = {
       },
       newYear: {
         title: '新的一年',
-        description: '一月的第一周：从创造的第一天读到新天新地，并以诗篇踏上新的旅程。',
+        description:
+          '一月的第一周，读关于开端的经文：从创造的第一天到新天新地，并以诗篇踏上新的旅程。',
       },
       epiphany: {
-        title: '显现节：万国之光',
+        title: '主显节：万国之光',
         description:
           '从1月6日起：耶稣显明为世界的光，从祂的受洗和第一个神迹，读到宝座前来自各国、各族、各方言的人。',
       },
@@ -1466,7 +1466,7 @@ export const zh = {
       orthodoxHolyWeek: {
         title: '受难周（东正教历）',
         description:
-          '按东正教日期，从棕枝主日到帕斯卡：进入耶路撒冷、神秘晚餐、十字架、坟墓和复活。',
+          '按东正教的日期过受难周，从棕枝主日到复活节（巴斯哈）：进入耶路撒冷、奥秘晚餐、十字架、坟墓和复活。',
       },
       easter: {
         title: '复活节',
@@ -1495,7 +1495,7 @@ export const zh = {
       hardChristmas: {
         title: '圣诞节不好过时',
         description:
-          '圣诞节前一周，写给在这个节期被失去或孤单压得沉重的人：哀歌、安慰，以及在黑暗中照耀的光。',
+          '圣诞节前一周，写给因失落或孤单而觉得这个节期格外沉重的人：哀歌、安慰，以及照在黑暗里的光。',
       },
     },
     lifeSituations: {

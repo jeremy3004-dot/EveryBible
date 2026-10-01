@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { useLatestCallback } from '../../audio/playbackControlsParts/useLatestCallback';
 import { selectionHaptic, softHaptic } from '../../../utils/haptics';
-import { getNoteToSave } from './annotationActionSheetModel';
+import { getNoteMaxLength, getNoteToSave } from './annotationActionSheetModel';
 
 interface AnnotationSheetStateOptions {
   canAnnotate: boolean;
@@ -139,6 +139,7 @@ export function useAnnotationSheetState({
     noteText,
     setNoteText,
     isSaving,
+    noteMaxLength: getNoteMaxLength(noteTarget.existingNote),
     referenceLabel: mode === 'note' ? noteTarget.referenceLabel : referenceLabel,
     selectedText: mode === 'note' ? noteTarget.selectedText : selectedText,
     close,

@@ -24,9 +24,9 @@ export const mmkvInstance = new MMKV();
 const guardedStorage = createGuardedStringStorage(mmkvInstance);
 
 export const zustandStorage: StateStorage = {
-  setItem: (name, value) => {
-    guardedStorage.setItem(name, value);
-  },
+  // Nothing on success; false when the value was not persisted, so a write gate
+  // (unchangedStateStorage) does not remember a failed write as saved.
+  setItem: (name, value) => (guardedStorage.setItem(name, value) ? undefined : false),
   getItem: guardedStorage.getItem,
   removeItem: (name) => {
     mmkvInstance.delete(name);

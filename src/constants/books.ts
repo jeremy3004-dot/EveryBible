@@ -159,6 +159,26 @@ export const getTranslatedBookName = (bookId: string, t: (key: string) => string
   return translated;
 };
 
+// English calls the book "Psalms" but cites one of them as "Psalm 4". Only the English name
+// changes: a locale whose book name differs from the English one is left as translated, since
+// this module has no per-locale singular data.
+const SINGLE_CHAPTER_BOOK_NAMES: Record<string, { plural: string; singular: string }> = {
+  PSA: { plural: 'Psalms', singular: 'Psalm' },
+};
+
+/**
+ * The book name to put in front of one chapter or verse ("Psalm 4", "Psalm 23:1"). Use
+ * getTranslatedBookName where the whole book is meant.
+ */
+export const getTranslatedPassageBookName = (
+  bookId: string,
+  t: (key: string) => string
+): string => {
+  const name = getTranslatedBookName(bookId, t);
+  const override = SINGLE_CHAPTER_BOOK_NAMES[bookId];
+  return override && name === override.plural ? override.singular : name;
+};
+
 const COMPACT_BOOK_NAME_MAX_LENGTH = 10;
 
 const formatCompactBookAbbreviation = (fullName: string, abbreviation: string): string => {
@@ -190,9 +210,12 @@ const formatCompactBookAbbreviation = (fullName: string, abbreviation: string): 
 export const getCompactTranslatedBookName = (
   bookId: string,
   t: (key: string) => string,
-  maxLength = COMPACT_BOOK_NAME_MAX_LENGTH
+  maxLength = COMPACT_BOOK_NAME_MAX_LENGTH,
+  singleChapter = false
 ): string => {
-  const translatedName = getTranslatedBookName(bookId, t);
+  const translatedName = singleChapter
+    ? getTranslatedPassageBookName(bookId, t)
+    : getTranslatedBookName(bookId, t);
   if (translatedName.length <= maxLength) {
     return translatedName;
   }

@@ -1,0 +1,852 @@
+{
+  "src/services/audio/download/chapterTransfer.ts": [
+    {
+      "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());|delay",
+      "reason": "Unreachable: delay is entered in the same synchronous step as the attempt's signal.aborted check"
+    },
+    {
+      "key": "remove-statement|return;|;|return;|delay",
+      "reason": "Unreachable: delay is entered in the same synchronous step as the attempt's signal.aborted check"
+    },
+    {
+      "key": "remove-statement|clearTimeout(timer);|;|clearTimeout(timer);|delay.onAbort",
+      "reason": "After an abort rejected the backoff, the leftover timer only resolves a settled promise and removes a listener that already fired"
+    },
+    {
+      "key": "remove-statement|timer = null;|;|timer = null;|downloadChapterWithInactivityTimeoutAndRetry.clearInactivityTimer",
+      "reason": "timer is only used to clear it again, and clearing a cleared or fired timer does nothing"
+    },
+    {
+      "key": "remove-statement|clearInactivityTimer();|;|clearInactivityTimer();|downloadChapterWithInactivityTimeoutAndRetry.onAbort",
+      "reason": "The finally block clears the timer; if it fires first while the transport stops, the outer abort is checked before timedOut"
+    },
+    {
+      "key": "nullish-drop-default|lastError ?? new Error('Chapter download failed.')|lastError|throw lastError ?? new Error('Chapter download failed.');|downloadChapterWithInactivityTimeoutAndRetry",
+      "reason": "Every loop pass returns, throws or sets lastError, so it is never null after the loop"
+    },
+    {
+      "key": "remove-statement|return;|;|return;|runWithConcurrency",
+      "reason": "With no items the one runner exits on its first index check"
+    }
+  ],
+  "src/services/audio/download/jobRegistry.ts": [
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|return createFallbackAudioDownloadJobStore(rootUri ?? DEFAULT_AUDIO_ROOT_URI);|resolveJobStore",
+      "reason": "Unreachable: createAudioDownloadJobStore never rejects (its own catch falls back)"
+    },
+    {
+      "key": "string-literal|'memory://everybible-audio-jobs/'|''|const MEMORY_JOB_STORE_KEY = 'memory://everybible-audio-jobs/';|MEMORY_JOB_STORE_KEY",
+      "reason": "The memory-store key only has to differ from real audio root URIs, and '' is no likelier to clash"
+    },
+    {
+      "key": "string-literal|'downloading'|''|status: AudioDownloadJobStatus = 'downloading',|createJobRecord",
+      "reason": "Every createJobRecord call passes a status, so the default is never used"
+    },
+    {
+      "key": "string-literal|'failed'|''|error: status === 'failed' ? existing.error : undefined,|createJobRecord.error",
+      "reason": "The only failed record is built by failAudioDownloadJob, which sets error right afterwards"
+    },
+    {
+      "key": "number-literal|0|1|let runSequence = 0;|runSequence",
+      "reason": "Only uniqueness of run ids matters, and a counter starting at 1 is still unique"
+    },
+    {
+      "key": "update-swap|++|--|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;|createRunId",
+      "reason": "A decreasing counter still gives distinct run ids"
+    },
+    {
+      "key": "number-literal|2|3|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;|createRunId",
+      "reason": "The random suffix only adds entropy; the counter keeps ids unique"
+    },
+    {
+      "key": "number-literal|2|1|const createRunId = () => `${Date.now()}:${++runSequence}:${Math.random().toString(36).slice(2)}`;|createRunId",
+      "reason": "The random suffix only adds entropy; the counter keeps ids unique"
+    },
+    {
+      "key": "nullish-drop-default|existing ?? undefined|existing|existing ?? undefined,|startAudioDownloadJob.started",
+      "reason": "createJobRecord checks existing for truthiness, so null and undefined take the same branch"
+    }
+  ],
+  "src/services/audio/download/orchestrator.ts": [
+    {
+      "key": "nullish-drop-default|params.rootUri ?? DEFAULT_AUDIO_ROOT_URI|params.rootUri|params.rootUri ?? DEFAULT_AUDIO_ROOT_URI|downloadAudioBook.directoryUri",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|const resolvedRootUri = rootUri ?? DEFAULT_AUDIO_ROOT_URI;|downloadAudioBookWithLease.resolvedRootUri",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedProgress = -1;|downloadAudioBookWithLease.lastEmittedProgress",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedProgress = -1;|downloadAudioBookWithLease.lastEmittedProgress",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedCompletedChapters = -1;|downloadAudioBookWithLease.lastEmittedCompletedChapters",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedCompletedChapters = -1;|downloadAudioBookWithLease.lastEmittedCompletedChapters",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "remove-statement|return;|;|return;|downloadAudioBookWithLease.emitBookProgress",
+      "reason": "Unreachable: emitBookProgress only runs from a chapter target's worker, so the book has at least one chapter"
+    },
+    {
+      "key": "remove-statement|chapterProgressByNumber.set(target.chapter, 0);|;|chapterProgressByNumber.set(target.chapter, 0);|downloadAudioBookWithLease",
+      "reason": "An unset chapter reads the same as 0 everywhere (?? 0 in the average, === 100 / !== 100 in the counts)"
+    },
+    {
+      "key": "remove-statement|throw new AudioDownloadCancelledError();|;|if (signal.aborted) throw new AudioDownloadCancelledError();|downloadAudioBookWithLease",
+      "reason": "The next statement re-checks the signal before anything is reported or changed; the mutant only adds one file-size read"
+    },
+    {
+      "key": "logical-swap|&&||||if (!wrongSize && remoteAudio?.sha256 && fileSystem.readBase64Chunk) {|downloadAudioBookWithLease#1",
+      "reason": "The extra verification only runs where it cannot change the outcome (size already failed, no checksum, or the lookup failed)"
+    },
+    {
+      "key": "relational-boundary|>|>=|bytesTotal > 0|downloadAudioBookWithLease.onProgress.chapterProgress",
+      "reason": "With bytesTotal 0 the ratio is Infinity or NaN, which clampProgress turns into the same 0"
+    },
+    {
+      "key": "number-literal|0|1|bytesTotal > 0|downloadAudioBookWithLease.onProgress.chapterProgress",
+      "reason": "Only differs for a 1-byte total, which no chapter has (below the 1 KB floor, fails verification)"
+    },
+    {
+      "key": "remove-statement|throw new AudioDownloadCancelledError();|;|if (signal.aborted) throw new AudioDownloadCancelledError();|downloadAudioBookWithLease#4",
+      "reason": "Only an abort in the few microtasks after a fully transferred and verified chapter gets here; recording it is correct and the run still ends cancelled"
+    },
+    {
+      "key": "remove-statement|throw failure;|;|throw failure;|downloadAudioBookWithLease",
+      "reason": "Falling through, failAudioDownloadJob finds the job already removed and does nothing; the same cancellation error is thrown"
+    },
+    {
+      "key": "remove-statement|externalSignal?.removeEventListener('abort', onExternalAbort);|;|externalSignal?.removeEventListener('abort', onExternalAbort);|downloadAudioBookWithLease",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "string-literal|'abort'|''|externalSignal?.removeEventListener('abort', onExternalAbort);|downloadAudioBookWithLease",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "remove-statement|await verifiedSizes.flush();|;|await verifiedSizes.flush();|downloadAudioBookWithLease",
+      "reason": "Every record()/forget() awaits its own write and runWithConcurrency waits for every worker, so nothing is pending in finally"
+    },
+    {
+      "key": "remove-statement|void tail.then(() => {\n      if (translationRunTails.get(jobId) === tail) translationRunTails.delete(jobId);\n    });|;|void tail.then(() => {|acquireTranslationRun.done",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "early-return|| return;|void tail.then(() => {|acquireTranslationRun.done",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "remove-statement|translationRunTails.delete(jobId);|;|if (translationRunTails.get(jobId) === tail) translationRunTails.delete(jobId);|acquireTranslationRun.done",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "boolean-literal|true|false|else signal.addEventListener('abort', onAbort, { once: true });|acquireTranslationRun.aborted.once",
+      "reason": "An abort event fires at most once and the listener is removed in finally, so once changes nothing"
+    },
+    {
+      "key": "remove-statement|signal.removeEventListener('abort', onAbort);|;|signal.removeEventListener('abort', onAbort);|acquireTranslationRun",
+      "reason": "The leftover listener can only reject after Promise.race has settled (race handles it), and the caller's signal is per request"
+    },
+    {
+      "key": "string-literal|'abort'|''|signal.removeEventListener('abort', onAbort);|acquireTranslationRun",
+      "reason": "The leftover listener can only reject after Promise.race has settled (race handles it), and the caller's signal is per request"
+    },
+    {
+      "key": "string-literal|'translation'|''|createAudioDownloadJobId({ translationId: params.translationId, scope: 'translation' }),|downloadAudioTranslation.releaseRun.scope",
+      "reason": "The id is only a key into translationRunTails, and the replacement is just as unique per translation"
+    },
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|const resolvedRootUri = rootUri ?? DEFAULT_AUDIO_ROOT_URI;|runAudioTranslationDownload.resolvedRootUri",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "nullish-drop-default|transport ?? { downloadFile: fileSystem.downloadFile }|transport|const activeTransport = transport ?? { downloadFile: fileSystem.downloadFile };|runAudioTranslationDownload.activeTransport",
+      "reason": "downloadAudioBook falls back to { downloadFile: fileSystem.downloadFile } itself when transport is undefined"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedProgress = -1;|runAudioTranslationDownload.lastEmittedProgress",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedProgress = -1;|runAudioTranslationDownload.lastEmittedProgress",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedCompletedChapters = -1;|runAudioTranslationDownload.lastEmittedCompletedChapters",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedCompletedChapters = -1;|runAudioTranslationDownload.lastEmittedCompletedChapters",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "remove-statement|externalSignal?.removeEventListener('abort', onExternalAbort);|;|externalSignal?.removeEventListener('abort', onExternalAbort);|runAudioTranslationDownload",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "string-literal|'abort'|''|externalSignal?.removeEventListener('abort', onExternalAbort);|runAudioTranslationDownload",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    }
+  ],
+  "src/services/auth/authErrors.ts": [
+    {
+      "key": "relational-boundary|>|>=|error.code.length > 0|getErrorCode",
+      "reason": "An empty code matches no case, so returning '' instead of null maps the same"
+    },
+    {
+      "key": "number-literal|0|1|error.code.length > 0|getErrorCode",
+      "reason": "No mapped code is one character long, so a one-character code maps to the default either way"
+    },
+    {
+      "key": "string-literal|'EveryBible backend is not configured for this build yet.'|''|error: unknown = 'EveryBible backend is not configured for this build yet.'|configurationAuthError",
+      "reason": "The empty default message is replaced by the same text through the fallback"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();|mapSupabaseAuthError.message",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const message = getErrorMessage(error, '').toLowerCase();|mapProviderIdTokenAuthError.message",
+      "reason": "The fallback text only feeds substring checks, and '__mutant__' matches none of them, like ''"
+    },
+    {
+      "key": "string-literal|'Sign in cancelled'|''|return authFailure('cancelled', error, 'Sign in cancelled');|mapAppleAuthError",
+      "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
+    }
+  ],
+  "src/services/plans/readingPlanActivity.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;|resolvePlanDayPlaybackStartEntry",
+      "reason": "With no chapters both later return paths already give null"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries[0] ?? null|playbackEntries[0]|return playbackEntries[0] ?? null;|resolvePlanDayPlaybackStartEntry",
+      "reason": "The guard above ensures playbackEntries is not empty, so [0] is always defined"
+    },
+    {
+      "key": "nullish-drop-default|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0] ??\n    null|playbackEntries.find(\n      (entry) => entry.bookId === resumeTarget.bookId && entry.chapter === resumeTarget.chapter\n    ) ??\n    playbackEntries[0]|playbackEntries.find(|resolvePlanDayPlaybackStartEntry",
+      "reason": "playbackEntries[0] is always defined, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "number-literal|0|1|return entries.reduce((maxDay, entry) => Math.max(maxDay, entry.day_number), 0);|getPlanTotalDayCount",
+      "reason": "Only differs when every entry's day_number is below 1, and then no day >= 1 matches either way"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);|getRhythmDayNumber.currentDay",
+      "reason": "Math.max(..., 1) floors the result, so a default of 0 or 1 gives the same day"
+    },
+    {
+      "key": "remove-statement|return totalDays > 0 ? totalDays : currentDay;|;|return totalDays > 0 ? totalDays : currentDay;|getRhythmDayNumber",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "negate-condition|totalDays > 0|!(totalDays > 0)|return totalDays > 0 ? totalDays : currentDay;|getRhythmDayNumber",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? totalDays : currentDay;|getRhythmDayNumber",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "number-literal|0|1|return totalDays > 0 ? totalDays : currentDay;|getRhythmDayNumber",
+      "reason": "Unreachable: the only caller of getRhythmDayNumber skips finished plans first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return totalDays > 0 ? Math.min(currentDay, totalDays) : currentDay;|getRhythmDayNumber",
+      "reason": "Only differs when every entry has day_number <= 0; catalog days run 1..duration_days (readingPlans.integrity.test.ts)"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;|buildRhythmReaderSession",
+      "reason": "A plan with no entries is skipped anyway, because its day has no chapters"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[planId] ?? null|progressByPlanId[planId]|const progress = progressByPlanId[planId] ?? null;|buildRhythmReaderSession.progress",
+      "reason": "undefined and null progress behave the same everywhere they are used"
+    },
+    {
+      "key": "logical-swap|&&||||plan && isRecurringPlan(plan)|buildRhythmReaderSession.dayNumber",
+      "reason": "For catalog fixed-length plans both day functions agree (duration_days equals the last entry day, enforced by the integrity test)"
+    },
+    {
+      "key": "nullish-drop-default|progress ?? undefined|progress|: getRhythmDayNumber(entries, progress ?? undefined);|buildRhythmReaderSession.dayNumber",
+      "reason": "getRhythmDayNumber reads progress only through ?., so null and undefined are the same"
+    },
+    {
+      "key": "remove-statement|continue;|;|continue;|buildRhythmReaderSession#4",
+      "reason": "Without the continue, a plan item gets no chapter range, no entries, and hits the next continue"
+    },
+    {
+      "key": "relational-boundary|<|<=|startSegment && startSegment.startIndex < playbackSequenceEntries.length|buildRhythmReaderSession.startEntry",
+      "reason": "Every segment holds at least one entry, so startIndex < length always holds"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex] ??\n          null|playbackSequenceEntries\n            .slice(startSegment.startIndex, startSegment.endIndex)\n            .find(\n              (entry) =>\n                entry.bookId === startResume.bookId && entry.chapter === startResume.chapter\n            ) ??\n          playbackSequenceEntries[startSegment.startIndex]|? (playbackSequenceEntries|buildRhythmReaderSession.startEntry",
+      "reason": "The entry at startIndex always exists, so the trailing ?? null is never reached"
+    },
+    {
+      "key": "nullish-drop-default|playbackSequenceEntries[startSegment.startIndex] ?? null|playbackSequenceEntries[startSegment.startIndex]|: (playbackSequenceEntries[startSegment.startIndex] ?? null)|buildRhythmReaderSession.startEntry",
+      "reason": "The entry at startIndex always exists"
+    },
+    {
+      "key": "nullish-drop-default|progressByPlanId[segment.planId ?? '']?.is_completed ?? false|progressByPlanId[segment.planId ?? '']?.is_completed|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);|resolveFirstIncompleteRhythmSessionSegment.isIncomplete",
+      "reason": "!(undefined) and !(false) are both true"
+    },
+    {
+      "key": "nullish-drop-default|segment.planId ?? ''|segment.planId|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);|resolveFirstIncompleteRhythmSessionSegment.isIncomplete",
+      "reason": "Plan segments always carry a planId, so the fallback is never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|segment.type !== 'plan' || !(progressByPlanId[segment.planId ?? '']?.is_completed ?? false);|resolveFirstIncompleteRhythmSessionSegment.isIncomplete",
+      "reason": "Plan segments always carry a planId, so the fallback key is never used"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|getRhythmSessionSegmentAtIndex",
+      "reason": "Segments start at index >= 0, so a negative index finds no segment and returns null anyway"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || timestamp >= existing.timestamp) {|mergeChapterActivityRecords",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (!existing || nextRecord.timestamp >= existing.timestamp) {|mergeChapterActivityRecords",
+      "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
+    }
+  ],
+  "src/services/plans/readingPlanModel.ts": [
+    {
+      "key": "number-literal|5|6|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;|UNSYNCED_LOCAL_PROGRESS_GRACE_MS",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "number-literal|5|4|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;|UNSYNCED_LOCAL_PROGRESS_GRACE_MS",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;|UNSYNCED_LOCAL_PROGRESS_GRACE_MS",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;|UNSYNCED_LOCAL_PROGRESS_GRACE_MS#1",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'|getLocalWeekStart",
+      "reason": "getLocalWeekStart is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'|isSameLocalWeek",
+      "reason": "isSameLocalWeek is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "nullish-drop-default|progress.completed_at ?? null|progress.completed_at|completed_at: progress.completed_at ?? null,|normalizeRemoteReadingPlanProgress.completed_at",
+      "reason": "completed_at is string | null and always present in select('*') rows, and null ?? null is null"
+    },
+    {
+      "key": "remove-statement|return false;|;|return false;|isJoinedPlanShownToday",
+      "reason": "An unreadable started_at gives NaN days, and NaN > 0 is false either way"
+    },
+    {
+      "key": "number-literal|1|0|return Math.min(Math.max(recurringDayNumber, 1), maxDay);|getActivePlanDayNumber",
+      "reason": "Every recurring day number is already at least 1, so a floor of 0 or 1 changes nothing"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);|getActivePlanDayNumber.currentDay",
+      "reason": "Math.max(0, 1) and Math.max(1, 1) are both 1"
+    },
+    {
+      "key": "relational-boundary|>|>=|formatLocalDateKey(cycleDate) > todayKey|getPlanCompletionEntryKey",
+      "reason": "When this cycle's date is today, the previous cycle's date is never yesterday, so it falls through to the same key"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (dayNumber > currentDay) {|resolvePlanLedgerDayState",
+      "reason": "dayNumber === currentDay already returned 'today', so >= and > agree"
+    },
+    {
+      "key": "nullish-drop-default|plan.weekStartsOn ?? 'sunday'|plan.weekStartsOn|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')|getVisibleCompletedEntryCount",
+      "reason": "Passing undefined triggers isSameLocalWeek's own 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')|getVisibleCompletedEntryCount",
+      "reason": "Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "number-literal|1|2|const dayIndex = completedDate ? getLocalDaysBetween(season.start, completedDate) : -1;|getVisibleCompletedEntryCount.dayIndex",
+      "reason": "-2 and -1 both fail dayIndex >= 0"
+    },
+    {
+      "key": "logical-swap|&&||||typeof left.session_order === 'number' && Number.isFinite(left.session_order)|compareSessionEntryOrder.leftSessionOrder",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "logical-swap|&&||||typeof right.session_order === 'number' && Number.isFinite(right.session_order)|compareSessionEntryOrder.rightSessionOrder",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "nullish-drop-default|remote.completed_sessions ?? {}|remote.completed_sessions|remote.completed_sessions ?? {},|mergePlanProgress.completed_sessions",
+      "reason": "Spreading undefined gives the same empty object as spreading {}"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|? (remote.current_session ?? null)|mergePlanProgress.current_session",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|? (local.current_session ?? null)|mergePlanProgress.current_session",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),|mergePlanProgress.current_session",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),|mergePlanProgress.current_session",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "relational-boundary|<|<=|return leftTime < rightTime ? left : right;|earlierStamp",
+      "reason": "Only entered when the two times differ, so < and <= agree"
+    },
+    {
+      "key": "negate-condition|left <= right|!(left <= right)|return left <= right ? left : right;|earlierStamp",
+      "reason": "Only changes which spelling of the same instant is kept, the same on every device; the choice is unspecified"
+    },
+    {
+      "key": "relational-boundary|<=|<|return left <= right ? left : right;|earlierStamp",
+      "reason": "< and <= only differ when the two strings are identical"
+    },
+    {
+      "key": "logical-swap|&&||||typeof existing === 'string' && typeof completedAt === 'string'|unionKeepingEarlier",
+      "reason": "With no existing stamp, earlierStamp(undefined, s) returns s anyway"
+    },
+    {
+      "key": "logical-swap||||&&|if (left === null || right === null) {|laterSession",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "remove-statement|return left ?? right;|;|return left ?? right;|laterSession",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "relational-boundary|>=|>|return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;|laterSession",
+      "reason": "Equal indexes mean the same session key, so either side is returned"
+    }
+  ],
+  "src/services/sync/syncMerge.ts": [
+    {
+      "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {|mergeChapterProgress",
+      "reason": "On equal timestamps the mutant assigns the same number the merged map already holds"
+    },
+    {
+      "key": "remove-statement|return right;|;|return right;|getLatestDateString",
+      "reason": "Differs only for an empty-string local lastReadDate, which the progress sanitizer turns into null first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return left > right ? left : right;|getLatestDateString",
+      "reason": "On equal date strings both branches return the same string"
+    },
+    {
+      "key": "number-literal|1|0|remoteChapter >= 1 &&|resolveReadingPosition.isRemotePositionReal",
+      "reason": "Chapter 0 is already rejected by the !remoteData.current_chapter guard on the next line"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|(localStamp === null ? Date.parse(remoteData.synced_at || '') : 0) |||resolveReadingPosition.remoteTimestamp",
+      "reason": "Date.parse('') and Date.parse('__mutant__') are both NaN, which falls through to 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|`${remoteData.current_book}_${remoteData.current_chapter}` >|resolveReadingPosition.remoteWinsTie",
+      "reason": "On a same-position tie only positionSource flips, and no production code reads positionSource"
+    },
+    {
+      "key": "relational-boundary|>=|>|year >= 1 &&|isCalendarDate",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|2|year >= 1 &&|isCalendarDate",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|0|year >= 1 &&|isCalendarDate",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|clockBound",
+      "reason": "A bound built from an invalid now compares false against everything, so it clamps nothing, like no bound"
+    },
+    {
+      "key": "logical-swap||||&&|if (!bound || !Object.values(chapters).some(isAhead)) {|boundChapterTimes",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return chapters;|;|return chapters;|boundChapterTimes",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return localTime === null ? undefined : local;|;|return localTime === null ? undefined : local;|laterStamp",
+      "reason": "Remote stamps are pre-filtered by readRemoteFieldStamps; differs only for a local stamp at or before the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|const remoteUpdatedAt = remotePreferences.synced_at ?? null;|mergeWithoutFieldStamps.remoteUpdatedAt",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    },
+    {
+      "key": "logical-swap|&&||||} else if (localTime !== null && remoteTime !== null) {|mergeWithFieldStamps",
+      "reason": "With one stamp present, x >= null answers like the else branch for any stamp after the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,|mergeWithFieldStamps.updatedAt",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    }
+  ],
+  "src/services/sync/syncService.ts": [
+    {
+      "key": "nullish-drop-default|identity.expectedGeneration ?? 'legacy'|identity.expectedGeneration|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;|getSyncCycleKey",
+      "reason": "captureSyncIdentity always passes a numeric generation, so the 'legacy' default is never used"
+    },
+    {
+      "key": "string-literal|'legacy'|''|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;|getSyncCycleKey",
+      "reason": "The default is never used, and the cycle key is only compared with itself"
+    },
+    {
+      "key": "remove-statement|return false;|;|if (!error) return false;|isTransientSyncError",
+      "reason": "Not a transient pattern: the regex then tests the text 'undefined', which matches nothing, so the result is the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferencesSyncBase ?? null|authState.preferencesSyncBase|base: authState.preferencesSyncBase ?? null,|getLocalPreferenceSnapshot.base",
+      "reason": "mergePreferences only checks base for truthiness, so undefined and null behave the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferenceFieldStamps ?? {}|authState.preferenceFieldStamps|fieldStamps: authState.preferenceFieldStamps ?? {},|getLocalPreferenceSnapshot.fieldStamps",
+      "reason": "Both consumers already default fieldStamps with ?? {}"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/field_updated_at/.test(error.message ?? '')|isMissingFieldStampColumn",
+      "reason": ".test(undefined) tests 'undefined', which never matches /field_updated_at/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/field_updated_at/.test(error.message ?? '')|isMissingFieldStampColumn",
+      "reason": "'__mutant__' does not match /field_updated_at/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|merge.fieldStamps ?? undefined|merge.fieldStamps|const fieldStamps = merge.fieldStamps ?? undefined;|applyPreferenceMergeLocally.fieldStamps",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/position_updated_(at|for)/.test(error.message ?? '')|isMissingPositionStampColumn",
+      "reason": ".test(undefined) never matches /position_updated_(at|for)/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/position_updated_(at|for)/.test(error.message ?? '')|isMissingPositionStampColumn",
+      "reason": "'__mutant__' does not match /position_updated_(at|for)/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|expectedUserId ?? useAuthStore.getState().user?.uid ?? null|expectedUserId ?? useAuthStore.getState().user?.uid|const candidate = expectedUserId ?? useAuthStore.getState().user?.uid ?? null;|captureSyncIdentity.candidate",
+      "reason": "The candidate is only checked for falsiness, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|captureSyncIdentity",
+      "reason": "For a falsy candidate the next check also returns null, because a signed-out store has no uid"
+    },
+    {
+      "key": "nullish-drop-default|useAuthStore.getState().user?.uid ?? null|useAuthStore.getState().user?.uid|() => useAuthStore.getState().user?.uid ?? null,|captureSyncIdentity.boundary",
+      "reason": "The uid is only compared !== to a non-empty expected uid, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();|syncReadingPlansForIdentity#1",
+      "reason": "Only runs inside syncAll, whose closing isCurrent check returns the same stale result; generations only move forward"
+    },
+    {
+      "key": "remove-statement|return { success: true };|;|return { success: true };|pullReadingPlansFromCloud",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "boolean-literal|true|false|return { success: true };|pullReadingPlansFromCloud.success",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "nullish-drop-default|mergedReading.readingPositionUpdatedAt ?? null|mergedReading.readingPositionUpdatedAt|updatedAt: mergedReading.readingPositionUpdatedAt ?? null,|applyMergedReadingState.result.updatedAt",
+      "reason": "mergeReadingSnapshot always returns readingPositionUpdatedAt as number | null, never undefined"
+    },
+    {
+      "key": "nullish-drop-default|mergedPreferences.fieldStamps ?? undefined|mergedPreferences.fieldStamps|mergedPreferences.fieldStamps ?? undefined|syncPreferencesForIdentityImpl.applied",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "logical-swap||||&&|mergedPreferences.changed |||syncPreferencesForIdentityImpl.merged",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "equality-flip|!==|===|remotePreferences?.synced_at !== localSnapshot.updatedAt |||syncPreferencesForIdentityImpl.merged",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "nullish-drop-default|activeSyncAllCycles.get(cycleKey) ?? 1|activeSyncAllCycles.get(cycleKey)|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;|syncAll.remaining",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|2|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;|syncAll.remaining",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|0|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;|syncAll.remaining",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();|pullFromCloud#3",
+      "reason": "The runIfCurrent on the next line runs the same check synchronously and returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();|pullFromCloud#4",
+      "reason": "The isCurrent check that follows immediately returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();|pullFromCloud#5",
+      "reason": "pullReadingPlansFromCloud's own isCurrent check runs before any request and returns the same stale result"
+    }
+  ],
+  "src/stores/authStore.ts": [
+    {
+      "key": "number-literal|0|1|let authChangesApplied = 0;|authChangesApplied",
+      "reason": "authChangesApplied is only compared with its own earlier value"
+    },
+    {
+      "key": "logical-swap||||&&|if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {|seedLegacyPreferenceStamps",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "remove-statement|return {};|;|return {};|seedLegacyPreferenceStamps",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "number-literal|0|1|authGeneration: 0,|useAuthStore.authGeneration",
+      "reason": "authGeneration is only compared with values read from it earlier, never with a constant"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const previousUserId = get().user?.uid ?? null;|useAuthStore.signOut.previousUserId",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|(get().user?.uid ?? null) === previousUserId && get().authGeneration === generation;|useAuthStore.signOut.isCurrent",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "remove-statement|return;|;|if (!isCurrent()) return;|useAuthStore.signOut#1",
+      "reason": "services/auth signOut(isCurrent) re-checks the same isCurrent first; the later check only lets through the SIGNED_OUT reset the handler already applied"
+    },
+    {
+      "key": "number-literal|0|1|get().user === null && get().authGeneration === generation + (previousUserId ? 1 : 0);|useAuthStore.signOut.originalSignedOut",
+      "reason": "From a guest start the generation only moves when the uid changes, so the user cannot be null after exactly one bump"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const endingUserId = get().user?.uid ?? null;|useAuthStore.signOut.endingUserId",
+      "reason": "endingUserId is only read as a truthiness test, and undefined and null are both falsy"
+    },
+    {
+      "key": "remove-statement|recoverySignOutRequest = null;|;|recoverySignOutRequest = null;|useAuthStore.signOut",
+      "reason": "recoverySignOutRequest is only compared in the finally of the signOut that just assigned it"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|reconcileUserBoundary: (userId, previousUserId = get().user?.uid ?? null) => {|useAuthStore.reconcileUserBoundary",
+      "reason": "undefined and null previousUserId are both falsy everywhere applyAuthBoundaryEffects reads it"
+    },
+    {
+      "key": "relational-boundary|<|<=|return version < 4|useAuthStore.migrate",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "number-literal|4|5|return version < 4|useAuthStore.migrate",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "logical-swap|&&||||const restoreFailed = 'restoreFailed' in restored && restored.restoreFailed === true;|restoreAndApplySession.restoreFailed",
+      "reason": "getCurrentSession only includes restoreFailed with the value true, so the key test and the value test agree"
+    },
+    {
+      "key": "remove-statement|stopRestoreRetry();|;|stopRestoreRetry();|resetRestoreRetryForTests",
+      "reason": "resetRestoreRetryForTests is a test-only seam with no production caller"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (restoreRetryListener || restoreRetriesUsed >= RESTORE_RETRY_LIMIT) return;|scheduleRestoreRetry",
+      "reason": "scheduleRestoreRetry runs at most once per process, while restoreRetriesUsed is still 0"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;|runInitialize",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;|runInitialize",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;|runInitialize#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;|runInitialize#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    }
+  ],
+  "src/stores/bible/textPackInstallModel.ts": [
+    {
+      "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0|mapTextPackDownloadProgress.pct",
+      "reason": "A bytesTotal of 0 is falsy, so the && short-circuits before the comparison either way"
+    },
+    {
+      "key": "nullish-drop-default|progress.bytesDownloaded ?? 0|progress.bytesDownloaded|? clampPercent(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)|mapTextPackDownloadProgress.pct",
+      "reason": "undefined / total is NaN, which clampPercent turns into the same 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|: progress.totalVerses > 0|mapTextPackDownloadProgress.pct",
+      "reason": "0 / 0 is NaN, which clampPercent turns into the same 0 as the else branch"
+    },
+    {
+      "key": "number-literal|0|1|].filter((value): value is string => typeof value === 'string' && value.length > 0)|collectTextPackArtifactPaths",
+      "reason": "Pack paths are absolute file paths, never a single character"
+    }
+  ],
+  "src/stores/bible/textPackJournalRecovery.ts": [
+    {
+      "key": "number-literal|0|1|let stuckJournalPassAt = 0;|stuckJournalPassAt",
+      "reason": "stuckJournalPassAt is only read once a stuck signature is set, which always sets it to Date.now() first"
+    },
+    {
+      "key": "equality-flip|===|!==|(completion.installOperationId === undefined && !latestJournal.installs[translationId])|recoverTextPackJournal",
+      "reason": "Redundant clause: with no install entry and no install operation id, the first clause is already true; the mutant only removes a missing key"
+    }
+  ],
+  "src/stores/privateDataAdoption.ts": [
+    {
+      "key": "relational-boundary|>|>=|return candidate.updated_at > current.updated_at ? candidate : current;|pickVersion",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.updated_at > right.updated_at|isNewerAnnotation",
+      "reason": "Inside the branch where updated_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|? left.created_at > right.created_at|isNewerAnnotation",
+      "reason": "Inside the branch where created_at differs, so > and >= agree"
+    },
+    {
+      "key": "relational-boundary|>|>=|: left.id > right.id;|isNewerAnnotation",
+      "reason": "Ids are unique after the merge, so an annotation is only compared with itself, where the result is the same object"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {|joinNoteTexts",
+      "reason": "A sort comparator only matters by its sign; 2 has the sign of 1"
+    },
+    {
+      "key": "number-literal|1|0|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {|joinNoteTexts",
+      "reason": "V8's sort only tests compare < 0, so returning 0 instead of 1 sorts identically (checked on 60k random arrays)"
+    },
+    {
+      "key": "number-literal|1|2|for (const note of [...notes].sort((left, right) => (isNewerAnnotation(left, right) ? 1 : -1))) {|joinNoteTexts#1",
+      "reason": "A sort comparator only matters by its sign; -2 has the sign of -1"
+    },
+    {
+      "key": "remove-statement|return annotation;|;|return annotation;|mergeGuestAnnotations#1",
+      "reason": "Unreachable: the loop above puts every active annotation's verse+type key in visibleByKey"
+    },
+    {
+      "key": "number-literal|0|1|merged[key] = Math.max(account[key] ?? 0, value);|maxByKey",
+      "reason": "Every ledger value is at least 1 (epoch timestamps, whole counts, whole-ms segments), so Math.max with 0 or 1 is the same"
+    },
+    {
+      "key": "relational-boundary|>|>=|(guest.lastReadDate === account.lastReadDate && guest.streakDays > account.streakDays));|mergeGuestProgress.guestIsNewer",
+      "reason": "On the same date with an equal streak both branches return the same streakDays and lastReadDate"
+    }
+  ],
+  "src/stores/privateDataScope.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;|readOwnerMarker",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|readPersistedAuthOwner",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "nullish-drop-default|marker?.adoptingInto ?? null|marker?.adoptingInto|pendingAdoption = marker?.adoptingInto ?? null;|resolveActiveOwner",
+      "reason": "undefined and null pendingAdoption behave the same: saveOwner's undefined adoptingInto is dropped by JSON.stringify and ?? / === owner treat both as absent"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (unscoped.length > 0) {|resolveActiveOwner",
+      "reason": "Rewriting a marker that already scopes every store writes the same owner/clearGuest/adoptingInto back"
+    },
+    {
+      "key": "remove-statement|pendingAdoption = null;|;|pendingAdoption = null;|resolveActiveOwner",
+      "reason": "Unreachable: no code path writes a marker with both clearGuest and adoptingInto, so pendingAdoption is already null here"
+    },
+    {
+      "key": "remove-statement|activeOwner = owner;|;|activeOwner = owner;|resolveActiveOwner",
+      "reason": "Only a cache: the marker was just written with this owner, so the next resolve reads the same value"
+    },
+    {
+      "key": "number-literal|0|1|let droppedWrites = 0;|droppedWrites",
+      "reason": "droppedWrites is only compared with its own earlier value"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|droppedWrites += 1;|privateDataStorage.setItem",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "number-literal|1|2|droppedWrites += 1;|privateDataStorage.setItem",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "remove-statement|return;|;|return;|privateDataStorage.removeItem",
+      "reason": "zustand persist calls removeItem only from clearStorage(), never while a reload has writes suspended"
+    },
+    {
+      "key": "boolean-literal|true|false|store.setState(store.getInitialState(), true);|registerPrivateDataStore.reload",
+      "reason": "Every private store's initial state holds all of its keys, so replacing and merging it give the same state"
+    },
+    {
+      "key": "boolean-literal|false|true|return false;|privateDataStorage.setItem",
+      "reason": "Suspended writes happen only inside a reload; the write gate treats any non-undefined result as not saved, so true and false act the same"
+    }
+  ],
+  "src/stores/progressStore.ts": [
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;|debouncedSyncProgress",
+      "reason": "syncDebounceTimer only feeds clearTimeout, and clearing an already-cleared handle does nothing"
+    },
+    {
+      "key": "remove-statement|syncDebounceTimer = null;|;|syncDebounceTimer = null;|debouncedSyncProgress#1",
+      "reason": "Clearing a timer that already fired does nothing"
+    },
+    {
+      "key": "nullish-drop-default|state.chaptersByDate[yesterdayStr] ?? 0|state.chaptersByDate[yesterdayStr]|(state.chaptersByDate[yesterdayStr] ?? 0) > 0 |||getStreakUpdate.continuesStreak",
+      "reason": "undefined > 0 and 0 > 0 are both false"
+    },
+    {
+      "key": "nullish-drop-default|state.listeningMsByDate[yesterdayStr] ?? 0|state.listeningMsByDate[yesterdayStr]|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;|getStreakUpdate.continuesStreak",
+      "reason": "undefined >= MIN_LISTENING_MS and 0 >= MIN_LISTENING_MS are both false"
+    },
+    {
+      "key": "number-literal|0|1|(state.listeningMsByDate[yesterdayStr] ?? 0) >= MIN_LISTENING_MS;|getStreakUpdate.continuesStreak",
+      "reason": "1 >= MIN_LISTENING_MS (60,000) is false, as with 0"
+    }
+  ],
+  "src/stores/readingPlans/planProgressModel.ts": [
+    {
+      "key": "nullish-drop-default|leftAt ?? ''|leftAt|.map((leftAt) => Date.parse(leftAt ?? ''))|getRejoinNotBeforeMs.leftMs",
+      "reason": "Date.parse(undefined) and Date.parse('') are both NaN, which the filter drops"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|.map((leftAt) => Date.parse(leftAt ?? ''))|getRejoinNotBeforeMs.leftMs",
+      "reason": "Date.parse('__mutant__') is NaN like Date.parse(''), which the filter drops"
+    },
+    {
+      "key": "number-literal|0|1|const now = new Date(Math.max(Date.now(), notBeforeMs ?? 0)).toISOString();|createProgressRecord.now",
+      "reason": "Date.now() is always above 1, so Math.max ignores either floor"
+    }
+  ]
+}

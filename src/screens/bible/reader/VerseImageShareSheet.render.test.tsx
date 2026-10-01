@@ -209,3 +209,35 @@ test('a verse in a script the faces cannot draw offers no font choice', async ()
   assert.equal(view.queryByRole('tab', { name: t('bible.verseImage.tabs.font') }), null);
   assert.equal(view.getAllByRole('tab').length, 3);
 });
+
+// The reader and Home keep the editor mounted, hidden, and re-render it with every
+// chapter change or Home update. A hidden React Native Modal draws nothing, so the
+// editor must not build its tabs, rails and labels for it.
+test('a hidden picture editor does no work when the screen around it re-renders', async (context) => {
+  const { VerseImageShareSheet } = await import('./VerseImageShareSheet');
+  const noop = () => {};
+  const sheet = (show: boolean) => (
+    <VerseImageShareSheet
+      handleSelectVerseImageBackground={noop}
+      handleShareSelectedVerseImage={async () => {}}
+      isSharingVerseImage={false}
+      selectedVerseImageBackground={{ uri: 'file:///background.jpg' }}
+      selectedVerseImageBackgroundIndex={0}
+      selectedVerseReferenceLabel="Genesis 4:2"
+      selectedVerseText={VERSE}
+      handleCloseVerseImageSheet={noop}
+      showVerseImageSheet={show}
+      verseImageBackgroundCount={20}
+      verseImageSharePreviewRef={createRef<View>()}
+    />
+  );
+  const view = await harness.render(sheet(false));
+  const translate = context.mock.method(harness.i18n, 't');
+
+  await view.rerender(sheet(false));
+  assert.equal(translate.mock.callCount(), 0);
+
+  await view.rerender(sheet(true));
+  assert.ok(translate.mock.callCount() > 0, 'opening it builds the editor');
+  assert.ok(view.getAllByRole('tab').length > 0);
+});

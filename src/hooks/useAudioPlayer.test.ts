@@ -5117,7 +5117,7 @@ test('a replacement hook interpolates and old cleanup does not disable it', asyn
 });
 
 test('background playback keeps next chapters, lock screen commands and sleep expiry', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: BASE_TIME });
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: BASE_TIME });
   const player = mountPlayer();
   await player.api.playChapter('GEN', 1);
   store().setAutoAdvanceChapter(true);

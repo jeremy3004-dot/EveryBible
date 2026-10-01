@@ -12,8 +12,15 @@ import {
   mergeReadingSnapshot,
   PREFERENCE_COLUMNS,
   readingMatchesRemote,
+  readRemoteFieldStamps,
 } from './syncMerge';
-import type { LocalPreferenceSnapshot, LocalReadingSnapshot } from './syncMerge';
+import type {
+  LocalPreferenceSnapshot,
+  LocalReadingSnapshot,
+  PreferenceMergeResult,
+  ReadingMergeResult,
+} from './syncMerge';
+import type { UserPreferences } from '../../types';
 import type {
   UserPreferences as RemoteUserPreferences,
   UserProgress as RemoteUserProgress,
@@ -288,6 +295,7 @@ test('mergeReadingSnapshot adopts the remote streak when the remote lastReadDate
 // ---------------------------------------------------------------------------
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 const CLOCK_NOW = new Date('2026-09-24T12:00:00.000Z');
 /** The device's local calendar day, `shift` days from `date` (what progressStore writes). */
 const localDay = (date: Date, shift = 0): string => {
@@ -408,6 +416,296 @@ test('the upload never carries a read date past tomorrow or a chapter time past 
   assert.equal(tomorrow.last_read_date, localDay(CLOCK_NOW, 1));
 });
 
+test('a position stamp exactly one day ahead is kept, as merge_user_progress keeps it', () => {
+  const now = CLOCK_NOW.getTime();
+  const stampedAt = (readingPositionUpdatedAt: number): LocalReadingSnapshot => ({
+    ...readerOn(localDay(CLOCK_NOW), 1),
+    readingPositionUpdatedAt,
+  });
+
+  const edge = mergeReadingSnapshot(stampedAt(now + DAY_MS), null, CLOCK_NOW);
+  assert.equal(edge.readingPositionUpdatedAt, now + DAY_MS);
+  assert.equal(
+    buildRemoteProgressPayload('user-1', edge, CLOCK_NOW.toISOString()).position_updated_at,
+    now + DAY_MS
+  );
+  assert.equal(
+    mergeReadingSnapshot(stampedAt(now + DAY_MS + 1), null, CLOCK_NOW).readingPositionUpdatedAt,
+    now
+  );
+});
+
+test('a clamped read date keeps the two-digit day early in the month', () => {
+  // Local noon on 3 October, whatever zone the test runs in.
+  const thirdOfOctober = new Date(2026, 9, 3, 12);
+  const merged = mergeReadingSnapshot(
+    readerOn('2026-10-02', 2),
+    progressRow({ last_read_date: '2026-11-20', streak_days: 1 }),
+    thirdOfOctober
+  );
+
+  assert.equal(merged.progress.lastReadDate, '2026-10-03');
+});
+
+test('with no server row yet, an untouched device has nothing to apply', () => {
+  const untouched: LocalReadingSnapshot = {
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    currentBook: 'GEN',
+    currentChapter: 1,
+  };
+
+  assert.deepEqual(mergeReadingSnapshot(untouched, null, CLOCK_NOW), {
+    progress: { chaptersRead: {}, streakDays: 0, lastReadDate: null },
+    readingPosition: { bookId: 'GEN', chapter: 1 },
+    positionSource: 'local',
+    readingPositionUpdatedAt: null,
+    changed: false,
+  });
+});
+
+test('a NULL streak on the server row counts as 0, as merge_user_progress counts it', () => {
+  // streak_days is a nullable column. The row read last (today), so its streak is
+  // the one taken: 0, never null or a guess.
+  const merged = mergeReadingSnapshot(
+    readerOn(localDay(CLOCK_NOW, -1), 4),
+    progressRow({
+      streak_days: null as unknown as number,
+      last_read_date: localDay(CLOCK_NOW),
+    }),
+    CLOCK_NOW
+  );
+
+  assert.deepEqual(
+    [merged.progress.lastReadDate, merged.progress.streakDays],
+    [localDay(CLOCK_NOW), 0]
+  );
+});
+
+test('a merge that changes only the streak or only the position stamp is reported for applying', () => {
+  // syncService writes a merge into the stores only when it reports a change.
+  const today = localDay(CLOCK_NOW);
+  const device = readerOn(today, 1);
+  const longerRun = mergeReadingSnapshot(
+    device,
+    progressRow({
+      chapters_read: device.chaptersRead,
+      streak_days: 3,
+      last_read_date: today,
+      current_book: 'JHN',
+      current_chapter: 3,
+    }),
+    CLOCK_NOW
+  );
+  assert.deepEqual([longerRun.progress.streakDays, longerRun.changed], [3, true]);
+
+  const readAt = CLOCK_NOW.getTime() - HOUR_MS;
+  const stampedOnServer = mergeReadingSnapshot(
+    { ...device, chaptersRead: { JHN_3: readAt } },
+    progressRow({
+      chapters_read: { JHN_3: readAt },
+      streak_days: 1,
+      last_read_date: today,
+      current_book: 'JHN',
+      current_chapter: 3,
+      position_updated_at: readAt + 1000,
+      position_updated_for: 'JHN_3',
+    }),
+    CLOCK_NOW
+  );
+  assert.deepEqual(
+    [stampedOnServer.readingPositionUpdatedAt, stampedOnServer.changed],
+    [readAt + 1000, true]
+  );
+});
+
+test('mergeReadingSnapshot adopts a remote position on the last chapter of a book', () => {
+  const untouched: LocalReadingSnapshot = {
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    currentBook: 'GEN',
+    currentChapter: 1,
+  };
+
+  for (const [book, chapter] of [
+    ['JUD', 1],
+    ['PSA', 150],
+    ['REV', 22],
+  ] as const) {
+    const merged = mergeReadingSnapshot(
+      untouched,
+      progressRow({ current_book: book, current_chapter: chapter }),
+      CLOCK_NOW
+    );
+    assert.deepEqual(merged.readingPosition, { bookId: book, chapter }, `${book} ${chapter}`);
+  }
+});
+
+test('only an untouched device at Genesis 1 adopts a server position it has no time for', () => {
+  const untouched: LocalReadingSnapshot = {
+    chaptersRead: {},
+    streakDays: 0,
+    lastReadDate: null,
+    currentBook: 'GEN',
+    currentChapter: 1,
+  };
+  // A NULL synced_at (the column is nullable) and an unread, unstamped position
+  // leave the server side with no time at all. A device that has done nothing yet
+  // still takes the account's place, even one that sorts before GEN_1.
+  const untimed = progressRow({
+    current_book: 'ACT',
+    current_chapter: 2,
+    synced_at: null as unknown as string,
+  });
+  assert.deepEqual(mergeReadingSnapshot(untouched, untimed, CLOCK_NOW).readingPosition, {
+    bookId: 'ACT',
+    chapter: 2,
+  });
+
+  // Genesis 1 read after the row was uploaded (11:00): no longer untouched, and
+  // the newer read keeps it.
+  const readGenesis = {
+    ...untouched,
+    chaptersRead: { GEN_1: Date.parse('2026-09-24T11:30:00.000Z') },
+  };
+  assert.deepEqual(
+    mergeReadingSnapshot(
+      readGenesis,
+      progressRow({ current_book: 'ACT', current_chapter: 2 }),
+      CLOCK_NOW
+    ).readingPosition,
+    { bookId: 'GEN', chapter: 1 }
+  );
+});
+
+test('an explicit position choice beats a server position nobody chose or read, however early', () => {
+  // Upload time is not a position choice: with a stamp on this side the row's
+  // synced_at is not compared at all, even for the smallest stamp the server
+  // accepts (1 ms). REV_1 sorts after ACT_1, so a tie would have gone to the row.
+  for (const stamp of [1, CLOCK_NOW.getTime() - DAY_MS]) {
+    const merged = mergeReadingSnapshot(
+      {
+        ...readerOn(localDay(CLOCK_NOW), 1),
+        currentBook: 'ACT',
+        currentChapter: 1,
+        readingPositionUpdatedAt: stamp,
+      },
+      progressRow({ current_book: 'REV', current_chapter: 1, synced_at: CLOCK_NOW.toISOString() }),
+      CLOCK_NOW
+    );
+    assert.deepEqual(
+      [merged.readingPosition, merged.readingPositionUpdatedAt],
+      [{ bookId: 'ACT', chapter: 1 }, stamp],
+      `stamp ${stamp}`
+    );
+  }
+});
+
+test('a chosen position the server row also holds keeps the later read a legacy build made there', () => {
+  // Chosen here two hours ago; a build without position stamps read it an hour
+  // ago. The position stays, stamped with the later read (as the server does).
+  const chosenAt = CLOCK_NOW.getTime() - 2 * HOUR_MS;
+  const readAt = CLOCK_NOW.getTime() - HOUR_MS;
+  const merged = mergeReadingSnapshot(
+    {
+      ...readerOn(localDay(CLOCK_NOW), 1),
+      chaptersRead: { JHN_10: chosenAt },
+      currentBook: 'JHN',
+      currentChapter: 10,
+      readingPositionUpdatedAt: chosenAt,
+    },
+    progressRow({ current_book: 'JHN', current_chapter: 10, chapters_read: { JHN_10: readAt } }),
+    CLOCK_NOW
+  );
+
+  assert.deepEqual(
+    [merged.readingPosition, merged.readingPositionUpdatedAt],
+    [{ bookId: 'JHN', chapter: 10 }, readAt]
+  );
+});
+
+test("a position that wins over another chapter carries only its own side's stamp", () => {
+  const earlier = CLOCK_NOW.getTime() - 2 * HOUR_MS;
+  const later = CLOCK_NOW.getTime() - HOUR_MS;
+  const device = readerOn(localDay(CLOCK_NOW), 1);
+
+  // A legacy build read John 3 after this device chose John 10: John 3 is taken,
+  // unstamped, since nobody chose it explicitly.
+  const adopted = mergeReadingSnapshot(
+    {
+      ...device,
+      chaptersRead: { JHN_10: earlier },
+      currentBook: 'JHN',
+      currentChapter: 10,
+      readingPositionUpdatedAt: earlier,
+    },
+    progressRow({ current_book: 'JHN', current_chapter: 3, chapters_read: { JHN_3: later } }),
+    CLOCK_NOW
+  );
+  assert.deepEqual(
+    [adopted.readingPosition, adopted.readingPositionUpdatedAt],
+    [{ bookId: 'JHN', chapter: 3 }, null]
+  );
+
+  // This device read John 10 (without a stamp) after John 3 was chosen on the
+  // server: John 10 is kept, still unstamped.
+  const kept = mergeReadingSnapshot(
+    {
+      ...device,
+      chaptersRead: { JHN_10: later },
+      currentBook: 'JHN',
+      currentChapter: 10,
+      readingPositionUpdatedAt: null,
+    },
+    progressRow({
+      current_book: 'JHN',
+      current_chapter: 3,
+      position_updated_at: earlier,
+      position_updated_for: 'JHN_3',
+    }),
+    CLOCK_NOW
+  );
+  assert.deepEqual(
+    [kept.readingPosition, kept.readingPositionUpdatedAt],
+    [{ bookId: 'JHN', chapter: 10 }, null]
+  );
+});
+
+test('the progress upload keeps values right at the limits merge_user_progress accepts', () => {
+  const syncedAt = CLOCK_NOW.toISOString();
+  const reading = (
+    bookId: string,
+    chapter: number,
+    streakDays: number,
+    chaptersRead: Record<string, number> = {}
+  ): ReadingMergeResult => ({
+    progress: { chaptersRead, streakDays, lastReadDate: localDay(CLOCK_NOW) },
+    readingPosition: { bookId, chapter },
+    positionSource: 'local',
+    changed: true,
+  });
+  const upload = (input: ReadingMergeResult) => {
+    const payload = buildRemoteProgressPayload('user-1', input, syncedAt);
+    return [
+      payload.chapters_read,
+      payload.streak_days,
+      payload.current_book,
+      payload.current_chapter,
+    ];
+  };
+  const longestKey = 'k'.repeat(64);
+
+  assert.deepEqual(
+    upload(reading('B'.repeat(32), 999_999, 999_999_999, { a: 1, [longestKey]: 2 })),
+    [{ a: 1, [longestKey]: 2 }, 999_999_999, 'B'.repeat(32), 999_999]
+  );
+  assert.deepEqual(upload(reading('B', 1, 0)), [{}, 0, 'B', 1]);
+  assert.deepEqual(upload(reading('B'.repeat(33), 1, 1_000_000_000)), [{}, null, null, null]);
+  assert.deepEqual(upload(reading('JHN', 1_000_000, 1)), [{}, 1, null, null]);
+});
+
 test('mergePreferences prefers the newer remote preferences snapshot', () => {
   const local: LocalPreferenceSnapshot = {
     preferences: {
@@ -491,6 +789,7 @@ test('mergePreferences keeps the newer local preferences snapshot', () => {
   const merged = mergePreferences(local, remote);
 
   assert.equal(merged.source, 'local');
+  assert.equal(merged.changed, false, 'nothing on the device changes');
   assert.equal(merged.updatedAt, '2026-03-09T07:00:00.000Z');
   assert.equal(merged.preferences.theme, 'light');
   assert.equal(merged.preferences.language, 'fr');
@@ -803,6 +1102,269 @@ test('finished onboarding is re-asserted over a newer "not finished" from an ins
   assert.equal(merged.preferences.onboardingCompleted, true);
   assert.equal(merged.fieldStamps?.onboardingCompleted, '2026-09-20T10:00:00.001Z');
   assert.notEqual(merged.source, 'remote');
+});
+
+test('finished onboarding is re-asserted only over a "not finished" stamped at or after its own', () => {
+  const keptOver = (localStamp: string) =>
+    mergePreferences(
+      {
+        preferences: onboarded,
+        updatedAt: localStamp,
+        fieldStamps: { onboardingCompleted: localStamp },
+      },
+      stampedRow(
+        { onboarding_completed: false },
+        { onboarding_completed: '2026-09-20T10:00:00.000Z' }
+      )
+    ).fieldStamps?.onboardingCompleted;
+
+  // Newer than the server's stamp already: uploaded as it is.
+  assert.equal(keptOver('2026-09-20T11:00:00.000Z'), '2026-09-20T11:00:00.000Z');
+  // The same instant would be refused (the server keeps a stamp that is not newer).
+  assert.equal(keptOver('2026-09-20T10:00:00.000Z'), '2026-09-20T10:00:00.001Z');
+});
+
+test('onboarding finished on another phone is adopted with the server stamp, never an invented one', () => {
+  const notYet: LocalPreferenceSnapshot = {
+    preferences: defaultAuthPreferences,
+    updatedAt: null,
+    fieldStamps: {},
+  };
+
+  const stamped = mergePreferences(
+    notYet,
+    stampedRow({}, { onboarding_completed: '2026-09-20T10:00:00.000Z' })
+  );
+  assert.equal(stamped.preferences.onboardingCompleted, true);
+  assert.deepEqual(stamped.fieldStamps, { onboardingCompleted: '2026-09-20T10:00:00.000Z' });
+  assert.equal(stamped.source, 'remote', 'the server already holds all of it');
+
+  const unstamped = mergePreferences(notYet, stampedRow({}, {}));
+  assert.equal(unstamped.preferences.onboardingCompleted, true);
+  assert.deepEqual(unstamped.fieldStamps, {});
+});
+
+test('agreed settings keep the newer stamp, and a newer stamp here is uploaded without touching the device', () => {
+  const at10 = '2026-09-20T10:00:00.000Z';
+  const at09 = '2026-09-20T09:00:00.000Z';
+  const local: LocalPreferenceSnapshot = {
+    preferences: onboarded,
+    updatedAt: at10,
+    fieldStamps: { fontSize: at10, onboardingCompleted: at10 },
+  };
+
+  assert.deepEqual(
+    mergePreferences(local, stampedRow({}, { font_size: at09, onboarding_completed: at09 })),
+    {
+      preferences: onboarded,
+      updatedAt: at10,
+      source: 'local',
+      changed: false,
+      remotePreferences: onboarded,
+      fieldStamps: { fontSize: at10, onboardingCompleted: at10 },
+      remoteFieldStamps: { fontSize: at09, onboardingCompleted: at09 },
+    }
+  );
+});
+
+test('agreed settings take the server stamp when it is newer or the same instant, so nothing is re-uploaded', () => {
+  const serverStamps = {
+    fontSize: '2026-09-20T09:00:00.000Z',
+    theme: '2026-09-20T09:15:00.000Z',
+    language: '2026-09-20T09:00:00.000Z',
+  };
+  const local: LocalPreferenceSnapshot = {
+    preferences: onboarded,
+    updatedAt: '2026-09-20T08:00:00.000Z',
+    // Older; missing; and the same instant as the server's in another ISO shape.
+    fieldStamps: { fontSize: '2026-09-20T08:00:00.000Z', language: '2026-09-20T09:00:00Z' },
+  };
+
+  assert.deepEqual(
+    mergePreferences(
+      local,
+      stampedRow(
+        { synced_at: '2026-09-20T09:30:00.000Z' },
+        {
+          font_size: serverStamps.fontSize,
+          theme: serverStamps.theme,
+          language: serverStamps.language,
+        }
+      )
+    ),
+    {
+      preferences: onboarded,
+      updatedAt: '2026-09-20T09:30:00.000Z',
+      source: 'remote',
+      changed: false,
+      remotePreferences: onboarded,
+      fieldStamps: serverStamps,
+      remoteFieldStamps: serverStamps,
+    }
+  );
+});
+
+test('a merge that only takes a server stamp for an agreed setting is still stored on the device', () => {
+  // The font edit here is newer and must be uploaded; the theme agrees but the
+  // server's stamp for it is newer, which the device must keep: 'merged'.
+  const local: LocalPreferenceSnapshot = {
+    preferences: { ...onboarded, fontSize: 'large' },
+    updatedAt: '2026-09-20T11:00:00.000Z',
+    fieldStamps: { fontSize: '2026-09-20T11:00:00.000Z', theme: '2026-09-20T08:00:00.000Z' },
+  };
+
+  const merged = mergePreferences(
+    local,
+    stampedRow({}, { font_size: '2026-09-20T10:00:00.000Z', theme: '2026-09-20T09:00:00.000Z' })
+  );
+
+  assert.equal(merged.source, 'merged');
+  assert.equal(merged.changed, false);
+  assert.deepEqual(merged.preferences, local.preferences);
+  assert.deepEqual(merged.fieldStamps, {
+    fontSize: '2026-09-20T11:00:00.000Z',
+    theme: '2026-09-20T09:00:00.000Z',
+  });
+});
+
+test('a device without stored stamps merges against a stamped row by the row stamps', () => {
+  // fieldStamps is optional on the snapshot.
+  const merged = mergePreferences(
+    { preferences: { ...onboarded, fontSize: 'small' }, updatedAt: '2026-09-20T08:00:00.000Z' },
+    stampedRow({ font_size: 'large' }, { font_size: '2026-09-20T09:00:00.000Z' })
+  );
+
+  assert.equal(merged.preferences.fontSize, 'large');
+  assert.deepEqual(merged.fieldStamps, { fontSize: '2026-09-20T09:00:00.000Z' });
+});
+
+test('only timestamp strings in field_updated_at count as stamps, and an empty column holds none', () => {
+  const stamp = '2026-09-20T10:00:00.000Z';
+  const malformed = { font_size: 2026, theme: true, language: 'soon', reminder_time: stamp };
+
+  assert.deepEqual(
+    readRemoteFieldStamps(stampedRow({}, malformed as unknown as Record<string, string>)),
+    { reminderTime: stamp }
+  );
+  assert.deepEqual(readRemoteFieldStamps(stampedRow({ field_updated_at: null }, {})), {});
+});
+
+test('with no server row the device settings stand and its stamps are offered for upload', () => {
+  const preferences: UserPreferences = { ...onboarded, fontSize: 'large' };
+  const updatedAt = '2026-09-20T10:00:00.000Z';
+  const expected = {
+    preferences,
+    updatedAt,
+    source: 'local',
+    changed: false,
+    remotePreferences: null,
+    remoteFieldStamps: null,
+  };
+
+  assert.deepEqual(mergePreferences({ preferences, updatedAt }, null), {
+    ...expected,
+    fieldStamps: {},
+  });
+  assert.deepEqual(
+    mergePreferences({ preferences, updatedAt, fieldStamps: { fontSize: updatedAt } }, null),
+    { ...expected, fieldStamps: { fontSize: updatedAt } }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Before the stamp column: whole-row stamps, or a three-way merge against the
+// values the server held at this device's last sync (its base).
+// ---------------------------------------------------------------------------
+
+const legacyRow = (overrides: Partial<RemoteUserPreferences>): RemoteUserPreferences => {
+  const row = stampedRow(overrides, {});
+  delete row.field_updated_at;
+  return row;
+};
+
+test('a legacy row stamped at the same instant as the device does not replace its settings', () => {
+  const at = '2026-09-20T10:00:00.000Z';
+  const merged = mergePreferences(
+    { preferences: { ...onboarded, fontSize: 'large' }, updatedAt: at },
+    legacyRow({ font_size: 'small', synced_at: at })
+  );
+
+  assert.deepEqual([merged.source, merged.preferences.fontSize], ['local', 'large']);
+});
+
+test('with a sync base, a setting changed only on this device survives a newer legacy row', () => {
+  const local: LocalPreferenceSnapshot = {
+    preferences: { ...onboarded, fontSize: 'large' },
+    updatedAt: '2026-09-20T09:00:00.000Z',
+    base: onboarded,
+  };
+
+  assert.deepEqual(mergePreferences(local, legacyRow({ synced_at: '2026-09-20T10:00:00.000Z' })), {
+    preferences: local.preferences,
+    updatedAt: '2026-09-20T09:00:00.000Z',
+    source: 'local',
+    changed: false,
+    remotePreferences: onboarded,
+    fieldStamps: null,
+    remoteFieldStamps: null,
+  });
+});
+
+test('with a sync base, a setting changed only on the server is adopted even from an older row', () => {
+  const local: LocalPreferenceSnapshot = {
+    preferences: onboarded,
+    updatedAt: '2026-09-20T11:00:00.000Z',
+    base: onboarded,
+  };
+  const serverDark: UserPreferences = { ...onboarded, theme: 'dark' };
+
+  assert.deepEqual(
+    mergePreferences(local, legacyRow({ theme: 'dark', synced_at: '2026-09-20T10:00:00.000Z' })),
+    {
+      preferences: serverDark,
+      updatedAt: '2026-09-20T10:00:00.000Z',
+      source: 'remote',
+      changed: true,
+      remotePreferences: serverDark,
+      fieldStamps: null,
+      remoteFieldStamps: null,
+    }
+  );
+});
+
+test('with a sync base, edits from both sides are combined and a clash goes to the newer row', () => {
+  // Font changed here, theme on the server, language on both (fr here, es there).
+  const remote = legacyRow({
+    theme: 'dark',
+    language: 'es',
+    synced_at: '2026-09-20T10:00:00.000Z',
+  });
+  const local = (updatedAt: string): LocalPreferenceSnapshot => ({
+    preferences: { ...onboarded, fontSize: 'large', language: 'fr' },
+    updatedAt,
+    base: onboarded,
+  });
+  const combined = (
+    updatedAt: string,
+    language: UserPreferences['language']
+  ): PreferenceMergeResult => ({
+    preferences: { ...onboarded, fontSize: 'large', theme: 'dark', language },
+    updatedAt,
+    source: 'merged',
+    changed: true,
+    remotePreferences: { ...onboarded, theme: 'dark', language: 'es' },
+    fieldStamps: null,
+    remoteFieldStamps: null,
+  });
+
+  assert.deepEqual(
+    mergePreferences(local('2026-09-20T09:00:00.000Z'), remote),
+    combined('2026-09-20T09:00:00.000Z', 'es')
+  );
+  assert.deepEqual(
+    mergePreferences(local('2026-09-20T11:00:00.000Z'), remote),
+    combined('2026-09-20T11:00:00.000Z', 'fr')
+  );
 });
 
 // Schema contract, not behaviour: the trigger's column list and the client's

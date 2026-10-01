@@ -256,3 +256,13 @@ test('the preload list covers every image any plan can ask for', async () => {
     );
   }
 });
+
+test('every bundled plan resolves a cover image, so no detail hero depends on its fallback', async () => {
+  const { getReadingPlanCoverSource } = await loadAssets();
+  const { readingPlans } = await import('../../data/readingPlans.generated');
+
+  assert.ok(readingPlans.length > 0);
+  for (const plan of readingPlans) {
+    assert.notEqual(getReadingPlanCoverSource(plan), null, `${plan.id} has no cover image`);
+  }
+});

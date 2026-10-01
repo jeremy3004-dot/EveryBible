@@ -462,6 +462,47 @@ test('the search field is the same mounted input while the list re-filters, and 
   );
 });
 
+test('searching the Bibles lists matches only: nothing is pinned or labelled Recommended', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await fakes.renderFlow();
+
+  await view.changeText(view.getByTestId('onboarding-translation-search'), 'Nepa');
+  await pause(context.mock.timers, 150);
+
+  assert.ok(view.getByRole('button', { name: /^Nepali \// }));
+  assert.equal(view.queryByTestId('onboarding-primary-recommendation'), null);
+  assert.equal(view.queryByText(t('onboarding.recommendedBadge')), null, 'no badge, no heading');
+});
+
+test('a search with no match says how to search, without developer wording', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await fakes.renderFlow();
+
+  await view.changeText(view.getByTestId('onboarding-translation-search'), 'zzzzqq');
+  await pause(context.mock.timers, 150);
+
+  assert.ok(view.getByText(t('onboarding.noLanguagesFound')));
+  assert.ok(view.getByText(t('onboarding.noNationsFoundBody')));
+  assert.equal(view.queryByText(/fuzzy/i), null);
+});
+
+test('choosing a Bible shows its row busy while the app language switches', async () => {
+  let finishSwitch: () => void = () => {};
+  fakes.changeLanguage.impl = () =>
+    new Promise<void>((resolve) => {
+      finishSwitch = resolve;
+    });
+  const view = await fakes.renderFlow();
+  const bsbRow = () => view.getByRole('button', { name: /^English, Berean Standard Bible/ });
+
+  assert.equal(within(bsbRow()).queryAllByType('ActivityIndicator').length, 0);
+  await view.press(bsbRow());
+
+  assert.equal(within(bsbRow()).queryAllByType('ActivityIndicator').length, 1, 'busy, not blank');
+  await act(async () => finishSwitch());
+  await view.flush();
+});
+
 test('rows draw their own grouped-card edges by position in their letter group', async () => {
   const { radius } = await design();
   const view = await fakes.renderFlow();
@@ -665,6 +706,35 @@ test('backward navigation is the header icon button only, and in settings it clo
   // The chosen-nation pill is how the language step returns to the nation step.
   await view.press(view.getByRole('button', { name: 'United States' }));
   assert.ok(view.getByRole('header', { name: t('onboarding.countryTitle') }));
+});
+
+test('finishing settings still completes when the app language fails to load, without an unhandled rejection', async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  fakes.changeLanguage.impl = async () => {
+    throw new Error('locale bundle missing');
+  };
+  const warn = mock.method(console, 'warn', () => {});
+  try {
+    let completed = 0;
+    const view = await renderSettings({ onComplete: () => completed++ });
+
+    await view.press(view.getByRole('button', { name: 'India, 2 languages' }));
+    await view.press(view.getByRole('button', { name: 'Continue with India' }));
+    await view.flush();
+    await view.press(view.getByRole('button', { name: 'हिन्दी, Hindi, Recommended' }));
+    await view.press(view.getByRole('button', { name: t('onboarding.finish') }));
+    await view.flush();
+
+    assert.equal(completed, 1, 'Finish is not a dead button');
+    assert.equal(harness.authStore.getState().preferences.onboardingCompleted, true);
+    assert.equal(harness.authStore.getState().preferences.countryCode, 'IN');
+    assert.deepEqual(unhandled, []);
+  } finally {
+    warn.mock.restore();
+    process.off('unhandledRejection', onUnhandled);
+  }
 });
 
 test('finishing settings stores the nation and Bible language, marks onboarding done and syncs', async () => {
