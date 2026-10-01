@@ -32,7 +32,8 @@ Security:
   moderation, throttles, translator passcodes, backups). This denies client access, as intended.
 - 6 SECURITY DEFINER RPCs executable by `authenticated` (WARN): `create_group`,
   `delete_my_account`, `join_group_by_code`, `leave_group`, `refresh_my_engagement`,
-  `report_prayer_request`. These are the app's intended RPCs and check `auth.uid()` inside.
+  `report_prayer_request`. These are the app's intended RPCs (hardened in the 2026-09-24 health
+  checks); their bodies were not re-read for this review.
 - Already-known owner items: leaked-password protection off, too few MFA options, `pg_net` in
   `public` (needs a Supabase support ticket).
 
