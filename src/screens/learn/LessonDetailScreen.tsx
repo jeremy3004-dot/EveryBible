@@ -3,6 +3,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -61,7 +62,10 @@ import {
 } from '../../services/gather/lessonAudioSource';
 import {
   buildStoryPassageView,
+  keepReferenceTogether,
+  limitStoryPassageView,
   resolveStoryStatus,
+  STORY_FIRST_PAINT_VERSES,
   type StoryPassageView,
   type StoryStatus,
 } from './lessonPassageModel';
@@ -763,7 +767,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
               numberOfLines={2}
               accessibilityRole="header"
             >
-              {`${t('gather.story')} · ${referenceLabel}`}
+              {`${t('gather.story')} · ${keepReferenceTogether(referenceLabel)}`}
             </Text>
             {verseCount > 0 ? (
               <Text
@@ -853,7 +857,7 @@ export function LessonDetailScreen({ route, navigation }: LessonDetailScreenProp
                 ]}
                 numberOfLines={2}
               >
-                {`${t('bible.listen')} · ${referenceLabel}`}
+                {`${t('bible.listen')} · ${keepReferenceTogether(referenceLabel)}`}
               </Text>
               <Text style={[typography.mono, styles.stripTime, { color: colors.secondaryText }]}>
                 {stripTime}
@@ -1087,6 +1091,19 @@ const StorySection = memo(function StorySection({
   displayFont,
 }: StorySectionProps) {
   const { t } = useTranslation();
+  // The first commit lays out only the opening verses; the rest follow once the
+  // navigation transition and first paint are done (see STORY_FIRST_PAINT_VERSES).
+  const [completedView, setCompletedView] = useState<StoryPassageView | null>(null);
+  useEffect(() => {
+    if (!view) return undefined;
+    const task = InteractionManager.runAfterInteractions(() => setCompletedView(view));
+    return () => task.cancel();
+  }, [view]);
+  const shownView = useMemo(
+    () =>
+      view && completedView !== view ? limitStoryPassageView(view, STORY_FIRST_PAINT_VERSES) : view,
+    [view, completedView]
+  );
   // Nested Text spans report no layout, so a verse is placed from its paragraph's lines.
   const layoutRef = useRef<{
     rootY: number | null;
@@ -1095,9 +1112,9 @@ const StorySection = memo(function StorySection({
   const recordLayout = (update: (layout: typeof layoutRef.current) => void) => {
     update(layoutRef.current);
     const { rootY, blocks } = layoutRef.current;
-    if (!view || rootY == null) return;
+    if (!shownView || rootY == null) return;
     const tops: Record<string, number> = {};
-    for (const block of view.blocks) {
+    for (const block of shownView.blocks) {
       const layout = blocks[block.key];
       if (layout?.y == null || layout.textY == null || !layout.lines) continue;
       const base = rootY + layout.y + layout.textY;
@@ -1144,7 +1161,7 @@ const StorySection = memo(function StorySection({
     );
   }
 
-  if (status === 'empty' || !view) {
+  if (status === 'empty' || !shownView) {
     return (
       <View style={styles.centerContainer}>
         <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
@@ -1165,7 +1182,7 @@ const StorySection = memo(function StorySection({
         });
       }}
     >
-      {view.blocks.map((block, blockIdx) => (
+      {shownView.blocks.map((block, blockIdx) => (
         <View
           key={block.key}
           style={blockIdx > 0 ? styles.passageBlockGap : undefined}

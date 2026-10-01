@@ -18,6 +18,42 @@ export interface StoryPassageView {
 export type StoryStatus = 'loading' | 'error' | 'empty' | 'ready';
 
 /**
+ * How many verses the Story lays out on its first commit. A whole chapter set as one
+ * nested-Text paragraph took ~1.4 s of UI-thread layout on an Android emulator, with
+ * nothing on screen until it finished; the first screenful is enough to open on.
+ */
+export const STORY_FIRST_PAINT_VERSES = 8;
+
+/**
+ * The first `maxVerses` verses of a story, across its blocks in order. Returns the
+ * same view when it already fits, so a short story is never re-laid-out.
+ */
+export function limitStoryPassageView(view: StoryPassageView, maxVerses: number): StoryPassageView {
+  if (view.verseCount <= maxVerses) return view;
+  let remaining = maxVerses;
+  const blocks: StoryPassageBlockView[] = [];
+  for (const block of view.blocks) {
+    if (remaining <= 0) break;
+    blocks.push(
+      block.verses.length <= remaining
+        ? block
+        : { ...block, verses: block.verses.slice(0, remaining) }
+    );
+    remaining -= block.verses.length;
+  }
+  return { ...view, blocks, verseCount: maxVerses };
+}
+
+/**
+ * Binds each chapter number to the book name before it, with a no-break space, so a
+ * reference that has to wrap ("LISTEN · GENESIS 1") moves as a unit instead of leaving
+ * the "1" alone on a second line.
+ */
+export function keepReferenceTogether(reference: string): string {
+  return reference.replace(/ (?=\d)/g, ' ');
+}
+
+/**
  * Which Story state to render. A load that threw is an error the reader can
  * retry; a passage that loaded with no verses is genuinely empty. Showing both
  * as "No passage text available" hid the failure and offered no way out.
