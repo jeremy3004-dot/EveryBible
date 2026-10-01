@@ -48,7 +48,7 @@ export function ReadingActivityScreen() {
     state.isAuthenticated ? (state.user?.uid ?? null) : null
   );
   const lastSyncedAt = useSyncStatusStore(selectLastSuccessfulSyncAt(userId));
-  const engagement = useEngagementSummary(isAuthenticated);
+  const engagement = useEngagementSummary(isAuthenticated, userId);
 
   // Reading and listening are one activity: a day heard fills the calendar too.
   const activitySummary = useMemo(

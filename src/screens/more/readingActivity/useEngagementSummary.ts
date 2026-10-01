@@ -9,10 +9,18 @@ import type { UserEngagementSummary } from '../../../services/supabase/types';
 /**
  * The signed-in reader's cloud totals, refreshed first so the row is current.
  * Signed out, or while it loads or if it fails, this is null and the screen
- * falls back to what this device recorded.
+ * falls back to what this device recorded. A summary belongs to the account that
+ * loaded it: after a sign-out or an account switch it is never shown for another.
  */
-export function useEngagementSummary(isAuthenticated: boolean): UserEngagementSummary | null {
-  const [engagement, setEngagement] = useState<UserEngagementSummary | null>(null);
+export function useEngagementSummary(
+  isAuthenticated: boolean,
+  userId: string | null = null
+): UserEngagementSummary | null {
+  const owner = isAuthenticated ? (userId ?? '') : null;
+  const [loaded, setLoaded] = useState<{
+    owner: string;
+    summary: UserEngagementSummary;
+  } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,15 +35,15 @@ export function useEngagementSummary(isAuthenticated: boolean): UserEngagementSu
         })
         .then((result) => {
           if (!cancelled && result?.success && result.data) {
-            setEngagement(result.data);
+            setLoaded({ owner: owner ?? '', summary: result.data });
           }
         })
         .catch(() => {});
       return () => {
         cancelled = true;
       };
-    }, [isAuthenticated])
+    }, [isAuthenticated, owner])
   );
 
-  return engagement;
+  return owner !== null && loaded?.owner === owner ? loaded.summary : null;
 }
