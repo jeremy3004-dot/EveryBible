@@ -195,6 +195,9 @@ function parseTimestampJson(raw: Record<string, unknown>): VerseTimestamps | nul
   return Object.keys(result).length > 0 ? result : null;
 }
 
+// Several callers ask for a chapter's timings as it starts; they share one request.
+const pendingRemoteFetches = new Map<string, Promise<VerseTimestamps | null>>();
+
 async function fetchRemoteChapterTimestamps(
   translationId: string,
   bookId: string,
@@ -224,6 +227,19 @@ async function fetchRemoteChapterTimestamps(
     return cached;
   }
 
+  const pending = pendingRemoteFetches.get(cacheKey);
+  if (pending) return pending;
+  const request = requestRemoteTimestamps(url, cacheKey).finally(() => {
+    pendingRemoteFetches.delete(cacheKey);
+  });
+  pendingRemoteFetches.set(cacheKey, request);
+  return request;
+}
+
+async function requestRemoteTimestamps(
+  url: string,
+  cacheKey: string
+): Promise<VerseTimestamps | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REMOTE_TIMESTAMP_FETCH_TIMEOUT_MS);
 

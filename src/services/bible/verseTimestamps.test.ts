@@ -165,6 +165,27 @@ describe('verseTimestamps — remote stream templates', () => {
     });
   });
 
+  it('shares one request between the callers that ask for the same chapter at once', async () => {
+    await withRemoteTimestamps({ '1': 0, '2': 4.2 }, async (module) => {
+      const healthyFetch = globalThis.fetch;
+      let requests = 0;
+      globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+        requests += 1;
+        return healthyFetch(...args);
+      }) as typeof fetch;
+
+      // The reader, passage repeat and read-along each ask when a chapter starts.
+      const answers = await Promise.all([
+        module.getChapterTimestamps('npiulb', 'JHN', 3),
+        module.getChapterTimestamps('npiulb', 'JHN', 3),
+        module.getChapterTimestamps('npiulb', 'JHN', 3),
+      ]);
+
+      assert.equal(requests, 1, 'one socket, so a stalled link waits once rather than three times');
+      for (const answer of answers) assert.deepEqual(answer, { 1: 0, 2: 4.2 });
+    });
+  });
+
   it('asks again after a server error but keeps a missing chapter remembered', async () => {
     await withRemoteTimestamps({ '1': 0 }, async (module) => {
       const healthyFetch = globalThis.fetch;
