@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { getTranslatedBookName } from '../../../constants/books';
+import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import type { PassageReferenceTarget } from '../../../services/bible/referenceParser';
@@ -31,7 +31,7 @@ export function ReferenceJumpCard({
     >
       <View style={browserStyles.resultHeader}>
         <Text style={[browserStyles.resultReference, { color: colors.bibleAccent }]}>
-          {formatReferenceLabel(target, getTranslatedBookName(target.bookId, t))}
+          {formatReferenceLabel(target, getTranslatedPassageBookName(target.bookId, t))}
         </Text>
         <Ionicons name="arrow-forward" size={18} color={colors.bibleSecondaryText} />
       </View>

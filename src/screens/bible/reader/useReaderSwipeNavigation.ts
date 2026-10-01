@@ -6,7 +6,7 @@ import { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-nat
 import { Gesture } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName } from '../../../constants';
+import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants';
 import { lightHaptic } from '../../../utils/haptics';
 import { announceForAccessibility } from '../../../utils/a11y';
 import { resolveSwipeChapterNavigation } from '../bibleReaderModel';
@@ -50,7 +50,7 @@ export function useReaderSwipeNavigation({
     const swipeTarget = direction === 'next' ? nextNavigationTarget : previousNavigationTarget;
     if (swipeTarget) {
       announceForAccessibility(
-        `${getTranslatedBookName(swipeTarget.bookId, t)} ${swipeTarget.chapter}`
+        `${getTranslatedPassageBookName(swipeTarget.bookId, t)} ${swipeTarget.chapter}`
       );
     }
 
