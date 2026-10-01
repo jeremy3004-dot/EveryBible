@@ -118,8 +118,22 @@ mockModule(mock, sourcePath('services/audio/audioDownloadStorage.ts'), {
     },
   },
 });
+const netInfoListeners = new Set<(state: unknown) => void>();
+const setNetwork = (isOnline: boolean): void => {
+  online = isOnline;
+  for (const listener of netInfoListeners) {
+    listener({ isConnected: isOnline, isInternetReachable: isOnline });
+  }
+};
 const netInfoFake: Record<string, unknown> = {
   fetch: async () => ({ isConnected: online, isInternetReachable: online }),
+  addEventListener: (listener: (state: unknown) => void) => {
+    netInfoListeners.add(listener);
+    listener({ isConnected: online, isInternetReachable: online });
+    return () => {
+      netInfoListeners.delete(listener);
+    };
+  },
 };
 netInfoFake.default = netInfoFake;
 mockModule(mock, '@react-native-community/netinfo', netInfoFake);
@@ -379,6 +393,38 @@ test('a failed download is retried only once, so a dead network does not loop fo
 
   assert.equal(downloads.length, 2);
   assert.deepEqual(createSources, []);
+});
+
+test('a sound that failed offline starts once the connection returns, without another play command', async () => {
+  setNetwork(false);
+  await player.sync('rain', true);
+  await flush();
+  mock.timers.tick(RETRY_DELAY_MS);
+  await flush();
+  assert.equal(cache.getAvailability(RAIN), 'failed');
+  assert.deepEqual(createSources, []);
+
+  setNetwork(true);
+  await flush();
+  mock.timers.tick(FADE_DURATION_MS);
+
+  assert.deepEqual(createSources, [{ uri: RAIN_FILE }]);
+  assert.equal(netInfoListeners.size, 0, 'the sound arrived, so nothing keeps watching');
+});
+
+test('a reconnect does not restart a sound the listener has paused', async () => {
+  setNetwork(false);
+  await player.sync('rain', true);
+  await flush();
+  mock.timers.tick(RETRY_DELAY_MS);
+  await flush();
+  await player.sync('rain', false);
+
+  setNetwork(true);
+  await flush();
+
+  assert.deepEqual(createSources, []);
+  assert.equal(netInfoListeners.size, 0);
 });
 
 test('a pending retry is dropped when the listener pauses', async () => {

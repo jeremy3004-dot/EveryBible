@@ -10,6 +10,7 @@ import {
 } from './backgroundMusicCatalog';
 import { backgroundSoundCache } from './backgroundSoundCache';
 import { listShuffleCandidates } from './backgroundSoundShuffleModel';
+import { subscribeToDeviceOffline } from '../../utils/connectivity';
 
 const FADE_DURATION_MS = 2500;
 const FADE_STEP_MS = 50;
@@ -62,6 +63,8 @@ class BackgroundMusicPlayer {
   private remoteRetryTimer: ReturnType<typeof setTimeout> | null = null;
   /** Remote sounds already retried since they last played or the listener last paused. */
   private retriedRemoteChoices = new Set<SoundChoice>();
+  /** Stops waiting for the network to return, for a remote sound that failed offline. */
+  private stopWatchingReconnect: (() => void) | null = null;
 
   /** The volume the bed plays at: the current sound's catalog level scaled by the Sound level. */
   private get targetVolume(): number {
@@ -354,6 +357,32 @@ class BackgroundMusicPlayer {
   private clearRemoteRetry(): void {
     if (this.remoteRetryTimer) clearTimeout(this.remoteRetryTimer);
     this.remoteRetryTimer = null;
+    this.stopWatchingReconnect?.();
+    this.stopWatchingReconnect = null;
+  }
+
+  /**
+   * After the backoff retry has failed too, the sound would stay silent for the rest of the
+   * listen. A connection that comes back is the one moment worth a further try: one retry on
+   * an offline-to-online change, so a dead network still never loops.
+   */
+  private retryWhenBackOnline(choice: SoundChoice): void {
+    if (this.stopWatchingReconnect) return;
+    let sawOffline = false;
+    const stop = subscribeToDeviceOffline((offline) => {
+      if (offline) {
+        sawOffline = true;
+        return;
+      }
+      if (!sawOffline) return;
+      this.clearRemoteRetry();
+      const requested = this.requested;
+      if (requested?.choice === choice && requested.shouldPlay) {
+        this.retriedRemoteChoices.delete(choice);
+        void this.sync(choice, true);
+      }
+    });
+    this.stopWatchingReconnect = stop;
   }
 
   /**
@@ -362,7 +391,10 @@ class BackgroundMusicPlayer {
    * wanted; a second failure waits for the listener, so a dead network never loops.
    */
   private scheduleRemoteRetry(choice: SoundChoice): void {
-    if (this.retriedRemoteChoices.has(choice)) return;
+    if (this.retriedRemoteChoices.has(choice)) {
+      this.retryWhenBackOnline(choice);
+      return;
+    }
     this.retriedRemoteChoices.add(choice);
     this.clearRemoteRetry();
     this.remoteRetryTimer = setTimeout(() => {

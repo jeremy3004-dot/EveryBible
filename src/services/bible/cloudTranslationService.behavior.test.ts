@@ -858,6 +858,43 @@ test('cancelActiveCatalogTextPackDownload cancels only the named translation and
   assert.equal(cancelActiveCatalogTextPackDownload(), false, 'nothing is active any more');
 });
 
+test('a transfer that receives no bytes for 30 s fails as an error instead of spinning forever', async (t) => {
+  const { downloadCatalogTextPack, isTextPackDownloadCancelled } = await loadModule();
+  const progress = collectProgress();
+  // A captive-portal or blackhole link: the request never answers and never errors.
+  resumable.enabled = true;
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+
+  const promise = downloadCatalogTextPack({
+    translationId: 'stalled',
+    downloadUrl: 'https://media.example.test/stalled.db',
+    expectedVerseCount: 3,
+    onProgress: progress.onProgress,
+  });
+  const outcome = promise.then(
+    () => null,
+    (error: unknown) => error
+  );
+  // Let the transfer start before the clock moves.
+  for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+  t.mock.timers.tick(30_000);
+
+  const error = await outcome;
+  assert.ok(error instanceof Error, 'the stalled transfer rejects');
+  assert.equal(isTextPackDownloadCancelled(error), false, 'a stall is a failure, not a cancel');
+  assert.equal(resumable.cancelled, true, 'the native transfer is cancelled');
+  assert.equal(progress.phases.at(-1), 'error', 'the caller is told it failed, so it can retry');
+
+  // The slot is free again: a retry is not refused as "already in progress".
+  resumable.enabled = false;
+  resumable.cancelled = false;
+  await downloadCatalogTextPack({
+    translationId: 'stalled',
+    downloadUrl: 'https://media.example.test/stalled.db',
+    expectedVerseCount: 3,
+  });
+});
+
 test('a transfer the native layer abandons on its own is reported as cancelled, not as an error', async () => {
   const { downloadCatalogTextPack, isTextPackDownloadCancelled } = await loadModule();
   const progress = collectProgress();
