@@ -37,6 +37,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
+import { formatLocalDateKey, quantizeListeningMs } from '../../services/progress/readingActivity';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   FOUNDATION_LESSON_TITLE_KEYS,
@@ -196,7 +197,7 @@ export function HomeScreen() {
     };
   }, [navigation]);
   const [readingPlans, setReadingPlans] = useState<ReadingPlan[]>([]);
-  // Everything on Home that depends on the time of day reads this, not a fresh Date: it
+  // Everything on Home that depends on the day reads this, not a fresh Date: it
   // advances at local midnight and on each return to the foreground, so a Home left open
   // overnight or resumed hours later does not keep the date and greeting it opened with.
   const [clockMs, setClockMs] = useState(() => Date.now());
@@ -400,7 +401,12 @@ export function HomeScreen() {
   // so their boundaries stay testable.
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
-  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  // Listening time is banked every 30 seconds while audio plays, in any tab; only its
+  // per-day chapter equivalent reaches the heatmap, so a tick that crosses no chapter
+  // boundary does not rebuild it.
+  const listeningMsByDate = useProgressStore(
+    useShallow((state) => quantizeListeningMs(state.listeningMsByDate))
+  );
   const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
 
@@ -410,13 +416,8 @@ export function HomeScreen() {
   );
 
   const allTimeStats = useMemo(
-    () =>
-      getHomeReadingStats(
-        { chaptersRead, chaptersListened, listeningMsByDate },
-        'allTime',
-        new Date(clockMs)
-      ),
-    [chaptersRead, chaptersListened, clockMs, listeningMsByDate]
+    () => getHomeReadingStats({ chaptersRead, chaptersListened }, 'allTime', new Date(clockMs)),
+    [chaptersRead, chaptersListened, clockMs]
   );
 
   const ledgerTotalLabel =
@@ -457,7 +458,16 @@ export function HomeScreen() {
         runAfterInteractions: (task) => InteractionManager.runAfterInteractions(task),
         msUntilNextLocalMidnight: () => getMillisecondsUntilNextLocalMidnight(),
         msUntilNextGreetingChange: () => getMillisecondsUntilNextGreetingChange(new Date()),
-        onClockAdvance: () => setClockMs(Date.now()),
+        // Everything keyed on the clock works in whole days, so a return to the
+        // foreground within the same day keeps the old value rather than rebuilding
+        // the heatmap, plan shelf and ledger for nothing.
+        onClockAdvance: () =>
+          setClockMs((previous) => {
+            const now = Date.now();
+            return formatLocalDateKey(new Date(previous)) === formatLocalDateKey(new Date(now))
+              ? previous
+              : now;
+          }),
       }),
     [loadVerseOfDay]
   );

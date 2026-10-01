@@ -16,8 +16,8 @@ export interface HomeReadingActivity {
   chaptersRead: Record<string, number>;
   /** `{ "GEN_1": timestamp }` — chapters played to the end. */
   chaptersListened: Record<string, number>;
-  /** `{ "2026-09-08": milliseconds }` — completed listening time per local day. */
-  listeningMsByDate: Record<string, number>;
+  /** Unused here: coverage comes from the chapter maps, so callers may leave it out. */
+  listeningMsByDate?: Record<string, number>;
 }
 
 export interface HomeReadingPeriodRange {

@@ -101,3 +101,26 @@ test('leaving before the refresh settles skips the read', async () => {
 
   assert.deepEqual(service.calls, ['refreshEngagement']);
 });
+
+test('signing out drops the previous reader’s cloud totals', async () => {
+  const view = runtime.mount(useEngagementSummary, true, 'user-a' as string | null);
+  await view.commit();
+  await settle();
+  assert.deepEqual(view.rerender(), { total_chapters_read: 12 });
+
+  // The session ends (expiry, remote sign-out) while the screen stays mounted.
+  assert.equal(view.rerender(false, null), null);
+});
+
+test('another account never sees the previous account’s totals while its own load', async () => {
+  const view = runtime.mount(useEngagementSummary, true, 'user-a');
+  await view.commit();
+  await settle();
+  assert.deepEqual(view.rerender(), { total_chapters_read: 12 });
+
+  service.summary = { success: true, data: { total_chapters_read: 3 } };
+  assert.equal(view.rerender(true, 'user-b'), null);
+  await view.commit();
+  await settle();
+  assert.deepEqual(view.rerender(), { total_chapters_read: 3 });
+});

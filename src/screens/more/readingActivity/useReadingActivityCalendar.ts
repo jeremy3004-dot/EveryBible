@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useLocalToday } from '../../../hooks/useLocalToday';
-import type { ReadingActivityDaySummary } from '../../../services/progress/readingActivity';
+import {
+  formatLocalDateKey,
+  parseLocalDateKey,
+  type ReadingActivityDaySummary,
+} from '../../../services/progress/readingActivity';
 import {
   buildReadingActivityGrid,
   chunkCalendarWeeks,
@@ -21,7 +25,12 @@ export function useReadingActivityCalendar(
 ) {
   const [viewDate, setViewDate] = useState(() => new Date());
   // Which cell is today, refreshed on foreground and at midnight as well as on focus.
-  const today = useLocalToday();
+  const now = useLocalToday();
+  // useLocalToday hands back a fresh Date on every focus and foreground; the grid
+  // only depends on which day it is, so key it on that and a same-day return
+  // leaves the grid, its cell names and every cell untouched.
+  const todayKey = formatLocalDateKey(now);
+  const today = useMemo(() => parseLocalDateKey(todayKey), [todayKey]);
   const [chosenDateKey, setChosenDateKey] = useState<string | null>(null);
 
   // Scanning + sorting every read day only has to happen when the month or the

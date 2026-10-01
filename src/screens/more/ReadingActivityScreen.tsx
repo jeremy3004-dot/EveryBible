@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import { formatListeningTime } from '../../i18n/interfaceFormatting';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
 import { useDisplayFont } from '../../hooks/useDisplayFont';
@@ -13,7 +14,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { selectLastSuccessfulSyncAt, useSyncStatusStore } from '../../stores/syncStatusStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { summarizeReadingActivity } from '../../services/progress/readingActivity';
+import {
+  quantizeListeningMs,
+  summarizeReadingActivity,
+} from '../../services/progress/readingActivity';
 import { totalListeningMinutes } from '../../services/progress/listeningTime';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
@@ -42,13 +46,18 @@ export function ReadingActivityScreen() {
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
   const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  // Audio banks listening time every 30 seconds; the calendar only needs each day's
+  // chapter equivalent, so it ignores ticks that cross no chapter boundary.
+  const listeningDays = useProgressStore(
+    useShallow((state) => quantizeListeningMs(state.listeningMsByDate))
+  );
   const streakDays = useProgressStore(selectCurrentStreakDays);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const userId = useAuthStore((state) =>
     state.isAuthenticated ? (state.user?.uid ?? null) : null
   );
   const lastSyncedAt = useSyncStatusStore(selectLastSuccessfulSyncAt(userId));
-  const engagement = useEngagementSummary(isAuthenticated);
+  const engagement = useEngagementSummary(isAuthenticated, userId);
 
   // Reading and listening are one activity: a day heard fills the calendar too.
   const activitySummary = useMemo(
@@ -57,9 +66,9 @@ export function ReadingActivityScreen() {
         chaptersRead,
         chaptersListened,
         chaptersByDate,
-        listeningMsByDate,
+        listeningMsByDate: listeningDays,
       }),
-    [chaptersByDate, chaptersListened, chaptersRead, listeningMsByDate]
+    [chaptersByDate, chaptersListened, chaptersRead, listeningDays]
   );
   // One formatter per language names every cell and the day card's eyebrow.
   const dayLabelFormatter = useMemo(() => createDayLabelFormatter(i18n.language), [i18n.language]);
