@@ -1,0 +1,48 @@
+{
+  "src/stores/privateDataScope.ts": [
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;#2",
+      "reason": "JSON.parse(undefined) throws, and the catch returns the same null"
+    },
+    {
+      "key": "nullish-drop-default|marker?.adoptingInto ?? null|marker?.adoptingInto|pendingAdoption = marker?.adoptingInto ?? null;",
+      "reason": "undefined and null pendingAdoption behave the same: saveOwner's undefined adoptingInto is dropped by JSON.stringify and ?? / === owner treat both as absent"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (unscoped.length > 0) {",
+      "reason": "Rewriting a marker that already scopes every store writes the same owner/clearGuest/adoptingInto back"
+    },
+    {
+      "key": "remove-statement|pendingAdoption = null;|;|pendingAdoption = null;",
+      "reason": "Unreachable: no code path writes a marker with both clearGuest and adoptingInto, so pendingAdoption is already null here"
+    },
+    {
+      "key": "remove-statement|activeOwner = owner;|;|activeOwner = owner;",
+      "reason": "Only a cache: the marker was just written with this owner, so the next resolve reads the same value"
+    },
+    {
+      "key": "number-literal|0|1|let droppedWrites = 0;",
+      "reason": "droppedWrites is only compared with its own earlier value"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|droppedWrites += 1;",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "number-literal|1|2|droppedWrites += 1;",
+      "reason": "droppedWrites is only compared with its own earlier value; any change marks the dropped write"
+    },
+    {
+      "key": "remove-statement|return;|;|return;#1",
+      "reason": "zustand persist calls removeItem only from clearStorage(), never while a reload has writes suspended"
+    },
+    {
+      "key": "boolean-literal|true|false|store.setState(store.getInitialState(), true);",
+      "reason": "Every private store's initial state holds all of its keys, so replacing and merging it give the same state"
+    }
+  ]
+}
