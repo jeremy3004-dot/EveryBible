@@ -90,3 +90,28 @@ test('keeps the short translation abbreviation when it is distinct from the lang
     'BSB'
   );
 });
+
+test('the language check behind the share label ignores case but not accents', () => {
+  const label = (abbreviation: string, language: string) =>
+    getBibleSelectionShareTranslationLabel({
+      translationName: 'Full Name',
+      translationAbbreviation: abbreviation,
+      translationLanguage: language,
+    });
+
+  assert.equal(label('NEPALI', 'Nepali'), 'Full Name');
+  assert.equal(label('Español', 'español'), 'Full Name');
+  assert.equal(label('Espanol', 'Español'), 'Espanol');
+});
+
+// The reader computes this label on every render. Hermes has no JIT and
+// localeCompare with options builds ICU collation state per call.
+test('the share label never collates through localeCompare', (t) => {
+  const localeCompare = t.mock.method(String.prototype, 'localeCompare');
+  getBibleSelectionShareTranslationLabel({
+    translationName: 'Nepali Bible',
+    translationAbbreviation: 'Nepali',
+    translationLanguage: 'Nepali',
+  });
+  assert.equal(localeCompare.mock.callCount(), 0);
+});

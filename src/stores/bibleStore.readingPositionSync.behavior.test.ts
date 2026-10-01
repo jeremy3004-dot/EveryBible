@@ -91,6 +91,7 @@ for (const mode of ['plan', 'audio-only'] as const) {
       setError: () => {},
       setVerses: useBibleStore.getState().setVerses,
       setVersesChapterKey: () => {},
+      batchUpdates: (updates: () => void) => updates(),
       t: (key) => key,
     });
     assert.equal(useBibleStore.getState().currentChapter, 10);

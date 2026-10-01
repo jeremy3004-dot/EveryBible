@@ -127,10 +127,8 @@ export function getTranslationLanguageDisplayLabel(language: string | null | und
   const normalizedLanguage = normalizeTranslationLanguage(language);
   const nativeLabel = TRANSLATION_LANGUAGE_NATIVE_LABELS[normalizedLanguage.toLowerCase()] ?? null;
 
-  if (
-    nativeLabel == null ||
-    nativeLabel.localeCompare(normalizedLanguage, undefined, { sensitivity: 'accent' }) === 0
-  ) {
+  // Case-insensitive, accent-sensitive, without ICU collation (each picker row asks).
+  if (nativeLabel == null || nativeLabel.toLowerCase() === normalizedLanguage.toLowerCase()) {
     return normalizedLanguage;
   }
 

@@ -428,7 +428,12 @@ export function createReactNativeRenderStub(options: ReactNativeRenderStubOption
       sharedAction: 'sharedAction',
       dismissedAction: 'dismissedAction',
     },
+    // react-test-renderer batches inside act(), which the harness wraps every update in.
+    unstable_batchedUpdates: <T,>(callback: () => T) => callback(),
     InteractionManager: {
+      // Handles are tracked by nothing here: queued tasks still run on the next microtask.
+      createInteractionHandle: () => 1,
+      clearInteractionHandle: () => {},
       runAfterInteractions: (task?: () => void) => {
         let cancelled = false;
         const done = Promise.resolve().then(() => {

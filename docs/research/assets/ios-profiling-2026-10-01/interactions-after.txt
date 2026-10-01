@@ -1,0 +1,324 @@
+# Hermes sampling profile (1 kHz), release build m-own, iPhone 17 simulator. One window per tap,
+# from the root touch:end mark to the next tap: 0 = open Psalm 119 from Home's Continue card,
+# 1 = next chapter, 2 = previous chapter, 3 = Audio sheet, 4 = close it, 5-9 = Gather, Plans, More, Home, Bible tabs.
+
+===== touch:end 0 at 1790850257883
+JS busy 266 ms; settles (before a 100 ms idle gap) at 310 ms
+busy per 100 ms: 0:94  100:92  200:70  300:9
+
+Self time by function:
+    23.5 ms  [GC Young Gen]
+    20.4 ms  [HostFunction] nativeFlushQueueImmediate
+    11.3 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+    11.1 ms  [Native] arrayPrototypeIndexOf
+     9.4 ms  flattenStyle node_modules/react-native/Libraries/StyleSheet/flattenStyle.js:23
+     7.5 ms  _objectWithoutPropertiesLoose node_modules/@babel/runtime/helpers/objectWithoutPropertiesLoose.js:1
+     5.5 ms  propagateParentContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2294
+     5.3 ms  completeWork node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7151
+     4.9 ms  [Native] functionPrototypeSymbolHasInstance
+     4.7 ms  __getValueWithStaticProps node_modules/react-native/Libraries/Animated/nodes/AnimatedProps.js:140
+     4.0 ms  updateEffectImpl node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3875
+     3.9 ms  FiberNode node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:10314
+     3.7 ms  Pressable node_modules/react-native/Libraries/Components/Pressable/Pressable.js:167
+     3.4 ms  constructClassInstance node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:5292
+     3.4 ms  render node_modules/react-native/Libraries/Components/Touchable/TouchableOpacity.js:261
+
+Module evaluation (deepest module factory on the stack):
+     2.2 ms  src/screens/bible/readerFocusScroll.ts
+     1.2 ms  node_modules/bible-passage-reference-parser/esm/lang/es.js
+     0.9 ms  src/services/bible/referenceParser.ts
+     0.5 ms  node_modules/@shopify/flash-list/dist/FlashListProps.js
+     0.3 ms  src/services/audio/backgroundMusicPlayer.ts
+     0.1 ms  node_modules/recyclerlistview/dist/reactnative/core/layoutmanager/GridLayoutManager.js
+
+App source files on the stack (inclusive):
+    39.5 ms  src/screens/bible/readerChapterLoader.ts
+    11.2 ms  src/screens/bible/browser/BookChapterPanel.tsx
+     9.4 ms  src/screens/bible/BibleReaderScreen.tsx
+     5.2 ms  src/navigation/BibleStack.tsx
+     4.6 ms  src/screens/bible/BibleBrowserScreen.tsx
+     4.3 ms  src/constants/books.ts
+     3.9 ms  src/screens/bible/reader/ChapterFeedbackModal.tsx
+     3.3 ms  src/screens/bible/reader/ReaderTopChrome.tsx
+     2.7 ms  src/components/skeleton/useSkeletonOpacity.ts
+     2.6 ms  src/contexts/ThemeContext.tsx
+     2.5 ms  src/navigation/playerBar/PlayerBar.tsx
+     2.3 ms  src/screens/bible/browser/useBibleSearch.ts
+     2.0 ms  src/screens/bible/browser/TranslationPickerSheet.tsx
+     2.0 ms  src/screens/home/HomeScreen.tsx
+     2.0 ms  src/screens/bible/browser/BibleBookRow.tsx
+
+===== touch:end 1 at 1790850260698
+JS busy 31 ms; settles (before a 100 ms idle gap) at 29 ms
+busy per 100 ms: 0:29  700:2
+
+Self time by function:
+     5.4 ms  updateWorkInProgressHook node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3304
+     3.2 ms  _objectWithoutPropertiesLoose node_modules/@babel/runtime/helpers/objectWithoutPropertiesLoose.js:1
+     3.0 ms  commitHookEffectListUnmount node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7600
+     3.0 ms  _getPrototypeOf node_modules/@babel/runtime/helpers/getPrototypeOf.js:2
+     2.9 ms  [GC Young Gen]
+     2.5 ms  BaseNavigationContainer node_modules/@react-navigation/core/lib/module/BaseNavigationContainer.js:71
+     1.9 ms  (anonymous) node_modules/whatwg-fetch/dist/fetch.umd.js:113
+     1.8 ms  AudioPortionShareSheet src/screens/bible/reader/AudioPortionShareSheet.tsx:31
+     1.7 ms  extractFromKey node_modules/i18next/dist/esm/i18next.js:485
+     1.3 ms  getResource node_modules/i18next/dist/esm/i18next.js:845
+     1.2 ms  pushSimpleEffect node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3844
+     1.2 ms  [Native] arrayPrototypeIndexOf
+     1.2 ms  popProvider node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2217
+     0.9 ms  [Native] jsonStringify
+     0.2 ms  [Native] arrayPrototypeFilter
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     9.7 ms  src/screens/bible/readerChapterLoader.ts
+     7.3 ms  src/screens/bible/BibleReaderScreen.tsx
+     1.9 ms  src/screens/bible/reader/useChapterFeedback.ts
+     1.8 ms  src/screens/bible/reader/AudioPortionShareSheet.tsx
+     1.7 ms  src/navigation/playerBar/PlayerBar.tsx
+     1.3 ms  src/screens/bible/reader/ReaderTopChrome.tsx
+     1.2 ms  src/screens/bible/reader/useReaderScrollChrome.ts
+     1.0 ms  src/screens/bible/reader/useAudioPortionShare.ts
+     0.9 ms  src/stores/progressStore.ts
+     0.2 ms  src/screens/bible/reader/useReaderChapterNavigation.ts
+
+===== touch:end 2 at 1790850262365
+JS busy 63 ms; settles (before a 100 ms idle gap) at 64 ms
+busy per 100 ms: 0:63
+
+Self time by function:
+     9.2 ms  [HostFunction] nativeFlushQueueImmediate
+     6.2 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+     5.6 ms  [GC Young Gen]
+     3.8 ms  areHookInputsEqual node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3174
+     3.1 ms  popHostContext node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2185
+     2.7 ms  recursivelyTraverseMutationEffects node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:8207
+     2.5 ms  [Native] hermesBuiltinCopyDataProperties
+     2.2 ms  bubbleProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7127
+     2.1 ms  updateSyncExternalStore node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3538
+     1.9 ms  useVerseSelection src/screens/bible/reader/useVerseSelection.ts:57
+     1.9 ms  getLastOfPath node_modules/i18next/dist/esm/i18next.js:25
+     1.8 ms  [Native] arrayPrototypePush
+     1.7 ms  extractStroke node_modules/react-native-svg/src/lib/extract/extractStroke.ts:27
+     1.6 ms  ref node_modules/react-native-svg/src/elements/Path.tsx:23
+     1.5 ms  nonPromiseMethodWrapper node_modules/react-native/Libraries/BatchedBridge/NativeModules.js:125
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+    38.8 ms  src/screens/bible/readerChapterLoader.ts
+    11.4 ms  src/screens/bible/BibleReaderScreen.tsx
+     2.9 ms  src/screens/bible/reader/ChapterActionsSheet.tsx
+     2.9 ms  src/screens/bible/reader/renderStackedVerse.tsx
+     2.9 ms  src/screens/bible/reader/ReaderVerseList.tsx
+     2.9 ms  src/screens/bible/reader/ReaderParagraphBlock.tsx
+     1.9 ms  src/hooks/useFontSize.ts
+     1.9 ms  src/screens/bible/reader/useVerseSelection.ts
+     1.8 ms  src/screens/bible/reader/useChapterFeedback.ts
+
+===== touch:end 3 at 1790850264083
+JS busy 25 ms; settles (before a 100 ms idle gap) at 21 ms
+busy per 100 ms: 0:24  200:1
+
+Self time by function:
+     3.4 ms  [GC Young Gen]
+     2.6 ms  (anonymous) node_modules/react-native-reanimated/src/createAnimatedComponent/InlinePropManager.ts:72
+     2.3 ms  propagateParentContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2294
+     2.1 ms  [Native] hermesBuiltinCopyDataProperties
+     2.1 ms  get node_modules/react-native/Libraries/StyleSheet/processColor.js:59
+     1.9 ms  (anonymous) node_modules/react-i18next/dist/es/useTranslation.js:61
+     1.7 ms  flattenStyle node_modules/react-native/Libraries/StyleSheet/flattenStyle.js:23
+     1.3 ms  [HostFunction] makeShareableClone
+     1.3 ms  __callListeners node_modules/react-native/Libraries/Animated/nodes/AnimatedWithChildren.js:72
+     1.3 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+     1.2 ms  [HostFunction] nativeFlushQueueImmediate
+     1.1 ms  __replaceAnimatedNodeWithValues node_modules/react-native/Libraries/Animated/nodes/AnimatedStyle.js:165
+     0.9 ms  props2transform node_modules/react-native-svg/src/lib/extract/extractTransform.ts:92
+     0.7 ms  _objectWithoutPropertiesLoose node_modules/@babel/runtime/helpers/objectWithoutPropertiesLoose.js:1
+     0.5 ms  receiveTouches node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1330
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     2.1 ms  src/screens/bible/reader/useReaderTranslation.ts
+     2.1 ms  src/screens/bible/BibleReaderScreen.tsx
+     1.9 ms  src/screens/bible/reader/ReaderFontSheet.tsx
+     1.3 ms  src/components/ui/Slider.tsx
+
+===== touch:end 4 at 1790850265732
+JS busy 28 ms; settles (before a 100 ms idle gap) at 16 ms
+busy per 100 ms: 0:19  500:9
+
+Self time by function:
+     3.9 ms  [GC Young Gen]
+     3.3 ms  useAudioPortionShare src/screens/bible/reader/useAudioPortionShare.ts:26
+     2.8 ms  checkIfContextChanged node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2340
+     2.1 ms  commitLayoutEffectOnFiber node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7887
+     1.9 ms  createAnimatedStyle node_modules/react-native/Libraries/Animated/nodes/AnimatedStyle.js:27
+     1.9 ms  commitHookEffectListUnmount node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7600
+     1.8 ms  [Native] arrayPrototypeFilter
+     1.8 ms  [Native] hermesBuiltinCopyDataProperties
+     1.6 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+     1.5 ms  (anonymous) src/screens/bible/BibleReaderScreen.tsx:262
+     1.4 ms  isPlainObject node_modules/react-native/Libraries/Animated/nodes/AnimatedObject.js:22
+     1.3 ms  beginWork node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:6711
+     1.0 ms  __getValueWithStaticProps node_modules/react-native/Libraries/Animated/nodes/AnimatedProps.js:140
+     0.6 ms  makeShareableClone node_modules/react-native-reanimated/src/worklets/WorkletsModule/NativeWorklets.ts:34
+     0.5 ms  recursivelyTraversePassiveMountEffects node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:8717
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     4.8 ms  src/screens/bible/BibleReaderScreen.tsx
+     3.3 ms  src/screens/bible/reader/useAudioPortionShare.ts
+     1.8 ms  src/screens/bible/reader/AudioOptionsSheet.tsx
+
+===== touch:end 5 at 1790850267365
+JS busy 35 ms; settles (before a 100 ms idle gap) at 41 ms
+busy per 100 ms: 0:33  900:2
+
+Self time by function:
+     3.4 ms  [HostFunction] nativeFlushQueueImmediate
+     2.7 ms  [Native] hermesBuiltinCopyDataProperties
+     2.5 ms  _isNativeReflectConstruct node_modules/@babel/runtime/helpers/isNativeReflectConstruct.js:1
+     2.2 ms  deepDiffer node_modules/react-native/Libraries/Utilities/differ/deepDiffer.js:28
+     2.0 ms  (anonymous) node_modules/react-native/src/private/animated/createAnimatedPropsHook.js:242
+     2.0 ms  _getPrototypeOf node_modules/@babel/runtime/helpers/getPrototypeOf.js:2
+     2.0 ms  (anonymous) node_modules/react-native/Libraries/Network/XMLHttpRequest.js:515
+     1.7 ms  propagateContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2233
+     1.6 ms  [Native] mapPrototypeGet
+     1.5 ms  get node_modules/react-native-reanimated/src/index.ts:133
+     1.5 ms  [Native] functionPrototypeApply
+     1.5 ms  [HostFunction] executeOnUIRuntimeSync
+     1.5 ms  [GC Young Gen]
+     1.4 ms  [Native] objectPrototypeHasOwnProperty
+     1.4 ms  get node_modules/@react-navigation/native-stack/lib/module/views/NativeStackView.native.js:1
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     1.5 ms  src/components/ui/PressableScale.tsx
+
+===== touch:end 6 at 1790850269015
+JS busy 37 ms; settles (before a 100 ms idle gap) at 54 ms
+busy per 100 ms: 0:37
+
+Self time by function:
+     4.2 ms  [GC Young Gen]
+     2.6 ms  render node_modules/react-native-svg/src/elements/Svg.tsx:95
+     2.4 ms  updateWorkInProgressHook node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3304
+     2.4 ms  InnerScreen node_modules/react-native-screens/src/components/Screen.tsx:61
+     2.4 ms  [Native] arrayPrototypeIndexOf
+     2.3 ms  getResource node_modules/i18next/dist/esm/i18next.js:317
+     2.0 ms  beginWork node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:6711
+     1.9 ms  flatAnimatedNodes node_modules/react-native/Libraries/Animated/nodes/AnimatedObject.js:36
+     1.9 ms  get node_modules/@react-navigation/native/lib/module/index.js:19
+     1.7 ms  propagateContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2233
+     1.5 ms  isSameLocalDay src/services/plans/readingPlanActivity.ts:116
+     1.5 ms  [Native] functionPrototypeBind
+     1.5 ms  [HostFunction] nativeFlushQueueImmediate
+     1.4 ms  useCallback node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:4187
+     1.4 ms  (anonymous) node_modules/@react-navigation/core/lib/module/useEventEmitter.js:42
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     7.3 ms  src/screens/plans/plansHome/usePlansCatalog.ts
+     4.0 ms  src/screens/plans/PlansHomeScreen.tsx
+     4.0 ms  src/screens/plans/plansHome/MyPlansSection.tsx
+     1.5 ms  src/services/plans/readingPlanActivity.ts
+     1.4 ms  src/navigation/screenErrorLayout.ts
+     1.3 ms  src/components/ui/PressableScale.tsx
+     0.8 ms  src/screens/plans/plansHome/plansHomeModel.ts
+     0.8 ms  src/screens/plans/plansHome/usePlansProgress.ts
+     0.5 ms  src/navigation/tabNavigatorParts/useTabScreenOptions.tsx
+
+===== touch:end 7 at 1790850270699
+JS busy 40 ms; settles (before a 100 ms idle gap) at 53 ms
+busy per 100 ms: 0:40
+
+Self time by function:
+     5.5 ms  FiberNode node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:10314
+     2.7 ms  removeAllListeners node_modules/react-native/Libraries/Animated/nodes/AnimatedNode.js:108
+     2.5 ms  [GC Young Gen]
+     2.5 ms  translate node_modules/i18next/dist/esm/i18next.js:509
+     2.4 ms  (anonymous) node_modules/@react-navigation/core/lib/module/SceneView.js:103
+     2.2 ms  resolveClassComponentProps node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:5353
+     2.1 ms  (anonymous) ~src/services/onboarding/countryDisplayName.ts:8
+     2.0 ms  mountWorkInProgressHook node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3291
+     1.9 ms  MoreScreen src/screens/more/MoreScreen.tsx:95
+     1.8 ms  bubbleProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7127
+     1.6 ms  (anonymous) node_modules/i18next/dist/esm/i18next.js:772
+     1.6 ms  __replaceAnimatedNodeWithValues node_modules/react-native/Libraries/Animated/nodes/AnimatedStyle.js:165
+     1.6 ms  propagateContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2233
+     1.6 ms  [Native] arrayPrototypeIndexOf
+     1.5 ms  readContext node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2364
+
+Module evaluation (deepest module factory on the stack):
+     2.1 ms  src/services/onboarding/countryDisplayName.ts
+
+App source files on the stack (inclusive):
+    11.3 ms  src/screens/more/MoreScreen.tsx
+     2.9 ms  src/components/ui/PressableScale.tsx
+     2.1 ms  src/services/onboarding/countryDisplayName.ts
+     1.6 ms  src/navigation/tabNavigatorParts/useTabScreenOptions.tsx
+     0.9 ms  src/hooks/useDisplayFont.ts
+
+===== touch:end 8 at 1790850272382
+JS busy 26 ms; settles (before a 100 ms idle gap) at 26 ms
+busy per 100 ms: 0:26
+
+Self time by function:
+     3.4 ms  getDailyChapterCounts src/services/progress/readingActivity.ts:122
+     2.5 ms  [Native] stringPrototypeLastIndexOf
+     2.3 ms  parseChapterKey src/screens/home/homeReadingStatsModel.ts:56
+     2.0 ms  isRecordEqual node_modules/@react-navigation/core/lib/module/isRecordEqual.js:6
+     1.9 ms  _getPrototypeOf node_modules/@babel/runtime/helpers/getPrototypeOf.js:2
+     1.8 ms  normalizeKeyword node_modules/@react-native/normalize-colors/index.js:326
+     1.8 ms  useFiber node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:4506
+     1.7 ms  createWorkInProgress node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:10345
+     1.6 ms  resolve node_modules/i18next/dist/esm/i18next.js:765
+     1.6 ms  formatLocalDateKey src/services/progress/readingActivity.ts:40
+     1.6 ms  createCompositeKeyForProps node_modules/react-native/src/private/animated/createAnimatedPropsMemoHook.js:155
+     1.5 ms  bubbleProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7127
+     1.3 ms  (anonymous) node_modules/react/cjs/react.production.js:414
+     0.9 ms  propagateParentContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2294
+     0.2 ms  AnimatedComponent node_modules/react-native/Libraries/Animated/createAnimatedComponent.js:106
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     6.4 ms  src/screens/home/HomeScreen.tsx
+     5.0 ms  src/services/progress/readingActivity.ts
+     5.0 ms  src/screens/home/homeReadingHeatmapModel.ts
+     5.0 ms  src/screens/home/HomeReadingHeatmap.tsx
+     4.8 ms  src/screens/home/homeReadingStatsModel.ts
+
+===== touch:end 9 at 1790850274033
+JS busy 28 ms; settles (before a 100 ms idle gap) at 45 ms
+busy per 100 ms: 0:28
+
+Self time by function:
+     3.4 ms  useDescriptors node_modules/@react-navigation/core/lib/module/useDescriptors.js:20
+     3.4 ms  commitPassiveUnmountOnFiber node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:9068
+     2.4 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+     2.4 ms  makeShareableClone node_modules/react-native-reanimated/src/worklets/WorkletsModule/NativeWorklets.ts:34
+     2.3 ms  [Native] regExpPrototypeTest
+     2.3 ms  updateWorkInProgressHook node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:3304
+     1.9 ms  [HostFunction] makeShareableClone
+     1.8 ms  propagateContextChanges node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2233
+     1.6 ms  [Native] objectKeys
+     1.3 ms  useOptionsGetters node_modules/@react-navigation/core/lib/module/useOptionsGetters.js:6
+     1.3 ms  _objectWithoutPropertiesLoose node_modules/@babel/runtime/helpers/objectWithoutPropertiesLoose.js:1
+     1.3 ms  bubbleProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7127
+     1.1 ms  getLastOfPath node_modules/i18next/dist/esm/i18next.js:25
+     0.6 ms  [Native] functionPrototypeSymbolHasInstance
+     0.6 ms  completeWork node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:7151
+
+Module evaluation (deepest module factory on the stack):
+
+App source files on the stack (inclusive):
+     2.4 ms  src/navigation/playerBar/PlayerBarTransport.tsx
+     2.3 ms  src/screens/home/HomeScreen.tsx
+     1.4 ms  src/screens/home/HomePlanShelf.tsx

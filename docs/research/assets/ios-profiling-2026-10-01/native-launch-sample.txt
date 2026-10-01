@@ -1,0 +1,223 @@
+# Native launch, main thread (baseline build 28145240, iPhone 17 simulator, iOS 26.5)
+# macOS 'sample' at 1 ms, attached while the launch was held at +load (EB_LAUNCH_GATE).
+# Counts are samples (~ms of main-thread time, inflated by sample's own suspend/unwind cost).
+# Idle run-loop frames (mach_msg) removed; >= 20 samples, depth <= 45.
+
+ 6307 ..Thread_5470074: Main Thread   DispatchQueue_<multiple>
+ 4715 ...start  (in dyld) + 6992
+ 4715 ....start_sim  (in dyld_sim) + 20
+ 4715 .....main  (in EveryBible) + 64  AppDelegate.swift:6
+ 4698 ......UIApplicationMain  (in UIKitCore) + 120
+ 4697 .......-[UIApplication _run]  (in UIKitCore) + 776
+ 4697 ........GSEventRunModal  (in GraphicsServices) + 116
+ 4697 ........._CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 496
+ 4087 ..........__CFRunLoopRun  (in CoreFoundation) + 1128
+  420 ..........__CFRunLoopRun  (in CoreFoundation) + 1884
+  420 ...........__CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__  (in CoreFoundation) + 12
+  420 ............_dispatch_main_queue_callback_4CF  (in libdispatch.dylib) + 40
+  420 ............._dispatch_main_queue_drain  (in libdispatch.dylib) + 1172
+  347 ..............<deduplicated_symbol>  (in libdispatch.dylib) + 48
+  347 ..............._dispatch_client_callout  (in libdispatch.dylib) + 12
+  347 ................_dispatch_call_block_and_release  (in libdispatch.dylib) + 24
+  339 .................__49-[RCTCxxBridge _prepareModulesWithDispatchGroup:]_block_invoke  (in EveryBible) + 112  RCTCxxBridge.mm:1001
+  339 ..................-[RCTModuleData instance]  (in EveryBible) + 220  RCTModuleData.mm:377
+  339 ...................RCTUnsafeExecuteOnMainQueueSyncWithError  (in EveryBible) + 76  RCTUtils.mm:316
+  339 ....................-[RCTModuleData setUpInstanceAndBridge:]  (in EveryBible) + 160  RCTModuleData.mm:192
+  339 .....................-[RCTModuleData setBridgeForInstance]  (in EveryBible) + 132  RCTModuleData.mm:243
+  339 ......................-[NSObject(NSKeyValueCoding) setValue:forKey:]  (in Foundation) + 268
+  285 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 88  EXNativeModulesProxy.mm:192
+  285 ........................-[ExpoBridgeModule legacyProxyDidSetBridge:legacyModuleRegistry:]  (in EveryBible) + 84  ExpoBridgeModule.mm:71
+  285 .........................@objc AppContext.useModulesProvider(_:)  (in EveryBible) + 64  /<compiler-generated>:156
+  285 ..........................specialized AppContext.useModulesProvider(_:)  (in EveryBible) + 196  AppContext.swift:157
+  284 ...........................specialized ModuleRegistry.register(module:preventModuleOverriding:)  (in EveryBible) + 120  ModuleRegistry.swift:39
+  284 ............................specialized ModuleHolder.init(appContext:module:)  (in EveryBible) + 124  ModuleHolder.swift:42
+   20 .............................FileSystemLegacyModule.definition()  (in EveryBible) + 3116  /<compiler-generated>:0
+   20 ..............................static ModuleDefinitionBuilder.buildBlock(_:)  (in EveryBible) + 52  ModuleDefinitionBuilder.swift:8
+   33 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 208  EXNativeModulesProxy.mm:201
+   33 ........................-[EXNativeModulesProxy registerExpoModulesInBridge:]  (in EveryBible) + 812  EXNativeModulesProxy.mm:304
+   33 .........................-[EXModuleRegistry initialize]  (in EveryBible) + 152  EXModuleRegistry.m:97
+   33 ..........................-[EXAV setModuleRegistry:]  (in EveryBible) + 240  EXAV.m:155
+   33 ...........................-[EXAudioSessionManager moduleDidForeground:]  (in EveryBible) + 136  EXAudioSessionManager.m:186
+   33 ............................-[EXAudioSessionManager _updateSessionConfiguration]  (in EveryBible) + 200  EXAudioSessionManager.m:239
+   33 .............................-[AVAudioSession setCategory:withOptions:error:]  (in AudioSession) + 64
+   32 ..............................avas::client::SessionCore::setCategory(NSString*, NSString*, AVAudioSessionRouteSharingPolicy, unsigned long)  (in AudioSession) + 484
+   32 ...............................avas::client::SessionCore::SetBatchPropertiesMX(NSDictionary<NSString*, id<NSSecureCoding>>*) const  (in AudioSession) + 88
+   32 ................................avas::client::SessionCore::SetBatchProperties(NSDictionary<NSString*, id<NSSecureCoding>>*, NSArray<NSDictionary<NSString*, NSNumber*>*>* __autoreleasing*, avas
+   32 .................................avas::client::SimulatorState::setProperty(NSString*, id<NSSecureCoding>)  (in AudioSession) + 120
+   32 ..................................avas::client::SimulatorVolumeButtonMonitor::Instance()  (in AudioSession) + 76
+   32 ...................................avas::client::SimulatorVolumeButtonMonitor::SimulatorVolumeButtonMonitor()  (in AudioSession) + 204
+   32 ....................................avas::client::SimulatorDeviceSettings::initAndSetCallbackForHardwareChanges(void () block_pointer)  (in AudioSession) + 156
+   32 .....................................avas::client::SimulatorDeviceSettings::SimulatorReadHardwareSettingsFromURL_Priv(__CFURL const*)  (in AudioSession) + 284
+   32 ......................................avas::client::SimulatorDeviceSettings::GetDeviceIDFromUID_Priv(__CFString const*)  (in AudioSession) + 88
+   32 .......................................AudioObjectGetPropertyData  (in CoreAudio) + 108
+   31 ........................................HALSystem::CheckOutInstance()  (in CoreAudio) + 188
+   23 .........................................HALSystem::InitializeDevices()  (in CoreAudio) + 72
+   23 ..........................................HALC_ProxyObjectMap::CopyObjectByObjectID(unsigned int)  (in CoreAudio) + 172
+   23 ...........................................HALC_ProxyObjectMap::_CreateSystemObject()  (in CoreAudio) + 84
+   22 ............................................HALC_ProxySystem::HALC_ProxySystem()  (in CoreAudio) + 840
+   21 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 64  EXNativeModulesProxy.mm:191
+   21 ........................-[RCTCxxBridge moduleForClass:]  (in EveryBible) + 52  RCTCxxBridge.mm:683
+   21 .........................-[RCTCxxBridge moduleForName:lazilyLoadIfNecessary:]  (in EveryBible) + 212  RCTCxxBridge.mm:639
+   21 ..........................-[RCTModuleData instance]  (in EveryBible) + 236  RCTModuleData.mm:382
+   73 ..............<deduplicated_symbol>  (in libdispatch.dylib) + 24
+   73 ..............._dispatch_client_callout  (in libdispatch.dylib) + 12
+   72 ................_dispatch_call_block_and_release  (in libdispatch.dylib) + 24
+   37 .................__44-[RCTUIManager flushUIBlocksWithCompletion:]_block_invoke.180  (in EveryBible) + 28  RCTUIManager.mm:1281
+   37 ..................__44-[RCTUIManager flushUIBlocksWithCompletion:]_block_invoke  (in EveryBible) + 208  RCTUIManager.mm:1261
+  174 ..........__CFRunLoopRun  (in CoreFoundation) + 760
+  174 ...........__CFRunLoopDoSources0  (in CoreFoundation) + 220
+  174 ............__CFRunLoopDoSource0  (in CoreFoundation) + 168
+  174 .............__CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__  (in CoreFoundation) + 24
+  132 ..............UC::DriverCore::continueProcessing()  (in UpdateCycle) + 80
+  132 ...............schedulerStepScheduledMainSectionContinue  (in UIKitCore) + 56
+  132 ................_UIUpdateSequenceRunNext  (in UIKitCore) + 120
+  129 .................__setupUpdateSequence_block_invoke_2  (in UIKitCore) + 372
+  129 .................._UIApplicationFlushCATransaction  (in UIKitCore) + 48
+  129 ...................CA::Transaction::flush_as_runloop_observer(bool)  (in QuartzCore) + 68
+  129 ....................CA::Transaction::commit()  (in QuartzCore) + 632
+   69 .....................CA::Context::commit_transaction(CA::Transaction*, double, double*)  (in QuartzCore) + 572
+   69 ......................CA::Layer::prepare_commit(CA::Transaction*)  (in QuartzCore) + 264
+   69 .......................CA::Layer::prepare_contents(CALayer*, CA::Transaction*)  (in QuartzCore) + 216
+   69 ........................CA::Render::prepare_image(CGImage*, CGColorSpace*, unsigned int, double)  (in QuartzCore) + 20
+   53 .........................CA::Render::copy_image(CGImage*, CGColorSpace*, unsigned int, double, double)  (in QuartzCore) + 1376
+   53 ..........................CA::Render::(anonymous namespace)::create_image_by_rendering(CGImage*, CGColorSpace*, unsigned int, double, CA::Render::ImageCopyType)  (in QuartzCore) + 868
+   53 ...........................CGContextDrawImage  (in CoreGraphics) + 536
+   53 ............................CGContextDrawImageWithOptions  (in CoreGraphics) + 1088
+   50 .............................ripc_DrawImage  (in CoreGraphics) + 752
+   50 ..............................ripc_AcquireRIPImageData  (in CoreGraphics) + 836
+   50 ...............................CGSImageDataLock  (in CoreGraphics) + 1164
+   38 ................................img_data_lock  (in CoreGraphics) + 7864
+   38 .................................img_raw_read  (in CoreGraphics) + 1084
+   38 ..................................get_chunks_direct  (in CoreGraphics) + 216
+   38 ...................................CGDataProviderDirectGetBytesAtPositionInternal  (in CoreGraphics) + 320
+   38 ....................................provider_for_destination_get_bytes_at_position_inner  (in CoreGraphics) + 1624
+   38 .....................................CGColorTransformConvertUsingCMSConverter  (in CoreGraphics) + 316
+   37 ......................................convert_indexed  (in CoreGraphics) + 2700,2312,...  [0x18d1d95f4,0x18d1d9470,...]
+   55 .....................CA::Context::commit_transaction(CA::Transaction*, double, double*)  (in QuartzCore) + 560
+   30 ......................CA::Layer::layout_and_display_if_needed(CA::Transaction*)  (in QuartzCore) + 464
+   25 ......................CA::Layer::layout_and_display_if_needed(CA::Transaction*)  (in QuartzCore) + 156
+   25 .......................CA::Layer::update_if_needed_(CA::Transaction*, CA::LayerUpdateReason)  (in QuartzCore) + 600
+   22 ........................CA::Layer::perform_update_(CA::Layer*, CALayer*, unsigned int, CA::LayerUpdateReason, CA::Transaction*)  (in QuartzCore) + 456
+   21 .........................-[UIView(CALayerDelegate) layoutSublayersOfLayer:]  (in UIKitCore) + 2648
+   21 ..........................???  (in UIKitCore)  load address 0x185289000 + 0x3c511c
+   21 ...........................???  (in UIKitCore)  load address 0x185289000 + 0x3c4d74
+   42 ..............BSServiceMainRunLoopSourceHandler  (in BoardServices) + 180
+   42 ...............__BSSERVICEMAINRUNLOOPQUEUE_IS_CALLING_OUT_TO_A_BLOCK__  (in BoardServices) + 44
+   42 ................_dispatch_block_invoke_direct  (in libdispatch.dylib) + 376
+   42 ................._dispatch_client_callout  (in libdispatch.dylib) + 12
+   38 ..................-[FBSWorkspace _calloutQueue_executeCalloutFromSource:withBlock:]  (in FrontBoardServices) + 168
+   34 ...................__92-[FBSWorkspaceScenesClient createSceneWithIdentity:parameters:transitionContext:completion:]_block_invoke_2  (in FrontBoardServices) + 192
+   33 ....................-[FBSWorkspaceScenesClient _callOutQueue_sendDidCreateForScene:transitionContext:completion:]  (in FrontBoardServices) + 380
+   33 .....................-[FBSWorkspace _calloutQueue_executeCalloutFromSource:withBlock:]  (in FrontBoardServices) + 168
+   33 ......................__93-[FBSWorkspaceScenesClient _callOutQueue_sendDidCreateForScene:transitionContext:completion:]_block_invoke.281  (in FrontBoardServices) + 220
+   33 .......................-[FBSScene _callOutQueue_didCreateWithTransitionContext:alternativeCreationCallout:completion:]  (in FrontBoardServices) + 404
+   33 ........................-[FBSScene _callOutQueue_maybeCoalesceClientSettingsUpdates:]  (in FrontBoardServices) + 120
+   33 .........................__95-[FBSScene _callOutQueue_didCreateWithTransitionContext:alternativeCreationCallout:completion:]_block_invoke  (in FrontBoardServices) + 304
+   33 ..........................-[UIApplicationSceneClientAgent scene:didInitializeWithEvent:completion:]  (in UIKitCore) + 276
+   30 ...........................-[UIApplication workspace:didCreateScene:withTransitionContext:completion:]  (in UIKitCore) + 472
+   30 ............................-[UIScene scene:didUpdateWithDiff:transitionContext:completion:]  (in UIKitCore) + 196
+   30 .............................-[UIScene _emitSceneSettingsUpdateResponseForCompletion:afterSceneUpdateWork:]  (in UIKitCore) + 204
+   30 ..............................__64-[UIScene scene:didUpdateWithDiff:transitionContext:completion:]_block_invoke.190  (in UIKitCore) + 644
+   28 ...............................-[_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction _performActionsForUIScene:withUpdatedFBSScene:settingsDiff:fromSettings:transitionCon
+   28 ................................_UISceneSettingsDiffActionPerformChangesWithTransitionContextAndCompletion  (in UIKitCore) + 196
+   28 .................................+[BSAnimationSettings(UIKit) tryAnimatingWithSettings:fromCurrentState:actions:completion:]  (in UIKitCore) + 652
+   28 ..................................__186-[_UIWindowSceneFBSSceneTransitionContextDrivenLifecycleSettingsDiffAction _performActionsForUIScene:withUpdatedFBSScene:settingsDiff:fromSettings:transiti
+   28 ...................................-[_UISceneLifecycleMultiplexer uiScene:transitionedFromState:withTransitionContext:]  (in UIKitCore) + 240
+   28 ....................................-[_UISceneLifecycleMultiplexer _evalTransitionToSettings:fromSettings:forceExit:withTransitionStore:]  (in UIKitCore) + 560
+   28 .....................................-[_UISceneLifecycleMultiplexer _performBlock:withApplicationOfDeactivationReasons:fromReasons:]  (in UIKitCore) + 204
+   28 ......................................__101-[_UISceneLifecycleMultiplexer _evalTransitionToSettings:fromSettings:forceExit:withTransitionStore:]_block_invoke  (in UIKitCore) + 200
+   28 ......................................._UIScenePerformActionsWithLifecycleActionMask  (in UIKitCore) + 96
+   28 ........................................-[_UISceneLifecycleMultiplexer completeApplicationLaunchWithFBSScene:transitionContext:]  (in UIKitCore) + 88
+   28 .........................................-[UIApplication _runWithMainScene:transitionContext:completion:]  (in UIKitCore) + 832
+   28 ..........................................-[UIApplication _callInitializationDelegatesWithActions:forScene:payload:fromOriginatingProcess:]  (in UIKitCore) + 3156
+   27 ...........................................-[UIApplication _handleDelegateCallbacksWithOptions:isSuspended:restoreState:]  (in UIKitCore) + 332
+   27 ............................................@objc AppDelegate.application(_:didFinishLaunchingWithOptions:)  (in EveryBible) + 140  /<compiler-generated>:0
+   23 .............................................AppDelegate.application(_:didFinishLaunchingWithOptions:)  (in EveryBible) + 492  AppDelegate.swift:26
+ 1592 ...start  (in dyld) + 6904
+ 1592 ....dyld4::start(dyld4::KernelArgs*, void*, void*, unsigned long long)::$_1::operator()() const  (in dyld) + 320
+ 1592 .....dyld4::prepare(dyld4::APIs&, mach_o::UnsafeHeader const*)  (in dyld) + 340
+ 1592 ......dyld4::prepareSim(dyld4::RuntimeState&, char const*)  (in dyld) + 1300
+ 1592 ......._dyld_sim_prepare  (in dyld_sim) + 856
+ 1591 ........dyld4::prepare(dyld4::APIs&, mach_o::UnsafeHeader const*)  (in dyld_sim) + 2308
+ 1591 .........dyld4::Loader::runInitializersBottomUpPlusUpwardLinks(dyld4::RuntimeState&) const  (in dyld_sim) + 124
+ 1591 ..........dyld4::Loader::runInitializersBottomUp(dyld4::RuntimeState&, lsl::Vector<dyld4::Loader const*>&, lsl::Vector<dyld4::Loader const*>&) const  (in dyld_sim) + 332
+ 1591 ...........dyld4::RuntimeState::notifyObjCInit(dyld4::Loader const*)  (in dyld_sim) + 248
+ 1590 ............load_images  (in libobjc.A.dylib) + 636
+ 1507 .............+[EBHermesProfiler load]  (in EveryBible) + 152
+ 1507 ..............usleep  (in libsystem_c.dylib) + 64
+ 1507 ...............nanosleep  (in libsystem_c.dylib) + 216
+ 1506 ................__semwait_signal  (in libsystem_kernel.dylib) + 8
+   61 .............+[EBHermesProfiler load]  (in EveryBible) + 140
+   60 ..............access  (in libsystem_kernel.dylib) + 8
+
+# Expo module definitions built during EXNativeModulesProxy setBridge (samples per module)
+total 303
+  48 SQLiteModule
+  34 FileSystemModule
+  21 AppleAuthenticationModule
+  20 FileSystemLegacyModule
+  20 ClipboardModule
+  18 GlassEffectModule
+  17 ExpoFetchModule
+  10 SecureStoreModule
+  10 VideoViewModule
+  10 CoreModule
+   9 CryptoModule
+   9 JSLoggerModule
+   8 UpdatesModule
+   8 LinearGradientModule
+   6 ApplicationModule
+   6 BlurViewModule
+   5 HapticsModule
+   5 CategoriesModule
+   4 ImagePickerModule
+   4 SchedulerModule
+   3 FontLoaderModule
+   3 PermissionsModule
+   3 WebBrowserModule
+   3 EmitterModule
+   2 ConstantsModule
+   2 HandlerModule
+   2 PresentationModule
+   2 ScreenCaptureModule
+   2 SplashScreenModule
+   2 FontUtilsModule
+   1 AssetModule
+   1 ExpoLinkingModule
+   1 KeepAwakeModule
+   1 LocalizationModule
+   1 ServerRegistrationModule
+   1 SharingModule
+   1 BadgeModule
+
+# Top of stack across all threads (sample's own summary), first 30 rows
+        __workq_kernreturn  (in libsystem_kernel.dylib)        64902
+        mach_msg2_trap  (in libsystem_kernel.dylib)        13882
+        semaphore_wait_trap  (in libsystem_kernel.dylib)        11877
+        __psynch_cvwait  (in libsystem_kernel.dylib)        8978
+        __semwait_signal  (in libsystem_kernel.dylib)        1506
+        __ulock_wait  (in libsystem_kernel.dylib)        961
+        swift_conformsToProtocolMaybeInstantiateSuperclasses(swift::TargetMetadata<swift::InProcess> const*, swift::TargetProtocolDescriptor<swift::InProcess> const*, bool)::$_2::operator()((anonymous namespace)::ConformanceSection const&) const::'lambda'(swift::TargetProtocolConformanceDescriptor<swift::InProcess> const&)::operator()(swift::TargetProtocolConformanceDescriptor<swift::InProcess> const&) const  (in libswiftCore.dylib)        529
+        semaphore_timedwait_trap  (in libsystem_kernel.dylib)        325
+        access  (in libsystem_kernel.dylib)        60
+        __ulock_wait2  (in libsystem_kernel.dylib)        45
+        hermes::vm::Interpreter::interpretFunction<false, false>(hermes::vm::Runtime&, hermes::vm::InterpreterState&)  (in hermes)        38
+        convert_indexed  (in CoreGraphics)        37
+        start_wqthread  (in libsystem_pthread.dylib)        26
+        __open  (in libsystem_kernel.dylib)        17
+        mach_msg2_trap  (in dyld)        15
+        _platform_memmove  (in libsystem_platform.dylib)        14
+        swift_conformsToProtocolMaybeInstantiateSuperclasses(swift::TargetMetadata<swift::InProcess> const*, swift::TargetProtocolDescriptor<swift::InProcess> const*, bool)  (in libswiftCore.dylib)        14
+        getContextDescriptor(swift::TargetMetadata<swift::InProcess> const*)  (in libswiftCore.dylib)        9
+        <deduplicated_symbol>  (in dyld)        8
+        __bzero  (in libsystem_platform.dylib)        8
+        argb32_shade_axial_RGB  (in CoreGraphics)        8
+        hermes::vm::DictPropertyMap::lookupEntryFor(hermes::vm::DictPropertyMap*, hermes::vm::SymbolID)  (in hermes)        8
+        objc_msgSend  (in libobjc.A.dylib)        8
+        aj_prog_decode_AC_refine  (in AppleJPEG)        7
+        inflate  (in libz.1.dylib)        7
+        madvise  (in libsystem_kernel.dylib)        7
+        swift::_contextDescriptorMatchesMangling(swift::TargetContextDescriptor<swift::InProcess> const*, swift::Demangle::__runtime::Node*)  (in libswiftCore.dylib)        7
+        _platform_memset  (in libsystem_platform.dylib)        6
+        invocation function for block in mach_o::UnsafeHeader::forEachSegment(void (mach_o::UnsafeHeader::SegmentInfo const&, bool&) block_pointer) const  (in dyld_sim)        6
+        <deduplicated_symbol>  (in dyld_sim)        5

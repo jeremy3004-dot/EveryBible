@@ -1,0 +1,81 @@
+# Hermes sampling profile (1 kHz) of a cold start to Home, release build m-own, heavy-reader data.
+marks (ms from process start): native:load@359  native:jsWillStartLoading@399  native:didFinishLaunching@415  native:jsWillStartExecuting@727  App:module-start@757  native:jsDidLoad@757  native:contentDidAppear@758  home:first-layout@832  tab:focus(Home)@850  Home:interaction-ready@850  rctpl:ScriptDownload(dur=0.0)@400  rctpl:ScriptExecution(dur=30.0)@727  rctpl:NativeModuleInit(dur=0.0)@399  rctpl:NativeModuleMainThread(value=299.0)@3907  rctpl:NativeModulePrepareConfig(dur=0.0)@400  rctpl:NativeModuleMainThreadUsesCount(value=14.0)@3907  rctpl:NativeModuleSetup(dur=0.0)@1196  rctpl:BridgeStartup(dur=358.0)@399  rctpl:RootViewTTI(dur=359.0)@399  rctpl:BundleSize(value=11120016.0)@3908  rctpl:InitReactRuntime(dur=358.0)@399
+
+===== m-own-cold-1.json
+JS busy 144 ms; settles (before a 100 ms idle gap) at 887 ms
+busy per 100 ms: 700:62  800:70  1100:2  1500:11
+
+Self time by function:
+    11.4 ms  [GC Young Gen]
+     4.9 ms  [HostFunction] nativeCallSyncHook
+     4.0 ms  [Native] objectEntries
+     3.9 ms  [HostFunction] __native_constructor__
+     3.7 ms  [HostFunction] fn
+     3.6 ms  metroRequire node_modules/expo/node_modules/@expo/cli/build/metro-require/require.js:53
+     3.5 ms  publishRegistrationName node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1073
+     3.4 ms  jsxProd node_modules/react/cjs/react-jsx-runtime.production.js:14
+     3.3 ms  (anonymous) node_modules/whatwg-fetch/dist/fetch.umd.js:5
+     3.3 ms  requireModule node_modules/react-native/Libraries/TurboModule/TurboModuleRegistry.js:19
+     3.1 ms  [Native] datePrototypeGetterHelper
+     3.0 ms  (anonymous) ~node_modules/expo-sqlite/build/index.js:4
+     3.0 ms  diffProperties node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:1629
+     2.9 ms  (anonymous) node_modules/react/cjs/react.production.js:266
+     2.8 ms  [Native] objectKeys
+     2.7 ms  [Native] objectGetOwnPropertyDescriptors
+     2.6 ms  processUpdateQueue node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:2997
+     2.5 ms  (anonymous) node_modules/react-native-reanimated/src/createAnimatedComponent/InlinePropManager.ts:99
+     2.4 ms  _objectWithoutPropertiesLoose node_modules/@babel/runtime/helpers/objectWithoutPropertiesLoose.js:1
+     2.4 ms  (anonymous) node_modules/lucide-react-native/dist/esm/Icon.mjs:49
+     2.3 ms  [HostFunction] executeOnUIRuntimeSync
+     2.3 ms  define node_modules/expo/node_modules/@expo/cli/build/metro-require/require.js:23
+     2.2 ms  reconcileChildFibersImpl node_modules/react-native/Libraries/Renderer/implementations/ReactNativeRenderer-prod.js:4963
+     2.2 ms  _slicedToArray node_modules/@babel/runtime/helpers/slicedToArray.js:5
+     2.1 ms  (anonymous) node_modules/expo-modules-core/src/NativeModulesProxy.native.ts:28
+
+Module evaluation (deepest module factory on the stack):
+     4.9 ms  node_modules/zustand/middleware.js
+     3.7 ms  src/utils/assertDefined.ts
+     3.6 ms  node_modules/@react-native-community/netinfo/src/internal/types.ts
+     3.5 ms  node_modules/react-native/Libraries/Renderer/shims/ReactNative.js
+     3.3 ms  node_modules/react-native/Libraries/Network/fetch.js
+     3.0 ms  node_modules/expo-sqlite/build/index.js
+     2.9 ms  node_modules/react-native/Libraries/Animated/components/AnimatedFlatList.js
+     2.8 ms  src/services/plans/readingPlan/planCatalog.ts
+     2.7 ms  node_modules/expo-modules-core/src/requireNativeModule.ts
+     2.3 ms  node_modules/react-native-reanimated/src/runtimes.ts
+     2.1 ms  node_modules/react-native/Libraries/ReactNative/NativeUIManager.js
+     1.8 ms  src/stores/readingPlans/rhythmSlice.ts
+     1.8 ms  node_modules/react-native-reanimated/src/createAnimatedComponent/createAnimatedComponent.tsx
+     1.6 ms  node_modules/is-arrayish/index.js
+     1.5 ms  node_modules/react-native-svg/src/elements/TextPath.tsx
+     1.2 ms  node_modules/@supabase/auth-js/dist/main/AuthClient.js
+     1.2 ms  node_modules/react-native-screens/src/index.tsx
+     1.2 ms  node_modules/react-native/Libraries/NativeComponent/NativeComponentRegistryUnstable.js
+     0.2 ms  node_modules/react-native-gesture-handler/src/handlers/FlingGestureHandler.ts
+
+App source files on the stack (inclusive):
+    30.7 ms  src/screens/home/HomeScreen.tsx
+    14.0 ms  src/screens/home/homeVerseOfDay.ts
+    13.2 ms  src/stores/bible/translationCatalogSlice.ts
+    11.4 ms  src/services/translations/runtimeCatalogRefresh.ts
+     7.4 ms  src/services/progress/readingActivity.ts
+     5.6 ms  src/screens/home/homeReadingStatsModel.ts
+     5.1 ms  src/services/startup/startupService.ts
+     4.3 ms  src/screens/home/homeReadingHeatmapModel.ts
+     4.3 ms  src/screens/home/HomeReadingHeatmap.tsx
+     3.7 ms  src/stores/progressStore.ts
+     3.7 ms  src/navigation/HomeStack.tsx
+     3.3 ms  src/services/supabase/client.ts
+     3.3 ms  src/services/supabase/lazyClient.ts
+     3.3 ms  src/stores/authStore.ts
+     3.2 ms  src/stores/sanitizers/progressState.ts
+     2.8 ms  src/screens/plans/plansHome/PlanCover.tsx
+     2.8 ms  src/data/readingPlans.generated.ts
+     2.8 ms  src/services/plans/readingPlan/planCatalog.ts
+     2.7 ms  src/navigation/playerBar/PlayerBar.tsx
+     1.9 ms  src/components/ui/PressableScale.tsx
+     1.8 ms  src/stores/sanitizers/bibleState.ts
+     1.8 ms  src/stores/bibleStore.ts
+     1.6 ms  src/screens/home/HomePlanShelf.tsx
+     1.3 ms  src/services/bible/bibleDatabase.ts
+     1.2 ms  src/services/plans/churchCalendar.ts
