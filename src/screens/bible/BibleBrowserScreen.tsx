@@ -235,7 +235,11 @@ export function BibleBrowserScreen() {
           onPressResult={handleSearchResultPress}
         />
       ) : searchIntent.kind === 'reference' ? (
-        <ReferenceJumpCard target={searchIntent.target} onPress={handleReferencePress} />
+        <ReferenceJumpCard
+          target={searchIntent.target}
+          translationId={currentTranslation}
+          onPress={handleReferencePress}
+        />
       ) : (
         <BibleBookList
           listRef={expansion.listRef}
