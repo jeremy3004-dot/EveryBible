@@ -29,7 +29,9 @@ export interface ProgressBarProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+// Math.min/max pass NaN through, and a `done / total` of an empty list is 0 / 0: that
+// reached the fill as a "NaN%" width and the screen reader as a NaN percentage.
+const clamp01 = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
 
 const BAR_HEIGHT = 4;
 const BAR_RADIUS = 2;
