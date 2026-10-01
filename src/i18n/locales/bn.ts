@@ -1544,6 +1544,7 @@ export const bn = {
     unpin: 'তালিকা থেকে সরান',
     hide: 'আমার অনুবাদ থেকে লুকান',
     title: 'বাইবেল অনুবাদ',
+    offlineNotice: 'আপনি অফলাইনে আছেন। ডাউনলোড করা বাইবেল এখনও পাওয়া যাবে।',
     languagePreference: 'ভাষার পছন্দ',
     myTranslations: 'আমার অনুবাদ',
     primary: 'প্রাথমিক অনুবাদ',

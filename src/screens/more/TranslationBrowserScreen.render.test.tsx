@@ -20,6 +20,17 @@ mockModule(mock, sourcePath('services/translations/runtimeCatalogRefresh.ts'), {
   },
 });
 
+// NetInfo, as the offline hook hears it.
+const network = { offline: false, listeners: new Set<(offline: boolean) => void>() };
+mockModule(mock, sourcePath('utils/connectivity.ts'), {
+  isDeviceOffline: async () => network.offline,
+  subscribeToDeviceOffline: (listener: (offline: boolean) => void) => {
+    network.listeners.add(listener);
+    listener(network.offline);
+    return () => network.listeners.delete(listener);
+  },
+});
+
 // The shared picker renders as a host element carrying its props.
 mockModule(mock, sourcePath('screens/bible/TranslationPickerList.tsx'), {
   TranslationPickerList: (props: Record<string, unknown>) =>
@@ -48,6 +59,8 @@ const t = (key: string) => harness.i18n.t(key);
 afterEach(() => {
   refresh.calls = 0;
   bypasses.length = 0;
+  network.offline = false;
+  network.listeners.clear();
 });
 
 async function renderBrowser() {
@@ -112,4 +125,27 @@ test('opening the screen never fetches or applies a Supabase-only catalog itself
 
   assert.deepEqual(bypasses, []);
   assert.equal(refresh.calls, 1);
+});
+
+test('offline, a banner says so and that downloaded Bibles are still available', async () => {
+  network.offline = true;
+  const view = await renderBrowser();
+  await finishRefresh(view);
+
+  assert.ok(view.getByText(t('translations.offlineNotice')));
+  assert.equal(view.queryAllByType('TranslationPickerList').length, 1, 'the picker stays usable');
+});
+
+test('online, there is no offline banner, and it appears and clears as the connection changes', async () => {
+  const view = await renderBrowser();
+  await finishRefresh(view);
+  assert.equal(view.queryByText(t('translations.offlineNotice')), null);
+
+  for (const listener of network.listeners) listener(true);
+  await view.flush();
+  assert.ok(view.getByText(t('translations.offlineNotice')));
+
+  for (const listener of network.listeners) listener(false);
+  await view.flush();
+  assert.equal(view.queryByText(t('translations.offlineNotice')), null);
 });

@@ -1556,6 +1556,7 @@ export const pa = {
     unpin: 'ਪਿੰਨ ਹਟਾਓ',
     hide: 'ਮੇਰੇ ਅਨੁਵਾਦਾਂ ਤੋਂ ਲੁਕਾਓ',
     title: 'ਬਾਈਬਲ ਅਨੁਵਾਦ',
+    offlineNotice: 'ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਡਾਊਨਲੋਡ ਕੀਤੀਆਂ ਬਾਈਬਲਾਂ ਅਜੇ ਵੀ ਉਪਲਬਧ ਹਨ।',
     languagePreference: 'ਭਾਸ਼ਾ ਦੀ ਤਰਜੀਹ',
     myTranslations: 'ਮੇਰੇ ਅਨੁਵਾਦ',
     primary: 'ਮੁੱਖ ਅਨੁਵਾਦ',

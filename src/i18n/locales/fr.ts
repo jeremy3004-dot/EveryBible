@@ -1984,6 +1984,7 @@ export const fr = {
     unpin: 'Retirer de mes traductions',
     hide: 'Masquer de mes traductions',
     title: 'Traductions bibliques',
+    offlineNotice: 'Vous êtes hors ligne. Les Bibles téléchargées restent disponibles.',
     languagePreference: 'Préférence linguistique',
     myTranslations: 'Mes traductions',
     primary: 'Traduction principale',

@@ -1918,6 +1918,7 @@ export const vi = {
     unpin: 'Bỏ ghim',
     hide: 'Ẩn khỏi Bản dịch của tôi',
     title: 'Bản dịch Kinh Thánh',
+    offlineNotice: 'Bạn đang ngoại tuyến. Các bản Kinh Thánh đã tải xuống vẫn dùng được.',
     languagePreference: 'Tùy chọn ngôn ngữ',
     myTranslations: 'Bản dịch của tôi',
     primary: 'Bản dịch chính',

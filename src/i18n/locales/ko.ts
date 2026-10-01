@@ -1854,6 +1854,7 @@ export const ko = {
     unpin: '고정 해제',
     hide: '내 번역본에서 숨기기',
     title: '성경 번역본',
+    offlineNotice: '오프라인 상태입니다. 다운로드한 성경은 계속 사용할 수 있습니다.',
     languagePreference: '언어 설정',
     myTranslations: '내 번역본',
     primary: '기본 번역본',

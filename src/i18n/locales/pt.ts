@@ -1954,6 +1954,7 @@ export const pt = {
     unpin: 'Remover das minhas traduções',
     hide: 'Ocultar das minhas traduções',
     title: 'Traduções da Bíblia',
+    offlineNotice: 'Você está off-line. As Bíblias baixadas continuam disponíveis.',
     languagePreference: 'Preferência de idioma',
     myTranslations: 'Minhas traduções',
     primary: 'Tradução principal',

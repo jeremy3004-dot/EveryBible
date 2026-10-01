@@ -1925,6 +1925,7 @@ export const id = {
     unpin: 'Lepas sematan',
     hide: 'Sembunyikan dari Terjemahan Saya',
     title: 'Terjemahan Alkitab',
+    offlineNotice: 'Anda sedang offline. Alkitab yang telah diunduh tetap tersedia.',
     languagePreference: 'Preferensi bahasa',
     myTranslations: 'Terjemahan Saya',
     primary: 'Terjemahan utama',

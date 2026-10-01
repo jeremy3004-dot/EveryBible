@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { layout, spacing, typography } from '../../design/system';
+import { useDeviceOffline } from '../../hooks/useDeviceOffline';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { refreshRuntimeCatalog } from '../../services/translations/runtimeCatalogRefresh';
 import type { MoreStackParamList } from '../../navigation/types';
@@ -21,6 +22,7 @@ export function TranslationBrowserScreen() {
   // Pushed tab-stack screen: the shared picker list has no bottom-inset story of
   // its own, so end it above the floating tab capsule and the Android nav bar.
   const { contentClearance } = useTabBarHeight();
+  const offline = useDeviceOffline();
 
   // The picker renders from the store at once, as the reader's picker sheet does: offline
   // or on a stalled network the refresh can take a whole request timeout, and the
@@ -58,6 +60,21 @@ export function TranslationBrowserScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
+      {offline ? (
+        <View
+          style={[
+            styles.offlineBanner,
+            { backgroundColor: colors.cardBackground, borderBottomColor: colors.cardBorder },
+          ]}
+          accessibilityRole="alert"
+        >
+          <Ionicons name="cloud-offline-outline" size={18} color={colors.secondaryText} />
+          <Text style={[styles.offlineText, { color: colors.secondaryText }]}>
+            {t('translations.offlineNotice')}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={[styles.listContainer, { paddingBottom: contentClearance }]}>
         <TranslationPickerList onTranslationActivated={() => navigation.goBack()} />
       </View>
@@ -86,6 +103,18 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 32,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: layout.screenPadding,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  offlineText: {
+    ...typography.caption,
+    flex: 1,
   },
   listContainer: {
     flex: 1,
