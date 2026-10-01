@@ -120,26 +120,6 @@
   border-radius: 50%;
   background: hsl(var(--primary));
 }
-.pa-collection-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid hsl(var(--border));
-}
-.pa-collection-stats > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.pa-collection-stats strong {
-  font: 500 24px/1.2 var(--font-display);
-  letter-spacing: -0.03em;
-}
-.pa-collection-stats span {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
 .pa-map-hint {
   font: 12px/1.5 var(--font-mono);
   color: hsl(var(--text-faint));
@@ -1117,12 +1097,38 @@
 #top {
   padding-top: 0;
 }
+/* Story mode: the section is as tall as the story; the stage holding the map
+   stays pinned while the steps scroll over it. Explore mode lifts the stage
+   into a full-screen layer under the header. */
 .public-atlas {
-  height: 100svh;
-  min-height: 720px;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  isolation: auto;
 }
-/* Scrim: keeps the headline legible over dense dot fields without boxing it in a card. */
-.public-atlas::after {
+.pa-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  isolation: isolate;
+  background: hsl(var(--background));
+}
+/* The stage leaves the page flow while it is full-screen; hold its place so
+   the story underneath does not shift. */
+.public-atlas[data-mode='explore'] {
+  padding-top: max(100svh, 560px);
+}
+.public-atlas[data-mode='explore'] .pa-stage {
+  position: fixed;
+  inset: 0;
+  height: auto;
+  min-height: 0;
+  z-index: 150;
+}
+/* Scrim: keeps the story copy legible over dense dot fields without boxing it in a card. */
+.public-atlas[data-mode='story'] .pa-stage::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1131,22 +1137,18 @@
   background:
     linear-gradient(
       90deg,
-      hsl(var(--background) / 0.92) 0%,
-      hsl(var(--background) / 0.7) 22%,
-      hsl(var(--background) / 0.3) 38%,
-      hsl(var(--background) / 0) 56%
+      hsl(var(--background) / 0.94) 0%,
+      hsl(var(--background) / 0.72) 26%,
+      hsl(var(--background) / 0.2) 44%,
+      hsl(var(--background) / 0) 58%
     ),
-    linear-gradient(
-      0deg,
-      hsl(var(--background)) 0%,
-      hsl(var(--background) / 0.65) 10%,
-      hsl(var(--background) / 0) 26%
-    );
+    linear-gradient(0deg, hsl(var(--background)) 0%, hsl(var(--background) / 0) 18%);
 }
+
 .pa-segment,
 .pa-rail-actions .la-map-actions,
 .pa-dock .pa-legend button,
-.pa-provenance .pa-map-hint {
+.pa-exit {
   background: hsl(var(--background) / 0.78);
   border: 1px solid hsl(var(--foreground) / 0.08);
   box-shadow: var(--shadow-md), var(--edge-light);
@@ -1376,48 +1378,6 @@
     background: hsl(var(--foreground) / 0.06);
   }
 
-  /* Headline sits on the map, not in a panel. */
-  .pa-story {
-    position: absolute;
-    left: var(--pad-x);
-    bottom: 190px;
-    z-index: 2;
-    max-width: 620px;
-    pointer-events: none;
-  }
-  .pa-story > * {
-    pointer-events: auto;
-  }
-  .pa-story .pa-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .pa-story h1 {
-    margin: 18px 0;
-    font: 700 clamp(44px, 5.4vw, 74px) / 0.95 var(--font-display);
-    letter-spacing: -0.03em;
-    text-shadow: 0 2px 24px hsl(var(--background) / 0.8);
-  }
-  .pa-story h1 em {
-    font-style: normal;
-    color: hsl(var(--primary));
-  }
-  .pa-story-copy {
-    margin: 0;
-    max-width: 44ch;
-    font-size: clamp(16px, 1.25vw, 18px);
-    line-height: 1.55;
-    color: hsl(var(--muted-foreground));
-    text-shadow: 0 1px 12px hsl(var(--background) / 0.9);
-  }
-  .pa-story-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 26px;
-  }
-
   /* Bottom dock: legend as filter chips, then the headline counts. */
   .pa-dock {
     position: absolute;
@@ -1460,284 +1420,6 @@
   .pa-dock .pa-collection-note {
     display: none;
   }
-  .pa-collection-stats {
-    display: flex;
-    gap: 28px;
-  }
-  .pa-collection-stats strong {
-    font: 700 26px/1 var(--font-display);
-    letter-spacing: -0.03em;
-  }
-
-  /* Provenance sits above the basemap attribution in the bottom-right corner. */
-  .pa-provenance {
-    position: absolute;
-    right: var(--pad-x);
-    bottom: 44px;
-    z-index: 2;
-    display: grid;
-    gap: 8px;
-    justify-items: end;
-    max-width: 440px;
-    text-align: right;
-  }
-  .pa-provenance .pa-map-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font: 13px/1.4 var(--font-ui);
-    color: hsl(var(--muted-foreground));
-  }
-  .pa-provenance .pa-map-hint .pa-dot {
-    width: 8px;
-    height: 8px;
-    background: hsl(var(--danger));
-    box-shadow: 0 0 0 4px hsl(var(--danger) / 0.25);
-  }
-  .pa-provider-credit {
-    margin: 0;
-    font-size: 12px;
-    color: hsl(var(--text-faint));
-  }
-  .pa-provider-credit a,
-  .pa-provider-credit button {
-    border: 0;
-    background: none;
-    padding: 0;
-    color: hsl(var(--muted-foreground));
-    font-size: 12px;
-    text-decoration: none;
-  }
-  .pa-provider-credit a:hover,
-  .pa-provider-credit button:hover {
-    color: hsl(var(--foreground));
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-}
-@media (min-width: 761px) and (max-height: 820px) {
-  .pa-story h1 {
-    font-size: 48px;
-    margin: 12px 0;
-  }
-  .pa-story-copy {
-    font-size: 15px;
-  }
-  .pa-story-actions {
-    margin-top: 18px;
-  }
-}
-@media (min-width: 761px) and (max-width: 1100px) {
-  .pa-story {
-    bottom: 140px;
-    max-width: 460px;
-  }
-  .pa-story h1 {
-    font-size: 44px;
-  }
-  .pa-provenance {
-    max-width: 260px;
-  }
-}
-@media (max-width: 760px) {
-  /* The server renders the desktop layout because it cannot know the
-     viewport; PublicLanguageAtlas drops these once it hydrates on a phone.
-     Hiding them here keeps them from flashing over the map before then, and
-     keeps the phone from downloading the regular display face just for the
-     dock's placeholder counts. */
-  .pa-rail,
-  .pa-dock,
-  .pa-search-wrap > .pa-browse,
-  .pa-search-hints > p {
-    display: none;
-  }
-  .pa-search-hints {
-    display: contents;
-  }
-  .pa-story {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    bottom: 44px;
-    z-index: 2;
-  }
-  .pa-story .pa-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .pa-story h1 {
-    margin: 10px 0;
-    font: 700 36px/0.98 var(--font-display);
-    letter-spacing: -0.03em;
-  }
-  .pa-story h1 em {
-    font-style: normal;
-    color: hsl(var(--primary));
-  }
-  .pa-story-copy {
-    margin: 0;
-    font-size: 14px;
-    color: hsl(var(--muted-foreground));
-  }
-  .pa-story-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 14px;
-  }
-  .pa-story-actions .pa-button {
-    height: 42px;
-    padding: 0 14px;
-    font-size: 14px;
-  }
-  .pa-story-actions .pa-button--ghost {
-    white-space: normal;
-    text-align: left;
-    line-height: 1.2;
-  }
-}
-
-/* ── Below the map: one band for the app, one for the data ─────── */
-.home-band {
-  padding: clamp(48px, 6vw, 80px) 0;
-  border-top: 1px solid hsl(var(--border));
-}
-.home-band--surface {
-  background: hsl(var(--card));
-}
-.home-band__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: clamp(32px, 6vw, 96px);
-  align-items: center;
-}
-.home-band h2 {
-  margin: 14px 0 0;
-  font-size: clamp(28px, 3.2vw, 40px);
-  letter-spacing: -0.035em;
-  line-height: 1.02;
-}
-.home-band__lede {
-  margin: 14px 0 0;
-  max-width: 52ch;
-  color: hsl(var(--muted-foreground));
-  font-size: 16px;
-}
-.home-band__pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin-top: 22px;
-  color: hsl(var(--muted-foreground));
-  font-size: 14px;
-}
-.home-band__pills span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.home-band__pills svg {
-  width: 16px;
-  height: 16px;
-  stroke: hsl(var(--primary));
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.home-get {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 20px;
-  align-items: center;
-  padding: 22px;
-  border: 1px solid hsl(var(--card-border));
-  border-radius: 18px;
-  background: hsl(var(--background));
-  box-shadow: var(--edge-light);
-}
-.home-get__qr {
-  display: block;
-  width: 120px;
-  height: 120px;
-  padding: 8px;
-  border-radius: 12px;
-  background: #fff;
-}
-.home-get__qr img {
-  width: 100%;
-  height: 100%;
-}
-.home-get h3 {
-  margin: 0;
-  font-size: 18px;
-}
-.home-get p {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: hsl(var(--muted-foreground));
-}
-.home-get .home-stores {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-.home-stores a {
-  display: inline-flex;
-  transition: transform var(--duration-fast) var(--ease-standard);
-}
-.home-stores a:hover {
-  transform: translateY(-1px);
-}
-.home-stores img {
-  height: 42px;
-  width: auto;
-  border-radius: 7px;
-}
-.home-data {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px;
-  margin-top: 36px;
-}
-.home-data h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-.home-data p {
-  margin: 0;
-  max-width: 40ch;
-  color: hsl(var(--muted-foreground));
-  font-size: 14px;
-}
-.home-data a {
-  color: hsl(var(--primary));
-  font-weight: 600;
-}
-.home-data a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.home-data__swatches {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.home-data__swatches i {
-  width: 22px;
-  height: 6px;
-  border-radius: 3px;
-}
-@media (max-width: 860px) {
-  .home-band__grid,
-  .home-data {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Keep the public map free of the technical viewport-count overlay. */
@@ -1745,22 +1427,304 @@
   display: none;
 }
 
-/* Transparent edge hit areas let wheel gestures scroll the page, outside MapLibre. */
-@media (min-width: 1024px) {
-  .public-atlas .la-map-panel::before,
-  .public-atlas .la-map-panel::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: clamp(48px, 4vw, 80px);
-    z-index: 2;
-    pointer-events: auto;
+/* ================================================================
+   Story mode: the hero and three scroll steps told over the pinned
+   globe. The steps are pulled up over the stage and let clicks through
+   to it except on their own copy and controls.
+   ================================================================ */
+.pa-steps {
+  position: relative;
+  z-index: 3;
+  margin-top: -100svh;
+  pointer-events: none;
+}
+.pa-steps :is(a, button, h1, h2, p) {
+  pointer-events: auto;
+}
+.pa-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 92svh;
+  padding: calc(var(--header-h) + 24px) var(--pad-x) 64px;
+}
+.pa-step--hero {
+  min-height: 100svh;
+}
+.pa-hero,
+.pa-step-card {
+  max-width: min(520px, 40vw);
+}
+.pa-hero .pa-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pa-hero h1 {
+  margin: 18px 0;
+  font: 700 clamp(44px, 5.4vw, 76px) / 0.95 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.pa-hero h1 em {
+  font-style: normal;
+  color: hsl(var(--primary));
+}
+.pa-hero-lede {
+  margin: 0;
+  max-width: 40ch;
+  font-size: clamp(16px, 1.3vw, 19px);
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+.pa-hero-actions,
+.pa-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-top: 28px;
+}
+/* The secondary action is a quiet text link, so the hero has one button. */
+.pa-button--quiet {
+  height: 46px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+.pa-button--quiet:hover {
+  transform: none;
+  color: hsl(var(--primary));
+}
+.pa-button--quiet:active,
+.pa-button--primary:active {
+  transform: translateY(1px);
+}
+.pa-scroll-hint {
+  position: absolute;
+  left: var(--pad-x);
+  bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--text-faint));
+}
+.pa-scroll-hint svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: pa-hint 2.4s ease-in-out infinite;
+}
+@keyframes pa-hint {
+  0%,
+  100% {
+    transform: translateY(0);
   }
-  .public-atlas .la-map-panel::before {
-    left: 0;
+  50% {
+    transform: translateY(4px);
   }
-  .public-atlas .la-map-panel::after {
-    right: 0;
+}
+.pa-step-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+.pa-step-eyebrow .pa-dot {
+  width: 10px;
+  height: 10px;
+}
+.pa-dot--need {
+  background: hsl(var(--danger));
+}
+.pa-dot--app {
+  background: hsl(var(--primary));
+}
+.pa-step-card h2 {
+  margin: 16px 0 14px;
+  font: 700 clamp(32px, 3.6vw, 54px) / 1 var(--font-display);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.pa-step-card p:not(.pa-step-eyebrow) {
+  margin: 0;
+  max-width: 38ch;
+  font-size: clamp(16px, 1.25vw, 18px);
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+.pa-sources-line {
+  position: absolute;
+  left: var(--pad-x);
+  right: var(--pad-x);
+  bottom: 20px;
+  margin: 0;
+  font-size: 12px;
+  color: hsl(var(--text-faint));
+}
+.pa-sources-line button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pa-sources-line button:hover {
+  color: hsl(var(--primary));
+}
+/* The whole stage is a click target into the atlas while the story runs. */
+.pa-stage-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+/* The languages in the app light up in brand blue on the app step. */
+.public-atlas[data-mode='story'] .la-project-marker {
+  --project-dot: hsl(var(--primary)) !important;
+  width: 30px;
+  height: 30px;
+}
+.public-atlas[data-mode='story'] .la-project-overlay .la-project-marker {
+  margin: -15px 0 0 -15px;
+}
+.public-atlas[data-mode='story'] .la-project-marker::before {
+  inset: 9px;
+}
+/* The tool chrome belongs to explore mode only. */
+.public-atlas[data-mode='story'] .maplibregl-ctrl-attrib {
+  opacity: 0.6;
+}
+
+/* Explore mode: one way back to the story. */
+.pa-exit {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  color: hsl(var(--foreground));
+  font: 600 14px/1 var(--font-ui);
+}
+.pa-exit:hover {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+.pa-exit:active {
+  transform: translate(-50%, 1px);
+}
+
+@media (max-width: 1100px) and (min-width: 761px) {
+  .pa-hero,
+  .pa-step-card {
+    max-width: 46vw;
+  }
+}
+@media (min-width: 761px) and (max-height: 760px) {
+  .pa-hero h1 {
+    font-size: 48px;
+    margin: 12px 0;
+  }
+  .pa-hero-actions {
+    margin-top: 18px;
+  }
+}
+
+/* Phones: the globe holds the top of the screen, the copy sits below it on
+   a solid panel so dots never run behind the words. */
+@media (max-width: 760px) {
+  .public-atlas[data-mode='story'] .pa-stage::after {
+    background: linear-gradient(
+      0deg,
+      hsl(var(--background)) 0%,
+      hsl(var(--background)) 34%,
+      hsl(var(--background) / 0) 52%
+    );
+  }
+  .pa-step {
+    align-items: flex-end;
+    min-height: 100svh;
+    padding: calc(var(--header-h) + 12px) 16px 40px;
+  }
+  .pa-step--hero {
+    padding-bottom: 64px;
+  }
+  .pa-hero,
+  .pa-step-card {
+    max-width: none;
+    width: 100%;
+  }
+  .pa-step-card {
+    padding: 20px;
+    border: 1px solid hsl(var(--border));
+    border-radius: 14px;
+    background: hsl(var(--background) / 0.94);
+  }
+  .pa-hero h1 {
+    margin: 12px 0;
+    font-size: clamp(36px, 11vw, 46px);
+  }
+  .pa-hero-lede {
+    font-size: 16px;
+  }
+  .pa-hero-actions {
+    margin-top: 20px;
+  }
+  .pa-step-card h2 {
+    margin: 12px 0 10px;
+    font-size: clamp(28px, 8.4vw, 36px);
+  }
+  .pa-step-card p:not(.pa-step-eyebrow) {
+    font-size: 16px;
+  }
+  .pa-scroll-hint {
+    left: 16px;
+    bottom: 22px;
+  }
+  /* The last step stacks its sources line under the card, clear of the
+     basemap credit in the corner. */
+  .pa-step:has(.pa-sources-line) {
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: 12px;
+    padding-bottom: 36px;
+  }
+  .pa-sources-line {
+    position: static;
+  }
+  .pa-exit {
+    bottom: 40px;
+  }
+  .public-atlas--expanded .pa-exit {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pa-scroll-hint svg {
+    animation: none;
   }
 }

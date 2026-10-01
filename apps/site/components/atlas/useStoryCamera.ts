@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Map as LibreMap } from 'maplibre-gl';
 
 import {
@@ -55,8 +55,12 @@ export function useStoryCamera(
     }
   }, [map, active]);
 
+  // The first fit happens the moment the map appears: jump, don't zoom out.
+  const placed = useRef<LibreMap | null>(null);
   useEffect(() => {
     if (!map || !active) return;
+    const first = placed.current !== map;
+    placed.current = map;
     const scene = storyScene(step);
     const canvas = map.getCanvas();
     const width = canvas.clientWidth - padding.left - padding.right;
@@ -64,11 +68,13 @@ export function useStoryCamera(
     const latitude = scene.center?.[1] ?? STORY_LATITUDE;
     map.easeTo({
       center: scene.center ?? [map.getCenter().lng, latitude],
-      zoom: globeFitZoom(width, height, latitude) + scene.zoomBoost,
+      // On a phone the globe is already small; leaning in would crop Africa.
+      zoom:
+        globeFitZoom(width, height, latitude) + (canvas.clientWidth > 760 ? scene.zoomBoost : 0),
       bearing: 0,
       pitch: 0,
       padding,
-      duration: reducedMotion() ? 0 : 1400,
+      duration: first || reducedMotion() ? 0 : 1400,
     });
   }, [map, active, step, padding]);
 

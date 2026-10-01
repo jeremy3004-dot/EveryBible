@@ -43,14 +43,16 @@ export const STORY_SPIN_SPEED = 3;
 /**
  * Zoom at which the globe's diameter is `fraction` of the smaller side of the
  * area left after padding. MapLibre draws the globe so its scale at the map
- * centre matches Web Mercator there, so the radius in pixels is
- * worldSize / (2π) · cos(latitude)⁻¹ … inverted here to solve for zoom.
+ * centre matches Web Mercator there, so the radius in pixels is about
+ * worldSize · cos(latitude) / (2π); this solves that for zoom. Its perspective
+ * camera draws the visible edge at roughly 0.8 of that radius, which the
+ * default fraction allows for.
  */
 export function globeFitZoom(
   availableWidth: number,
   availableHeight: number,
   latitude: number,
-  fraction = 0.86
+  fraction = 1.05
 ): number {
   const radius = (Math.max(1, Math.min(availableWidth, availableHeight)) * fraction) / 2;
   const cos = Math.cos((latitude * Math.PI) / 180);
