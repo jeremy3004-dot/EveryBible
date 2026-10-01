@@ -313,6 +313,31 @@ test('a search result receives the first tap with the search keyboard open', asy
   ]);
 });
 
+test('search results are spaced with a separator, since FlashList ignores a content gap', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  const input = view.getByLabelText(t('common.search'));
+  await view.changeText(input, 'living water');
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length === 1);
+  await act(async () =>
+    assertDefined(searches[0], 'searches[0]').resolve([
+      verse('JHN', 7, 38, 'Rivers of living water will flow from within him.'),
+      verse('JHN', 4, 10, 'He would have given you living water.'),
+    ])
+  );
+
+  const result = view.getByRole('button', { name: /John 7:38/ });
+  const scroller = hostAncestors(result).find((node) => (node.type as string) === 'FlatList');
+  assert.ok(scroller);
+  // FlashList only honours padding and backgroundColor here (and warns about the rest).
+  assert.equal('gap' in (scroller.props.contentContainerStyle ?? {}), false);
+  const separators = scroller.findAll(
+    (node) => node.props.testID === 'search-result-separator' && typeof node.type === 'string'
+  );
+  assert.equal(separators.length, 1, 'one spacer row between the two results');
+});
+
 test('typing again inside the debounce window issues only the latest query', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();

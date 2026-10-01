@@ -52,6 +52,10 @@ const SearchResultCard = memo(function SearchResultCard({
   );
 });
 
+function ResultSeparator() {
+  return <View testID="search-result-separator" style={styles.separator} />;
+}
+
 interface BibleSearchResultsProps {
   results: Verse[];
   isSearching: boolean;
@@ -132,6 +136,8 @@ export function BibleSearchResults({
         contentContainerStyle={contentContainerStyle}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // FlashList ignores `gap` in contentContainerStyle, so results are spaced here.
+        ItemSeparatorComponent={ResultSeparator}
         estimatedItemSize={SEARCH_RESULT_ESTIMATED_SIZE}
       />
     </View>
@@ -141,6 +147,9 @@ export function BibleSearchResults({
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+  },
+  separator: {
+    height: spacing.md,
   },
   card: {
     borderWidth: 1,

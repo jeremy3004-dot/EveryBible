@@ -98,10 +98,6 @@ export function BibleBrowserScreen() {
     }),
     [listBottomClearance]
   );
-  const searchResultsContentStyle = useMemo(
-    () => ({ ...listContentStyle, gap: spacing.md }),
-    [listContentStyle]
-  );
 
   useEffect(() => {
     if (!shouldFocusSearch) {
@@ -235,7 +231,7 @@ export function BibleBrowserScreen() {
           isSearching={search.isSearching}
           error={search.searchError}
           hasNoResults={search.hasNoResults}
-          contentContainerStyle={searchResultsContentStyle}
+          contentContainerStyle={listContentStyle}
           onPressResult={handleSearchResultPress}
         />
       ) : searchIntent.kind === 'reference' ? (
