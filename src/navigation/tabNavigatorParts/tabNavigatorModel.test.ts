@@ -185,6 +185,21 @@ test('the Bible tab leaves a plan-session reader for free reading', () => {
   );
 });
 
+test('without a state index the Bible tab reads the last route, as the tab bar does', () => {
+  const routes = [{ name: 'BibleBrowser' }, { name: 'BibleReader' }];
+
+  assert.equal(
+    getBibleTabResumeParams({ state: { routes } }, resume),
+    null,
+    'the reader on top is a free reader'
+  );
+  assert.deepEqual(
+    getBibleTabResumeParams({ state: { routes: [...routes].reverse() } }, resume),
+    freeReaderParams,
+    'the browser on top reopens the last chapter'
+  );
+});
+
 test('the Bible tab keeps its default press when no chapter has been read', () => {
   assert.equal(
     getBibleTabResumeParams(

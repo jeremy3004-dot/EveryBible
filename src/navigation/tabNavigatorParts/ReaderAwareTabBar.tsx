@@ -88,9 +88,18 @@ export function ReaderAwareTabBar(props: BottomTabBarProps) {
     }),
     [activeRoute.key, descriptor, pillColor, props.descriptors, routeCount, selectionIndex]
   );
+  // `props` itself is a new object every render, so key on the fields BottomTabBar reads.
+  const { state, navigation, insets } = props;
   const tabRow = useMemo(
-    () => <BottomTabBar {...props} descriptors={descriptors} />,
-    [descriptors, props]
+    () => (
+      <BottomTabBar
+        state={state}
+        descriptors={descriptors}
+        navigation={navigation}
+        insets={insets}
+      />
+    ),
+    [descriptors, insets, navigation, state]
   );
   const background = useMemo(() => originalBackground?.(), [originalBackground]);
   // A route's own collapse (a transform) or hide (display: none) moves the whole capsule.
