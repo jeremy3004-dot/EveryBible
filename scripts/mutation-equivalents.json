@@ -223,6 +223,76 @@
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
     }
   ],
+  "src/services/bible/verseFormatting.ts": [
+    {
+      "key": "logical-swap||||&&|if (!value || typeof value !== 'object' || Array.isArray(value)) {|sanitizeVerseFormattingLine#1",
+      "reason": "Anything that is not a plain object has no string text, so the text check that follows returns the same null"
+    },
+    {
+      "key": "logical-swap|&&||||const base = indentLevel && indentLevel > 0 ? { text, indentLevel } : { text };|sanitizeVerseFormattingLine.base",
+      "reason": "indentLevel is already floored at 0, so 0 and undefined are the only falsy values and both give { text }"
+    },
+    {
+      "key": "relational-boundary|>|>=|const base = indentLevel && indentLevel > 0 ? { text, indentLevel } : { text };|sanitizeVerseFormattingLine.base",
+      "reason": "indentLevel 0 is falsy, so the && short-circuits before the comparison either way"
+    },
+    {
+      "key": "logical-swap||||&&|if (cached !== undefined || verseFormattingCache.has(raw)) {|getCachedVerseFormatting",
+      "reason": "Only differs for a string cached as unusable (undefined): it is re-parsed to the same undefined"
+    },
+    {
+      "key": "remove-statement|parsed = undefined;|;|parsed = undefined;|getCachedVerseFormatting",
+      "reason": "parsed is declared without a value, so it is already undefined in the catch"
+    },
+    {
+      "key": "logical-swap||||&&|if (typeof value !== 'object' || Array.isArray(value)) {|normalizeVerseFormatting",
+      "reason": "An array or primitive has no lines array, so the check that follows returns the same undefined"
+    },
+    {
+      "key": "remove-statement|return undefined;|;|return undefined;|normalizeVerseFormatting#1",
+      "reason": "A primitive has no lines array, so the check that follows returns the same undefined"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (exact >= 0) {|findLineSpan",
+      "reason": "Stored lines are trimmed, so at index 0 the whitespace-tolerant match finds the same span"
+    },
+    {
+      "key": "number-literal|0|1|if (exact >= 0) {|findLineSpan",
+      "reason": "Stored lines are trimmed, so at index 0 the whitespace-tolerant match finds the same span"
+    },
+    {
+      "key": "remove-statement|return [exact, exact + needle.length];|;|return [exact, exact + needle.length];|findLineSpan",
+      "reason": "Only differs when an earlier run differs from the line only in whitespace; stored lines collapse whitespace, so that run is an equally valid match"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|findLineSpan",
+      "reason": "Stored lines are never blank (normalizeVerseFormatting drops them), so there is always a word"
+    },
+    {
+      "key": "nullish-drop-default|words[last] ?? ''|words[last]|const tail = /^(.+?)([?!.,;:)\\]’”]+)$/.exec(words[last] ?? '');|findLineSpan.tail",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const tail = /^(.+?)([?!.,;:)\\]’”]+)$/.exec(words[last] ?? '');|findLineSpan.tail",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "nullish-drop-default|tail[1] ?? ''|tail[1]|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "nullish-drop-default|tail[2] ?? ''|tail[2]|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns#1",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    }
+  ],
   "src/services/plans/readingPlanActivity.ts": [
     {
       "key": "remove-statement|return null;|;|return null;|resolvePlanDayPlaybackStartEntry",
