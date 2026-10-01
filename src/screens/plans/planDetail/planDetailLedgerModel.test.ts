@@ -18,6 +18,7 @@ import {
   orderLedgerRows,
   type PlanDayViewModel,
 } from './planDetailLedgerModel';
+import { assertDefined } from '../../../utils/assertDefined';
 
 // A Thursday, local time.
 const TODAY = new Date(2026, 8, 24, 12);
@@ -281,18 +282,29 @@ test('a multi-session day lists its sessions; only today reports done, next and 
 
   const [past, current] = models;
   assert.deepEqual(
-    past.sessionActions.map((action) => action.state),
+    assertDefined(past, 'past').sessionActions.map((action) => action.state),
     ['available', 'available']
   );
-  assert.equal(past.launchSessionKey, 'morning', 'a past day opens its first session');
+  assert.equal(
+    assertDefined(past, 'past').launchSessionKey,
+    'morning',
+    'a past day opens its first session'
+  );
   assert.deepEqual(
-    current.sessionActions.map(({ sessionKey, state }) => [sessionKey, state]),
+    assertDefined(current, 'current').sessionActions.map(({ sessionKey, state }) => [
+      sessionKey,
+      state,
+    ]),
     [
       ['morning', 'done'],
       ['evening', 'next'],
     ]
   );
-  assert.equal(current.launchSessionKey, 'evening', 'today resumes at the next session');
+  assert.equal(
+    assertDefined(current, 'current').launchSessionKey,
+    'evening',
+    'today resumes at the next session'
+  );
 });
 
 test('the ledger reads tomorrow first, then the past newest-first, then the days ahead', () => {

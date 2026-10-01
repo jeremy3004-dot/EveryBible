@@ -5,6 +5,7 @@ import { act } from 'react-test-renderer';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
@@ -138,7 +139,7 @@ const prayedPill = (view: WallView, count: number) =>
   view.getByRole('button', { name: t('prayer.prayedCount', { count }) });
 
 async function settleWrite(view: WallView, index: number, result: WriteResult) {
-  backend.pendingWrites[index].resolve(result);
+  assertDefined(backend.pendingWrites[index], 'backend.pendingWrites[index]').resolve(result);
   await view.flush();
   await view.flush();
 }
@@ -146,7 +147,9 @@ async function settleWrite(view: WallView, index: number, result: WriteResult) {
 /** Pull to refresh: the RefreshControl is a prop of the list, not a child, so drive its handler. */
 async function pullToRefresh(view: WallView) {
   const [list] = view.queryAllByType('FlatList');
-  const control = list.props.refreshControl as ReactElement<{ onRefresh: () => Promise<void> }>;
+  const control = assertDefined(list, 'list').props.refreshControl as ReactElement<{
+    onRefresh: () => Promise<void>;
+  }>;
   const host = { type: 'RefreshControl', props: control.props, parent: null };
   await view.fire(host as unknown as ReactTestInstance, 'onRefresh');
   await view.flush();
@@ -313,7 +316,7 @@ test('reaching the end of the wall loads the next page after the last request', 
   const view = await renderWall();
 
   const [list] = view.queryAllByType('FlatList');
-  await view.fire(list, 'onEndReached');
+  await view.fire(assertDefined(list, 'list'), 'onEndReached');
   await view.flush();
 
   assert.deepEqual(backend.listCalls, [['group-1'], ['group-1', { before: cursor }]]);
@@ -321,7 +324,10 @@ test('reaching the end of the wall loads the next page after the last request', 
   assert.ok(view.getByText('Older'));
 
   // The last page has no cursor, so reaching the end again asks for nothing more.
-  await view.fire(view.queryAllByType('FlatList')[0], 'onEndReached');
+  await view.fire(
+    assertDefined(view.queryAllByType('FlatList')[0], "view.queryAllByType('FlatList')[0]"),
+    'onEndReached'
+  );
   await view.flush();
   assert.equal(backend.listCalls.length, 2);
 });
@@ -445,7 +451,10 @@ test('an older page resolving after account replacement cannot append private pr
   const page = deferred<ListResult>();
   backend.pages = [{ success: true, data: [request()], nextCursor: cursor }, page.promise];
   const view = await renderWall();
-  const list = view.queryAllByType('FlatList')[0];
+  const list = assertDefined(
+    view.queryAllByType('FlatList')[0],
+    "view.queryAllByType('FlatList')[0]"
+  );
   let loading: Promise<void> = Promise.resolve();
   await act(async () => {
     loading = (list.props.onEndReached as () => Promise<void>)();
@@ -517,10 +526,15 @@ for (const action of ['edit', 'delete', 'block'] as const) {
     );
     const confirm =
       action === 'edit'
-        ? () => prompts[0]('Changed text')
-        : (
-            harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
-          )[1].onPress!;
+        ? () => assertDefined(prompts[0], 'prompts[0]')('Changed text')
+        : assertDefined(
+            (
+              harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{
+                onPress?: () => Promise<void>;
+              }>
+            )[1],
+            '( harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ on'
+          ).onPress!;
     const shownAlerts = harness.rn.__recorded.alerts.length;
     await act(async () =>
       harness.authStore.setState({ user: { uid: 'viewer-2' }, authGeneration: 2 })
@@ -621,7 +635,10 @@ for (const newerDraft of ['Second prayer draft', 'First prayer']) {
     assert.equal(view.getByLabelText(t('prayer.requestPlaceholder')).props.value, newerDraft);
     assert.equal(backend.mutations.length, 1);
     assert.ok(view.getByText('First prayer'));
-    const rows = view.queryAllByType('FlatList')[0].props.data as Array<{ id: string }>;
+    const rows = assertDefined(
+      view.queryAllByType('FlatList')[0],
+      "view.queryAllByType('FlatList')[0]"
+    ).props.data as Array<{ id: string }>;
     assert.deepEqual(
       rows.map((row) => row.id),
       ['req-1', 'existing']
@@ -682,7 +699,9 @@ for (const snapshotOutcome of ['success', 'failure', 'throw']) {
     const refresh = deferred<ListResult>();
     backend.pages.push(refresh.promise);
     const [list] = view.queryAllByType('FlatList');
-    const control = list.props.refreshControl as ReactElement<{ onRefresh: () => Promise<void> }>;
+    const control = assertDefined(list, 'list').props.refreshControl as ReactElement<{
+      onRefresh: () => Promise<void>;
+    }>;
     let refreshing: Promise<void> = Promise.resolve();
     await act(async () => {
       refreshing = control.props.onRefresh();
@@ -707,7 +726,10 @@ for (const snapshotOutcome of ['success', 'failure', 'throw']) {
       await refreshing;
     });
     assert.ok(view.getByText('New confirmed prayer'));
-    const updated = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+    const updated = assertDefined(
+      view.queryAllByType('FlatList')[0],
+      "view.queryAllByType('FlatList')[0]"
+    ).props.refreshControl as ReactElement<{
       refreshing: boolean;
     }>;
     assert.equal(updated.props.refreshing, false);
@@ -720,7 +742,10 @@ for (const success of [true, false]) {
     const view = await renderWall();
     const refresh = deferred<ListResult>();
     backend.pages.push(refresh.promise);
-    const control = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+    const control = assertDefined(
+      view.queryAllByType('FlatList')[0],
+      "view.queryAllByType('FlatList')[0]"
+    ).props.refreshControl as ReactElement<{
       onRefresh: () => Promise<void>;
     }>;
     let refreshing: Promise<void> = Promise.resolve();
@@ -739,7 +764,10 @@ for (const success of [true, false]) {
         selected: success,
       })
     );
-    const updated = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+    const updated = assertDefined(
+      view.queryAllByType('FlatList')[0],
+      "view.queryAllByType('FlatList')[0]"
+    ).props.refreshControl as ReactElement<{
       refreshing: boolean;
     }>;
     assert.equal(updated.props.refreshing, false);
@@ -753,13 +781,17 @@ test('a pending older page cannot restore a newly blocked author', async () => {
   const view = await renderWall();
   let loading: Promise<void> = Promise.resolve();
   await act(async () => {
-    loading = (view.queryAllByType('FlatList')[0].props.onEndReached as () => Promise<void>)();
+    loading = (
+      assertDefined(view.queryAllByType('FlatList')[0], "view.queryAllByType('FlatList')[0]").props
+        .onEndReached as () => Promise<void>
+    )();
   });
   backend.mutationResult = { success: true };
   await showAction(view, t('prayer.blockAuthor'));
-  const confirm = (
-    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
-  )[1].onPress!;
+  const confirm = assertDefined(
+    (harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>)[1],
+    '( harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ on'
+  ).onPress!;
   await act(async () => {
     await confirm();
   });
@@ -777,7 +809,10 @@ test('a pending older page cannot restore a newly blocked author', async () => {
     success: true,
     data: [request({ id: 'allowed', user_id: 'different', content: 'Allowed author' })],
   });
-  await view.fire(view.queryAllByType('FlatList')[0], 'onEndReached');
+  await view.fire(
+    assertDefined(view.queryAllByType('FlatList')[0], "view.queryAllByType('FlatList')[0]"),
+    'onEndReached'
+  );
   assert.ok(view.getByText('Allowed author'));
 });
 
@@ -786,7 +821,10 @@ test('an older refresh cannot restore a confirmed deleted request', async () => 
   const view = await renderWall();
   const refresh = deferred<ListResult>();
   backend.pages.push(refresh.promise);
-  const control = view.queryAllByType('FlatList')[0].props.refreshControl as ReactElement<{
+  const control = assertDefined(
+    view.queryAllByType('FlatList')[0],
+    "view.queryAllByType('FlatList')[0]"
+  ).props.refreshControl as ReactElement<{
     onRefresh: () => Promise<void>;
   }>;
   let refreshing: Promise<void> = Promise.resolve();
@@ -795,9 +833,10 @@ test('an older refresh cannot restore a confirmed deleted request', async () => 
   });
   backend.mutationResult = { success: true };
   await showAction(view, t('common.delete'));
-  const confirm = (
-    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
-  )[1].onPress!;
+  const confirm = assertDefined(
+    (harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>)[1],
+    '( harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ on'
+  ).onPress!;
   await act(async () => {
     await confirm();
   });
@@ -845,16 +884,19 @@ test('a refresh which already contains the pending create result does not duplic
   });
   assert.equal(view.queryAllByText('Freshly edited prayer').length, 1);
   assert.equal(view.queryAllByText('One confirmed prayer').length, 0);
-  const rows = view.queryAllByType('FlatList')[0].props.data as Array<{
+  const rows = assertDefined(
+    view.queryAllByType('FlatList')[0],
+    "view.queryAllByType('FlatList')[0]"
+  ).props.data as Array<{
     id: string;
     prayed_count: number;
     encouraged_count: number;
     is_answered: boolean;
   }>;
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].prayed_count, 7);
-  assert.equal(rows[0].encouraged_count, 3);
-  assert.equal(rows[0].is_answered, true);
+  assert.equal(assertDefined(rows[0], 'rows[0]').prayed_count, 7);
+  assert.equal(assertDefined(rows[0], 'rows[0]').encouraged_count, 3);
+  assert.equal(assertDefined(rows[0], 'rows[0]').is_answered, true);
 });
 
 test('a prayer posted while the first load is in flight does not discard the older requests', async () => {
@@ -877,7 +919,10 @@ test('a prayer posted while the first load is in flight does not discard the old
   await view.flush();
   assert.ok(view.getByText('Posted during load'));
   assert.ok(view.getByText('Pray for my neighbour'));
-  const list = view.queryAllByType('FlatList')[0];
+  const list = assertDefined(
+    view.queryAllByType('FlatList')[0],
+    "view.queryAllByType('FlatList')[0]"
+  );
   assert.equal((list.props.data as unknown[]).length, 2);
 });
 
@@ -896,9 +941,10 @@ test('a failed pull to refresh tells the reader and does not turn the wall into 
   // Deleting the last request now shows the empty wall, not "something went wrong".
   backend.mutationResult = { success: true };
   await showAction(view, t('common.delete'));
-  const confirm = (
-    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
-  )[1].onPress!;
+  const confirm = assertDefined(
+    (harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>)[1],
+    '( harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ on'
+  ).onPress!;
   await act(async () => {
     await confirm();
   });

@@ -21,7 +21,7 @@ export function formatReminderTimeLabel(
   notSetLabel: string
 ): string {
   if (!time) return notSetLabel;
-  const [hours, minutes] = time.split(':');
+  const [hours = '', minutes = ''] = time.split(':');
   const hour = parseInt(hours, 10);
   const minute = parseInt(minutes, 10);
   // Only the clock fields matter, so format a fixed modern instant in UTC. A local

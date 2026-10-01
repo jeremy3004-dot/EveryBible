@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -89,7 +90,9 @@ function feedback(comment: string): FeedbackResult {
 function refresh(view: Awaited<ReturnType<typeof renderScreen>>) {
   const [list] = view.queryAllByType('FlatList');
   return (
-    list.props.refreshControl as { props: { onRefresh: () => Promise<void> } }
+    assertDefined(list, 'list').props.refreshControl as {
+      props: { onRefresh: () => Promise<void> };
+    }
   ).props.onRefresh();
 }
 
@@ -164,7 +167,8 @@ test('only the latest refresh may replace feedback or stop its refreshing indica
   await view.flush();
   const [list] = view.queryAllByType('FlatList');
   assert.equal(
-    (list.props.refreshControl as { props: { refreshing: boolean } }).props.refreshing,
+    (assertDefined(list, 'list').props.refreshControl as { props: { refreshing: boolean } }).props
+      .refreshing,
     true
   );
   newer.resolve(feedback('Newest refresh'));

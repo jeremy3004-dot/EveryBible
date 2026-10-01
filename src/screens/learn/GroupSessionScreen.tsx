@@ -236,17 +236,19 @@ export function GroupSessionScreen() {
   // new phase is spoken rather than only highlighted in the tabs.
   const handleNextPhase = () => {
     const nextIndex = currentPhaseIndex + 1;
-    if (nextIndex < PHASES.length) {
-      setCurrentPhase(PHASES[nextIndex].id);
-      announceForAccessibility(PHASES[nextIndex].title);
+    const nextPhase = PHASES[nextIndex];
+    if (nextPhase) {
+      setCurrentPhase(nextPhase.id);
+      announceForAccessibility(nextPhase.title);
     }
   };
 
   const handlePreviousPhase = () => {
     const prevIndex = currentPhaseIndex - 1;
-    if (prevIndex >= 0) {
-      setCurrentPhase(PHASES[prevIndex].id);
-      announceForAccessibility(PHASES[prevIndex].title);
+    const previousPhase = prevIndex >= 0 ? PHASES[prevIndex] : undefined;
+    if (previousPhase) {
+      setCurrentPhase(previousPhase.id);
+      announceForAccessibility(previousPhase.title);
     }
   };
 

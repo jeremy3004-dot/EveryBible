@@ -14,6 +14,7 @@ import {
   within,
 } from '../../testing/render';
 import { createReactNavigationFake } from '../../testing/nativePackageFakes';
+import { assertDefined } from '../../utils/assertDefined';
 
 // The grid is built from the local calendar, so the zone and the clock are pinned.
 process.env.TZ = 'UTC';
@@ -109,7 +110,11 @@ mockModule(mock, sourcePath('services/analytics/analyticsService.ts'), {
 mockModule(mock, sourcePath('navigation/rootNavigation.ts'), {
   rootNavigationRef: {
     isReady: () => true,
-    navigate: (...args: unknown[]) => harness.navigation.navigation.navigate(...args),
+    navigate: (...args: unknown[]) =>
+      assertDefined(
+        harness.navigation.navigation.navigate,
+        'harness.navigation.navigation.navigate'
+      )(...args),
   },
 });
 
@@ -154,10 +159,13 @@ test('the calendar grid runs Monday-first under single-letter weekday headers', 
   // grid stops on the 30th.
   const cells = dayCells(view);
   assert.equal(cells.length, 31);
-  assert.equal(accessibilityLabelOf(cells[0]), 'Monday, August 31');
-  assert.equal(accessibilityLabelOf(cells[1]), 'Tuesday, September 1');
-  assert.equal(accessibilityLabelOf(cells[30]), 'Wednesday, September 30');
-  assert.equal(textContent(cells[1]), '1');
+  assert.equal(accessibilityLabelOf(assertDefined(cells[0], 'cells[0]')), 'Monday, August 31');
+  assert.equal(accessibilityLabelOf(assertDefined(cells[1], 'cells[1]')), 'Tuesday, September 1');
+  assert.equal(
+    accessibilityLabelOf(assertDefined(cells[30], 'cells[30]')),
+    'Wednesday, September 30'
+  );
+  assert.equal(textContent(assertDefined(cells[1], 'cells[1]')), '1');
 });
 
 test('each day is a button named by its full date, and only the chosen day is announced as selected', async () => {
@@ -214,7 +222,13 @@ test('left open overnight, the calendar moves today when the app comes back', as
 
 test('left open for days, the streak ends when the app comes back', async () => {
   const view = await renderScreen();
-  const streak = () => within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
+  const streak = () =>
+    within(
+      assertDefined(
+        hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0],
+        "hostAncestors(view.getByText(t('readingActivity.currentStre"
+      )
+    );
   assert.ok(streak().getByText('2'));
 
   // The last read was 23 September; the app is resumed on the 26th with no store change.
@@ -351,7 +365,10 @@ test('month buttons are named and step the grid, legend and selection a month at
   // Focus stays on the month button, so the new month is spoken.
   assert.deepEqual(harness.rn.__recorded.announcements, ['August 2026']);
   assert.equal(view.queryByText('September 2026'), null);
-  assert.equal(accessibilityLabelOf(dayCells(view)[0]), 'Monday, July 27');
+  assert.equal(
+    accessibilityLabelOf(assertDefined(dayCells(view)[0], 'dayCells(view)[0]')),
+    'Monday, July 27'
+  );
   assert.ok(view.getByText(t('readingActivity.legendProgress', { read: 1, count: 31 })));
   // August's only read day becomes the selected day.
   assert.ok(view.getByRole('button', { name: 'Saturday, August 15', selected: true }));
@@ -477,11 +494,24 @@ test('an older Reading activity response cannot overwrite refreshed totals after
   assert.equal(analytics.reads.length, 2);
 
   await act(async () =>
-    analytics.reads?.[1]({ success: true, data: { total_chapters_read: 412 } })
+    assertDefined(
+      analytics.reads?.[1],
+      'analytics.reads?.[1]'
+    )({ success: true, data: { total_chapters_read: 412 } })
   );
-  await act(async () => analytics.reads?.[0]({ success: true, data: { total_chapters_read: 12 } }));
+  await act(async () =>
+    assertDefined(
+      analytics.reads?.[0],
+      'analytics.reads?.[0]'
+    )({ success: true, data: { total_chapters_read: 12 } })
+  );
   assert.ok(view.getByText('412'));
-  const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
+  const totals = within(
+    assertDefined(
+      hostAncestors(view.getByText(t('readingActivity.chapters')))[0],
+      "hostAncestors(view.getByText(t('readingActivity.chapters')"
+    )
+  );
   assert.equal(totals.queryByText('12'), null);
 });
 
@@ -511,10 +541,20 @@ test('signed out, the totals come from this device and the cloud is not asked', 
   await view.flush();
 
   assert.deepEqual(analytics.calls, []);
-  const totals = within(hostAncestors(view.getByText(t('readingActivity.chapters')))[0]);
+  const totals = within(
+    assertDefined(
+      hostAncestors(view.getByText(t('readingActivity.chapters')))[0],
+      "hostAncestors(view.getByText(t('readingActivity.chapters')"
+    )
+  );
   assert.ok(totals.getByText(String(Object.keys(CHAPTERS_READ).length)));
   assert.ok(totals.getByText(t('interface.minutesShort', { count: 10 })));
-  const streak = within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
+  const streak = within(
+    assertDefined(
+      hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0],
+      "hostAncestors(view.getByText(t('readingActivity.currentStre"
+    )
+  );
   assert.ok(streak.getByText('2'));
   assert.ok(streak.getByText(t('readingActivity.streakUnit', { count: 2 })));
 });
@@ -578,9 +618,13 @@ test('every week is a row of seven columns, and each date sits under its weekday
         assert.ok(label.startsWith(`${WEEKDAYS[column]},`), `${label} in column ${column}`);
     });
   }
-  assert.equal(labels[3][3], 'Thursday, September 24');
-  assert.equal(labels[4][2], 'Wednesday, September 30');
-  assert.deepEqual(labels[4].slice(3), [null, null, null, null], 'the month ends mid-week');
+  assert.equal(assertDefined(labels[3], 'labels[3]')[3], 'Thursday, September 24');
+  assert.equal(assertDefined(labels[4], 'labels[4]')[2], 'Wednesday, September 30');
+  assert.deepEqual(
+    assertDefined(labels[4], 'labels[4]').slice(3),
+    [null, null, null, null],
+    'the month ends mid-week'
+  );
 });
 
 test('the weekday headers share the week rows’ seven columns', async () => {

@@ -21,6 +21,7 @@ import {
   mockSvgForCommonJs,
   renderedArtwork,
 } from './gatherRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -41,11 +42,22 @@ distinguishTranslatedCopy(harness.i18n, [
 ]);
 
 const TOTAL_LESSONS = gatherFoundations.reduce((sum, f) => sum + f.lessons.length, 0);
-const foundationTitle = (index: number) => t(FOUNDATION_TITLE_KEYS[gatherFoundations[index].id]);
+const foundationTitle = (index: number) =>
+  t(
+    assertDefined(
+      FOUNDATION_TITLE_KEYS[assertDefined(gatherFoundations[index], 'gatherFoundations[index]').id],
+      'FOUNDATION_TITLE_KEYS[gatherFoundations[index].id]'
+    )
+  );
 const FOUNDATION_TITLES = gatherFoundations.map((_, index) => foundationTitle(index));
-const lessonTitle = (lessonId: string) => t(FOUNDATION_LESSON_TITLE_KEYS[lessonId]);
-const wisdomTitle = (wisdomId: string) => t(WISDOM_TITLE_KEYS[wisdomId]);
-const categoryName = (categoryId: string) => t(WISDOM_CATEGORY_NAME_KEYS[categoryId]);
+const lessonTitle = (lessonId: string) =>
+  t(
+    assertDefined(FOUNDATION_LESSON_TITLE_KEYS[lessonId], 'FOUNDATION_LESSON_TITLE_KEYS[lessonId]')
+  );
+const wisdomTitle = (wisdomId: string) =>
+  t(assertDefined(WISDOM_TITLE_KEYS[wisdomId], 'WISDOM_TITLE_KEYS[wisdomId]'));
+const categoryName = (categoryId: string) =>
+  t(assertDefined(WISDOM_CATEGORY_NAME_KEYS[categoryId], 'WISDOM_CATEGORY_NAME_KEYS[categoryId]'));
 const getStarted = () => t('gather.getStarted');
 const upNextEyebrow = (lesson: number, total: number) =>
   t('gather.upNextLesson', { lesson, total });
@@ -62,12 +74,17 @@ async function lightPalette() {
 }
 
 const lessonIds = (foundationIndex: number, count: number) =>
-  gatherFoundations[foundationIndex].lessons.slice(0, count).map((lesson) => lesson.id);
+  assertDefined(gatherFoundations[foundationIndex], 'gatherFoundations[foundationIndex]')
+    .lessons.slice(0, count)
+    .map((lesson) => lesson.id);
 
 type View = Awaited<ReturnType<typeof renderGather>>;
 
 function upNextCard(view: View): ReactTestInstance {
-  const upNextPrefix = t('gather.upNextLesson', { lesson: '', total: '' }).split('·')[0];
+  const upNextPrefix = assertDefined(
+    t('gather.upNextLesson', { lesson: '', total: '' }).split('·')[0],
+    "t('gather.upNextLesson', { lesson: '', total: '' }).sp"
+  );
   const card = view.getAllByRole('button').find((node) =>
     within(node)
       .queryAllByType('Text')
@@ -210,12 +227,22 @@ test('foundation rows and wisdom rows both open FoundationDetail for the row pre
 
 test('up next resumes the first lesson not yet completed, straight into the lesson', async () => {
   const view = await renderGather({
-    'foundation-1': lessonIds(0, gatherFoundations[0].lessons.length),
+    'foundation-1': lessonIds(
+      0,
+      assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons.length
+    ),
     'foundation-2': lessonIds(1, 1),
   });
-  const next = gatherFoundations[1].lessons[1];
+  const next = assertDefined(
+    assertDefined(gatherFoundations[1], 'gatherFoundations[1]').lessons[1],
+    'gatherFoundations[1].lessons[1]'
+  );
 
-  assert.ok(view.getByText(upNextEyebrow(2, gatherFoundations[1].lessons.length)));
+  assert.ok(
+    view.getByText(
+      upNextEyebrow(2, assertDefined(gatherFoundations[1], 'gatherFoundations[1]').lessons.length)
+    )
+  );
   assert.ok(view.getByText(lessonTitle(next.id)));
   assert.ok(
     view.getByText(
@@ -239,9 +266,13 @@ test('up next resumes the first lesson not yet completed, straight into the less
 test('a brand-new reader is sent to the very first lesson', async () => {
   const view = await renderGather();
 
-  assert.ok(view.getByText(upNextEyebrow(1, gatherFoundations[0].lessons.length)));
+  assert.ok(
+    view.getByText(
+      upNextEyebrow(1, assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons.length)
+    )
+  );
   await view.press(view.getByRole('button', { name: getStarted() }));
-  assert.deepEqual(harness.navigation.calls[0].args, [
+  assert.deepEqual(assertDefined(harness.navigation.calls[0], 'harness.navigation.calls[0]').args, [
     'LessonDetail',
     { parentId: 'foundation-1', lessonId: 'f1-01', parentType: 'foundation' },
   ]);
@@ -249,9 +280,15 @@ test('a brand-new reader is sent to the very first lesson', async () => {
 
 test('completing a lesson elsewhere moves up next and the row count while Gather stays mounted', async () => {
   const view = await renderGather();
-  const total = gatherFoundations[0].lessons.length;
-  const first = gatherFoundations[0].lessons[0];
-  const second = gatherFoundations[0].lessons[1];
+  const total = assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons.length;
+  const first = assertDefined(
+    assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons[0],
+    'gatherFoundations[0].lessons[0]'
+  );
+  const second = assertDefined(
+    assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons[1],
+    'gatherFoundations[0].lessons[1]'
+  );
 
   await act(async () => {
     gatherStore.getState().markLessonComplete('foundation-1', first.id);
@@ -274,7 +311,10 @@ test('once every foundation lesson is complete there is no up-next card to resum
   );
   const view = await renderGather(everything);
 
-  const upNextPrefix = t('gather.upNextLesson', { lesson: '', total: '' }).split('·')[0];
+  const upNextPrefix = assertDefined(
+    t('gather.upNextLesson', { lesson: '', total: '' }).split('·')[0],
+    "t('gather.upNextLesson', { lesson: '', total: '' }).sp"
+  );
   assert.equal(
     view.queryAllByType('Text').filter((node) => textContent(node).startsWith(upNextPrefix)).length,
     0
@@ -313,7 +353,7 @@ test('the foundations path is numbered 01-07 and no row gets a tinted card backg
 test('each path row reads its progress aloud and fills a lesson ledger instead of a ring', async () => {
   const colors = await lightPalette();
   const view = await renderGather({ 'foundation-1': lessonIds(0, 3) });
-  const total = gatherFoundations[0].lessons.length;
+  const total = assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons.length;
   const ledgerColours = (row: ReactTestInstance) =>
     row
       .findAll((node) => (node.type as unknown) === 'View')
@@ -332,7 +372,7 @@ test('each path row reads its progress aloud and fills a lesson ledger instead o
   assert.deepEqual(untouched.props.accessibilityValue, {
     text: t('gather.lessonsProgress', {
       completed: 0,
-      total: gatherFoundations[2].lessons.length,
+      total: assertDefined(gatherFoundations[2], 'gatherFoundations[2]').lessons.length,
     }),
   });
   assert.deepEqual(ledgerColours(untouched), [colors.borderStrong], 'one unbroken bar');
@@ -403,7 +443,10 @@ test('both paths leave room for the floating tab bar under their last row', asyn
 
   const view = await renderGather();
   const scrollPadding = () =>
-    flattenStyle(view.queryAllByType('ScrollView')[0].props.contentContainerStyle)?.paddingBottom;
+    flattenStyle(
+      assertDefined(view.queryAllByType('ScrollView')[0], "view.queryAllByType('ScrollView')[0]")
+        .props.contentContainerStyle
+    )?.paddingBottom;
   assert.equal(scrollPadding(), clearance);
 
   await view.press(view.getByRole('tab', { name: t('gather.wisdom') }));

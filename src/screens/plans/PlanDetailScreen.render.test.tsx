@@ -23,6 +23,7 @@ import { getPlanLedgerDotPaint } from './planLedgerGridModel';
 import type { PlanDetailScreenProps } from '../../navigation/types';
 import type { UserReadingPlanProgress } from '../../services/plans/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Calendar logic (scheduled dates, day-of-month cycles) runs in a pinned zone and clock.
 process.env.TZ = 'UTC';
@@ -179,7 +180,7 @@ const dayNumbers = (rows: ReactTestInstance[]) =>
   rows.map((node) => Number(/^Day (\d+)/.exec(accessibilityLabelOf(node) ?? '')![1]));
 
 const chaptersOf = (planId: string, day: number) =>
-  readingPlanEntriesByPlanId[planId]
+  assertDefined(readingPlanEntriesByPlanId[planId], 'readingPlanEntriesByPlanId[planId]')
     .filter((entry) => entry.day_number === day)
     .flatMap((entry) => {
       const chapters: number[] = [];
@@ -226,7 +227,7 @@ test("tapping today's card honors the listen preference with the day queued and 
 test('explicit Read overrides the listen preference without autoplay and preserves the saved day resume', async () => {
   const store = await enroll(PSALMS, { current_day: 3 });
   const chapters = chaptersOf(PSALMS, 3);
-  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', assertDefined(chapters[2], 'chapters[2]'));
   const view = await renderPlan(PSALMS);
 
   await view.press(view.getByRole('button', { name: t('common.continue') }));
@@ -283,7 +284,7 @@ test('explicit Read preserves the recurring day occurrence and selected session 
 test('a saved resume point reopens the day on that chapter, still queuing the whole day', async () => {
   const store = await enroll(PSALMS, { current_day: 3 });
   const chapters = chaptersOf(PSALMS, 3);
-  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', assertDefined(chapters[2], 'chapters[2]'));
   const view = await renderPlan(PSALMS);
 
   await view.press(view.getByTestId('plan-detail-current-day-row'));
@@ -299,16 +300,16 @@ test("today's button says Continue only while a saved chapter would skip the day
   const view = await renderPlan(PSALMS);
   assert.ok(view.getByRole('button', { name: t('bible.read') }));
 
-  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', assertDefined(chapters[2], 'chapters[2]'));
   await view.flush();
   assert.ok(view.getByRole('button', { name: t('common.continue') }));
   assert.equal(view.queryByRole('button', { name: t('bible.read') }), null);
 
-  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[0]);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', assertDefined(chapters[0], 'chapters[0]'));
   await view.flush();
   assert.ok(view.getByRole('button', { name: t('bible.read') }));
 
-  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', chapters[2]);
+  store.getState().setPlanDayResume(PSALMS, 3, 'PSA', assertDefined(chapters[2], 'chapters[2]'));
   await view.flush();
   store.getState().clearPlanDayResume(PSALMS, 3);
   await view.flush();
@@ -322,9 +323,10 @@ for (const fixture of [
   for (const occurrence of ['previous', 'current', 'legacy'] as const) {
     test(`${fixture.planId} launches ${occurrence === 'current' ? 'its saved chapter for the same occurrence' : 'the first chapter instead of a ' + occurrence + ' occurrence resume'}`, async () => {
       const store = await enroll(fixture.planId);
-      const entries = readingPlanEntriesByPlanId[fixture.planId].filter(
-        (entry) => entry.day_number === fixture.day && entry.session_key === 'morning'
-      );
+      const entries = assertDefined(
+        readingPlanEntriesByPlanId[fixture.planId],
+        'readingPlanEntriesByPlanId[fixture.planId]'
+      ).filter((entry) => entry.day_number === fixture.day && entry.session_key === 'morning');
       const firstEntry = entries[0];
       const lastEntry = entries.at(-1);
       assert.ok(firstEntry && lastEntry);
@@ -514,16 +516,23 @@ test('in the dot grid a missed day is struck through and a day to come is not', 
   const fillOf = (dot: ReactTestInstance) => flattenStyle(dot.props.style)?.backgroundColor;
 
   // The 20th to the 23rd were due since joining and were missed; the 25th is to come.
-  const missed = dots[20];
-  const future = dots[25];
+  const missed = assertDefined(dots[20], 'dots[20]');
+  const future = assertDefined(dots[25], 'dots[25]');
   assert.equal(fillOf(missed), paint.missed.fill, 'fixture: day 21 is missed');
   assert.equal(fillOf(future), paint.future.fill, 'fixture: day 26 is to come');
   assert.equal(strokes(missed).length, 1, 'a missed day carries one stroke');
-  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.backgroundColor, paint.missed.border);
+  assert.equal(
+    flattenStyle(assertDefined(strokes(missed)[0], 'strokes(missed)[0]').props.style)
+      ?.backgroundColor,
+    paint.missed.border
+  );
   assert.deepEqual(strokes(future), []);
   // The stroke stays inside the dot, so it adds nothing to the grid's height.
   assert.equal(flattenStyle(missed.props.style)?.overflow, 'hidden');
-  assert.equal(flattenStyle(strokes(missed)[0].props.style)?.position, 'absolute');
+  assert.equal(
+    flattenStyle(assertDefined(strokes(missed)[0], 'strokes(missed)[0]').props.style)?.position,
+    'absolute'
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -543,12 +552,13 @@ test("a multi-session day offers a button per session, and each opens exactly th
   await view.press(evening);
 
   const reader = lastReaderLaunch();
-  const eveningEntries = readingPlanEntriesByPlanId[KATHISMA].filter(
-    (entry) => entry.day_number === 5 && entry.session_key === 'evening'
-  );
+  const eveningEntries = assertDefined(
+    readingPlanEntriesByPlanId[KATHISMA],
+    'readingPlanEntriesByPlanId[KATHISMA]'
+  ).filter((entry) => entry.day_number === 5 && entry.session_key === 'evening');
   assert.equal(reader.planSessionKey, 'evening');
   assert.equal(reader.planDayNumber, 5);
-  assert.equal(reader.chapter, eveningEntries[0].chapter_start);
+  assert.equal(reader.chapter, assertDefined(eveningEntries[0], 'eveningEntries[0]').chapter_start);
   assert.ok(
     reader.playbackSequenceEntries.every((entry) =>
       eveningEntries.some(
@@ -562,14 +572,17 @@ test("a multi-session day offers a button per session, and each opens exactly th
 
   // A session spread over several passages queues every one of them, in order.
   await view.press(morning);
-  const morningChapters = readingPlanEntriesByPlanId[KATHISMA].filter(
-    (entry) => entry.day_number === 5 && entry.session_key === 'morning'
-  ).flatMap((entry) =>
-    Array.from(
-      { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
-      (_, index) => entry.chapter_start + index
-    )
-  );
+  const morningChapters = assertDefined(
+    readingPlanEntriesByPlanId[KATHISMA],
+    'readingPlanEntriesByPlanId[KATHISMA]'
+  )
+    .filter((entry) => entry.day_number === 5 && entry.session_key === 'morning')
+    .flatMap((entry) =>
+      Array.from(
+        { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+        (_, index) => entry.chapter_start + index
+      )
+    );
   assert.ok(morningChapters.length > 10, 'fixture: two morning passages');
   assert.equal(lastReaderLaunch().planSessionKey, 'morning');
   assert.deepEqual(
@@ -665,10 +678,10 @@ test("the progress card announces the day and tally in one stop, today's target 
     fill: paint[state].fill,
     border: paint[state].border,
   });
-  assert.deepEqual(dotPaint(dots[0]), expected('done'));
-  assert.deepEqual(dotPaint(dots[1]), expected('done'));
-  assert.deepEqual(dotPaint(dots[2]), expected('today'));
-  assert.deepEqual(dotPaint(dots[29]), expected('future'));
+  assert.deepEqual(dotPaint(assertDefined(dots[0], 'dots[0]')), expected('done'));
+  assert.deepEqual(dotPaint(assertDefined(dots[1], 'dots[1]')), expected('done'));
+  assert.deepEqual(dotPaint(assertDefined(dots[2], 'dots[2]')), expected('today'));
+  assert.deepEqual(dotPaint(assertDefined(dots[29], 'dots[29]')), expected('future'));
 });
 
 test('the plan title is a heading set in page ink beneath a full-width 4:3 cover plate', async () => {
@@ -698,12 +711,12 @@ test('the plan title is a heading set in page ink beneath a full-width 4:3 cover
   );
 
   const [cover] = view.queryAllByType('Image');
-  assert.deepEqual(cover.props.source, { uri: 'cover:river' });
-  const frame = flattenStyle(cover.props.style)!;
+  assert.deepEqual(assertDefined(cover, 'cover').props.source, { uri: 'cover:river' });
+  const frame = flattenStyle(assertDefined(cover, 'cover').props.style)!;
   assert.equal(frame.width, '100%');
   // The 390pt-wide test window shows the whole 4:3 plate: 390 × 3/4.
   assert.equal(frame.height, 293);
-  assert.equal(isHiddenFromAccessibility(cover), true);
+  assert.equal(isHiddenFromAccessibility(assertDefined(cover, 'cover')), true);
 });
 
 test('the plan offers no save-for-later, sample, public completion count or manual mark-complete control', async () => {
@@ -850,7 +863,9 @@ test('once the cover title scrolls away a compact header keeps the title, back a
 
   const [list] = view.queryAllByType('FlatList').filter((node) => node.props.horizontal !== true);
   const scrollTo = (y: number) =>
-    view.fire(list, 'onScroll', { nativeEvent: { contentOffset: { x: 0, y } } });
+    view.fire(assertDefined(list, 'list'), 'onScroll', {
+      nativeEvent: { contentOffset: { x: 0, y } },
+    });
 
   await scrollTo(400);
   assert.equal(view.getAllByRole('header', { name: title }).length, 2);
@@ -867,13 +882,17 @@ test('a related plan opens as a new plan page on top of this one', async () => {
   const [related] = view.queryAllByType('FlatList').filter((node) => node.props.horizontal);
   assert.ok(related, 'related plans are listed');
   const [first] = related.props.data as Array<{ id: string }>;
-  assert.notEqual(first.id, PSALMS, 'the plan itself is not related to itself');
+  assert.notEqual(
+    assertDefined(first, 'first').id,
+    PSALMS,
+    'the plan itself is not related to itself'
+  );
   const [card] = within(related).getAllByRole('button');
-  await view.press(card);
+  await view.press(assertDefined(card, 'card'));
 
   assert.deepEqual(harness.navigation.calls.at(-1), {
     method: 'push',
-    args: ['PlanDetail', { planId: first.id }],
+    args: ['PlanDetail', { planId: assertDefined(first, 'first').id }],
   });
 });
 
@@ -918,7 +937,10 @@ async function completeDisplayedPlanLaunch(launch: ReaderParams) {
   const planId = launch.planId as string;
   const dayNumber = launch.planDayNumber as number;
   const sessionKey = launch.planSessionKey as 'morning' | 'evening' | undefined;
-  const entries = readingPlanEntriesByPlanId[planId].filter(
+  const entries = assertDefined(
+    readingPlanEntriesByPlanId[planId],
+    'readingPlanEntriesByPlanId[planId]'
+  ).filter(
     (entry) => entry.day_number === dayNumber && (!sessionKey || entry.session_key === sessionKey)
   );
   function CompletionControl() {

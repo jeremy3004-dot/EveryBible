@@ -232,21 +232,25 @@ export function firstChapterOfDay(
   resolveBook: (bookId: string) => ReadingActivityBook
 ): ReadingActivityChapterRef | null {
   const first = groupDayChapters(chapterKeys, resolveBook)[0];
-  return first ? { bookId: first.bookId, chapter: first.chapters[0] } : null;
+  const chapter = first?.chapters[0];
+  return first && chapter !== undefined ? { bookId: first.bookId, chapter } : null;
 }
 
 function formatChapterRuns(sorted: number[]): string {
   const runs: string[] = [];
-  let start = sorted[0];
-  let previous = sorted[0];
+  const first = sorted[0];
+  if (first === undefined) return '';
+  let start = first;
+  let previous = first;
 
   for (let index = 1; index <= sorted.length; index += 1) {
     const chapter = sorted[index];
-    if (chapter === previous + 1) {
+    if (chapter !== undefined && chapter === previous + 1) {
       previous = chapter;
       continue;
     }
     runs.push(start === previous ? `${start}` : `${start}${CHAPTER_RANGE_SEPARATOR}${previous}`);
+    if (chapter === undefined) break;
     start = chapter;
     previous = chapter;
   }

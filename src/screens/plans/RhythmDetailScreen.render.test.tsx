@@ -9,6 +9,7 @@ import type { RhythmDetailScreenProps } from '../../navigation/types';
 import type { ReadingPlanRhythmItem, UserReadingPlanProgress } from '../../services/plans/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
 import { readingPlanEntriesByPlanId } from '../../data/readingPlans.generated';
+import { assertDefined } from '../../utils/assertDefined';
 
 // The real reading-plans store runs behind an in-memory MMKV; the plan catalog is the bundled one.
 mockMmkvStorage(mock);
@@ -107,9 +108,10 @@ for (const fixture of [
       const rhythmId = await seedRhythm([{ id: '', type: 'plan', planId: fixture.planId }], null);
       const store = await loadStore();
       store.getState().upsertProgress(progress({ plan_id: fixture.planId }));
-      const entries = readingPlanEntriesByPlanId[fixture.planId].filter(
-        (entry) => entry.day_number === fixture.day
-      );
+      const entries = assertDefined(
+        readingPlanEntriesByPlanId[fixture.planId],
+        'readingPlanEntriesByPlanId[fixture.planId]'
+      ).filter((entry) => entry.day_number === fixture.day);
       const firstEntry = entries[0];
       const lastEntry = entries.at(-1);
       assert.ok(firstEntry && lastEntry);
@@ -155,7 +157,11 @@ test('the rhythm shows its slot, its ordered sequence and what comes next', asyn
 
   const titles = ['Evening psalm', t('readingPlans.psalms30.title')];
   const cards = titles.map((title) => view.getByText(title));
-  assert.ok(within(cards[0].parent!.parent!).queryByText(t('readingPlans.repeatablePassage')));
+  assert.ok(
+    within(assertDefined(cards[0], 'cards[0]').parent!.parent!).queryByText(
+      t('readingPlans.repeatablePassage')
+    )
+  );
   assert.ok(view.getByText(t('readingPlans.dayOf', { current: 1, total: 30 })));
 });
 
@@ -168,7 +174,7 @@ test('Continue Rhythm opens the reader on the first chapter with the whole rhyth
   );
 
   assert.equal(rootCalls.length, 1);
-  const [{ name, params }] = rootCalls;
+  const { name, params } = assertDefined(rootCalls[0], 'first root navigation call');
   assert.equal(name, 'Bible');
   assert.equal(params.screen, 'BibleReader');
   const reader = params.params as Record<string, unknown>;
@@ -204,7 +210,10 @@ test('a listener who paused audio is not restarted when continuing the rhythm', 
 
   await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
 
-  const reader = rootCalls[0].params.params as Record<string, unknown>;
+  const reader = assertDefined(rootCalls[0], 'rootCalls[0]').params.params as Record<
+    string,
+    unknown
+  >;
   assert.equal(reader.preferredMode, 'listen');
   assert.equal('autoplayAudio' in reader, false);
 });
@@ -246,7 +255,10 @@ test('a reader who prefers reading continues the rhythm in read mode without aut
 
   await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
 
-  const reader = rootCalls[0].params.params as Record<string, unknown>;
+  const reader = assertDefined(rootCalls[0], 'rootCalls[0]').params.params as Record<
+    string,
+    unknown
+  >;
   assert.equal(reader.preferredMode, 'read');
   assert.equal('autoplayAudio' in reader, false);
 });
@@ -308,7 +320,10 @@ test('at large text a sequence card moves its status pill under the title, and p
   harness.setFontScale(2);
   const view = await renderDetail(rhythmId);
 
-  const titleColumn = hostAncestors(view.getByText('Evening psalm'))[0];
+  const titleColumn = assertDefined(
+    hostAncestors(view.getByText('Evening psalm'))[0],
+    "hostAncestors(view.getByText('Evening psalm'))[0]"
+  );
   const status = within(titleColumn).getByText(t('common.next'));
   assert.equal(status.props.numberOfLines, 2, 'a pill label wraps rather than truncates');
 });
@@ -386,7 +401,17 @@ test('the summary counts the items, and the finished and remaining plans', async
   const view = await renderDetail(result.rhythm!.id);
 
   const statValue = (label: string) =>
-    textContent(within(hostAncestors(view.getByText(label))[0]).queryAllByType('Text')[0]);
+    textContent(
+      assertDefined(
+        within(
+          assertDefined(
+            hostAncestors(view.getByText(label))[0],
+            'hostAncestors(view.getByText(label))[0]'
+          )
+        ).queryAllByType('Text')[0],
+        'within(hostAncestors(view.getByText(label))[0]).queryAllByTy'
+      )
+    );
   assert.equal(statValue(t('readingPlans.includedItems')), '4');
   assert.equal(statValue(t('readingPlans.completed')), '2');
   assert.equal(statValue(t('readingPlans.remaining')), '1');
@@ -461,11 +486,17 @@ test('a recurring rhythm launches its displayed occurrence before midnight and r
   assert.ok(result.success);
   const view = await renderDetail(result.rhythm!.id);
   await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
-  const opened = rootCalls[0].params.params as Record<string, unknown>;
+  const opened = assertDefined(rootCalls[0], 'rootCalls[0]').params.params as Record<
+    string,
+    unknown
+  >;
   assert.equal(opened.chapter, 30);
   assert.equal(opened.planOccurrenceKey, '2026-09-30');
   const capturedContext = opened.sessionContext as { segments: Array<{ occurrenceKey?: string }> };
-  assert.equal(capturedContext.segments[0].occurrenceKey, '2026-09-30');
+  assert.equal(
+    assertDefined(capturedContext.segments[0], 'capturedContext.segments[0]').occurrenceKey,
+    '2026-09-30'
+  );
   await act(async () => {
     harness.rn.AppState.emit('background');
   });
@@ -475,11 +506,14 @@ test('a recurring rhythm launches its displayed occurrence before midnight and r
   });
   await view.flush();
   await view.press(view.getByRole('button', { name: t('readingPlans.continueRhythm') }));
-  const fresh = rootCalls[1].params.params as Record<string, unknown>;
+  const fresh = assertDefined(rootCalls[1], 'rootCalls[1]').params.params as Record<
+    string,
+    unknown
+  >;
   assert.equal(fresh.chapter, 1);
   assert.equal(fresh.planOccurrenceKey, '2026-10-01');
   assert.equal(
-    capturedContext.segments[0].occurrenceKey,
+    assertDefined(capturedContext.segments[0], 'capturedContext.segments[0]').occurrenceKey,
     '2026-09-30',
     'the prior reader session stays immutable'
   );

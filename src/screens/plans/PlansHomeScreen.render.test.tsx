@@ -19,6 +19,7 @@ import { readingPlanEntriesByPlanId, readingPlans } from '../../data/readingPlan
 import type { ReadingPlan, UserReadingPlanProgress } from '../../services/plans/types';
 import type { ListeningHistoryEntry } from '../../stores/libraryModel';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Recurring plans read their day from the calendar, so the zone and clock are pinned.
 process.env.TZ = 'UTC';
@@ -361,14 +362,18 @@ test('the three plan tabs are one full-width switch, pinned in the sticky header
   for (let at: ReactTestInstance | null = tablist; at; at = at.parent) {
     assert.notEqual(at.props.horizontal, true);
   }
-  assert.deepEqual(page.props.stickyHeaderIndices, [1]);
-  const pageChildren = page.children as ReactTestInstance[];
+  assert.deepEqual(assertDefined(page, 'page').props.stickyHeaderIndices, [1]);
+  const pageChildren = assertDefined(page, 'page').children as ReactTestInstance[];
   assert.equal(
-    within(pageChildren[1]).queryAllByRole('tablist').length,
+    within(assertDefined(pageChildren[1], 'pageChildren[1]')).queryAllByRole('tablist').length,
     1,
     'child 1 is the tab strip'
   );
-  assert.ok(within(pageChildren[0]).getByRole('header', { name: t('readingPlans.plans') }));
+  assert.ok(
+    within(assertDefined(pageChildren[0], 'pageChildren[0]')).getByRole('header', {
+      name: t('readingPlans.plans'),
+    })
+  );
 });
 
 // Release QA: at iOS AX5 the title and "My pla…" were cut, and on Android at 2.0
@@ -394,7 +399,8 @@ test('the page scrolls clear of the floating tab bar', async () => {
   const view = await renderHome();
   const [page] = view.queryAllByType('ScrollView');
 
-  const padding = flattenStyle(page.props.contentContainerStyle)?.paddingBottom as number;
+  const padding = flattenStyle(assertDefined(page, 'page').props.contentContainerStyle)
+    ?.paddingBottom as number;
   assert.ok(padding >= TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CONTENT_GAP, `paddingBottom ${padding}`);
 });
 
@@ -427,7 +433,9 @@ test('the first open loads the catalog once, a later focus reloads once more, an
 
   const [page] = view.queryAllByType('ScrollView');
   await act(async () => {
-    await (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+    await (
+      assertDefined(page, 'page').props.refreshControl.props.onRefresh as () => Promise<void>
+    )();
   });
   assert.equal(service.listCalls, 3, 'pull to refresh');
   assert.equal(service.hydrateCalls, 3, 'pull to refresh');
@@ -474,12 +482,16 @@ test('pull to refresh reloads the catalog and progress without the skeleton', as
   const view = await renderHome();
   const [page] = view.queryAllByType('ScrollView');
   const { listCalls, hydrateCalls } = service;
-  const refreshControl = () => view.queryAllByType('ScrollView')[0].props.refreshControl;
+  const refreshControl = () =>
+    assertDefined(view.queryAllByType('ScrollView')[0], "view.queryAllByType('ScrollView')[0]")
+      .props.refreshControl;
   service.catalogGate = gate();
 
   let refreshed!: Promise<void>;
   await act(async () => {
-    refreshed = (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+    refreshed = (
+      assertDefined(page, 'page').props.refreshControl.props.onRefresh as () => Promise<void>
+    )();
   });
   // While the reload is in flight the spinner shows over the content, not the skeleton.
   assert.equal(refreshControl().props.refreshing, true);
@@ -671,7 +683,10 @@ async function confirmDelete(view: Awaited<ReturnType<typeof renderHome>>) {
 test('deleting an active plan asks first; cancelling keeps it, confirming removes it', async () => {
   await seed(progressRow(PSALMS));
   const view = await renderHome();
-  const row = view.queryAllByType('Swipeable')[0];
+  const row = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
 
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
   await view.flush();
@@ -695,7 +710,10 @@ test('a leave-plan confirmation from account A cannot unenroll the current accou
   harness.authStore.setState({ user: { uid: 'account-a' } });
   await seed(progressRow(PSALMS));
   const view = await renderHome();
-  const row = view.queryAllByType('Swipeable')[0];
+  const row = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
   const { leave } = deleteConfirmation();
   await act(async () => {
@@ -712,7 +730,10 @@ for (const transition of ['generation', 'unmount'] as const) {
     harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
     await seed(progressRow(PSALMS));
     const view = await renderHome();
-    const row = view.queryAllByType('Swipeable')[0];
+    const row = assertDefined(
+      view.queryAllByType('Swipeable')[0],
+      "view.queryAllByType('Swipeable')[0]"
+    );
     await view.press(within(row).getByRole('button', { name: t('common.delete') }));
     const { leave } = deleteConfirmation();
     if (transition === 'generation') {
@@ -732,7 +753,10 @@ for (const transition of ['account', 'unmount'] as const) {
     harness.authStore.setState({ user: { uid: 'account-a' }, authGeneration: 0 });
     await seed(progressRow(PSALMS));
     const view = await renderHome();
-    const row = view.queryAllByType('Swipeable')[0];
+    const row = assertDefined(
+      view.queryAllByType('Swipeable')[0],
+      "view.queryAllByType('Swipeable')[0]"
+    );
     await view.press(within(row).getByRole('button', { name: t('common.delete') }));
     const { leave } = deleteConfirmation();
     service.unenrollGate = gate();
@@ -801,7 +825,10 @@ test('a failed delete keeps the plan and tells the reader', async () => {
   service.unenrollError = 'network';
   const view = await renderHome();
 
-  const row = view.queryAllByType('Swipeable')[0];
+  const row = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
   await confirmDelete(view);
 
@@ -819,7 +846,10 @@ test('a delete that fails without an error message still keeps the plan and tell
   const view = await renderHome();
   const hapticsBefore = harness.haptics.length;
 
-  const row = view.queryAllByType('Swipeable')[0];
+  const row = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
   await confirmDelete(view);
 
@@ -837,7 +867,10 @@ test('a delete that throws is treated as a failure, tells the reader, keeps the 
   const view = await renderHome();
   const hapticsBefore = harness.haptics.length;
 
-  const row = view.queryAllByType('Swipeable')[0];
+  const row = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
   await view.press(within(row).getByRole('button', { name: t('common.delete') }));
   await confirmDelete(view);
 
@@ -864,7 +897,7 @@ test('Find plans leads with a 44pt search strip naming the catalog size', async 
   assert.equal(input.props.placeholder, label);
   // The tab's content sits straight in the page's scroll surface.
   const [page] = view.queryAllByType('ScrollView');
-  assert.equal(within(page).getByLabelText(label), input);
+  assert.equal(within(assertDefined(page, 'page')).getByLabelText(label), input);
   const strip = hostParent(input);
   const frame = flattenStyle(strip.props.style)!;
   // A floor, not a fixed height, so a large text size is not clipped.
@@ -873,9 +906,9 @@ test('Find plans leads with a 44pt search strip naming the catalog size', async 
   assert.equal(frame.borderRadius, radius.lg);
   assert.equal(frame.borderColor, colors.controlBorder);
   const [glyph] = within(strip).queryAllByType('LucideIcon');
-  assert.equal(glyph.props.name, 'Search');
-  assert.equal(glyph.props.size, 17);
-  assert.equal(glyph.props.color, colors.secondaryText);
+  assert.equal(assertDefined(glyph, 'glyph').props.name, 'Search');
+  assert.equal(assertDefined(glyph, 'glyph').props.size, 17);
+  assert.equal(assertDefined(glyph, 'glyph').props.color, colors.secondaryText);
 });
 
 test('recurring plans are the two-up Daily rhythms grid; every other plan is a row under its category', async () => {
@@ -937,11 +970,16 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
       t('readingPlans.churchYear.heading'),
       t('readingPlans.dailyRhythms'),
       t('readingPlans.categoryLifeSituations'),
-      ...categories.map((category) => t(categoryKeys[category])),
+      ...categories.map((category) =>
+        t(assertDefined(categoryKeys[category], 'categoryKeys[category]'))
+      ),
     ]
   );
   for (const category of categories) {
-    const section = sectionOf(view, t(categoryKeys[category]));
+    const section = sectionOf(
+      view,
+      t(assertDefined(categoryKeys[category], 'categoryKeys[category]'))
+    );
     const plans = sequential.filter((plan) => plan.category === category);
     assert.ok(within(section).getByText(t('readingPlans.plansCount', { count: plans.length })));
     for (const plan of plans) {
@@ -971,13 +1009,16 @@ test('a rhythm card is a 16:10 framed cover; an enrolled one gets a success tick
   assert.ok(within(kathisma).getByText(cadence));
 
   const [tick] = within(proverbs).queryAllByType('LucideIcon');
-  assert.equal(tick.props.name, 'Check');
-  assert.equal(tick.props.size, 12);
-  assert.equal(tick.props.color, colors.success);
+  assert.equal(assertDefined(tick, 'tick').props.name, 'Check');
+  assert.equal(assertDefined(tick, 'tick').props.size, 12);
+  assert.equal(assertDefined(tick, 'tick').props.color, colors.success);
   assert.equal(within(kathisma).queryAllByType('LucideIcon').length, 0);
 
   assert.equal(flattenStyle(proverbs.props.style)?.flexBasis, '48%');
-  const cover = within(proverbs).queryAllByType('Image')[0];
+  const cover = assertDefined(
+    within(proverbs).queryAllByType('Image')[0],
+    "within(proverbs).queryAllByType('Image')[0]"
+  );
   assert.equal(isHiddenFromAccessibility(cover), true);
   const coverFrame = flattenStyle(hostParent(cover).props.style)!;
   assert.equal(coverFrame.aspectRatio, 16 / 10);
@@ -1043,13 +1084,18 @@ test('rows in a category card are split by strong hairlines, with 52pt framed co
     .filter((node) => !String(accessibilityLabelOf(node)).startsWith(t('readingPlans.start')));
   assert.ok(rows.length > 1);
   const [first, second] = rows.map((row) => flattenStyle(row.props.style)!);
-  assert.equal(first.borderTopWidth, undefined);
-  assert.equal(second.borderTopWidth, 1);
-  assert.equal(second.borderTopColor, colors.borderStrong);
-  assert.equal(first.paddingVertical, 10);
-  assert.equal(first.paddingHorizontal, 12);
+  assert.equal(assertDefined(first, 'first').borderTopWidth, undefined);
+  assert.equal(assertDefined(second, 'second').borderTopWidth, 1);
+  assert.equal(assertDefined(second, 'second').borderTopColor, colors.borderStrong);
+  assert.equal(assertDefined(first, 'first').paddingVertical, 10);
+  assert.equal(assertDefined(first, 'first').paddingHorizontal, 12);
   const coverFrame = flattenStyle(
-    hostParent(within(rows[0]).queryAllByType('Image')[0]).props.style
+    hostParent(
+      assertDefined(
+        within(assertDefined(rows[0], 'rows[0]')).queryAllByType('Image')[0],
+        "within(rows[0]).queryAllByType('Image')[0]"
+      )
+    ).props.style
   )!;
   assert.equal(coverFrame.width, 52);
   assert.equal(coverFrame.height, 52);
@@ -1098,7 +1144,7 @@ test('a filtered plan result opens on its first press while the search input is 
   // The render harness does not run the native keyboard responder. Assert the
   // forwarded ScrollView contract that lets its result press reach the handler.
   const [page] = view.queryAllByType('ScrollView');
-  assert.equal(page.props.keyboardShouldPersistTaps, 'handled');
+  assert.equal(assertDefined(page, 'page').props.keyboardShouldPersistTaps, 'handled');
   await view.press(view.getByRole('button', { name: titleOf('week-of-christ') }));
   assert.deepEqual(navigateCalls(), [['PlanDetail', { planId: 'week-of-christ' }]]);
 });
@@ -1189,7 +1235,10 @@ test('a finished plan is listed under Completed with its date and chip, opens it
   await view.press(row);
   assert.deepEqual(navigateCalls(), [['PlanDetail', { planId: GOSPELS }]]);
 
-  const swipe = view.queryAllByType('Swipeable')[0];
+  const swipe = assertDefined(
+    view.queryAllByType('Swipeable')[0],
+    "view.queryAllByType('Swipeable')[0]"
+  );
   await view.press(within(swipe).getByRole('button', { name: t('common.delete') }));
   await view.flush();
   await confirmDelete(view);
@@ -1221,8 +1270,8 @@ test('completed plans list the most recently started first, and a row without a 
     rows.map((node) => accessibilityLabelOf(node)),
     [titleOf(PSALMS), titleOf(GOSPELS)]
   );
-  assert.equal(within(rows[0]).queryByText(/\d{4}/), null);
-  assert.ok(within(rows[1]).getByText('Sep 20, 2026'));
+  assert.equal(within(assertDefined(rows[0], 'rows[0]')).queryByText(/\d{4}/), null);
+  assert.ok(within(assertDefined(rows[1], 'rows[1]')).getByText('Sep 20, 2026'));
 });
 
 test('a completed row reads its status and finish date, and offers Delete as a VoiceOver action', async () => {
@@ -1300,14 +1349,14 @@ test('plan metadata that appears nowhere else may take two lines', async () => {
 // ---------------------------------------------------------------------------
 
 const kathismaMorningChapters = () =>
-  readingPlanEntriesByPlanId[KATHISMA].filter(
-    (entry) => entry.day_number === 5 && entry.session_key === 'morning'
-  ).flatMap((entry) =>
-    Array.from(
-      { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
-      (_, index) => `${entry.book}_${entry.chapter_start + index}`
-    )
-  );
+  assertDefined(readingPlanEntriesByPlanId[KATHISMA], 'readingPlanEntriesByPlanId[KATHISMA]')
+    .filter((entry) => entry.day_number === 5 && entry.session_key === 'morning')
+    .flatMap((entry) =>
+      Array.from(
+        { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+        (_, index) => `${entry.book}_${entry.chapter_start + index}`
+      )
+    );
 
 test('reading a chapter moves an active rhythm on to its next session', async () => {
   await seed(progressRow(KATHISMA));
@@ -1418,7 +1467,7 @@ test('a sync that only stamps synced_at leaves the Find plans catalog row alone'
 
   const drawn = await rowRendersDuring(() =>
     act(async () => {
-      const psalms = store.getState().progressByPlanId[PSALMS];
+      const psalms = assertDefined(store.getState().progressByPlanId[PSALMS], 'psalms progress');
       store.getState().upsertProgress({ ...psalms, synced_at: '2026-09-24T12:00:00.000Z' });
     })
   );
@@ -1434,9 +1483,10 @@ test('the Find plans catalog row still redraws when the day it shows actually ch
   await openTab(view, 'readingPlans.findPlans');
 
   await act(async () => {
-    store
-      .getState()
-      .upsertProgress({ ...store.getState().progressByPlanId[PSALMS], current_day: 4 });
+    store.getState().upsertProgress({
+      ...assertDefined(store.getState().progressByPlanId[PSALMS], 'psalms progress'),
+      current_day: 4,
+    });
   });
 
   assert.ok(
@@ -1452,13 +1502,16 @@ test('pull to refresh does not redraw plan rows that did not change', async () =
   const view = await renderHome();
   const [page] = view.queryAllByType('ScrollView');
   const refreshing = () =>
-    view.queryAllByType('ScrollView')[0].props.refreshControl.props.refreshing;
+    assertDefined(view.queryAllByType('ScrollView')[0], "view.queryAllByType('ScrollView')[0]")
+      .props.refreshControl.props.refreshing;
   service.catalogGate = gate();
 
   const drawn = await rowRendersDuring(async () => {
     let refreshed!: Promise<void>;
     await act(async () => {
-      refreshed = (page.props.refreshControl.props.onRefresh as () => Promise<void>)();
+      refreshed = (
+        assertDefined(page, 'page').props.refreshControl.props.onRefresh as () => Promise<void>
+      )();
     });
     assert.equal(refreshing(), true);
     service.catalogGate?.open();

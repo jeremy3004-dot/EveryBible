@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { getGatherArtworkXml } from '../../data/gatherArtwork';
 import { mockPackage } from '../../testing/mockModules';
 import { createSvgFake } from '../../testing/nativePackageFakes';
+import { assertDefined } from '../../utils/assertDefined';
 
 /**
  * The harness's react-native-svg fake has a component as its default export.
@@ -62,18 +63,19 @@ export function artworkFingerprint(key: string): string {
   const xml = getGatherArtworkXml(key);
   if (!xml) throw new Error(`no gather artwork registered for ${key}`);
   const bitmap = xml.match(/(?:xlink:href|href)="(data:image\/[^"]+)"/i);
-  if (bitmap) return bitmap[1];
+  if (bitmap) return assertDefined(bitmap[1], 'bitmap data URI capture group');
   const path = xml.match(/\sd="([^"]{24,})"/);
   if (!path) throw new Error(`gather artwork ${key} has no path to fingerprint`);
-  return path[1];
+  return assertDefined(path[1], 'artwork path capture group');
 }
 
 /** The artwork a GatherIconBadge drew: its SVG markup or its bitmap URI. */
 export function renderedArtwork(node: ReactTestInstance): string | null {
   const svg = node.findAll((entry) => (entry.type as unknown) === 'SvgXml');
-  if (svg.length > 0) return svg[0].props.xml as string;
+  if (svg.length > 0) return assertDefined(svg[0], 'svg[0]').props.xml as string;
   const image = node.findAll((entry) => (entry.type as unknown) === 'Image');
-  if (image.length > 0) return (image[0].props.source as { uri: string }).uri;
+  if (image.length > 0)
+    return (assertDefined(image[0], 'image[0]').props.source as { uri: string }).uri;
   return null;
 }
 

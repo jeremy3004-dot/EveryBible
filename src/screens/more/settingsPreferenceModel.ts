@@ -40,11 +40,10 @@ export function formatReminderTimeDisplay({
 }: Pick<ReminderDisplayInput, 'reminderTime' | 'notSetLabel'>): string {
   if (!reminderTime) return notSetLabel;
 
-  const parts = reminderTime.split(':');
-  if (parts.length !== 2) return notSetLabel;
+  const [hourPart, minutes, ...extra] = reminderTime.split(':');
+  if (hourPart === undefined || minutes === undefined || extra.length > 0) return notSetLabel;
 
-  const hour = parseInt(parts[0], 10);
-  const minutes = parts[1];
+  const hour = parseInt(hourPart, 10);
   if (Number.isNaN(hour)) return notSetLabel;
 
   const ampm = hour >= 12 ? 'PM' : 'AM';

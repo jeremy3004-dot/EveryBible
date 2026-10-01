@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { create } from 'zustand';
 import { installRenderHarness } from '../../testing/render';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 
@@ -97,7 +98,7 @@ test('activating a translation in the picker returns to the previous screen', as
   await finishRefresh(view);
 
   const [picker] = view.queryAllByType('TranslationPickerList');
-  await view.fire(picker, 'onTranslationActivated', { id: 'bsb' });
+  await view.fire(assertDefined(picker, 'picker'), 'onTranslationActivated', { id: 'bsb' });
 
   assert.deepEqual(
     harness.navigation.calls.map((call) => call.method),

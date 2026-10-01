@@ -7,6 +7,7 @@ import { installRenderHarness, renderedText, within } from '../../testing/render
 import { RHYTHM_PRESET_LIBRARY } from '../../services/plans/rhythmPresets';
 import type { RhythmComposerScreenProps } from '../../navigation/types';
 import type { ReadingPlansStoreApi } from '../../stores/readingPlansStore';
+import { assertDefined } from '../../utils/assertDefined';
 
 // The real reading-plans store runs behind an in-memory MMKV.
 mockMmkvStorage(mock);
@@ -64,9 +65,12 @@ test('the composer offers every historic preset as a card under the "Historic rh
   // words of card copy with the action last.
   const [first] = RHYTHM_PRESET_LIBRARY;
   const card = view.getByRole('button', {
-    name: `${t('plans.rhythmComposer.addRhythm')}: ${first.title}`,
+    name: `${t('plans.rhythmComposer.addRhythm')}: ${assertDefined(first, 'first').title}`,
   });
-  assert.match(String(card.props.accessibilityValue?.text), new RegExp(first.tradition));
+  assert.match(
+    String(card.props.accessibilityValue?.text),
+    new RegExp(assertDefined(first, 'first').tradition)
+  );
   assert.ok(String(card.props.accessibilityHint).includes(t('plans.rhythmComposer.includes')));
   // Presets replaced the old drag-and-build composer: no name field, passage picker or steppers.
   assert.equal(view.queryAllByType('TextInput').length, 0);
@@ -141,13 +145,16 @@ test('a tradition filter narrows the list to that tradition, and an impossible c
 test('tapping a preset creates a rhythm from it and replaces the composer with that rhythm', async () => {
   const store = await loadStore();
   const view = await renderComposer();
-  const preset = RHYTHM_PRESET_LIBRARY[0];
+  const preset = assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]');
 
   await view.press(view.getByText(preset.title));
 
   const [rhythmId] = store.getState().rhythmOrder;
   assert.ok(rhythmId, 'a rhythm was created');
-  const rhythm = store.getState().rhythmsById[rhythmId];
+  const rhythm = assertDefined(
+    store.getState().rhythmsById[rhythmId],
+    'store.getState().rhythmsById[rhythmId]'
+  );
   assert.equal(rhythm.title, preset.title);
   assert.equal(rhythm.slot, preset.slot);
   assert.deepEqual(
@@ -189,7 +196,10 @@ test('in edit mode, tapping a preset replaces the existing rhythm in place and o
   await view.press(view.getByText(preset.title));
 
   assert.deepEqual(store.getState().rhythmOrder, [rhythmId], 'no second rhythm');
-  const rhythm = store.getState().rhythmsById[rhythmId];
+  const rhythm = assertDefined(
+    store.getState().rhythmsById[rhythmId],
+    'store.getState().rhythmsById[rhythmId]'
+  );
   assert.equal(rhythm.title, preset.title);
   assert.equal(rhythm.slot, 'evening');
   assert.equal(rhythm.items.length, preset.items.length);
@@ -211,10 +221,10 @@ test('in edit mode, Delete Rhythm asks first and only the destructive choice del
   await view.press(view.getByRole('button', { name: t('readingPlans.deleteRhythm') }));
 
   const [alert] = harness.rn.__recorded.alerts;
-  assert.equal(alert.title, t('readingPlans.deleteRhythmConfirmTitle'));
+  assert.equal(assertDefined(alert, 'alert').title, t('readingPlans.deleteRhythmConfirmTitle'));
   assert.ok(store.getState().rhythmsById[rhythmId], 'nothing is deleted before confirming');
 
-  const buttons = alert.buttons as AlertButton[];
+  const buttons = assertDefined(alert, 'alert').buttons as AlertButton[];
   assert.equal(
     buttons.find((button) => button.style === 'cancel')?.onPress,
     undefined,
@@ -305,7 +315,7 @@ test('editing a rhythm that no longer exists explains it and offers a way back',
 
 test('each preset card lists its tradition, historic roots and included passages', async () => {
   const view = await renderComposer();
-  const preset = RHYTHM_PRESET_LIBRARY[0];
+  const preset = assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]');
 
   const card = view
     .getAllByRole('button')
@@ -328,11 +338,16 @@ test('a save the store rejects explains why and stays on the composer', async ()
   });
   const view = await renderComposer();
 
-  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
+  await view.press(
+    view.getByText(assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]').title)
+  );
 
   const [alert] = harness.rn.__recorded.alerts;
-  assert.equal(alert.title, t('common.error'));
-  assert.equal(alert.message, t('plans.rhythmComposer.errorPlanInAnotherRhythm'));
+  assert.equal(assertDefined(alert, 'alert').title, t('common.error'));
+  assert.equal(
+    assertDefined(alert, 'alert').message,
+    t('plans.rhythmComposer.errorPlanInAnotherRhythm')
+  );
   assert.deepEqual(callsTo('replace'), []);
   assert.deepEqual(harness.haptics, [], 'no success haptic');
 });
@@ -361,7 +376,9 @@ test('the filters are grouped under their time-of-day and tradition headings', a
 test('tapping a preset twice before the composer leaves creates one rhythm', async () => {
   const store = await loadStore();
   const view = await renderComposer();
-  const card = view.getByText(RHYTHM_PRESET_LIBRARY[0].title);
+  const card = view.getByText(
+    assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]').title
+  );
 
   await view.press(card);
   await view.press(card);
@@ -385,8 +402,12 @@ test('after a rejected save the reader can pick another preset', async () => {
   });
   const view = await renderComposer();
 
-  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[0].title));
-  await view.press(view.getByText(RHYTHM_PRESET_LIBRARY[1].title));
+  await view.press(
+    view.getByText(assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]').title)
+  );
+  await view.press(
+    view.getByText(assertDefined(RHYTHM_PRESET_LIBRARY[1], 'RHYTHM_PRESET_LIBRARY[1]').title)
+  );
 
   assert.equal(attempts, 2);
   assert.equal(store.getState().rhythmOrder.length, 1);
@@ -395,7 +416,7 @@ test('after a rejected save the reader can pick another preset', async () => {
 
 test('narrowing the filters leaves the preset cards that stay on screen un-rendered', async () => {
   const view = await renderComposer();
-  const tradition = RHYTHM_PRESET_LIBRARY[0].tradition;
+  const tradition = assertDefined(RHYTHM_PRESET_LIBRARY[0], 'RHYTHM_PRESET_LIBRARY[0]').tradition;
   const kept = new Set(
     RHYTHM_PRESET_LIBRARY.filter((preset) => preset.tradition === tradition).map(
       (preset) => preset.title

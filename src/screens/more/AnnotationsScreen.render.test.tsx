@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer';
 import { mockBarrel, mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
 import type { UserAnnotation } from '../../services/supabase/types';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 mockMmkvStorage(mock);
@@ -149,7 +150,9 @@ test('only the latest annotation refresh may replace the list and clear its busy
   const refresh = () => {
     const [list] = view.queryAllByType('FlatList');
     return (
-      list.props.refreshControl as { props: { onRefresh: () => Promise<void> } }
+      assertDefined(list, 'list').props.refreshControl as {
+        props: { onRefresh: () => Promise<void> };
+      }
     ).props.onRefresh();
   };
   service.fetch = () => older.promise;
@@ -164,7 +167,8 @@ test('only the latest annotation refresh may replace the list and clear its busy
   await view.flush();
   const [list] = view.queryAllByType('FlatList');
   assert.equal(
-    (list.props.refreshControl as { props: { refreshing: boolean } }).props.refreshing,
+    (assertDefined(list, 'list').props.refreshControl as { props: { refreshing: boolean } }).props
+      .refreshing,
     true
   );
   newer.resolve({ success: true, data: [annotation({ content: 'New refresh' })] });

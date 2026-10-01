@@ -10,6 +10,7 @@ import type {
   MoreStackParamList,
   RootTabParamList,
 } from '../../navigation/types';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 
@@ -156,7 +157,7 @@ test('the More menu lists profile and settings destinations, with no Saved Libra
   }
   assert.equal(view.queryByText(/Saved Library/i), null);
   assert.equal(
-    rowTitles.some((title) => /library/i.test(title)),
+    rowTitles.some((title) => /library/i.test(assertDefined(title, 'title'))),
     false
   );
 });
@@ -271,11 +272,14 @@ test('a signed-in account card opens the profile, and sign out asks before signi
 
   await view.press(view.getByRole('button', { name: t('more.signOut') }));
   const [alert] = harness.rn.__recorded.alerts;
-  assert.equal(alert.title, t('more.signOut'));
+  assert.equal(assertDefined(alert, 'alert').title, t('more.signOut'));
   assert.equal(signOutCalls.length, 0, 'nothing happens until the user confirms');
-  const confirm = (alert.buttons as Array<{ style?: string; onPress?: () => Promise<void> }>).find(
-    (button) => button.style === 'destructive'
-  );
+  const confirm = (
+    assertDefined(alert, 'alert').buttons as Array<{
+      style?: string;
+      onPress?: () => Promise<void>;
+    }>
+  ).find((button) => button.style === 'destructive');
   await confirm?.onPress?.();
   assert.equal(signOutCalls.length, 1);
 });
@@ -456,7 +460,8 @@ test('failed local sign-out shows a localized error and allows another attempt',
   const view = await renderMore();
   await view.press(view.getByRole('button', { name: t('more.signOut') }));
   const confirm = (
-    harness.rn.__recorded.alerts[0].buttons as Array<{
+    assertDefined(harness.rn.__recorded.alerts[0], 'harness.rn.__recorded.alerts[0]')
+      .buttons as Array<{
       style?: string;
       onPress?: () => Promise<void>;
     }>

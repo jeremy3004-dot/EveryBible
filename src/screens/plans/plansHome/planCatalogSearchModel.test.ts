@@ -7,6 +7,7 @@ import {
   createPlanSearchIndex,
   filterCatalogPlans,
 } from './planCatalogSearchModel';
+import { assertDefined } from '../../../utils/assertDefined';
 
 const COPY: Record<string, string> = {
   'plan.psalms': 'Psalms in 30 Days',
@@ -63,7 +64,7 @@ function search(query: string) {
 test('each plan is searchable by its translated title, description, cadence and category', () => {
   const [first, , third, fourth] = buildSearchablePlans(CATALOG, t);
   assert.deepEqual(
-    { ...first, plan: first.plan.id },
+    { ...first, plan: assertDefined(first, 'first').plan.id },
     {
       plan: 'psalms',
       title: 'Psalms in 30 Days',
@@ -72,9 +73,13 @@ test('each plan is searchable by its translated title, description, cadence and 
       category: 'devotional',
     }
   );
-  assert.equal(third.cadence, 'Morning + Evening');
-  assert.equal(fourth.title, 'plan.raw.title', 'an untranslated title falls back to its key');
-  assert.equal(fourth.description, '');
+  assert.equal(assertDefined(third, 'third').cadence, 'Morning + Evening');
+  assert.equal(
+    assertDefined(fourth, 'fourth').title,
+    'plan.raw.title',
+    'an untranslated title falls back to its key'
+  );
+  assert.equal(assertDefined(fourth, 'fourth').description, '');
 });
 
 test('a blank query is the whole catalog, in catalog order', () => {
