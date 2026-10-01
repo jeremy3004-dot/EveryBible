@@ -617,8 +617,8 @@ test('sharing from the editor captures its picture as a JPEG and opens the share
   assert.equal(sharing.captures.length, 1);
   const { options } = assertDefined(sharing.captures[0], 'the first capture');
   assert.deepEqual(options, {
-    format: 'jpg',
-    quality: 0.9,
+    format: 'png',
+    quality: 1,
     result: 'tmpfile',
     width: 1080,
     height: 1000,
@@ -626,7 +626,7 @@ test('sharing from the editor captures its picture as a JPEG and opens the share
   assert.deepEqual(sharing.sheets, [
     {
       uri: 'file:///tmp/verse-of-the-day.png',
-      options: { dialogTitle: t('groups.share'), mimeType: 'image/jpeg', UTI: 'public.jpeg' },
+      options: { dialogTitle: t('groups.share'), mimeType: 'image/png', UTI: 'public.png' },
     },
   ]);
   assert.deepEqual(harness.rn.__recorded.shares, []);

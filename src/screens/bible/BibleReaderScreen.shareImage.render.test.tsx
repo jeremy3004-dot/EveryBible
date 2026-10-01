@@ -467,19 +467,19 @@ test('colour swatches keep a 44pt touch target on a 390pt screen', async () => {
   assert.ok(cellWidth + slop.left + slop.right >= 44, `hitSlop ${JSON.stringify(slop)}`);
 });
 
-test('the picture is captured as a capped JPEG file and shared as one', async () => {
+test('the picture is captured as a capped PNG file and shared as one', async () => {
   const view = await renderReader();
   await shareFromPicker(view);
 
   assert.deepEqual(sharing.captureOptions, [
-    { format: 'jpg', quality: 0.9, result: 'tmpfile', width: 1080, height: 1000 },
+    { format: 'png', quality: 1, result: 'tmpfile', width: 1080, height: 1000 },
   ]);
   const options = assertDefined(sharing.sheets[0], 'sharing.sheets[0]').options as {
     mimeType: string;
     UTI: string;
   };
-  assert.equal(options.mimeType, 'image/jpeg');
-  assert.equal(options.UTI, 'public.jpeg');
+  assert.equal(options.mimeType, 'image/png');
+  assert.equal(options.UTI, 'public.png');
 });
 
 test('the previously shared picture is deleted when the next one is captured', async () => {
