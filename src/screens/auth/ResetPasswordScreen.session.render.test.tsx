@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { installRenderHarness } from '../../testing/render';
 import { mockBarrel, mockMmkvStorage, mockModule, sourcePath } from '../../testing/mockModules';
 import { makeFakeSession, makeFakeUser } from '../../testing/supabaseFake';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Keep the real auth store and recovery activation: the ordinary screen fixture
 // mocks activation and cannot observe onboarding unmounting it during sign-out.
@@ -51,7 +52,7 @@ for (const [path, name] of [
   ['bibleStore', 'useBibleStore'],
   ['readingPlansStore', 'readingPlansStore'],
   ['translatorReviewStore', 'useTranslatorReviewStore'],
-]) {
+] as const) {
   mockModule(mock, sourcePath(`stores/${path}.ts`), {
     [name]: { getState: () => ({ resetForSignOut: () => resets.push(path) }) },
   });
@@ -509,7 +510,10 @@ test('an old recovery success alert cannot dismiss a newer same-account session 
     useAuthStore.getState().setSession(next);
     emitAuth('SIGNED_IN', next);
   });
-  (alert?.buttons as Array<{ onPress?: () => void }> | undefined)?.[0].onPress?.();
+  assertDefined(
+    (alert?.buttons as Array<{ onPress?: () => void }> | undefined)?.[0],
+    '(alert?.buttons as Array<{ onPress?: () => void }> | unde...'
+  ).onPress?.();
   assert.deepEqual(harness.navigation.calls, []);
   await view.unmount();
 });
