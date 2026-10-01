@@ -20,6 +20,8 @@ import {
   splitActivePlanRows,
 } from './plansHomeModel';
 
+const OCTOBER = new Date(2026, 9, 1, 12);
+
 const t = ((key: string, options?: Record<string, unknown>) =>
   options && 'count' in options ? `${key}(${options.count})` : key) as unknown as TFunction;
 
@@ -108,7 +110,9 @@ test('active and completed rows join the catalog and drop a plan the catalog no 
   ];
   const catalog = [psalms, gospels];
 
-  assert.deepEqual(getActivePlanRows(catalog, progress), [{ progress: progress[0], plan: psalms }]);
+  assert.deepEqual(getActivePlanRows(catalog, progress, new Date(2026, 9, 1)), [
+    { progress: progress[0], plan: psalms },
+  ]);
   assert.deepEqual(getCompletedPlanItems(catalog, progress), [{ ...progress[2], plan: gospels }]);
 });
 
@@ -216,13 +220,14 @@ test('known categories use their translated heading; others are title-cased from
   assert.equal(getPlanCategoryLabel('devotional', t), 'readingPlans.categoryDevotional');
   assert.equal(getPlanCategoryLabel('life-situation', t), 'readingPlans.categoryLifeSituations');
   assert.equal(getPlanCategoryLabel('church-year', t), 'readingPlans.churchYear.heading');
+  assert.equal(getPlanCategoryLabel('seasonal', t), 'readingPlans.inSeason');
   assert.equal(getPlanCategoryLabel('custom', t), 'Custom');
   assert.equal(getPlanCategoryLabel('new-testament-deep-dive', t), 'New Testament Deep Dive');
 });
 
 test('the catalog groups rhythms apart and other plans by category, in catalog order', () => {
   const uncategorised = makePlan({ id: 'loose', category: null });
-  const groups = groupCatalogPlans([gospels, proverbs, psalms, uncategorised, kathisma]);
+  const groups = groupCatalogPlans([gospels, proverbs, psalms, uncategorised, kathisma], OCTOBER);
 
   assert.deepEqual(
     groups.dailyRhythmPlans.map((plan) => plan.id),
@@ -237,8 +242,8 @@ test('the catalog groups rhythms apart and other plans by category, in catalog o
     ]
   );
   assert.deepEqual(groups.lifeSituationPlans, []);
-  assert.deepEqual(groupCatalogPlans([]), {
-    churchYearPlans: [],
+  assert.deepEqual(groupCatalogPlans([], OCTOBER), {
+    seasonalPlans: [],
     dailyRhythmPlans: [],
     lifeSituationPlans: [],
     categories: [],
@@ -248,7 +253,7 @@ test('the catalog groups rhythms apart and other plans by category, in catalog o
 test('Seasons of life plans get their own group instead of a category row list', () => {
   const grief = makePlan({ id: 'grief', category: 'life-situation', duration_days: 7 });
   const fear = makePlan({ id: 'fear', category: 'life-situation', duration_days: 7 });
-  const groups = groupCatalogPlans([gospels, grief, kathisma, fear]);
+  const groups = groupCatalogPlans([gospels, grief, kathisma, fear], OCTOBER);
 
   assert.deepEqual(
     groups.lifeSituationPlans.map((plan) => plan.id),
@@ -264,18 +269,30 @@ test('Seasons of life plans get their own group instead of a category row list',
   );
 });
 
-test('Advent and Christmas get their own church-year group, not the daily rhythms', () => {
+test('seasonal plans get their own group, soonest first, not the daily rhythms', () => {
   const advent = makePlan({
     id: 'advent',
     category: 'church-year',
     scheduleMode: 'calendar-advent',
     duration_days: 28,
   });
-  const groups = groupCatalogPlans([gospels, advent, kathisma]);
+  const allSaints = makePlan({
+    id: 'all-saints',
+    category: 'church-year',
+    scheduleMode: 'calendar-all-saints',
+    duration_days: 7,
+  });
+  const persecuted = makePlan({
+    id: 'persecuted-church',
+    category: 'seasonal',
+    scheduleMode: 'calendar-persecuted-church',
+    duration_days: 7,
+  });
+  const groups = groupCatalogPlans([gospels, advent, persecuted, kathisma, allSaints], OCTOBER);
 
   assert.deepEqual(
-    groups.churchYearPlans.map((plan) => plan.id),
-    ['advent']
+    groups.seasonalPlans.map((plan) => plan.id),
+    ['all-saints', 'persecuted-church', 'advent']
   );
   assert.deepEqual(
     groups.dailyRhythmPlans.map((plan) => plan.id),
@@ -285,6 +302,23 @@ test('Advent and Christmas get their own church-year group, not the daily rhythm
     groups.categories.map(({ category }) => category),
     ['book-study']
   );
+});
+
+test('a joined seasonal plan leaves My plans once its season has passed', () => {
+  const holyWeek = makePlan({
+    id: 'holy-week',
+    category: 'church-year',
+    scheduleMode: 'calendar-holy-week',
+    duration_days: 8,
+  });
+  const progress = [makeProgress('holy-week', { started_at: '2027-03-15T09:00:00.000Z' })];
+
+  // Holy Week 2027 runs 21 to 28 March.
+  assert.equal(getActivePlanRows([holyWeek], progress, new Date(2027, 2, 25)).length, 1);
+  assert.equal(getActivePlanRows([holyWeek], progress, new Date(2027, 2, 29)).length, 0);
+  // It comes back when next year's is offered, two weeks before Palm Sunday (9 April 2028).
+  assert.equal(getActivePlanRows([holyWeek], progress, new Date(2028, 2, 25)).length, 0);
+  assert.equal(getActivePlanRows([holyWeek], progress, new Date(2028, 2, 27)).length, 1);
 });
 
 test("a seasonal plan's dates read as a short range in the in-app language", () => {

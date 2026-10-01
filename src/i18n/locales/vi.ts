@@ -1314,6 +1314,9 @@ export const vi = {
     startPlan: 'Bắt đầu kế hoạch',
     enrolled: 'Đã đăng ký',
     dayOf: 'Ngày {{current}}/{{total}}',
+    inSeason: 'Đúng mùa',
+    seasonStarts: 'Bắt đầu {{date}}',
+    seasonStartsToday: 'Bắt đầu hôm nay',
     markComplete: 'Đánh dấu hoàn thành',
     completed: 'Đã hoàn thành',
     progress: 'Tiến độ',
@@ -1505,6 +1508,61 @@ export const vi = {
         title: 'Mười hai ngày Giáng Sinh',
         description:
           'Từ ngày Giáng Sinh đến ngày 5 tháng 1: sự giáng sinh của Chúa Giê-su, Ngôi Lời trở nên xác thịt, và các nhà thông thái theo ngôi sao.',
+      },
+      newYear: {
+        title: 'Năm mới',
+        description:
+          'Tuần đầu tháng 1: từ ngày sáng tạo đầu tiên đến trời mới đất mới, cùng những bài thi thiên để lên đường.',
+      },
+      epiphany: {
+        title: 'Lễ Hiển Linh: Ánh sáng cho muôn dân',
+        description:
+          'Từ ngày 6 tháng 1: Chúa Giê-su được bày tỏ là ánh sáng của thế gian, từ lễ báp-têm và dấu lạ đầu tiên đến mọi dân tộc, mọi chi tộc và mọi thứ tiếng trước ngai.',
+      },
+      lent: {
+        title: 'Mùa Chay',
+        description:
+          'Từ Thứ Tư Lễ Tro đến đêm trước Chúa nhật Lễ Lá: trở về với Chúa qua đồng vắng, lòng thương xót của Ngài và con đường lên Giê-ru-sa-lem, cho đến việc La-xa-rơ sống lại.',
+      },
+      holyWeek: {
+        title: 'Tuần Thánh',
+        description:
+          'Từ Chúa nhật Lễ Lá đến Chúa nhật Phục Sinh, mỗi ngày một đoạn: vào thành Giê-ru-sa-lem, bữa tiệc cuối cùng, thập tự giá, ngôi mộ bị niêm phong và ngôi mộ trống.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Tuần Thánh (lịch Chính Thống giáo)',
+        description:
+          'Tuần Thánh theo ngày của Chính Thống giáo, từ Chúa nhật Lễ Lá đến Lễ Pascha: vào thành Giê-ru-sa-lem, Bữa Tiệc Mầu Nhiệm, thập tự giá, ngôi mộ và sự phục sinh.',
+      },
+      easter: {
+        title: 'Mùa Phục Sinh',
+        description:
+          'Từ thứ Hai sau Phục Sinh đến đêm trước Lễ Thăng Thiên: Chúa phục sinh hiện ra, các thư tín và các tiên tri cho thấy ý nghĩa sự sống lại của Ngài.',
+      },
+      pentecost: {
+        title: 'Từ Lễ Thăng Thiên đến Lễ Ngũ Tuần',
+        description:
+          'Mười một ngày từ Lễ Thăng Thiên đến Lễ Ngũ Tuần: cùng các môn đồ đầu tiên chờ đợi và cầu nguyện cho Đức Thánh Linh, Đấng đem Tin Lành đến mọi thứ tiếng.',
+      },
+      translationWeek: {
+        title: 'Lời Chúa trong mọi ngôn ngữ',
+        description:
+          'Một tuần kết thúc vào Ngày Dịch Thuật Quốc tế 30 tháng 9: Lời Chúa được đọc, giải nghĩa và mang đến mọi dân tộc, mọi ngôn ngữ. Hãy cầu nguyện cho những người dịch Kinh Thánh.',
+      },
+      allSaints: {
+        title: 'Lễ Các Thánh',
+        description:
+          'Từ ngày 1 tháng 11: đám mây chứng nhân đã chạy xong cuộc đua trước chúng ta, và những thánh đồ trung tín, bình dị mà Kinh Thánh nhắc tên.',
+      },
+      persecutedChurch: {
+        title: 'Hội Thánh bị bắt bớ',
+        description:
+          'Một tuần từ Chúa nhật thứ hai của tháng 11, khi nhiều hội thánh cầu nguyện cho các tín hữu chịu khổ vì Chúa Giê-su: những chứng nhân can đảm trong Công vụ, những người lưu đày trung tín trong Đa-ni-ên, và lời hứa cho con đường gian nan.',
+      },
+      hardChristmas: {
+        title: 'Khi Giáng Sinh thật khó khăn',
+        description:
+          'Tuần trước Giáng Sinh, dành cho lúc mùa lễ nặng nề vì mất mát hay cô đơn: những lời than thở, sự an ủi và ánh sáng chiếu trong bóng tối.',
       },
     },
     lifeSituations: {

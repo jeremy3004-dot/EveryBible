@@ -24,7 +24,9 @@ import {
   getVisiblePlanDayNumbers,
   getPlanDayCount,
   getPlanSeason,
+  isJoinedPlanShownToday,
   isPlanInSeason,
+  isPlanOfferedToday,
   isSeasonalPlan,
 } from './readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from './types';
@@ -1107,4 +1109,54 @@ test('seasonal plans repeat like rhythms; no other schedule is seasonal', () => 
   assert.equal(isSeasonalPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })), false);
   assert.equal(isSeasonalPlan(makePlan()), false);
   assert.equal(getPlanSeason(makePlan(), new Date(2026, 0, 1)), null);
+});
+
+// Seasonal plans: offered only around their dates
+
+test('a seasonal plan is offered from its lead-in to its last day; other plans always', () => {
+  const lent = makePlan({ scheduleMode: 'calendar-lent', duration_days: 39 });
+  // Lent 2027 runs 10 February to 20 March and is offered from 20 January.
+  assert.equal(isPlanOfferedToday(lent, new Date(2027, 0, 19, 12)), false);
+  assert.equal(isPlanOfferedToday(lent, new Date(2027, 0, 20, 12)), true);
+  assert.equal(isPlanOfferedToday(lent, new Date(2027, 2, 20, 12)), true);
+  assert.equal(isPlanOfferedToday(lent, new Date(2027, 2, 21, 12)), false);
+  assert.equal(isPlanOfferedToday(makePlan({}), new Date(2027, 2, 21, 12)), true);
+  assert.equal(
+    isPlanOfferedToday(makePlan({ scheduleMode: 'calendar-day-of-month' }), new Date(2027, 2, 21)),
+    true
+  );
+});
+
+test('a joined seasonal plan shows through its season, then waits for the next', () => {
+  const allSaints = makePlan({ scheduleMode: 'calendar-all-saints', duration_days: 7 });
+  const joinedFor2026 = { started_at: new Date(2026, 9, 25, 9).toISOString() };
+  assert.equal(isJoinedPlanShownToday(allSaints, joinedFor2026, new Date(2026, 10, 7, 20)), true);
+  assert.equal(isJoinedPlanShownToday(allSaints, joinedFor2026, new Date(2026, 10, 8, 9)), false);
+  // Back in the lead-in to All Saints 2027.
+  assert.equal(isJoinedPlanShownToday(allSaints, joinedFor2026, new Date(2027, 9, 22, 9)), true);
+});
+
+test('a seasonal plan joined between its seasons stays in view until it starts', () => {
+  const lent = makePlan({ scheduleMode: 'calendar-lent', duration_days: 39 });
+  // Joined from a shared link in December, before Lent 2027 is offered.
+  const joinedEarly = { started_at: new Date(2026, 11, 1, 9).toISOString() };
+  assert.equal(isJoinedPlanShownToday(lent, joinedEarly, new Date(2026, 11, 2, 9)), true);
+  assert.equal(
+    isJoinedPlanShownToday(lent, { started_at: 'not a date' }, new Date(2026, 11, 2)),
+    false
+  );
+  assert.equal(
+    isJoinedPlanShownToday(makePlan({}), { started_at: 'not a date' }, new Date(2026, 11, 2)),
+    true
+  );
+});
+
+test('a joined Orthodox Holy Week stays in view in years it shares Western dates', () => {
+  const orthodox = makePlan({ scheduleMode: 'calendar-orthodox-holy-week', duration_days: 8 });
+  const joinedIn2027 = { started_at: new Date(2027, 3, 20, 9).toISOString() };
+  // 2028: Pascha and Western Easter are both 16 April. Not offered to newcomers,
+  // but a reader who already keeps it still sees it through the week.
+  assert.equal(isPlanOfferedToday(orthodox, new Date(2028, 3, 12, 12)), false);
+  assert.equal(isJoinedPlanShownToday(orthodox, joinedIn2027, new Date(2028, 3, 12, 12)), true);
+  assert.equal(isJoinedPlanShownToday(orthodox, joinedIn2027, new Date(2028, 3, 17, 12)), false);
 });

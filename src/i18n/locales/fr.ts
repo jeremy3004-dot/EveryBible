@@ -1363,6 +1363,9 @@ export const fr = {
     startPlan: 'Commencer le plan',
     enrolled: 'Inscrit',
     dayOf: 'Jour {{current}} sur {{total}}',
+    inSeason: 'De saison',
+    seasonStarts: 'Commence le {{date}}',
+    seasonStartsToday: 'Commence aujourd’hui',
     markComplete: 'Marquer comme terminé',
     completed: 'Terminé',
     progress: 'Progression',
@@ -1557,6 +1560,61 @@ export const fr = {
         title: 'Les douze jours de Noël',
         description:
           'Du jour de Noël au 5 janvier : la naissance de Jésus, la Parole faite chair et les mages qui ont suivi l’étoile.',
+      },
+      newYear: {
+        title: 'Une nouvelle année',
+        description:
+          'La première semaine de janvier : les commencements, du premier jour de la création au nouveau ciel et à la nouvelle terre, avec des psaumes pour se mettre en route.',
+      },
+      epiphany: {
+        title: 'Épiphanie : lumière pour les nations',
+        description:
+          'À partir du 6 janvier : Jésus révélé comme la lumière du monde, de son baptême et de son premier signe jusqu’à toute nation, tribu et langue devant le trône.',
+      },
+      lent: {
+        title: 'Carême',
+        description:
+          'Du mercredi des Cendres à la veille du dimanche des Rameaux : reviens au Seigneur à travers le désert, sa miséricorde et le chemin de Jérusalem, jusqu’à la résurrection de Lazare.',
+      },
+      holyWeek: {
+        title: 'Semaine sainte',
+        description:
+          'Du dimanche des Rameaux au jour de Pâques, jour après jour : l’entrée à Jérusalem, la Cène, la croix, le tombeau scellé, puis le tombeau vide.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Semaine sainte (calendrier orthodoxe)',
+        description:
+          'La Semaine sainte aux dates orthodoxes, du dimanche des Rameaux à Pâques : l’entrée à Jérusalem, la Cène mystique, la croix, le tombeau et la résurrection.',
+      },
+      easter: {
+        title: 'Pâques',
+        description:
+          'Du lundi de Pâques à la veille de l’Ascension : le Seigneur ressuscité apparaît, et les lettres et les prophètes montrent ce que signifie sa résurrection.',
+      },
+      pentecost: {
+        title: 'De l’Ascension à la Pentecôte',
+        description:
+          'Onze jours de l’Ascension à la Pentecôte : attends et prie avec les premiers disciples le Saint-Esprit, qui porte l’Évangile à toutes les langues.',
+      },
+      translationWeek: {
+        title: 'La Parole dans toutes les langues',
+        description:
+          'Une semaine qui s’achève à la Journée internationale de la traduction, le 30 septembre : la Parole lue, expliquée et portée à chaque tribu et à chaque langue. Prie pour les traducteurs de la Bible.',
+      },
+      allSaints: {
+        title: 'La Toussaint',
+        description:
+          'À partir du 1er novembre : la grande nuée de témoins qui ont couru la course avant nous, et les saints fidèles et ordinaires que nomme la Bible.',
+      },
+      persecutedChurch: {
+        title: 'L’Église persécutée',
+        description:
+          'Une semaine à partir du deuxième dimanche de novembre, quand de nombreuses Églises prient pour les croyants qui souffrent pour Jésus : des témoins audacieux dans les Actes, des exilés fidèles dans Daniel et des promesses pour le chemin difficile.',
+      },
+      hardChristmas: {
+        title: 'Quand Noël est difficile',
+        description:
+          'La semaine avant Noël, quand la saison est lourde de deuil ou de solitude : lamentations, consolation et la lumière qui brille dans les ténèbres.',
       },
     },
     lifeSituations: {

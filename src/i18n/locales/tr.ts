@@ -1315,6 +1315,9 @@ export const tr = {
     startPlan: 'Planı başlat',
     enrolled: 'Kayıtlı',
     dayOf: '{{total}} günün {{current}}. günü',
+    inSeason: 'Mevsimine özel',
+    seasonStarts: 'Başlangıç: {{date}}',
+    seasonStartsToday: 'Bugün başlıyor',
     markComplete: 'Tamamlandı olarak işaretle',
     completed: 'Tamamlandı',
     progress: 'İlerleme',
@@ -1504,6 +1507,61 @@ export const tr = {
         title: 'Noel’in on iki günü',
         description:
           'Noel gününden 5 Ocak’a kadar: İsa’nın doğuşu, insan olan Söz ve yıldızın ardından gelen bilge adamlar.',
+      },
+      newYear: {
+        title: 'Yeni Yıl',
+        description:
+          'Ocak’ın ilk haftası: yaratılışın ilk gününden yeni göğe ve yeni yere kadar başlangıçlar; yola çıkmak için mezmurlarla.',
+      },
+      epiphany: {
+        title: 'Epifani: Uluslara Işık',
+        description:
+          '6 Ocak’tan itibaren: İsa’nın dünyanın ışığı olarak görünmesi; vaftizinden ve ilk belirtisinden taht önündeki her ulusa, kabileye ve dile kadar.',
+      },
+      lent: {
+        title: 'Büyük Perhiz',
+        description:
+          'Kül Çarşambası’ndan Palmiye Pazarı arifesine kadar: çölden, Rab’bin merhametinden ve Kudüs yolundan geçerek Lazar’ın diriltilmesine dek Rab’be dönün.',
+      },
+      holyWeek: {
+        title: 'Kutsal Hafta',
+        description:
+          'Palmiye Pazarı’ndan Paskalya gününe kadar, gün gün: Kudüs’e giriş, Son Akşam Yemeği, çarmıh, mühürlenen mezar ve boş mezar.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Kutsal Hafta (Ortodoks takvimi)',
+        description:
+          'Ortodoks tarihlerine göre Kutsal Hafta, Palmiye Pazarı’ndan Pascha’ya kadar: Kudüs’e giriş, Mistik Sofra, çarmıh, mezar ve diriliş.',
+      },
+      easter: {
+        title: 'Paskalya',
+        description:
+          'Paskalya Pazartesi’nden Göğe Yükseliş arifesine kadar: dirilmiş Rab görünür; mektuplar ve peygamberler dirilişinin ne anlama geldiğini gösterir.',
+      },
+      pentecost: {
+        title: 'Göğe Yükseliş’ten Pentekost’a',
+        description:
+          'Göğe Yükseliş gününden Pentekost’a on bir gün: müjdeyi her dile ulaştıran Kutsal Ruh için ilk öğrencilerle birlikte bekleyin ve dua edin.',
+      },
+      translationWeek: {
+        title: 'Her Dilde Söz',
+        description:
+          '30 Eylül Uluslararası Çeviri Günü’nde sona eren bir hafta: Söz okunur, açıklanır ve her kabileye, her dile taşınır. Kutsal Kitap çevirmenleri için dua edin.',
+      },
+      allSaints: {
+        title: 'Azizler Günü',
+        description:
+          '1 Kasım’dan itibaren: bizden önce yarışı koşmuş büyük şahitler bulutu ve Kutsal Kitap’ın adını andığı sadık, sıradan azizler.',
+      },
+      persecutedChurch: {
+        title: 'Zulüm Gören Kilise',
+        description:
+          'Kasım’ın ikinci Pazar gününden itibaren bir hafta; birçok kilisenin İsa uğruna acı çeken imanlılar için dua ettiği zaman: Elçilerin İşleri’nde cesur tanıklar, Daniel’de sadık sürgünler ve zorlu yol için vaatler.',
+      },
+      hardChristmas: {
+        title: 'Noel Zor Geldiğinde',
+        description:
+          'Noel’den önceki hafta, mevsimin kayıp veya yalnızlıkla ağırlaştığı kişiler için: ağıtlar, teselli ve karanlıkta parlayan ışık.',
       },
     },
     lifeSituations: {

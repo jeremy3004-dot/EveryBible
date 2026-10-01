@@ -1197,16 +1197,16 @@ const lifeSituationRecipes: VersePlanRecipe[] = LIFE_SITUATION_PLANS.map((plan, 
   entries: wholeChapterDayEntries(plan.days),
 }));
 
-// Advent and Christmas are dated to their season each year. Advent's
-// duration_days is its longest run (28 days); a shorter year leaves off the tail,
-// the way a monthly plan leaves off day 31 in September.
+// Seasonal plans (Advent, Lent, Easter, All Saints, …) are dated to their season
+// each year. Advent's duration_days is its longest run (28 days); a shorter year
+// leaves off the tail, the way a monthly plan leaves off day 31 in September.
 const churchYearRecipes: VersePlanRecipe[] = CHURCH_YEAR_PLANS.map((plan, index) => ({
   id: plan.id,
   slug: plan.id,
   title_key: `readingPlans.churchYear.${plan.key}.title`,
   description_key: `readingPlans.churchYear.${plan.key}.description`,
   duration_days: plan.days.length,
-  category: 'church-year',
+  category: plan.category,
   sort_order: 60 + index,
   cover_key: plan.coverKey,
   schedule_mode: plan.scheduleMode,

@@ -5,7 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { AppCard, EmptyState, SectionHeader } from '../../../components/ui';
 import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../design/system';
-import { getActivePlanDayNumber } from '../../../services/plans/readingPlanModel';
+import {
+  getActivePlanDayNumber,
+  isPlanOfferedToday,
+} from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import { CatalogPlanRow } from './CatalogPlanRow';
 import { getPlanCategoryLabel, groupCatalogPlans } from './plansHomeModel';
@@ -20,8 +23,9 @@ interface FindPlansSectionProps {
 }
 
 /**
- * The searchable catalog: Church year, Daily rhythms and Seasons of life as cover
- * grids, every other category as rows.
+ * The searchable catalog: In season, Daily rhythms and Seasons of life as cover
+ * grids, every other category as rows. A seasonal plan is listed, and found by
+ * search, only around its own dates.
  */
 export function FindPlansSection({
   allPlans,
@@ -32,16 +36,20 @@ export function FindPlansSection({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { searchQuery, setSearchQuery, filteredPlans } = usePlanCatalogSearch(allPlans);
-  const { churchYearPlans, dailyRhythmPlans, lifeSituationPlans, categories } = useMemo(
-    () => groupCatalogPlans(filteredPlans),
-    [filteredPlans]
+  const offeredPlans = useMemo(
+    () => allPlans.filter((plan) => isPlanOfferedToday(plan, today)),
+    [allPlans, today]
+  );
+  const { searchQuery, setSearchQuery, filteredPlans } = usePlanCatalogSearch(offeredPlans);
+  const { seasonalPlans, dailyRhythmPlans, lifeSituationPlans, categories } = useMemo(
+    () => groupCatalogPlans(filteredPlans, today),
+    [filteredPlans, today]
   );
   const progressByPlanId = useMemo(
     () => new Map(userProgress.map((progress) => [progress.plan_id, progress])),
     [userProgress]
   );
-  const searchLabel = t('readingPlans.searchPlansCount', { count: allPlans.length });
+  const searchLabel = t('readingPlans.searchPlansCount', { count: offeredPlans.length });
 
   const renderCoverGrid = (title: string, plans: ReadingPlan[]) =>
     plans.length > 0 ? (
@@ -82,7 +90,7 @@ export function FindPlansSection({
         />
       </View>
 
-      {renderCoverGrid(t('readingPlans.churchYear.heading'), churchYearPlans)}
+      {renderCoverGrid(t('readingPlans.inSeason'), seasonalPlans)}
       {renderCoverGrid(t('readingPlans.dailyRhythms'), dailyRhythmPlans)}
       {renderCoverGrid(t('readingPlans.categoryLifeSituations'), lifeSituationPlans)}
 

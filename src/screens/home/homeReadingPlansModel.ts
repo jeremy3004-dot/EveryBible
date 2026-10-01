@@ -1,6 +1,7 @@
 import {
   getActivePlanDayNumber,
   getPlanCompletionEntryKey,
+  isJoinedPlanShownToday,
   isPlanInSeason,
   isRecurringPlan,
 } from '../../services/plans/readingPlanModel';
@@ -80,23 +81,27 @@ export function selectHomeContinuePlans(
   limit = 2,
   today: Date = new Date()
 ): HomeContinuePlan[] {
-  return plans
-    .map((plan) => {
-      const progress = progressByPlanId[plan.id];
-      return progress ? { plan, progress } : null;
-    })
-    .filter((item): item is HomeContinuePlan => item !== null && !item.progress.is_completed)
-    .map((item) => ({
-      item,
-      readToday: isReadToday(item, today),
-      lastActivity: getLastActivityTime(item),
-    }))
-    .sort((left, right) => {
-      if (left.readToday !== right.readToday) {
-        return left.readToday ? 1 : -1;
-      }
-      return right.lastActivity - left.lastActivity;
-    })
-    .map(({ item }) => item)
-    .slice(0, Math.max(0, limit));
+  return (
+    plans
+      .map((plan) => {
+        const progress = progressByPlanId[plan.id];
+        return progress ? { plan, progress } : null;
+      })
+      .filter((item): item is HomeContinuePlan => item !== null && !item.progress.is_completed)
+      // A seasonal plan steps aside between its seasons.
+      .filter(({ plan, progress }) => isJoinedPlanShownToday(plan, progress, today))
+      .map((item) => ({
+        item,
+        readToday: isReadToday(item, today),
+        lastActivity: getLastActivityTime(item),
+      }))
+      .sort((left, right) => {
+        if (left.readToday !== right.readToday) {
+          return left.readToday ? 1 : -1;
+        }
+        return right.lastActivity - left.lastActivity;
+      })
+      .map(({ item }) => item)
+      .slice(0, Math.max(0, limit))
+  );
 }

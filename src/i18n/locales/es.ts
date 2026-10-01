@@ -1799,6 +1799,9 @@ export const es = {
     startPlan: 'Iniciar plan',
     enrolled: 'Inscrito',
     dayOf: 'Día {{current}} de {{total}}',
+    inSeason: 'De temporada',
+    seasonStarts: 'Comienza el {{date}}',
+    seasonStartsToday: 'Comienza hoy',
     markComplete: 'Marcar como completado',
     completed: 'Completado',
     progress: 'Progreso',
@@ -1991,6 +1994,61 @@ export const es = {
         title: 'Los doce días de Navidad',
         description:
           'Desde el día de Navidad hasta el 5 de enero: el nacimiento de Jesús, el Verbo hecho carne y los magos que siguieron la estrella.',
+      },
+      newYear: {
+        title: 'Un año nuevo',
+        description:
+          'La primera semana de enero: los comienzos, desde el primer día de la creación hasta el cielo nuevo y la tierra nueva, con salmos para ponerse en camino.',
+      },
+      epiphany: {
+        title: 'Epifanía: luz para las naciones',
+        description:
+          'Desde el 6 de enero: Jesús revelado como la luz del mundo, desde su bautismo y su primera señal hasta toda nación, tribu y lengua ante el trono.',
+      },
+      lent: {
+        title: 'Cuaresma',
+        description:
+          'Del Miércoles de Ceniza a la víspera del Domingo de Ramos: vuelve al Señor a través del desierto, su misericordia y el camino a Jerusalén, hasta la resurrección de Lázaro.',
+      },
+      holyWeek: {
+        title: 'Semana Santa',
+        description:
+          'Del Domingo de Ramos al Domingo de Pascua, día a día: la entrada en Jerusalén, la última cena, la cruz, el sepulcro sellado y el sepulcro vacío.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Semana Santa (calendario ortodoxo)',
+        description:
+          'La Semana Santa en las fechas ortodoxas, del Domingo de Ramos a la Pascua: la entrada en Jerusalén, la Cena Mística, la cruz, el sepulcro y la resurrección.',
+      },
+      easter: {
+        title: 'Pascua',
+        description:
+          'Del lunes de Pascua a la víspera de la Ascensión: el Señor resucitado se aparece, y las cartas y los profetas muestran lo que significa su resurrección.',
+      },
+      pentecost: {
+        title: 'De la Ascensión a Pentecostés',
+        description:
+          'Once días desde la Ascensión hasta Pentecostés: espera y ora con los primeros discípulos por el Espíritu Santo, que lleva el evangelio a todas las lenguas.',
+      },
+      translationWeek: {
+        title: 'La Palabra en todas las lenguas',
+        description:
+          'Una semana que termina el Día Internacional de la Traducción, el 30 de septiembre: la Palabra leída, explicada y llevada a toda tribu y lengua. Ora por los traductores de la Biblia.',
+      },
+      allSaints: {
+        title: 'Todos los Santos',
+        description:
+          'Desde el 1 de noviembre: la gran nube de testigos que corrieron la carrera antes que nosotros, y los santos fieles y sencillos que nombra la Biblia.',
+      },
+      persecutedChurch: {
+        title: 'La iglesia perseguida',
+        description:
+          'Una semana desde el segundo domingo de noviembre, cuando muchas iglesias oran por los creyentes que sufren por Jesús: testigos valientes en Hechos, exiliados fieles en Daniel y promesas para el camino difícil.',
+      },
+      hardChristmas: {
+        title: 'Cuando la Navidad es difícil',
+        description:
+          'La semana antes de Navidad, para cuando la época pesa por la pérdida o la soledad: lamentos, consuelo y la luz que brilla en la oscuridad.',
       },
     },
     lifeSituations: {

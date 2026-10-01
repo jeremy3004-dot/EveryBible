@@ -1300,6 +1300,9 @@ export const en = {
     daysCount: '{{count}} days',
     searchPlansCount: 'Search {{count}} plans',
     dayOf: 'Day {{current}} of {{total}}',
+    inSeason: 'In season',
+    seasonStarts: 'Starts {{date}}',
+    seasonStartsToday: 'Starts today',
     markComplete: 'Mark Complete',
     completed: 'Completed',
     progress: 'Progress',
@@ -1511,6 +1514,61 @@ export const en = {
         title: 'The Twelve Days of Christmas',
         description:
           'From Christmas Day to 5 January: the birth of Jesus, the Word made flesh, and the wise men who followed the star.',
+      },
+      newYear: {
+        title: 'A New Year',
+        description:
+          'The first week of January: beginnings, from the first day of creation to the new heaven and the new earth, with psalms for setting out.',
+      },
+      epiphany: {
+        title: 'Epiphany: Light to the Nations',
+        description:
+          'From 6 January: Jesus revealed as the light of the world, from His baptism and first sign to every nation, tribe, and language before the throne.',
+      },
+      lent: {
+        title: 'Lent',
+        description:
+          'From Ash Wednesday to the eve of Palm Sunday: return to the Lord through the wilderness, His mercy, and the road to Jerusalem, to the raising of Lazarus.',
+      },
+      holyWeek: {
+        title: 'Holy Week',
+        description:
+          'From Palm Sunday to Easter Day, a day at a time: the entry into Jerusalem, the Last Supper, the cross, the sealed tomb, and the empty one.',
+      },
+      orthodoxHolyWeek: {
+        title: 'Holy Week (Orthodox calendar)',
+        description:
+          'Holy Week on the Orthodox dates, from Palm Sunday to Pascha: the entry into Jerusalem, the Mystical Supper, the cross, the tomb, and the Resurrection.',
+      },
+      easter: {
+        title: 'Easter',
+        description:
+          'From Easter Monday to the eve of Ascension Day: the risen Lord appears, and the letters and the prophets show what His rising means.',
+      },
+      pentecost: {
+        title: 'Ascension to Pentecost',
+        description:
+          'Eleven days from Ascension Day to Pentecost: wait and pray with the first disciples for the Holy Spirit, who brings the gospel to every language.',
+      },
+      translationWeek: {
+        title: 'The Word in Every Language',
+        description:
+          'A week ending on International Translation Day, 30 September: the Word read, explained, and carried to every tribe and language. Pray for Bible translators.',
+      },
+      allSaints: {
+        title: 'All Saints',
+        description:
+          'From 1 November: the great cloud of witnesses who ran the race before us, and the faithful, ordinary saints the Bible names.',
+      },
+      persecutedChurch: {
+        title: 'The Persecuted Church',
+        description:
+          'A week from the second Sunday of November, when many churches pray for believers who suffer for Jesus: bold witnesses in Acts, faithful exiles in Daniel, and promises for the hard road.',
+      },
+      hardChristmas: {
+        title: 'When Christmas Is Hard',
+        description:
+          'The week before Christmas, for when the season is heavy with loss or loneliness: laments, comfort, and the light that shines in the darkness.',
       },
     },
     lifeSituations: {

@@ -11,6 +11,17 @@ import type { ReadingPlanCoverKey } from './types';
 // asserted against the exact file it points at.
 const COVER_FILES = [
   'advent',
+  'newYear',
+  'epiphany',
+  'lent',
+  'holyWeek',
+  'orthodoxHolyWeek',
+  'easter',
+  'pentecost',
+  'translationWeek',
+  'allSaints',
+  'persecutedChurch',
+  'hardChristmas',
   'canyon',
   'christmas',
   'commonPrayerPsalter',
@@ -119,6 +130,17 @@ const EXPECTED_FILE_BY_KEY: Record<ReadingPlanCoverKey, (typeof COVER_FILES)[num
   lifeFamily: 'lifeFamily',
   advent: 'advent',
   christmas: 'christmas',
+  newYear: 'newYear',
+  epiphany: 'epiphany',
+  lent: 'lent',
+  holyWeek: 'holyWeek',
+  orthodoxHolyWeek: 'orthodoxHolyWeek',
+  easter: 'easter',
+  pentecost: 'pentecost',
+  translationWeek: 'translationWeek',
+  allSaints: 'allSaints',
+  persecutedChurch: 'persecutedChurch',
+  hardChristmas: 'hardChristmas',
 };
 
 const loadAssets = () => import('./readingPlanAssets');
