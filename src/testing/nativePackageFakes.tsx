@@ -20,6 +20,7 @@ import {
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertDefined } from '../utils/assertDefined';
 import { FlatList, hostComponent } from './reactNativeHost';
 
 type AnyProps = Record<string, unknown> & { children?: ReactNode };
@@ -166,16 +167,19 @@ export function createReanimatedFake(state: ReanimatedFakeState) {
       (...args: A) =>
         fn(...args),
     interpolate: (value: number, input: number[], output: number[]) => {
-      if (value <= input[0]) return output[0];
+      const at = (values: number[], index: number) =>
+        assertDefined(values[index], `interpolate point ${index}`);
+      if (value <= at(input, 0)) return at(output, 0);
       for (let i = 1; i < input.length; i += 1) {
-        if (value <= input[i]) {
-          const t = (value - input[i - 1]) / (input[i] - input[i - 1]);
-          return output[i - 1] + t * (output[i] - output[i - 1]);
+        if (value <= at(input, i)) {
+          const t = (value - at(input, i - 1)) / (at(input, i) - at(input, i - 1));
+          return at(output, i - 1) + t * (at(output, i) - at(output, i - 1));
         }
       }
-      return output[output.length - 1];
+      return at(output, output.length - 1);
     },
-    interpolateColor: (_value: number, _input: number[], output: string[]) => output[0],
+    interpolateColor: (_value: number, _input: number[], output: string[]) =>
+      assertDefined(output[0], 'an interpolateColor output'),
     Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
     Extrapolate: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
     ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
@@ -283,7 +287,7 @@ function lucideNamesUsedInSource(): Set<string> {
         for (const match of source.matchAll(
           /import\s*\{([^}]*)\}\s*from\s*'lucide-react-native'/g
         )) {
-          for (const raw of match[1].split(',')) {
+          for (const raw of (match[1] ?? '').split(',')) {
             const name = raw.trim().split(/\s+as\s+/)[0];
             if (name && !name.startsWith('type ')) names.add(name);
           }
@@ -448,7 +452,7 @@ export function createReactNavigationFake(fake: NavigationFake) {
     },
     useScrollToTop: () => {},
     useNavigationState: (selector: (state: unknown) => unknown) =>
-      selector(fake.navigation.getState()),
+      selector(assertDefined(fake.navigation.getState, 'navigation.getState')()),
     useLinkTo: () => () => {},
     // A host element, so a test can fire onReady / onStateChange on it.
     NavigationContainer: hostComponent('NavigationContainer'),
