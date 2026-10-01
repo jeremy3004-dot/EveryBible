@@ -1,5 +1,6 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
@@ -141,4 +142,31 @@ test('an unknown book shows the load error with a way back', async () => {
   assert.ok(view.getByText(t('bible.failedToLoad')));
   assert.ok(view.getByRole('button', { name: t('common.back') }));
   assert.equal(view.queryAllByRole('header').length, 0);
+});
+
+test('an unrelated re-render keeps the grid list extraData, so FlashList skips its rows', async () => {
+  const view = await renderBookHub();
+  const extraDataOf = () => view.queryAllByType('FlatList')[0]?.props.extraData;
+  const before = extraDataOf();
+  assert.ok(before, 'the grid hands FlashList its extraData');
+
+  // Same data, new action identity: the screen re-renders, nothing a tile shows changed.
+  await act(async () => {
+    progressStore.setState({
+      isChapterRead: (bookId: string, chapter: number) => readChapters.has(`${bookId}:${chapter}`),
+    });
+  });
+  assert.equal(extraDataOf(), before);
+
+  // A chapter marked read changes what a tile shows, so the rows must redraw.
+  readChapters.add('JHN:2');
+  await act(async () => {
+    progressStore.setState({ chaptersRead: { JHN: [1, 2] } });
+  });
+  assert.notEqual(extraDataOf(), before);
+  assert.equal(
+    within(view.getByRole('button', { name: 'John 2' })).queryAllByType('Icon').length,
+    1,
+    'the newly read chapter shows its tick'
+  );
 });
