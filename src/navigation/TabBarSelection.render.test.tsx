@@ -39,8 +39,16 @@ async function renderSelection(selectedIndex: number) {
   // Undefined until the capsule has been measured.
   const maybePill = () => view.queryAllByType('View')[1];
   const pill = () => assertDefined(maybePill(), 'the selection pill');
-  const layout = () =>
-    view.fire(layer, 'onLayout', { nativeEvent: { layout: { width: CAPSULE_WIDTH, height: 64 } } });
+  // The slot width reaches the pill through a shared value written in an effect, which the
+  // fake only reads on the next render (a device applies it straight away).
+  const layout = async () => {
+    await view.fire(layer, 'onLayout', {
+      nativeEvent: { layout: { width: CAPSULE_WIDTH, height: 64 } },
+    });
+    await view.rerender(
+      <TabBarSelection selectedIndex={selectedIndex} count={5} color={PILL_COLOR} />
+    );
+  };
   return { view, layer, pill, maybePill, layout, TabBarSelection };
 }
 
