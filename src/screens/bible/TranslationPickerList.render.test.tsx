@@ -320,9 +320,9 @@ test('the manage sheet reserves the safe area and sizes to the window after rota
     windowDimensions = initialDimensions;
   });
   const view = await renderPicker();
-  const sheet = await openManageSheet(view, BSB);
+  const sheet = await openManageSheet(view, NET);
 
-  const title = within(sheet).getByRole('header', { name: BSB.name });
+  const title = within(sheet).getByRole('header', { name: NET.name });
   const content = hostAncestors(title).find(
     (node) => flattenStyle(node.props.style)?.paddingBottom === harness.insets.bottom
   );
@@ -367,7 +367,7 @@ test('the manage sheet is a modal page: its backdrop is hidden and Close is spok
   assert.equal(view.queryAllByType('Modal').length, 0, 'tapping outside still closes it');
 });
 
-test('the manage sheet for the current Bible offers pin, the installed text, and audio by collection and book', async () => {
+test('the manage sheet for the current Bible offers the installed text, and audio by collection and book', async () => {
   const view = await renderPicker();
   const sheet = await openManageSheet(view, BSB);
   const scope = within(sheet);
@@ -390,11 +390,30 @@ test('the manage sheet for the current Bible offers pin, the installed text, and
   assert.ok(scope.getByRole('button', { name: 'Genesis' }));
   assert.ok(scope.getByRole('button', { name: 'Revelation' }));
 
-  await view.press(scope.getByRole('button', { name: t('translations.pin') }));
-  assert.deepEqual(log, [['pin', 'bsb']]);
-  assert.ok(within(sheet).getByRole('button', { name: t('translations.unpin') }));
-  await view.press(within(sheet).getByRole('button', { name: t('translations.unpin') }));
-  assert.deepEqual(log.at(-1), ['unpin', 'bsb']);
+  assert.equal(
+    scope.queryByRole('button', { name: t('translations.pin') }),
+    null,
+    'the Bible being read is always in My Translations, so there is nothing to add'
+  );
+});
+
+test('a Bible outside My Translations offers Add, which then flips to Hide from My Translations', async () => {
+  const view = await renderPicker();
+  const sheet = await openManageSheet(view, NET);
+
+  assert.equal(within(sheet).queryByRole('button', { name: t('translations.hide') }), null);
+  await view.press(within(sheet).getByRole('button', { name: t('translations.pin') }));
+  assert.deepEqual(log, [['pin', 'engnet']]);
+  assert.equal(within(sheet).queryByRole('button', { name: t('translations.pin') }), null);
+  assert.ok(within(sheet).getByRole('button', { name: t('translations.hide') }));
+});
+
+test('an installed Bible already listed under My Translations offers Hide, never Add', async () => {
+  const view = await renderPicker();
+  const sheet = await openManageSheet(view, EMTV);
+
+  assert.equal(within(sheet).queryByRole('button', { name: t('translations.pin') }), null);
+  assert.ok(within(sheet).getByRole('button', { name: t('translations.hide') }));
 });
 
 test('BSB with downloaded audio can be hidden or deleted, and its downloaded books show a check', async () => {

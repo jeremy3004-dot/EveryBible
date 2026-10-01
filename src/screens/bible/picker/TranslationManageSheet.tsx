@@ -41,7 +41,6 @@ const LIBRARY_ACTION_COPY: Record<
   { icon: keyof typeof Ionicons.glyphMap; labelKey: string; destructive?: boolean }
 > = {
   pin: { icon: 'bookmark-outline', labelKey: 'translations.pin' },
-  unpin: { icon: 'bookmark', labelKey: 'translations.unpin' },
   hide: { icon: 'eye-off-outline', labelKey: 'translations.hide' },
   delete: { icon: 'trash-outline', labelKey: 'translations.delete', destructive: true },
 };
@@ -69,7 +68,6 @@ export function TranslationManageSheet({
   const pinned = useTranslationPreferenceStore((state) => state.pinnedIds.includes(translation.id));
   const hidden = useTranslationPreferenceStore((state) => state.hiddenIds.includes(translation.id));
   const pin = useTranslationPreferenceStore((state) => state.pin);
-  const unpin = useTranslationPreferenceStore((state) => state.unpin);
   const hide = useTranslationPreferenceStore((state) => state.hide);
 
   // Remote audio differs by book, so each by-book row asks about its own book.
@@ -132,8 +130,6 @@ export function TranslationManageSheet({
   const runLibraryAction = (action: ManageLibraryAction) => {
     if (action === 'pin') {
       pin(translation.id);
-    } else if (action === 'unpin') {
-      unpin(translation.id);
     } else if (action === 'hide') {
       hide(translation.id);
       onClose();

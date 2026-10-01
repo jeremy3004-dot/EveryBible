@@ -5,7 +5,10 @@ import {
 } from '../../../services/audio/audioDownloads';
 import { hasTranslationDownloadData } from '../../../stores/bibleStoreModel';
 import type { BibleTranslation } from '../../../types';
-import type { TranslationAudioCollectionAction } from '../bibleTranslationModel';
+import {
+  isTranslationReadableLocally,
+  type TranslationAudioCollectionAction,
+} from '../bibleTranslationModel';
 import {
   getTranslationDownloadActivity,
   type TranslationRowDownloadProgress,
@@ -17,7 +20,7 @@ import {
 /** Which audio download the sheet itself started and is waiting on. */
 export type ManageAudioDownloadKey = 'all' | 'nt' | `book:${string}`;
 
-export type ManageLibraryAction = 'pin' | 'unpin' | 'hide' | 'delete';
+export type ManageLibraryAction = 'pin' | 'hide' | 'delete';
 
 export type ManageRowState = 'done' | 'download' | 'unavailable' | 'busy';
 
@@ -121,8 +124,15 @@ export function buildTranslationManageModel({
   const showsAudio = canManageAudio && translationAudioBooks.length > 0;
   const isBusy = activeAudioDownloadKey !== null || isActiveAudioJob || isTextDownloadActive;
 
-  const libraryActions: ManageLibraryAction[] = [pinned ? 'unpin' : 'pin'];
-  if (!hidden && !isSelected && (translation.isDownloaded || pinned)) {
+  // Same membership rule as the My Translations list: the Bible being read, a pinned one, or one
+  // readable on the device (unless hidden). A member offers only "Hide from My Translations" and
+  // a non-member only "Add to My Translations", so the sheet never offers both or a label that
+  // disagrees with where the row actually sits. The Bible being read cannot leave the list.
+  const isMember = isSelected || (!hidden && (pinned || isTranslationReadableLocally(translation)));
+  const libraryActions: ManageLibraryAction[] = [];
+  if (!isMember) {
+    libraryActions.push('pin');
+  } else if (!isSelected) {
     libraryActions.push('hide');
   }
   // Deleting stops a running audio download first, so Delete stays available during one.

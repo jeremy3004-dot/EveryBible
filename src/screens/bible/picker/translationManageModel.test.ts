@@ -60,16 +60,23 @@ test('New Testament audio books are listed in canon order', () => {
   assert.deepEqual(getNewTestamentAudioBookIds(['REV', 'GEN', 'MAT']), ['MAT', 'REV']);
 });
 
-test('library actions: pin or unpin, hide for an installed or pinned Bible, never the one being read', () => {
-  assert.deepEqual(model().libraryActions, ['pin', 'hide']);
-  assert.deepEqual(model({ pinned: true }).libraryActions, ['unpin', 'hide']);
-  assert.deepEqual(model({ isSelected: true }).libraryActions, ['pin']);
-  assert.deepEqual(model({ hidden: true }).libraryActions, ['pin']);
+const notInstalled = bible({ isDownloaded: false, hasText: false, source: 'runtime' });
+
+test('library actions follow My Translations membership: members can be hidden, non-members added', () => {
+  assert.deepEqual(model().libraryActions, ['hide'], 'installed: already listed, so only hide');
+  assert.deepEqual(model({ pinned: true }).libraryActions, ['hide']);
+  assert.deepEqual(model({ isSelected: true }).libraryActions, [], 'the Bible being read stays');
   assert.deepEqual(
-    model({ translation: bible({ isDownloaded: false }) }).libraryActions,
+    model({ hidden: true }).libraryActions,
     ['pin'],
-    'nothing installed and not pinned: nothing to hide'
+    'hidden: no longer listed, so it can be added back'
   );
+  assert.deepEqual(
+    model({ translation: notInstalled }).libraryActions,
+    ['pin'],
+    'nothing on the device and not pinned: not listed yet'
+  );
+  assert.deepEqual(model({ translation: notInstalled, pinned: true }).libraryActions, ['hide']);
 });
 
 test('delete is offered for stored data or a running audio download, but not mid text download', () => {
