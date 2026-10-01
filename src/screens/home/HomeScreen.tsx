@@ -416,12 +416,7 @@ export function HomeScreen() {
   );
 
   const allTimeStats = useMemo(
-    () =>
-      getHomeReadingStats(
-        { chaptersRead, chaptersListened },
-        'allTime',
-        new Date(clockMs)
-      ),
+    () => getHomeReadingStats({ chaptersRead, chaptersListened }, 'allTime', new Date(clockMs)),
     [chaptersRead, chaptersListened, clockMs]
   );
 

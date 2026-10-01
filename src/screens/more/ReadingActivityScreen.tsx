@@ -14,7 +14,10 @@ import { useAuthStore } from '../../stores/authStore';
 import { selectLastSuccessfulSyncAt, useSyncStatusStore } from '../../stores/syncStatusStore';
 import type { MoreStackParamList } from '../../navigation/types';
 import { rootNavigationRef } from '../../navigation/rootNavigation';
-import { quantizeListeningMs, summarizeReadingActivity } from '../../services/progress/readingActivity';
+import {
+  quantizeListeningMs,
+  summarizeReadingActivity,
+} from '../../services/progress/readingActivity';
 import { totalListeningMinutes } from '../../services/progress/listeningTime';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';

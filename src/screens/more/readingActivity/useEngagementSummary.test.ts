@@ -103,7 +103,7 @@ test('leaving before the refresh settles skips the read', async () => {
 });
 
 test('signing out drops the previous reader’s cloud totals', async () => {
-  const view = runtime.mount(useEngagementSummary, true, 'user-a');
+  const view = runtime.mount(useEngagementSummary, true, 'user-a' as string | null);
   await view.commit();
   await settle();
   assert.deepEqual(view.rerender(), { total_chapters_read: 12 });
