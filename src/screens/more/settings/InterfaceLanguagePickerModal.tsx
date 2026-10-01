@@ -1,4 +1,13 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { CheckCircle2 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -8,6 +17,8 @@ import { SUPPORTED_LANGUAGES, type LanguageCode } from '../../../constants/langu
 import { radius, spacing, typography } from '../../../design/system';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../../design/largeTextLayout';
 import { ICON_STROKE, modalStyles } from './settingsStyles';
+
+const SELECTED_ROW_PEEK = spacing.xl;
 
 interface InterfaceLanguagePickerModalProps {
   visible: boolean;
@@ -26,6 +37,20 @@ export function InterfaceLanguagePickerModal({
   const { colors } = useTheme();
   const displayFont = useDisplayFont();
   const { t } = useTranslation();
+  // Rows differ in height, so the chosen one is found by its own layout. It is
+  // scrolled to once per opening: later layouts must not fight the reader's scrolling.
+  const listRef = useRef<ScrollView>(null);
+  const hasPositionedRef = useRef(false);
+  useEffect(() => {
+    if (!visible) hasPositionedRef.current = false;
+  }, [visible]);
+  const handleSelectedLayout = useCallback((event: LayoutChangeEvent) => {
+    if (hasPositionedRef.current) return;
+    hasPositionedRef.current = true;
+    const { y } = event.nativeEvent.layout;
+    // Leave the row above it peeking so the list reads as continuing upwards.
+    listRef.current?.scrollTo({ y: Math.max(0, y - SELECTED_ROW_PEEK), animated: false });
+  }, []);
 
   return (
     <Modal
@@ -56,6 +81,7 @@ export function InterfaceLanguagePickerModal({
           </Text>
 
           <ScrollView
+            ref={listRef}
             style={styles.languageList}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.languageListContent}
@@ -73,6 +99,7 @@ export function InterfaceLanguagePickerModal({
                 accessibilityRole="button"
                 accessibilityState={{ selected: currentLanguage === language.code }}
                 onPress={() => onSelect(language.code)}
+                onLayout={currentLanguage === language.code ? handleSelectedLayout : undefined}
               >
                 <View style={styles.languageInfo}>
                   <Text style={[styles.languageNative, { color: colors.primaryText }]}>
