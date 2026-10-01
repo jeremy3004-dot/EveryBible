@@ -112,11 +112,11 @@ test('a recurring session resolved across midnight keeps one date for every key 
   // read lands in the next month, where a day-of-month plan's keys differ.
   let reads = 0;
   class SteppingDate extends RealDate {
-    constructor(...args: ConstructorParameters<typeof RealDate>) {
+    constructor(...args: unknown[]) {
       if (args.length === 0) {
         super(2026, 8 + reads++, 15, 23, 59, 59, 999);
       } else {
-        super(...args);
+        super(...(args as [number]));
       }
     }
   }
