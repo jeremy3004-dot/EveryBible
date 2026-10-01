@@ -25,6 +25,7 @@ import {
   drawsArtwork,
   mockSvgForCommonJs,
 } from './gatherRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -87,7 +88,7 @@ mockModule(mock, sourcePath('services/bible/verseTimestamps.ts'), {
   getChapterTimestamps: async () => chapterTimestamps.value,
 });
 mockModule(mock, sourcePath('services/bible/bibleService.ts'), {
-  getChapter: async () => PASSAGE[0].verses,
+  getChapter: async () => assertDefined(PASSAGE[0], 'PASSAGE[0]').verses,
 });
 mockModule(mock, sourcePath('services/gather/gatherBibleService.ts'), {
   getPassageText: async (
@@ -215,7 +216,10 @@ beforeEach(() => {
   gatherStore.setState({ completedLessons: {} });
 });
 
-const FIRST_LESSON = gatherFoundations[0].lessons[0];
+const FIRST_LESSON = assertDefined(
+  assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons[0],
+  'gatherFoundations[0].lessons[0]'
+);
 const gatherWisdomLessons = (wisdomId: string) => {
   const wisdom = gatherWisdomCategories
     .flatMap((category) => category.wisdoms)
@@ -224,7 +228,13 @@ const gatherWisdomLessons = (wisdomId: string) => {
   return wisdom.lessons;
 };
 const gatherWisdomLesson = (wisdomId: string) => gatherWisdomLessons(wisdomId)[0];
-const FIRST_LESSON_TITLE = () => t(FOUNDATION_LESSON_TITLE_KEYS[FIRST_LESSON.id]);
+const FIRST_LESSON_TITLE = () =>
+  t(
+    assertDefined(
+      FOUNDATION_LESSON_TITLE_KEYS[FIRST_LESSON.id],
+      'FOUNDATION_LESSON_TITLE_KEYS[FIRST_LESSON.id]'
+    )
+  );
 const PLAY = () => t('interface.playChapterAudio');
 const PAUSE = () => t('interface.pauseChapterAudio');
 const SETTINGS = () => t('learn.playbackAndText');
@@ -281,10 +291,13 @@ test('the story text and audio load in the reader’s current translation and lo
   const view = await renderLesson();
 
   assert.equal(passageCalls.length, 1);
-  assert.deepEqual(passageCalls[0].references, FIRST_LESSON.references);
-  assert.equal(passageCalls[0].translationId, 'web');
+  assert.deepEqual(
+    assertDefined(passageCalls[0], 'passageCalls[0]').references,
+    FIRST_LESSON.references
+  );
+  assert.equal(assertDefined(passageCalls[0], 'passageCalls[0]').translationId, 'web');
   assert.equal(
-    passageCalls[0].resolveBook('GEN'),
+    assertDefined(passageCalls[0], 'passageCalls[0]').resolveBook('GEN'),
     t('bible.books.GEN'),
     'book names come from i18n'
   );
@@ -346,7 +359,7 @@ test('the lesson chrome draws Lucide glyphs only and leads with the display nume
     view.getByText(
       `${t('gather.foundationLabel', { number: 1 })} · ${t('gather.lessonOfCount', {
         number: 1,
-        total: gatherFoundations[0].lessons.length,
+        total: assertDefined(gatherFoundations[0], 'gatherFoundations[0]').lessons.length,
       })}`
     )
   );
@@ -371,7 +384,10 @@ test('the sections are a shared tablist that scrolls to the section chosen', asy
 
   // React 19 hands the screen's ref to the ScrollView fake as a prop; patch the
   // node it resolved to so the scroll command is observable.
-  const scroll = view.queryAllByType('ScrollView')[0];
+  const scroll = assertDefined(
+    view.queryAllByType('ScrollView')[0],
+    "view.queryAllByType('ScrollView')[0]"
+  );
   const scrollRef = view.root.find((node) => node.type === harness.rn.ScrollView).props.ref as {
     current: { scrollTo: (args: unknown) => void };
   };
@@ -417,25 +433,35 @@ test('play starts the chapter at the chosen speed and the same control pauses it
 
   await view.press(view.getByRole('button', { name: PLAY() }));
   assert.equal(sounds.length, 1);
-  assert.deepEqual(sounds[0].source, { uri: 'https://audio.test/web/GEN/1.mp3' });
-  assert.equal(sounds[0].sound.isPlaying, true, 'the chapter is playing');
-  assert.equal(sounds[0].initial.rate, 1);
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').source, {
+    uri: 'https://audio.test/web/GEN/1.mp3',
+  });
+  assert.equal(
+    assertDefined(sounds[0], 'sounds[0]').sound.isPlaying,
+    true,
+    'the chapter is playing'
+  );
+  assert.equal(assertDefined(sounds[0], 'sounds[0]').initial.rate, 1);
 
   await view.press(view.getByRole('button', { name: PAUSE() }));
-  assert.equal(sounds[0].sound.isPlaying, false, 'the same control pauses it');
-  assert.equal(sounds[0].sound.calls.at(-1)?.method, 'pauseAsync');
+  assert.equal(
+    assertDefined(sounds[0], 'sounds[0]').sound.isPlaying,
+    false,
+    'the same control pauses it'
+  );
+  assert.equal(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1)?.method, 'pauseAsync');
   assert.ok(view.getByRole('button', { name: PLAY() }));
 
   await view.press(view.getByRole('button', { name: PLAY() }));
   assert.equal(sounds.length, 1, 'the loaded sound is resumed, not reloaded');
-  assert.equal(sounds[0].sound.isPlaying, true);
-  assert.deepEqual(sounds[0].sound.calls.at(-1)?.method, 'playAsync');
+  assert.equal(assertDefined(sounds[0], 'sounds[0]').sound.isPlaying, true);
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1)?.method, 'playAsync');
 });
 
 test('natural story completion stays paused at zero until explicit Play restarts it', async () => {
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
-  const sound = sounds[0].sound;
+  const sound = assertDefined(sounds[0], 'sounds[0]').sound;
   assert.equal(sound.isPlaying, true);
 
   await act(async () => {
@@ -516,7 +542,7 @@ test('a failed lesson Play whose offline check settles after an explicit Pause c
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
   await view.press(view.getByRole('button', { name: PAUSE() }));
-  const sound = sounds[0].sound;
+  const sound = assertDefined(sounds[0], 'sounds[0]').sound;
   Object.assign(sound, {
     playAsync: async () => {
       sound.isPlaying = true;
@@ -561,7 +587,10 @@ test('choosing a playback speed in the sheet reaches the loaded sound', async ()
   assert.ok(view.getByRole('tablist', { name: t('learn.playbackSpeed') }));
   await view.press(view.getByRole('tab', { name: '1.5×' }));
 
-  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setRateAsync', args: [1.5, true] });
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1), {
+    method: 'setRateAsync',
+    args: [1.5, true],
+  });
   assert.ok(view.getByRole('tab', { name: '1.5×', selected: true }));
 });
 
@@ -570,12 +599,12 @@ test('a released translation recording cannot rewind or pause the new lesson rec
   const palette = await lightPalette();
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
-  const previous = sounds[0].sound;
+  const previous = assertDefined(sounds[0], 'sounds[0]').sound;
 
   await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
   await view.flush();
   await view.press(view.getByRole('button', { name: PLAY() }));
-  const current = sounds[1].sound;
+  const current = assertDefined(sounds[1], 'sounds[1]').sound;
   assert.ok(view.getByRole('button', { name: PAUSE() }));
 
   await act(async () =>
@@ -642,7 +671,10 @@ test('status emitted during initial load establishes the recording duration', as
   const rule = view.getByRole('adjustable', { name: LISTEN() });
   await view.fire(rule, 'onLayout', { nativeEvent: { layout: { width: 200 } } });
   await view.fire(rule, 'onPress', { nativeEvent: { locationX: 100 } });
-  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [30_000] });
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1), {
+    method: 'setPositionAsync',
+    args: [30_000],
+  });
 });
 
 test('a pause finishing for a released recording cannot clear the new recording play state', async () => {
@@ -652,7 +684,7 @@ test('a pause finishing for a released recording cannot clear the new recording 
   const paused = new Promise<void>((resolve) => {
     finishPause = resolve;
   });
-  Object.assign(sounds[0].sound, { pauseAsync: () => paused });
+  Object.assign(assertDefined(sounds[0], 'sounds[0]').sound, { pauseAsync: () => paused });
   await view.press(view.getByRole('button', { name: PAUSE() }));
 
   await act(async () => bibleStore.setState({ currentTranslation: 'bsb' }));
@@ -685,7 +717,7 @@ test('tapping along the progress rule seeks to that point in the chapter', async
   await view.press(view.getByRole('button', { name: PLAY() }));
   await view.flush();
   await act(async () => {
-    sounds[0].sound.listener({
+    assertDefined(sounds[0], 'sounds[0]').sound.listener({
       isLoaded: true,
       positionMillis: 0,
       durationMillis: 60_000,
@@ -697,7 +729,10 @@ test('tapping along the progress rule seeks to that point in the chapter', async
   await view.fire(rule, 'onLayout', { nativeEvent: { layout: { width: 200 } } });
   await view.fire(rule, 'onPress', { nativeEvent: { locationX: 50 } });
 
-  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'setPositionAsync', args: [15_000] });
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1), {
+    method: 'setPositionAsync',
+    args: [15_000],
+  });
 });
 
 /** The Text wrapping one verse's number and words, found by its words. */
@@ -717,7 +752,7 @@ test('story progress within one verse redraws no story text while highlight chan
   await view.flush();
   const tick = async (positionMillis: number, didJustFinish = false) => {
     await act(async () => {
-      sounds[0].sound.listener({
+      assertDefined(sounds[0], 'sounds[0]').sound.listener({
         isLoaded: true,
         positionMillis,
         durationMillis: 60_000,
@@ -741,7 +776,9 @@ test('story progress within one verse redraws no story text while highlight chan
       .filter(
         (entry) =>
           entry.type === 'Text' &&
-          PASSAGE[0].verses.some((verse) => entry.props.children === verse.text)
+          assertDefined(PASSAGE[0], 'PASSAGE[0]').verses.some(
+            (verse) => entry.props.children === verse.text
+          )
       ).length,
     0
   );
@@ -768,7 +805,7 @@ test('same-verse audio progress redraws none of the question text', async () => 
   await view.flush();
   const tick = async (positionMillis: number) => {
     await act(async () =>
-      sounds[0].sound.listener({
+      assertDefined(sounds[0], 'sounds[0]').sound.listener({
         isLoaded: true,
         positionMillis,
         durationMillis: 60_000,
@@ -835,7 +872,10 @@ test('isolated questions retain live theme, locale and replay source', async () 
 
 test('the isolated story follows live theme and translation changes', async () => {
   const view = await renderLesson();
-  const words = () => view.getByText(PASSAGE[0].verses[0].text);
+  const words = () =>
+    view.getByText(
+      assertDefined(assertDefined(PASSAGE[0], 'PASSAGE[0]').verses[0], 'PASSAGE[0].verses[0]').text
+    );
   const originalColor = flattenStyle(words().props.style)?.color;
   await act(async () => harness.authStore.getState().setPreferences({ theme: 'dark' }));
   await view.flush();
@@ -857,7 +897,11 @@ test('the isolated story retries a failed passage load', async () => {
   failPassageLoad = false;
   await view.press(view.getByRole('button', { name: t('common.retry') }));
   await view.flush();
-  assert.ok(view.getByText(PASSAGE[0].verses[0].text));
+  assert.ok(
+    view.getByText(
+      assertDefined(assertDefined(PASSAGE[0], 'PASSAGE[0]').verses[0], 'PASSAGE[0].verses[0]').text
+    )
+  );
   assert.equal(view.queryByText(t('learn.passageLoadFailed')), null);
   assert.equal(passageCalls.length, 2);
 });
@@ -877,7 +921,7 @@ test('the story highlights the verse the audio is on, following it through the c
   await view.flush();
   const tick = async (positionMillis: number) => {
     await act(async () => {
-      sounds[0].sound.listener({
+      assertDefined(sounds[0], 'sounds[0]').sound.listener({
         isLoaded: true,
         positionMillis,
         durationMillis: 60_000,
@@ -897,11 +941,18 @@ test('the story highlights the verse the audio is on, following it through the c
 
   // The story ends: the sound rewinds and stops, and the highlight clears.
   await act(async () => {
-    sounds[0].sound.listener({ isLoaded: true, didJustFinish: true, durationMillis: 60_000 });
+    assertDefined(sounds[0], 'sounds[0]').sound.listener({
+      isLoaded: true,
+      didJustFinish: true,
+      durationMillis: 60_000,
+    });
   });
   await view.flush();
   assert.equal(followed(/formless and void/), false);
-  assert.deepEqual(sounds[0].sound.calls.at(-1), { method: 'stopAsync', args: [] });
+  assert.deepEqual(assertDefined(sounds[0], 'sounds[0]').sound.calls.at(-1), {
+    method: 'stopAsync',
+    args: [],
+  });
   assert.ok(view.getByRole('button', { name: PLAY() }));
 });
 
@@ -939,12 +990,18 @@ async function layoutStoryForFollowing(view: View) {
   await layout(block, 0);
   await layout(paragraph, 20);
   // Verse 1 on the first line, verse 2 on a line 400pt further down.
-  const [first, second] = PASSAGE[0].verses;
+  const [first, second] = assertDefined(PASSAGE[0], 'PASSAGE[0]').verses;
   await view.fire(paragraph, 'onTextLayout', {
     nativeEvent: {
       lines: [
-        { y: 0, text: `${first.verse}\u2009${first.text} ` },
-        { y: 400, text: `${second.verse}\u2009${second.text}` },
+        {
+          y: 0,
+          text: `${assertDefined(first, 'first').verse}\u2009${assertDefined(first, 'first').text} `,
+        },
+        {
+          y: 400,
+          text: `${assertDefined(second, 'second').verse}\u2009${assertDefined(second, 'second').text}`,
+        },
       ],
     },
   });
@@ -961,7 +1018,7 @@ test('the page scrolls to keep the followed verse in view while the story is on 
   const { scrolls } = await layoutStoryForFollowing(view);
   const tick = async (positionMillis: number) => {
     await act(async () => {
-      sounds[0].sound.listener({
+      assertDefined(sounds[0], 'sounds[0]').sound.listener({
         isLoaded: true,
         positionMillis,
         durationMillis: 60_000,
@@ -988,7 +1045,7 @@ test('the page stays put while the reader holds it or reads the questions', asyn
   const { scrollView, scrolls } = await layoutStoryForFollowing(view);
   const tick = async (positionMillis: number) => {
     await act(async () => {
-      sounds[0].sound.listener({
+      assertDefined(sounds[0], 'sounds[0]').sound.listener({
         isLoaded: true,
         positionMillis,
         durationMillis: 60_000,
@@ -1016,7 +1073,7 @@ test('without verse timings the highlight is estimated from the length of each v
   await view.press(view.getByRole('button', { name: PLAY() }));
   await view.flush();
   await act(async () => {
-    sounds[0].sound.listener({
+    assertDefined(sounds[0], 'sounds[0]').sound.listener({
       isLoaded: true,
       positionMillis: 59_000,
       durationMillis: 60_000,
@@ -1115,7 +1172,7 @@ test('the application prompts offer to replay the story and to share the app', a
   await view.flush();
   assert.equal(scrolls.length, 1, 'jumps back to the story');
   assert.equal(sounds.length, 1, 'and starts the chapter audio');
-  assert.equal(sounds[0].sound.isPlaying, true);
+  assert.equal(assertDefined(sounds[0], 'sounds[0]').sound.isPlaying, true);
 
   // The invitation has to carry somewhere to get the app: the message on its own
   // leaves the friend with nothing to tap.
@@ -1126,20 +1183,30 @@ test('the application prompts offer to replay the story and to share the app', a
 });
 
 test('a wisdom lesson titles itself by the wisdom and draws the wisdom’s artwork', async () => {
-  const courage = gatherWisdomLesson('topic-courage');
+  const courage = assertDefined(
+    gatherWisdomLesson('topic-courage'),
+    "gatherWisdomLesson('topic-courage')"
+  );
   const view = await renderLesson({
     parentId: 'topic-courage',
     lessonId: courage.id,
     parentType: 'wisdom',
   });
 
-  const title = view.getByRole('header', { name: t(WISDOM_LESSON_TITLE_KEYS[courage.id]) });
+  const title = view.getByRole('header', {
+    name: t(
+      assertDefined(WISDOM_LESSON_TITLE_KEYS[courage.id], 'WISDOM_LESSON_TITLE_KEYS[courage.id]')
+    ),
+  });
   assert.ok(
     view.getByText(
-      `${t(WISDOM_TITLE_KEYS['topic-courage'])} · ${t('gather.lessonOfCount', {
-        number: 1,
-        total: gatherWisdomLessons('topic-courage').length,
-      })}`
+      `${t(assertDefined(WISDOM_TITLE_KEYS['topic-courage'], "WISDOM_TITLE_KEYS['topic-courage']"))} · ${t(
+        'gather.lessonOfCount',
+        {
+          number: 1,
+          total: gatherWisdomLessons('topic-courage').length,
+        }
+      )}`
     )
   );
   assert.ok(drawsArtwork(enclosingView(enclosingView(title)), 'topic-courage'));
@@ -1165,7 +1232,7 @@ test('a Bible playback takeover releases the visible lesson sound and restores i
     await import('../../services/audio/narrationOwnership');
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
-  const lesson = sounds[0].sound;
+  const lesson = assertDefined(sounds[0], 'sounds[0]').sound;
   assert.equal(lesson.isPlaying, true);
 
   await act(async () => {
@@ -1182,7 +1249,7 @@ test('a delayed lesson Play result cannot restore Pause after a newer Pause', as
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
   await view.press(view.getByRole('button', { name: PAUSE() }));
-  const sound = sounds[0].sound;
+  const sound = assertDefined(sounds[0], 'sounds[0]').sound;
   let finish!: () => void;
   const pending = new Promise<void>((resolve) => {
     finish = resolve;
@@ -1219,7 +1286,7 @@ test('a delayed lesson Play result cannot restore Pause after a newer Pause', as
 test('a delayed lesson Pause result cannot hide a newer Play', async () => {
   const view = await renderLesson();
   await view.press(view.getByRole('button', { name: PLAY() }));
-  const sound = sounds[0].sound;
+  const sound = assertDefined(sounds[0], 'sounds[0]').sound;
   let finish!: () => void;
   const pending = new Promise<void>((resolve) => {
     finish = resolve;

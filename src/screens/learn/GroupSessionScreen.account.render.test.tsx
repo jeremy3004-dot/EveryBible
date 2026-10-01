@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockBarrel, mockModule, mockSupabaseModule, sourcePath } from '../../testing/mockModules';
 import { createSupabaseFake, makeFakeUser } from '../../testing/supabaseFake';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -106,10 +107,10 @@ test('an older account completion cannot clear the new account busy state', asyn
   await act(async () => harness.authStore.setState({ user: { uid: 'user-b' }, authGeneration: 2 }));
   await view.flush();
   await view.press(view.getByRole('button', { name: t('groups.saveSyncedSession') }));
-  finishes[0]();
+  assertDefined(finishes[0], 'finishes[0]')();
   await view.flush();
   assert.ok(view.getByRole('button', { name: t('groups.session.saving'), busy: true }));
-  finishes[1]();
+  assertDefined(finishes[1], 'finishes[1]')();
   await view.flush();
   assert.deepEqual(updates, ['user-b']);
   assert.equal(harness.navigation.calls.filter((call) => call.method === 'goBack').length, 1);

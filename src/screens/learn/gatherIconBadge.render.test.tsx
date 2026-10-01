@@ -12,6 +12,7 @@ import {
   isHiddenFromAccessibility,
 } from '../../testing/render';
 import { mockSvgForCommonJs } from './gatherRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -52,7 +53,7 @@ const svgOf = (view: { queryAllByType: (type: string) => ReactTestInstance[] }) 
 
 test('artwork is drawn as SVG from the registry, centred in its slot and sized for breathing room', async () => {
   const view = await renderBadge({ artworkKey: 'plain', iconColor: INK });
-  const svg = svgOf(view);
+  const svg = assertDefined(svgOf(view), 'svgOf(view)');
   const xml = svg.props.xml as string;
 
   assert.match(xml, /M1 1h10/, 'the registry entry for the key is drawn');
@@ -67,14 +68,14 @@ test('artwork is drawn as SVG from the registry, centred in its slot and sized f
 
 test('in a small slot the artwork keeps at least the requested icon size', async () => {
   const view = await renderBadge({ artworkKey: 'plain', size: 20, iconSize: 22 });
-  const svg = svgOf(view);
+  const svg = assertDefined(svgOf(view), 'svgOf(view)');
   assert.equal(svg.props.width, 22);
   assert.equal(svg.props.height, 22);
 });
 
 test('an exported viewBox is kept rather than rebuilt from the export size', async () => {
   const view = await renderBadge({ artworkKey: 'framed' });
-  const xml = svgOf(view).props.xml as string;
+  const xml = assertDefined(svgOf(view), 'svgOf(view)').props.xml as string;
 
   assert.match(xml, /viewBox="10 20 300 150"/);
   assert.doesNotMatch(xml, /viewBox="0 0 600 300"/);
@@ -82,15 +83,20 @@ test('an exported viewBox is kept rather than rebuilt from the export size', asy
 });
 
 test('black ink takes the theme colour: the one asked for, else the accent', async () => {
-  const tinted = svgOf(await renderBadge({ artworkKey: 'plain', iconColor: INK })).props
-    .xml as string;
+  const tinted = assertDefined(
+    svgOf(await renderBadge({ artworkKey: 'plain', iconColor: INK })),
+    "svgOf(await renderBadge({ artworkKey: 'plain', iconColor: "
+  ).props.xml as string;
   assert.match(tinted, new RegExp(`fill="${INK}"`));
   assert.match(tinted, new RegExp(`stroke="${INK}"`));
   assert.doesNotMatch(tinted, /#000/);
 
   const { createThemeColors } = await import('../../contexts/ThemeContext');
   const colors = createThemeColors('light', DEFAULT_APPEARANCE_PALETTE);
-  const accent = svgOf(await renderBadge({ artworkKey: 'framed' })).props.xml as string;
+  const accent = assertDefined(
+    svgOf(await renderBadge({ artworkKey: 'framed' })),
+    "svgOf(await renderBadge({ artworkKey: 'framed' }))"
+  ).props.xml as string;
   assert.match(accent, new RegExp(`fill="${colors.accentPrimary}"`));
 });
 
@@ -100,11 +106,11 @@ test('a bitmap wrapped in SVG is shown as a native image, tinted, not as SVG', a
   assert.equal(view.queryAllByType('SvgXml').length, 0);
   const images = view.queryAllByType('Image');
   assert.equal(images.length, 1);
-  assert.deepEqual(images[0].props.source, { uri: BITMAP_URI });
-  const style = flattenStyle(images[0].props.style);
+  assert.deepEqual(assertDefined(images[0], 'images[0]').props.source, { uri: BITMAP_URI });
+  const style = flattenStyle(assertDefined(images[0], 'images[0]').props.style);
   assert.equal(style?.tintColor, INK);
   assert.equal(style?.width, 72);
-  assert.equal(images[0].props.resizeMode, 'contain');
+  assert.equal(assertDefined(images[0], 'images[0]').props.resizeMode, 'contain');
 });
 
 test('without artwork the badge falls back to a glyph: Lucide first, then Ionicons', async () => {
@@ -137,5 +143,5 @@ test('without artwork the badge falls back to a glyph: Lucide first, then Ionico
 
 test('the badge is decoration: screen readers skip it', async () => {
   const view = await renderBadge({ artworkKey: 'plain' });
-  assert.ok(isHiddenFromAccessibility(svgOf(view)));
+  assert.ok(isHiddenFromAccessibility(assertDefined(svgOf(view), 'svgOf(view)')));
 });

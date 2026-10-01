@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { flattenStyle, hostAncestors, installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { height: 844 });
 const t = (key: string) => harness.i18n.t(key);
@@ -36,9 +37,9 @@ test('the report form scrolls inside the sheet cap, so Send stays reachable at l
   const ancestors = hostAncestors(send);
   const scrolls = ancestors.filter((node) => (node.type as unknown) === 'ScrollView');
   assert.equal(scrolls.length, 1, 'one scroll view, the sheet body');
-  assert.equal(scrolls[0].props.keyboardShouldPersistTaps, 'handled');
+  assert.equal(assertDefined(scrolls[0], 'scrolls[0]').props.keyboardShouldPersistTaps, 'handled');
   const surface = ancestors.find((node) => node.props.accessibilityViewIsModal);
-  assert.ok(surface && hostAncestors(scrolls[0]).includes(surface));
+  assert.ok(surface && hostAncestors(assertDefined(scrolls[0], 'scrolls[0]')).includes(surface));
   const maxHeight = Number(flattenStyle(surface.props.style)?.maxHeight);
   assert.ok(maxHeight > 0 && maxHeight < 844 - harness.insets.top, `capped (${maxHeight})`);
 });

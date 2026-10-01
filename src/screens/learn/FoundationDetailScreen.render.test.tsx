@@ -12,6 +12,7 @@ import {
   drawsArtwork,
   mockSvgForCommonJs,
 } from './gatherRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { skip: ['react-native-svg'] });
 mockSvgForCommonJs(mock);
@@ -108,9 +109,16 @@ test('the header has no download action, and a trailing spacer keeps the title c
   assert.equal(hosts.length, 3, 'back button, title, spacer');
   assert.equal(leading, back);
   assert.equal(middle, title);
-  assert.equal(trailing.type as unknown, 'View');
-  assert.equal(trailing.props.onPress, undefined, 'the spacer is not a control');
-  assert.equal(flattenStyle(trailing.props.style)?.width, flattenStyle(back.props.style)?.width);
+  assert.equal(assertDefined(trailing, 'trailing').type as unknown, 'View');
+  assert.equal(
+    assertDefined(trailing, 'trailing').props.onPress,
+    undefined,
+    'the spacer is not a control'
+  );
+  assert.equal(
+    flattenStyle(assertDefined(trailing, 'trailing').props.style)?.width,
+    flattenStyle(back.props.style)?.width
+  );
 });
 
 test('the hero and the up-next card draw the foundations’ own artwork, not a stock icon', async () => {

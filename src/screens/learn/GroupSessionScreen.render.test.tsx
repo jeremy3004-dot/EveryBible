@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, hostAncestors, installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const t = (key: string) => harness.i18n.t(key);
@@ -70,7 +71,10 @@ function footerOf(view: Awaited<ReturnType<typeof renderSession>>) {
 test('Previous and Next share one row at the default text size', async () => {
   const view = await renderMiddlePhase();
 
-  assert.equal(flattenStyle(footerOf(view).props.style)?.flexDirection, 'row');
+  assert.equal(
+    flattenStyle(assertDefined(footerOf(view), 'footerOf(view)').props.style)?.flexDirection,
+    'row'
+  );
 });
 
 test('at large text Previous and Next stack, with Next on top', async () => {
@@ -78,17 +82,24 @@ test('at large text Previous and Next stack, with Next on top', async () => {
   const view = await renderMiddlePhase();
 
   // column-reverse: Previous stays first in the tree (and the focus order) but draws last.
-  assert.equal(flattenStyle(footerOf(view).props.style)?.flexDirection, 'column-reverse');
+  assert.equal(
+    flattenStyle(assertDefined(footerOf(view), 'footerOf(view)').props.style)?.flexDirection,
+    'column-reverse'
+  );
 });
 
 test('the scroll content clears the footer at whatever height it lays out to', async () => {
   harness.setFontScale(2);
   const view = await renderMiddlePhase();
 
-  const footer = hostAncestors(footerOf(view))[0];
+  const footer = assertDefined(
+    hostAncestors(assertDefined(footerOf(view), 'footerOf(view)'))[0],
+    'hostAncestors(footerOf(view))[0]'
+  );
   await view.fire(footer, 'onLayout', { nativeEvent: { layout: { height: 240 } } });
   const [scroll] = view.queryAllByType('ScrollView');
-  const padding = flattenStyle(scroll.props.contentContainerStyle)?.paddingBottom as number;
+  const padding = flattenStyle(assertDefined(scroll, 'scroll').props.contentContainerStyle)
+    ?.paddingBottom as number;
   assert.ok(padding > 240, `content padding ${padding} clears a 240pt footer`);
 });
 
