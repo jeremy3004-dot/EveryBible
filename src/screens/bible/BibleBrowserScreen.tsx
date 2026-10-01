@@ -69,8 +69,8 @@ export function BibleBrowserScreen() {
 
   // Home opens a chapter with this screen underneath the reader (back returns here),
   // and both mount in one commit. The book list is unseen until the reader is popped,
-  // so it waits for that commit's interactions instead of doubling the reader's first
-  // render (Psalms alone expands to 150 chapter tiles).
+  // so it waits until after interactions, which the reader holds until its first
+  // chapter is on screen (Psalms alone expands to 150 chapter tiles).
   const isFocused = useIsFocused();
   const [isBookListReady, setIsBookListReady] = useState(isFocused);
   if (isFocused && !isBookListReady) setIsBookListReady(true);
