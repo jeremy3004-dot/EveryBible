@@ -62,7 +62,10 @@ test('four tabs edit the picture: its background, font, colour and size', async 
     names.map((name) => String(name)),
     ['picture', 'font', 'color', 'size'].map((key) => t(`bible.verseImage.tabs.${key}`))
   );
-  assert.ok(view.getAllByRole('button', { name: /1$/ }).length > 0, 'the backgrounds show first');
+  assert.ok(
+    view.getAllByRole('button', { name: /^Background 1 of \d+$/ }).length > 0,
+    'the backgrounds show first'
+  );
 });
 
 test('the picture names the passage without the translation', async () => {
