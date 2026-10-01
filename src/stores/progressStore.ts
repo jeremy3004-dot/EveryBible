@@ -5,7 +5,8 @@ import {
   type PersistStorage,
   type StorageValue,
 } from 'zustand/middleware';
-import { zustandStorage } from './mmkvStorage';
+import { privateDataStorage, registerPrivateDataStore } from './privateDataScope';
+import { mergeGuestProgress } from './privateDataAdoption';
 import { sanitizePersistedProgressState } from './sanitizers/progressState';
 import { MIN_LISTENING_MS } from '../services/progress/readingActivity';
 
@@ -82,9 +83,9 @@ interface ProgressState {
     streakDays: number;
     lastReadDate: string | null;
   }) => void;
-  // Clears per-user in-memory + persisted state back to initial. Called at the
-  // auth boundary (sign-out, and sign-in as a different user) so one account's
-  // reading history never leaks into or corrupts another's.
+  // Clears in-memory + active-bucket state back to initial and cancels a queued
+  // sync. Not an auth-boundary hook: the ledger is account-scoped (see
+  // privateDataScope), so sign-out swaps buckets instead of deleting anything.
   resetForSignOut: () => void;
 }
 
@@ -236,7 +237,7 @@ const selectPersistedProgressState = (state: ProgressState) => ({
 });
 
 type PersistedProgressState = ReturnType<typeof selectPersistedProgressState>;
-const progressJsonStorage = createJSONStorage<PersistedProgressState>(() => zustandStorage)!;
+const progressJsonStorage = createJSONStorage<PersistedProgressState>(() => privateDataStorage)!;
 let lastSavedProgress: StorageValue<PersistedProgressState> | undefined;
 
 function hasSameSavedProgress(
@@ -415,3 +416,5 @@ export const useProgressStore = create<ProgressState>()(
     }
   )
 );
+
+registerPrivateDataStore(useProgressStore, mergeGuestProgress);

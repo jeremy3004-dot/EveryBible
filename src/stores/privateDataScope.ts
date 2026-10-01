@@ -2,7 +2,8 @@
  * Account-scoped persistence for private data that exists only on this device.
  *
  * Highlights, notes and bookmarks, the audio library, Gather lesson marks and
- * Four Fields progress and groups are never synced, so wiping them at an auth
+ * Four Fields progress and groups are never synced, and neither are the
+ * listening history and per-day tallies kept beside the reading ledger, so wiping them at an auth
  * boundary would delete the only copy. Each of these stores instead persists
  * into one bucket per owner: one per signed-in account, plus the guest bucket
  * used while signed out. Only the active owner's bucket is ever read.
@@ -49,6 +50,7 @@ export const PRIVATE_DATA_STORE_NAMES = [
   'library-storage',
   'gather-storage',
   'four-fields-storage',
+  'progress-storage',
 ] as const;
 
 export const privateDataStorageKey = (name: string, owner: string | null): string =>

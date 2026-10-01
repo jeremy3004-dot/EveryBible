@@ -274,3 +274,51 @@ export const mergeGuestFourFields = (
     groupProgress: { ...guest.groupProgress, ...account.groupProgress },
   };
 };
+
+// ---------------------------------------------------------------------------
+// Reading and listening progress
+// ---------------------------------------------------------------------------
+
+export interface ProgressData {
+  chaptersRead: Record<string, number>;
+  chaptersListened: Record<string, number>;
+  listeningMsByDate: Record<string, number>;
+  chaptersByDate: Record<string, number>;
+  streakDays: number;
+  lastReadDate: string | null;
+}
+
+// Larger value per key. Used instead of a sum so merging the same guest twice
+// changes nothing (an interrupted adoption is retried).
+const maxByKey = (
+  account: Record<string, number>,
+  guest: Record<string, number>
+): Record<string, number> => {
+  const merged: Record<string, number> = { ...account };
+  for (const [key, value] of Object.entries(guest)) {
+    merged[key] = Math.max(account[key] ?? 0, value);
+  }
+  return merged;
+};
+
+export const mergeGuestProgress = (
+  account: ProgressData,
+  guest: ProgressData
+): Partial<ProgressData> => {
+  // The streak follows whichever side read most recently (date keys sort
+  // chronologically); on the same day the longer run wins.
+  const guestIsNewer =
+    guest.lastReadDate !== null &&
+    (account.lastReadDate === null ||
+      guest.lastReadDate > account.lastReadDate ||
+      (guest.lastReadDate === account.lastReadDate && guest.streakDays > account.streakDays));
+  return {
+    chaptersRead: maxByKey(account.chaptersRead, guest.chaptersRead),
+    chaptersListened: maxByKey(account.chaptersListened, guest.chaptersListened),
+    listeningMsByDate: maxByKey(account.listeningMsByDate, guest.listeningMsByDate),
+    chaptersByDate: maxByKey(account.chaptersByDate, guest.chaptersByDate),
+    ...(guestIsNewer
+      ? { streakDays: guest.streakDays, lastReadDate: guest.lastReadDate }
+      : { streakDays: account.streakDays, lastReadDate: account.lastReadDate }),
+  };
+};

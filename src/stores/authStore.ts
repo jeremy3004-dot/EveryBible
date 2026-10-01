@@ -115,7 +115,7 @@ const clearGuestPlanTombstones = (): void => {
 // static import cycle (sync/services import authStore).
 const resetPerUserStores = (): void => {
   const stores: ResettableStore[] = [
-    require('./progressStore').useProgressStore,
+    // Reading/listening progress is account-scoped below rather than reset.
     require('./bibleStore').useBibleStore,
     // Exported as `readingPlansStore` (not the use-prefixed name).
     require('./readingPlansStore').readingPlansStore,
@@ -142,6 +142,7 @@ const loadPrivateDataStores = (): void => {
   require('./libraryStore');
   require('./gatherStore');
   require('./fourFieldsStore');
+  require('./progressStore');
 };
 
 const showPrivateDataOf = (userId: string | null): void =>
