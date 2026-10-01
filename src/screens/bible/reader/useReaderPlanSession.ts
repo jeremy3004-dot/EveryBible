@@ -245,7 +245,14 @@ export function useReaderPlanSession({
     return undefined;
   }, [getRootTabBarStyle, getRootTabNavigation, showPlanSessionChrome]);
   useEffect(() => {
-    if (!activePlanId || typeof planDayNumber !== 'number' || activePlanChapterIndex < 0) {
+    // No progress means this account is not in the plan: a reader left open across an
+    // account switch still names the previous account's plan session.
+    if (
+      !activePlanId ||
+      !activePlanProgress ||
+      typeof planDayNumber !== 'number' ||
+      activePlanChapterIndex < 0
+    ) {
       return;
     }
 
@@ -253,6 +260,7 @@ export function useReaderPlanSession({
   }, [
     activePlanChapterIndex,
     activePlanId,
+    activePlanProgress,
     bookId,
     chapter,
     planDayNumber,

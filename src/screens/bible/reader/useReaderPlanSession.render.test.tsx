@@ -84,6 +84,49 @@ for (const fixture of [
   });
 }
 
+test('a reader left on one account plan session does not save a resume for the account that signed in', async (context) => {
+  const today = new Date(2026, 8, 27, 12);
+  context.mock.timers.enable({ apis: ['Date'], now: today });
+  const { createReadingPlansStore } = await import('../../../stores/readingPlansStore');
+  const { useReaderPlanSession } = await import('./useReaderPlanSession');
+  // The signed-in account is not enrolled in the plan the open reader route names.
+  const store = createReadingPlansStore({
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  });
+  const entry = assertDefined(
+    readingPlanEntriesByPlanId['psalms-30-days']?.find((candidate) => candidate.day_number === 2),
+    'plan day entry'
+  );
+  function ReaderSession() {
+    useReaderPlanSession({
+      activeChapterKey: `${entry.book}_${entry.chapter_start}`,
+      activePlanId: 'psalms-30-days',
+      activePlanProgress: null,
+      bookId: entry.book,
+      chapter: entry.chapter_start,
+      chaptersRead: {},
+      getRootTabBarStyle: () => ({}),
+      getRootTabNavigation: () => null,
+      listeningHistory: [],
+      planDayNumber: 2,
+      planSessionKey: undefined,
+      playbackSequenceEntries: [],
+      requestedFocusVerse: undefined,
+      returnToPlanOnComplete: true,
+      sessionContext: undefined,
+      setPlanDayResume: store.getState().setPlanDayResume,
+      today,
+      todayDateKey: formatLocalDateKey(today),
+    });
+    return null;
+  }
+  await harness.render(<ReaderSession />);
+
+  assert.equal(store.getState().getPlanDayResume('psalms-30-days', 2), null);
+});
+
 test('reader completion and counted-at refresh together from the completed listen ledger', async (context) => {
   const today = new Date(2026, 8, 27, 12);
   context.mock.timers.enable({ apis: ['Date'], now: today });
