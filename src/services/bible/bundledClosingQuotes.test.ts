@@ -17,7 +17,7 @@ type Row = { translation_id: string; book_id: string; chapter: number; verse: nu
 
 const stripWhitespace = (value: string) => value.replace(/\s+/g, '');
 const STRAY_SPACE = /[^\s‘“’”] +[’”](?![\p{L}\p{N}])/u;
-const QUOTE_ONLY_LINE = /^[’”]+$/;
+const CLOSING_ONLY_LINE = /^[?!.,;:)\]’”]+$/;
 
 test('the bundled database has no stray closing-quote spacing or quote-only lines after normalizing', async () => {
   const { DatabaseSync } = await import('node:sqlite');
@@ -27,6 +27,7 @@ test('the bundled database has no stray closing-quote spacing or quote-only line
   );
 
   const fixedVerses = new Map<string, number>();
+  const mergedLines = new Map<string, number>();
   let verses = 0;
   try {
     const rows = database
@@ -54,12 +55,16 @@ test('the bundled database has no stray closing-quote spacing or quote-only line
         for (const line of formatting.lines) {
           assert.ok(!STRAY_SPACE.test(line.text), `stray space left in a line of ${where}`);
         }
-        // Only a leading quote-only line has nothing to merge into.
+        // Only a leading punctuation-only line has nothing to merge into.
         for (const line of formatting.lines.slice(1)) {
-          assert.ok(!QUOTE_ONLY_LINE.test(line.text), `quote-only line left in ${where}`);
+          assert.ok(!CLOSING_ONLY_LINE.test(line.text), `punctuation-only line left in ${where}`);
         }
         // Normalizing may only move whitespace and line breaks, never alter the words.
         const cleaned = normalizeVerseFormattingQuotes(stored);
+        const merged = stored.lines.length - (cleaned?.lines.length ?? 0);
+        if (merged > 0) {
+          mergedLines.set(row.translation_id, (mergedLines.get(row.translation_id) ?? 0) + merged);
+        }
         assert.equal(
           stripWhitespace((cleaned?.lines ?? []).map((line) => line.text).join('')),
           stripWhitespace(stored.lines.map((line) => line.text).join('')),
@@ -75,6 +80,11 @@ test('the bundled database has no stray closing-quote spacing or quote-only line
     database.close();
   }
 
+  console.log('merged punctuation-only lines per translation', Object.fromEntries(mergedLines));
+  console.log(
+    'verses with stray-space text fixed per translation',
+    Object.fromEntries(fixedVerses)
+  );
   assert.ok(verses > 100000, 'expected the full bundled database');
   assert.ok((fixedVerses.get('bsb') ?? 0) > 0, 'expected the BSB stray spaces to be found');
 });

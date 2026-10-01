@@ -193,6 +193,31 @@ test('normalizeVerseFormattingQuotes merges a quote-only trailing line (Matthew 
   assert.equal(fixed?.lines[3]?.indentLevel, 1);
 });
 
+test('normalizeVerseFormattingQuotes merges a punctuation-only line (Psalm 4:2)', () => {
+  const formatting = {
+    mode: 'poetry' as const,
+    lines: [
+      { text: 'How long, O men, will my honor be maligned?' },
+      { text: 'How long will you love vanity and seek after lies', indentLevel: 1 },
+      { text: '?', indentLevel: 1 },
+    ],
+  };
+  const text =
+    'How long, O men, will my honor be maligned? How long will you love vanity and seek after lies ? Selah';
+  const fixed = reconcileVerseFormattingWithText(
+    normalizeClosingQuoteSpacing(text),
+    normalizeVerseFormattingQuotes(formatting)
+  );
+  assert.deepEqual(
+    fixed?.lines.map((line) => line.text),
+    [
+      'How long, O men, will my honor be maligned?',
+      'How long will you love vanity and seek after lies?',
+      'Selah',
+    ]
+  );
+});
+
 test('normalizeVerseFormattingQuotes cleans spacing inside lines and returns clean input by identity', () => {
   const dirty = {
     mode: 'lines' as const,
