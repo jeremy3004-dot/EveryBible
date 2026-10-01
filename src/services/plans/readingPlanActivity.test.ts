@@ -30,6 +30,22 @@ import {
   shouldAutoplayPlanDayLaunch,
 } from './readingPlanActivity';
 
+/** A date on which a recurring plan's calendar lands on `dayNumber`. */
+function dateOfPlanDay(scheduleMode: string | undefined, dayNumber: number): Date {
+  switch (scheduleMode) {
+    // 4 January 2026 is a Sunday, day 1 of every calendar-day-of-week plan.
+    case 'calendar-day-of-week':
+      return new Date(2026, 0, dayNumber + 3, 12);
+    // Advent 2022 began on 27 November and ran its longest, 28 days.
+    case 'calendar-advent':
+      return new Date(2022, 10, dayNumber + 26, 12);
+    case 'calendar-christmas':
+      return new Date(2026, 11, dayNumber + 24, 12);
+    default:
+      return new Date(2026, 0, dayNumber, 12);
+  }
+}
+
 test('every plan day preserves the catalog passage order in targets and rhythm playback', () => {
   for (const [planId, entries] of Object.entries(readingPlanEntriesByPlanId)) {
     for (const dayNumber of new Set(entries.map((entry) => entry.day_number))) {
@@ -51,11 +67,7 @@ test('every plan day preserves the catalog passage order in targets and rhythm p
         },
         planEntriesById: { [planId]: entries },
         progressByPlanId: { [planId]: makeProgress(planId, { current_day: dayNumber }) },
-        // 4 January 2026 is a Sunday, day 1 of every calendar-day-of-week plan.
-        today:
-          readingPlansById.get(planId)?.scheduleMode === 'calendar-day-of-week'
-            ? new Date(2026, 0, dayNumber + 3, 12)
-            : new Date(2026, 0, dayNumber, 12),
+        today: dateOfPlanDay(readingPlansById.get(planId)?.scheduleMode, dayNumber),
       });
       assert.deepEqual(
         session.playbackSequenceEntries,

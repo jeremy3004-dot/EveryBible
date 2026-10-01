@@ -5,7 +5,7 @@ import type { ReadingPlanCoverKey, ReadingPlanEntry } from '../services/plans/ty
 test('bundled reading plans expose the bundled plans in sort order', async () => {
   const mod = await import('./readingPlans.generated');
 
-  assert.equal(mod.readingPlans.length, 42);
+  assert.equal(mod.readingPlans.length, 44);
   assert.deepEqual(
     mod.readingPlans.map((plan) => plan.slug),
     [
@@ -51,6 +51,8 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
       'life-pride-7-days',
       'life-temptation-7-days',
       'life-family-7-days',
+      'advent',
+      'twelve-days-of-christmas',
     ]
   );
 
@@ -329,4 +331,59 @@ test('back-to-back chapters of one book in a Seasons of life day read as one ran
     lossDay3.map((entry: ReadingPlanEntry) => [entry.book, entry.chapter_start, entry.chapter_end]),
     [['RUT', 1, 2]]
   );
+});
+
+test('Advent and the Twelve Days of Christmas are dated to their season, in whole chapters', async () => {
+  const mod = await import('./readingPlans.generated');
+  const plans = mod.readingPlans.filter((plan) => plan.category === 'church-year');
+
+  assert.deepEqual(
+    plans.map((plan) => [plan.id, plan.duration_days, plan.scheduleMode, plan.coverKey]),
+    [
+      ['advent', 28, 'calendar-advent', 'advent'],
+      ['twelve-days-of-christmas', 12, 'calendar-christmas', 'christmas'],
+    ]
+  );
+  for (const plan of plans) {
+    const entries: ReadingPlanEntry[] = mod.readingPlanEntriesByPlanId[plan.id];
+    for (let day = 1; day <= plan.duration_days; day += 1) {
+      const dayEntries = entries.filter((entry) => entry.day_number === day);
+      const chapterCount = dayEntries.reduce(
+        (sum, entry) => sum + (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1,
+        0
+      );
+      assert.ok(chapterCount >= 2, `${plan.id} day ${day} has ${chapterCount} chapter(s)`);
+      assert.ok(
+        dayEntries.every((entry) => entry.verse_start == null && entry.verse_end == null),
+        `${plan.id} day ${day} reads whole chapters only`
+      );
+    }
+  }
+});
+
+test('the shortest Advent still reaches the annunciations, and Christmas reads every Nativity account', async () => {
+  const mod = await import('./readingPlans.generated');
+  const chaptersOn = (planId: string, day: number) =>
+    mod.readingPlanEntriesByPlanId[planId]
+      .filter((entry: ReadingPlanEntry) => entry.day_number === day)
+      .map((entry: ReadingPlanEntry) => `${entry.book} ${entry.chapter_start}`);
+
+  // Advent can be only 22 days long, so day 22 (the fourth Sunday) is always read.
+  assert.deepEqual(chaptersOn('advent', 22), ['ISA 7', 'MAT 1', 'LUK 1']);
+  // Christmas Day reads Luke 2 and John 1; the eve of Epiphany, Matthew 2.
+  assert.deepEqual(chaptersOn('twelve-days-of-christmas', 1), ['LUK 2', 'JHN 1']);
+  assert.deepEqual(chaptersOn('twelve-days-of-christmas', 12), ['ISA 60', 'MAT 2']);
+  const all = Object.values(mod.readingPlanEntriesByPlanId)
+    .flat()
+    .filter((entry) => ['advent', 'twelve-days-of-christmas'].includes(entry.plan_id))
+    .flatMap((entry) =>
+      Array.from(
+        { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+        (_, index) => `${entry.book} ${entry.chapter_start + index}`
+      )
+    );
+  for (const chapter of ['MAT 1', 'MAT 2', 'LUK 1', 'LUK 2', 'JHN 1', 'ISA 9', 'MIC 5']) {
+    assert.ok(all.includes(chapter), chapter);
+  }
+  assert.equal(new Set(all).size, all.length, 'no chapter is read twice across the two plans');
 });

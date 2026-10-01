@@ -5,6 +5,7 @@ import type { CurrentPlanDaySummary } from '../../../services/plans/readingPlanA
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import {
   formatPlanCadenceLabel,
+  formatPlanSeasonDates,
   formatPlansHeaderEyebrow,
   formatProgressPercent,
   formatSessionStatusSummary,
@@ -214,6 +215,7 @@ test('known categories use their translated heading; others are title-cased from
   assert.equal(getPlanCategoryLabel('topical', t), 'readingPlans.categoryTopical');
   assert.equal(getPlanCategoryLabel('devotional', t), 'readingPlans.categoryDevotional');
   assert.equal(getPlanCategoryLabel('life-situation', t), 'readingPlans.categoryLifeSituations');
+  assert.equal(getPlanCategoryLabel('church-year', t), 'readingPlans.churchYear.heading');
   assert.equal(getPlanCategoryLabel('custom', t), 'Custom');
   assert.equal(getPlanCategoryLabel('new-testament-deep-dive', t), 'New Testament Deep Dive');
 });
@@ -236,6 +238,7 @@ test('the catalog groups rhythms apart and other plans by category, in catalog o
   );
   assert.deepEqual(groups.lifeSituationPlans, []);
   assert.deepEqual(groupCatalogPlans([]), {
+    churchYearPlans: [],
     dailyRhythmPlans: [],
     lifeSituationPlans: [],
     categories: [],
@@ -258,5 +261,39 @@ test('Seasons of life plans get their own group instead of a category row list',
   assert.deepEqual(
     groups.categories.map(({ category }) => category),
     ['book-study']
+  );
+});
+
+test('Advent and Christmas get their own church-year group, not the daily rhythms', () => {
+  const advent = makePlan({
+    id: 'advent',
+    category: 'church-year',
+    scheduleMode: 'calendar-advent',
+    duration_days: 28,
+  });
+  const groups = groupCatalogPlans([gospels, advent, kathisma]);
+
+  assert.deepEqual(
+    groups.churchYearPlans.map((plan) => plan.id),
+    ['advent']
+  );
+  assert.deepEqual(
+    groups.dailyRhythmPlans.map((plan) => plan.id),
+    ['kathisma']
+  );
+  assert.deepEqual(
+    groups.categories.map(({ category }) => category),
+    ['book-study']
+  );
+});
+
+test("a seasonal plan's dates read as a short range in the in-app language", () => {
+  assert.equal(
+    formatPlanSeasonDates({ start: new Date(2026, 10, 29), dayCount: 26 }, 'en'),
+    'Nov 29 – Dec 24'
+  );
+  assert.equal(
+    formatPlanSeasonDates({ start: new Date(2026, 11, 25), dayCount: 12 }, 'en'),
+    'Dec 25 – Jan 5'
   );
 });

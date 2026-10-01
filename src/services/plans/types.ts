@@ -4,9 +4,15 @@ export type ReadingPlanCategory =
   | 'book-study'
   | 'devotional'
   | 'life-situation'
+  | 'church-year'
   | 'custom';
 
-export type ReadingPlanScheduleMode = 'relative' | 'calendar-day-of-month' | 'calendar-day-of-week';
+export type ReadingPlanScheduleMode =
+  | 'relative'
+  | 'calendar-day-of-month'
+  | 'calendar-day-of-week'
+  | 'calendar-advent'
+  | 'calendar-christmas';
 export type ReadingPlanFormat = 'single-session' | 'multi-session';
 export type PlanSessionKey = 'morning' | 'midday' | 'evening';
 type ReadingPlanWeekStartsOn = 'sunday' | 'monday';
@@ -53,7 +59,9 @@ export type ReadingPlanCoverKey =
   | 'lifeDoubt'
   | 'lifePride'
   | 'lifeTemptation'
-  | 'lifeFamily';
+  | 'lifeFamily'
+  | 'advent'
+  | 'christmas';
 
 export interface ReadingPlan {
   id: string;

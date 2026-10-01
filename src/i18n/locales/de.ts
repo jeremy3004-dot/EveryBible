@@ -1512,6 +1512,19 @@ export const de = {
       description:
         'Höre Gottes Stimme in den Propheten, den Psalmen, bei Jesus und in der frühen Kirche.',
     },
+    churchYear: {
+      heading: 'Kirchenjahr',
+      advent: {
+        title: 'Adventszeit',
+        description:
+          'Vom ersten Advent bis Heiligabend: je eine Woche der Hoffnung, des Friedens, der Freude und der Liebe, von den Verheißungen der Propheten bis zum Besuch des Engels bei Maria.',
+      },
+      christmas: {
+        title: 'Die zwölf Weihnachtstage',
+        description:
+          'Vom ersten Weihnachtstag bis zum 5. Januar: die Geburt Jesu, das Wort, das Fleisch wurde, und die Weisen, die dem Stern folgten.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Verlust',

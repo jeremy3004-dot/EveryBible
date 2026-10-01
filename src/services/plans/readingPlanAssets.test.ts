@@ -10,7 +10,9 @@ import type { ReadingPlanCoverKey } from './types';
 // with a distinct id — which both makes the module loadable and lets each key be
 // asserted against the exact file it points at.
 const COVER_FILES = [
+  'advent',
   'canyon',
+  'christmas',
   'commonPrayerPsalter',
   'desert',
   'dunes',
@@ -115,6 +117,8 @@ const EXPECTED_FILE_BY_KEY: Record<ReadingPlanCoverKey, (typeof COVER_FILES)[num
   lifePride: 'lifePride',
   lifeTemptation: 'lifeTemptation',
   lifeFamily: 'lifeFamily',
+  advent: 'advent',
+  christmas: 'christmas',
 };
 
 const loadAssets = () => import('./readingPlanAssets');

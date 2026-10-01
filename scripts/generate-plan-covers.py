@@ -409,6 +409,32 @@ def life_family():  # scattered | gathered home
                  for i, c in enumerate(colors))
   return cut('house', fill(STONE) + scattered, fill('#E9DCC6') + ring, DEEP)
 
+# ---- Church year
+def advent():  # four candles set in the wreath, one for each Sunday; the third, for joy, is rose
+  def ring(half):  # the wreath's back or front half, so the candles stand inside it
+    arc = f'M600 1300 A600 130 0 0 {1 if half == "back" else 0} 1800 1300'
+    berries = ''.join(f'<circle cx="{1200 + 600*math.cos(a):.0f}" cy="{1300 + 130*math.sin(a):.0f}" r="16" fill="{OCHRE}"/>'
+                      for a in [math.radians(d) for d in (range(200, 341, 35) if half == 'back' else range(20, 161, 35))])
+    return f'<path d="{arc}" fill="none" stroke="{DEEP}" stroke-width="70" stroke-linecap="round"/>' + berries
+  s = ring('back')
+  for x, c in [(840, EMBER), (1080, EMBER), (1320, OCHRE), (1560, EMBER)]:
+    s += (f'<circle cx="{x}" cy="690" r="120" fill="{OCHRE}" fill-opacity="0.12"/>'
+          f'<rect x="{x - 60}" y="820" width="120" height="500" rx="14" fill="{c}"/>'
+          + stroke(x, 820, x, 790, SAND, 6, .7) + flame(x, 790, 190, 58, OCHRE) + flame(x, 780, 100, 28, SAND))
+  return s + ring('front')
+
+def christmas():  # the star over the stable, its light falling on the manger
+  cy = 520
+  star = ''.join(f'<path d="M1200 {cy - l} L{1200 + w} {cy} L1200 {cy + l} L{1200 - w} {cy} Z" fill="{EMBER}" transform="rotate({a} 1200 {cy})"/>'
+                 for a, l, w in [(0, 170, 32), (90, 170, 32), (45, 100, 22), (135, 100, 22)])
+  return (f'<path d="M1185 {cy + 60} L1215 {cy + 60} L1420 1230 L980 1230 Z" fill="{OCHRE}" fill-opacity="0.2"/>'
+          f'<circle cx="1200" cy="{cy}" r="140" fill="{OCHRE}" fill-opacity="0.18"/>' + star +
+          f'<path d="M820 1080 L1200 840 L1580 1080" fill="none" stroke="{DEEP}" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>'
+          + stroke(900, 1030, 900, 1400, DEEP, 22) + stroke(1500, 1030, 1500, 1400, DEEP, 22) +
+          f'<path d="M1040 1260 H1360 L1310 1390 H1090 Z" fill="{OCHRE}"/>'
+          f'<ellipse cx="1215" cy="1238" rx="105" ry="40" fill="{EMBER}"/><circle cx="1098" cy="1226" r="38" fill="{EMBER}"/>'
+          + stroke(700, 1400, 1700, 1400, STONE, 8, .8))
+
 # file name (existing cover key file) -> (ground, mark, plan)
 COVERS = {
   'lakeLandscape': ('V', year, 'Bible in 1 Year'),
@@ -453,6 +479,8 @@ COVERS = {
   'lifePride': ('V', life_pride, 'Seasons of life: Pride'),
   'lifeTemptation': ('T', life_temptation, 'Seasons of life: Temptation'),
   'lifeFamily': ('D', life_family, 'Seasons of life: Family'),
+  'advent': ('D', advent, 'Advent'),
+  'christmas': ('V', christmas, 'Twelve Days of Christmas'),
 }
 
 GRAIN = ('<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>'

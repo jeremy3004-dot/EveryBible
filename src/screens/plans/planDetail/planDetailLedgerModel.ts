@@ -11,6 +11,7 @@ import {
 } from '../../../services/plans/readingPlanActivity';
 import {
   getDaySessionEntries,
+  getPlanSeason,
   isCalendarDayOfMonthPlan,
   isCalendarDayOfWeekPlan,
   isRecurringPlan,
@@ -31,6 +32,7 @@ export const CATEGORY_LABEL_KEYS: Partial<Record<ReadingPlanCategory, string>> =
   'book-study': 'readingPlans.categoryBookStudy',
   topical: 'readingPlans.categoryTopical',
   devotional: 'readingPlans.categoryDevotional',
+  'church-year': 'readingPlans.churchYear.heading',
 };
 
 /** A book names the plan in its eyebrow once it carries this share of the entries. */
@@ -71,7 +73,7 @@ export function groupEntriesByDay(entries: ReadingPlanEntry[]): Map<number, Read
  * plan (whose days are scheduled from the enrolment date instead).
  *
  * A day-of-month plan resolves against this month; a day-of-week plan against
- * this week.
+ * this week; a seasonal plan against this year's season, or the next one.
  */
 export function getRecurringLedgerDayDate(
   plan: ReadingPlan,
@@ -84,6 +86,11 @@ export function getRecurringLedgerDayDate(
   if (isCalendarDayOfWeekPlan(plan)) {
     const offset = dayNumber - 1 - today.getDay();
     return new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+  }
+  const season = getPlanSeason(plan, today);
+  if (season) {
+    const { start } = season;
+    return new Date(start.getFullYear(), start.getMonth(), start.getDate() + dayNumber - 1);
   }
   return null;
 }
@@ -186,7 +193,7 @@ export function getDominantPlanBook(entries: ReadingPlanEntry[]): string | null 
 
 /** The translation key for the eyebrow's cadence: a rhythm, or the plan's category. */
 export function getPlanCadenceLabelKey(plan: ReadingPlan): string | undefined {
-  if (isRecurringPlan(plan)) return 'readingPlans.dailyRhythm';
+  if (isRecurringPlan(plan) && plan.category !== 'church-year') return 'readingPlans.dailyRhythm';
   return plan.category ? CATEGORY_LABEL_KEYS[plan.category] : undefined;
 }
 

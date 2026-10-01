@@ -1491,6 +1491,19 @@ export const id = {
       title: 'Mendengar Suara Tuhan',
       description: 'Dengarkan suara Tuhan melalui para nabi, mazmur, Yesus, dan gereja mula-mula.',
     },
+    churchYear: {
+      heading: 'Tahun gerejawi',
+      advent: {
+        title: 'Adven',
+        description:
+          'Dari Minggu Adven pertama sampai malam Natal: masing-masing sepekan tentang pengharapan, damai, sukacita, dan kasih, dari janji para nabi sampai kunjungan malaikat kepada Maria.',
+      },
+      christmas: {
+        title: 'Dua belas hari Natal',
+        description:
+          'Dari hari Natal sampai 5 Januari: kelahiran Yesus, Firman yang menjadi manusia, dan orang-orang majus yang mengikuti bintang.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Duka',

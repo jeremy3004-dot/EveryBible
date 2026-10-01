@@ -9,10 +9,16 @@ const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const UUID_PLAN_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLAN_SESSION_ORDER: PlanSessionKey[] = ['morning', 'midday', 'evening'];
+const SEASONAL_PLAN_SCHEDULE_MODES = new Set<ReadingPlan['scheduleMode']>([
+  'calendar-advent',
+  'calendar-christmas',
+]);
 const RECURRING_PLAN_SCHEDULE_MODES = new Set<ReadingPlan['scheduleMode']>([
   'calendar-day-of-month',
   'calendar-day-of-week',
+  ...SEASONAL_PLAN_SCHEDULE_MODES,
 ]);
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const formatLocalDateKey = (date: Date): string => {
   const year = date.getFullYear();
@@ -47,6 +53,17 @@ const getLocalWeekStart = (
   start.setDate(start.getDate() - daysSinceStart);
   return start;
 };
+
+/** Whole calendar days from `from` to `to`, immune to a daylight-saving hour. */
+const getLocalDaysBetween = (from: Date, to: Date): number =>
+  Math.round(
+    (Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) -
+      Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) /
+      MS_PER_DAY
+  );
+
+const addLocalDays = (date: Date, days: number): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 const isSameLocalMonth = (left: Date, right: Date): boolean =>
   left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
@@ -156,6 +173,10 @@ export function getPlanDayCount(
   plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
   today: Date
 ): number {
+  const season = getPlanSeason(plan, today);
+  if (season) {
+    return Math.min(plan.duration_days, season.dayCount);
+  }
   if (!isCalendarDayOfMonthPlan(plan)) {
     return plan.duration_days;
   }
@@ -171,6 +192,74 @@ export function isRecurringPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null)
   return RECURRING_PLAN_SCHEDULE_MODES.has(plan?.scheduleMode);
 }
 
+/** A plan tied to a season of the church year (Advent, Christmas) that comes round each year. */
+export function isSeasonalPlan(plan?: Pick<ReadingPlan, 'scheduleMode'> | null): boolean {
+  return SEASONAL_PLAN_SCHEDULE_MODES.has(plan?.scheduleMode);
+}
+
+/** One year's run of a seasonal plan: day 1 falls on `start`, and it lasts `dayCount` days. */
+export interface PlanSeason {
+  start: Date;
+  dayCount: number;
+}
+
+/**
+ * Advent begins on the fourth Sunday before Christmas, which is always the Sunday
+ * from 27 November to 3 December, and runs to Christmas Eve: 22 to 28 days.
+ * Christmas is the Twelve Days, 25 December to 5 January.
+ */
+function getSeasonForYear(
+  scheduleMode: ReadingPlan['scheduleMode'],
+  year: number
+): PlanSeason | null {
+  if (scheduleMode === 'calendar-advent') {
+    const earliest = new Date(year, 10, 27);
+    const start = addLocalDays(earliest, (7 - earliest.getDay()) % 7);
+    return { start, dayCount: getLocalDaysBetween(start, new Date(year, 11, 24)) + 1 };
+  }
+  if (scheduleMode === 'calendar-christmas') {
+    return { start: new Date(year, 11, 25), dayCount: 12 };
+  }
+  return null;
+}
+
+/**
+ * The season running today, or the next one when today falls outside it:
+ * Advent 2026 from New Year to Christmas Eve 2026, then Advent 2027.
+ * `seasonsBack` steps back whole years.
+ */
+export function getPlanSeason(
+  plan: Pick<ReadingPlan, 'scheduleMode'> | null | undefined,
+  today: Date,
+  seasonsBack = 0
+): PlanSeason | null {
+  if (!isSeasonalPlan(plan)) {
+    return null;
+  }
+  const year = today.getFullYear();
+  const seasonYear =
+    plan?.scheduleMode === 'calendar-christmas'
+      ? today.getMonth() === 0 && today.getDate() <= 5
+        ? year - 1
+        : year
+      : today.getMonth() === 11 && today.getDate() > 24
+        ? year + 1
+        : year;
+  return getSeasonForYear(plan?.scheduleMode, seasonYear - seasonsBack);
+}
+
+/**
+ * Whether a plan has a reading due today. Only a seasonal plan can be out of
+ * season, waiting for its first day; every other plan is always in.
+ */
+export function isPlanInSeason(
+  plan: Pick<ReadingPlan, 'scheduleMode'> | null | undefined,
+  today: Date
+): boolean {
+  const season = getPlanSeason(plan, today);
+  return !season || getLocalDaysBetween(season.start, today) >= 0;
+}
+
 function getRecurringPlanDayNumber(
   plan: Pick<ReadingPlan, 'duration_days' | 'scheduleMode'>,
   today: Date
@@ -181,6 +270,12 @@ function getRecurringPlanDayNumber(
 
   if (isCalendarDayOfWeekPlan(plan)) {
     return today.getDay() + 1;
+  }
+
+  // Before the season opens, its first day is the one waiting.
+  const season = getPlanSeason(plan, today);
+  if (season) {
+    return Math.max(getLocalDaysBetween(season.start, today) + 1, 1);
   }
 
   return null;
@@ -226,7 +321,7 @@ export function getPlanLedgerDayNumbers(
 ): number[] {
   const lastDay = isCalendarDayOfMonthPlan(plan)
     ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-    : Infinity;
+    : (getPlanSeason(plan, today)?.dayCount ?? Infinity);
   return [...new Set(entries.map((entry) => entry.day_number))]
     .filter((day) => day <= lastDay)
     .sort((left, right) => left - right);
@@ -254,7 +349,8 @@ function getRecurringCycleDate(
       today.getDate() + dayNumber - 1 - today.getDay() - 7 * cyclesBack
     );
   }
-  return null;
+  const season = getPlanSeason(plan, today, cyclesBack);
+  return season ? addLocalDays(season.start, dayNumber - 1) : null;
 }
 
 /**
@@ -377,6 +473,15 @@ export function getVisibleCompletedEntryCount(
       return completedDate
         ? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')
         : false;
+    }).length;
+  }
+
+  const season = getPlanSeason(plan, today);
+  if (season) {
+    return Object.keys(completedEntries).filter((dateKey) => {
+      const completedDate = parseLocalDateKey(dateKey);
+      const dayIndex = completedDate ? getLocalDaysBetween(season.start, completedDate) : -1;
+      return dayIndex >= 0 && dayIndex < season.dayCount;
     }).length;
   }
 

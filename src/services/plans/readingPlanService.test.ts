@@ -62,7 +62,7 @@ test('reading plan service serves bundled plans and local plan entries', async (
 
   const plansResult = await service.listReadingPlans();
   assert.equal(plansResult.success, true);
-  assert.equal(bundledMod.readingPlans.length, 42);
+  assert.equal(bundledMod.readingPlans.length, 44);
   assert.equal(plansResult.data?.length, bundledMod.readingPlans.length);
   assert.equal(plansResult.data?.[0]?.slug, 'bible-in-1-year');
   assert.equal(
