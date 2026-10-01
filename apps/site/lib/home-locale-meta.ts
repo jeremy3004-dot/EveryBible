@@ -35,6 +35,17 @@ export function isHomeLocaleCode(code: string): code is HomeLocaleCode {
   return (HOME_LOCALE_CODES as readonly string[]).includes(code);
 }
 
+/**
+ * Translated homepages that are live. A language joins this list once a
+ * native speaker has checked its translation; until then its page is a 404
+ * and it is left out of the switcher, hreflang and the sitemap.
+ */
+export const PUBLISHED_HOME_LOCALE_CODES: readonly HomeLocaleCode[] = [];
+
+export function isPublishedHomeLocale(code: string): code is HomeLocaleCode {
+  return (PUBLISHED_HOME_LOCALE_CODES as readonly string[]).includes(code);
+}
+
 /* Native names are copied from src/constants/languages.ts: importing that file
    would pull the React Native app's types into the site build. Order follows
    the app's interface-language list, with English first. */
@@ -100,12 +111,14 @@ export function openGraphLocaleFor(code: HomeLocaleCodeOrEn): string {
   return OPEN_GRAPH_LOCALES[code];
 }
 
-const ALL_CODES: readonly HomeLocaleCodeOrEn[] = ['en', ...HOME_LOCALE_CODES];
+const PUBLISHED_CODES: readonly HomeLocaleCodeOrEn[] = ['en', ...PUBLISHED_HOME_LOCALE_CODES];
 
-/** hreflang to path for all 21 homepages plus `x-default` (English). */
-export function homeAlternateLanguages(): Record<string, string> {
+/** hreflang to path for every published homepage plus `x-default` (English). */
+export function homeAlternateLanguages(
+  codes: readonly HomeLocaleCodeOrEn[] = PUBLISHED_CODES
+): Record<string, string> {
   return {
-    ...Object.fromEntries(ALL_CODES.map((code) => [hreflangFor(code), homePathFor(code)])),
+    ...Object.fromEntries(codes.map((code) => [hreflangFor(code), homePathFor(code)])),
     'x-default': '/',
   };
 }

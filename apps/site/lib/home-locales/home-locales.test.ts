@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { homeCopyEn } from '../home-copy';
-import { HOME_LOCALE_CODES, homeAlternateLanguages } from '../home-locale-meta';
+import {
+  HOME_LOCALE_CODES,
+  homeAlternateLanguages,
+  PUBLISHED_HOME_LOCALE_CODES,
+} from '../home-locale-meta';
 import { ALL_HOME_LOCALES, HOME_LOCALES, homeCopyFor } from './index';
 
 const EXPECTED_CODES = [
@@ -74,8 +78,21 @@ test('the registry has exactly the 20 non-English interface languages, in app or
   assert.equal(homeCopyFor('xx'), homeCopyEn);
 });
 
-test('hreflang covers all 21 homepages and x-default', () => {
-  const languages = homeAlternateLanguages();
+test('hreflang lists only published homepages', () => {
+  const published = homeAlternateLanguages();
+  assert.equal(Object.keys(published).length, PUBLISHED_HOME_LOCALE_CODES.length + 2);
+  assert.equal(published['x-default'], '/');
+  for (const code of HOME_LOCALE_CODES)
+    if (!PUBLISHED_HOME_LOCALE_CODES.includes(code))
+      assert.equal(
+        published[code === 'zh' ? 'zh-Hans' : code],
+        undefined,
+        `${code} is not live yet`
+      );
+});
+
+test('hreflang can cover all 21 homepages and x-default once published', () => {
+  const languages = homeAlternateLanguages(['en', ...HOME_LOCALE_CODES]);
   assert.equal(Object.keys(languages).length, 22);
   assert.equal(languages['en'], '/');
   assert.equal(languages['x-default'], '/');

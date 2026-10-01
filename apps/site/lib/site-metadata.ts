@@ -1,7 +1,7 @@
 import type { Metadata, MetadataRoute, Viewport } from 'next';
 
 import {
-  HOME_LOCALE_CODES,
+  PUBLISHED_HOME_LOCALE_CODES,
   homeAlternateLanguages,
   homeAlternateUrls,
   homePathFor,
@@ -97,7 +97,7 @@ export function pageMetadata({ title, description, path }: PageMetadataInput): M
 
 /**
  * Metadata for a localized homepage: its own title, description and canonical,
- * the Open Graph locale, and hreflang links to all 21 homepages. Next replaces
+ * the Open Graph locale, and hreflang links to every published homepage. Next replaces
  * `alternates` and `openGraph` wholesale, so each repeats what it needs.
  */
 export function homeMetadata(
@@ -145,7 +145,7 @@ export function buildSitemap(lastModified: Date): MetadataRoute.Sitemap {
           : 0.5,
     ...(path === '/' ? { alternates: { languages } } : {}),
   }));
-  const homepages: MetadataRoute.Sitemap = HOME_LOCALE_CODES.map((code) => ({
+  const homepages: MetadataRoute.Sitemap = PUBLISHED_HOME_LOCALE_CODES.map((code) => ({
     url: new URL(homePathFor(code), EVERYBIBLE_SITE_URL).toString(),
     lastModified,
     changeFrequency: 'weekly',

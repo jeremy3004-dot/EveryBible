@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- staticImageProps gives next/image's
    optimized srcset without its client component (see lib/static-image.ts). */
 import {
-  HOME_LOCALE_CODES,
+  PUBLISHED_HOME_LOCALE_CODES,
   HOME_LOCALE_NATIVE_NAMES,
   hreflangFor,
   homePathFor,
@@ -15,12 +15,12 @@ const everyLanguageWordmark = staticImageProps('/everylanguage/wordmark-blue.png
   sizes: '104px',
 });
 
-const SWITCHER_CODES: readonly HomeLocaleCodeOrEn[] = ['en', ...HOME_LOCALE_CODES];
+const SWITCHER_CODES: readonly HomeLocaleCodeOrEn[] = ['en', ...PUBLISHED_HOME_LOCALE_CODES];
 
 /**
  * Shared marketing footer. Used by the homepage and every static page. Pass
  * `localeCode` on a homepage to add the language switcher: a disclosure of all
- * 21 homepages by native name.
+ * published homepages by native name (hidden while English is the only one).
  */
 export function SiteFooter({
   localeCode,
@@ -77,7 +77,7 @@ export function SiteFooter({
           </div>
         </div>
 
-        {localeCode ? (
+        {localeCode && SWITCHER_CODES.length > 1 ? (
           <nav
             className="site-footer__languages"
             aria-label={languageLabel}

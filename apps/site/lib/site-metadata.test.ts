@@ -12,6 +12,7 @@ import {
   siteMetadata,
 } from './site-metadata';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from './site-links';
+import { PUBLISHED_HOME_LOCALE_CODES } from './home-locale-meta';
 
 test('root metadata resolves relative URLs against the production origin', () => {
   assert.equal(siteMetadata.metadataBase?.toString(), 'https://everybible.app/');
@@ -54,12 +55,15 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   const homepages = entries.filter((entry) =>
     /^https:\/\/everybible\.app\/[a-z]{2}$/.test(entry.url)
   );
-  assert.equal(homepages.length, 20, 'one localized homepage per interface language');
+  assert.equal(
+    homepages.length,
+    PUBLISHED_HOME_LOCALE_CODES.length,
+    'only translations that have been checked are listed'
+  );
   const hreflang = entries[0].alternates?.languages ?? {};
-  assert.equal(Object.keys(hreflang).length, 22, '21 homepages plus x-default');
+  assert.equal(Object.keys(hreflang).length, PUBLISHED_HOME_LOCALE_CODES.length + 2);
   assert.equal(hreflang['x-default'], 'https://everybible.app/');
-  assert.equal(hreflang['zh-Hans'], 'https://everybible.app/zh');
-  assert.deepEqual(homepages[0].alternates?.languages, hreflang);
+  assert.equal(hreflang['en'], 'https://everybible.app/');
 
   assert.deepEqual(
     entries.slice(0, 10).map((entry) => entry.url),
@@ -86,7 +90,13 @@ test('a localized homepage carries its own canonical, Open Graph locale and href
   assert.equal(metadata.alternates?.canonical, '/es');
   assert.equal(metadata.openGraph?.locale, 'es_ES');
   assert.equal(metadata.alternates?.languages?.['en'], '/');
-  assert.equal(metadata.alternates?.languages?.['zh-Hans'], '/zh');
+  assert.equal(metadata.alternates?.languages?.['x-default'], '/');
+  if (!PUBLISHED_HOME_LOCALE_CODES.includes('zh'))
+    assert.equal(
+      metadata.alternates?.languages?.['zh-Hans'],
+      undefined,
+      'unchecked translations stay unlinked'
+    );
 });
 
 test('robots allows the site, keeps crawlers out of the data API, and names every sitemap', () => {
