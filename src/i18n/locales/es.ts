@@ -1980,6 +1980,19 @@ export const es = {
       description:
         'Escucha a Dios a través de los profetas, los salmos, Jesús y la iglesia primitiva.',
     },
+    churchYear: {
+      heading: 'Año litúrgico',
+      advent: {
+        title: 'Adviento',
+        description:
+          'Desde el primer domingo de Adviento hasta Nochebuena: una semana de esperanza, otra de paz, otra de gozo y otra de amor, desde las promesas de los profetas hasta la visita del ángel a María.',
+      },
+      christmas: {
+        title: 'Los doce días de Navidad',
+        description:
+          'Desde el día de Navidad hasta el 5 de enero: el nacimiento de Jesús, el Verbo hecho carne y los magos que siguieron la estrella.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Duelo',

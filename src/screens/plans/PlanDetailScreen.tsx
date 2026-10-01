@@ -35,9 +35,11 @@ import {
 import { getReadingPlanCoverSource } from '../../services/plans/readingPlanAssets';
 import {
   getActivePlanDayNumber,
+  getPlanDayCount,
   getPlanLedgerDayNumbers,
   isRecurringPlan,
   isMultiSessionPlan,
+  isSeasonalPlan,
 } from '../../services/plans/readingPlanModel';
 import type { PlanSessionKey } from '../../services/plans/types';
 import type { PlanDetailScreenProps } from '../../navigation/types';
@@ -312,12 +314,15 @@ export function PlanDetailScreen({ route, navigation }: PlanDetailScreenProps) {
 
     return [
       cadenceKey ? t(cadenceKey as Parameters<typeof t>[0]) : null,
-      t('readingPlans.durationDays', { count: plan.duration_days }),
+      // Advent runs 22 to 28 days, so it states this year's length.
+      t('readingPlans.durationDays', {
+        count: isSeasonalPlan(plan) ? getPlanDayCount(plan, today) : plan.duration_days,
+      }),
       dominantBook ? getTranslatedBookName(dominantBook, t) : null,
     ]
       .filter(Boolean)
       .join(' · ');
-  }, [entries, plan, t]);
+  }, [entries, plan, t, today]);
 
   const nextDayNumber = useMemo(
     () => getNextLedgerDayNumber(ledgerDayNumbers, currentDay, isRecurringPlan(plan)),

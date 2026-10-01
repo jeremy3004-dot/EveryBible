@@ -165,3 +165,23 @@ test('selectHomeContinuePlans skips completed plans and respects the limit', () 
     ['active']
   );
 });
+
+test('Advent joined before its first Sunday has nothing due, so a plan with a reading comes first', () => {
+  const advent: ReadingPlan = {
+    ...makePlan('advent', 1),
+    category: 'church-year',
+    duration_days: 28,
+    scheduleMode: 'calendar-advent',
+  };
+  const plans = [advent, makePlan('year', 2)];
+  const progressByPlanId: Record<string, UserReadingPlanProgress> = {
+    // Joined this morning, so it is the most recent activity of the two.
+    advent: makeProgress('advent', { current_day: 1, started_at: localIso(0, 8) }),
+    year: makeProgress('year', { current_day: 5, completed_entries: { '4': localIso(-1) } }),
+  };
+
+  assert.deepEqual(
+    selectHomeContinuePlans(plans, progressByPlanId, 2, TODAY).map((item) => item.plan.id),
+    ['year', 'advent']
+  );
+});

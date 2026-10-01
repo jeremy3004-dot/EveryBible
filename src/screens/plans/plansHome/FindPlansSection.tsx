@@ -20,8 +20,8 @@ interface FindPlansSectionProps {
 }
 
 /**
- * The searchable catalog: Daily rhythms and Seasons of life as cover grids, every
- * other category as rows.
+ * The searchable catalog: Church year, Daily rhythms and Seasons of life as cover
+ * grids, every other category as rows.
  */
 export function FindPlansSection({
   allPlans,
@@ -33,7 +33,7 @@ export function FindPlansSection({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { searchQuery, setSearchQuery, filteredPlans } = usePlanCatalogSearch(allPlans);
-  const { dailyRhythmPlans, lifeSituationPlans, categories } = useMemo(
+  const { churchYearPlans, dailyRhythmPlans, lifeSituationPlans, categories } = useMemo(
     () => groupCatalogPlans(filteredPlans),
     [filteredPlans]
   );
@@ -42,6 +42,28 @@ export function FindPlansSection({
     [userProgress]
   );
   const searchLabel = t('readingPlans.searchPlansCount', { count: allPlans.length });
+
+  const renderCoverGrid = (title: string, plans: ReadingPlan[]) =>
+    plans.length > 0 ? (
+      <View style={styles.section}>
+        <SectionHeader
+          title={title}
+          eyebrow={t('readingPlans.plansCount', { count: plans.length })}
+          style={styles.sectionHeader}
+        />
+        <View style={styles.rhythmGrid}>
+          {plans.map((plan) => (
+            <RhythmCard
+              key={plan.id}
+              plan={plan}
+              progress={progressByPlanId.get(plan.id)}
+              today={today}
+              onPlanPress={onPlanPress}
+            />
+          ))}
+        </View>
+      </View>
+    ) : null;
 
   return (
     <View style={styles.content}>
@@ -60,47 +82,9 @@ export function FindPlansSection({
         />
       </View>
 
-      {dailyRhythmPlans.length > 0 ? (
-        <View style={styles.section}>
-          <SectionHeader
-            title={t('readingPlans.dailyRhythms')}
-            eyebrow={t('readingPlans.plansCount', { count: dailyRhythmPlans.length })}
-            style={styles.sectionHeader}
-          />
-          <View style={styles.rhythmGrid}>
-            {dailyRhythmPlans.map((plan) => (
-              <RhythmCard
-                key={plan.id}
-                plan={plan}
-                progress={progressByPlanId.get(plan.id)}
-                today={today}
-                onPlanPress={onPlanPress}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {lifeSituationPlans.length > 0 ? (
-        <View style={styles.section}>
-          <SectionHeader
-            title={t('readingPlans.categoryLifeSituations')}
-            eyebrow={t('readingPlans.plansCount', { count: lifeSituationPlans.length })}
-            style={styles.sectionHeader}
-          />
-          <View style={styles.rhythmGrid}>
-            {lifeSituationPlans.map((plan) => (
-              <RhythmCard
-                key={plan.id}
-                plan={plan}
-                progress={progressByPlanId.get(plan.id)}
-                today={today}
-                onPlanPress={onPlanPress}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
+      {renderCoverGrid(t('readingPlans.churchYear.heading'), churchYearPlans)}
+      {renderCoverGrid(t('readingPlans.dailyRhythms'), dailyRhythmPlans)}
+      {renderCoverGrid(t('readingPlans.categoryLifeSituations'), lifeSituationPlans)}
 
       {categories.map(({ category, plans }) => (
         <View key={category} style={styles.section}>

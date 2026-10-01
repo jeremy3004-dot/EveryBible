@@ -1494,6 +1494,19 @@ export const vi = {
       title: 'Nghe tiếng Chúa',
       description: 'Lắng nghe Chúa qua các tiên tri, Thi Thiên, Chúa Giê-su và Hội Thánh đầu tiên.',
     },
+    churchYear: {
+      heading: 'Lịch Hội Thánh',
+      advent: {
+        title: 'Mùa Vọng',
+        description:
+          'Từ Chủ nhật thứ nhất Mùa Vọng đến đêm trước Giáng Sinh: mỗi tuần một chủ đề hy vọng, bình an, vui mừng và yêu thương, từ lời hứa của các tiên tri đến lúc thiên sứ đến thăm Ma-ri.',
+      },
+      christmas: {
+        title: 'Mười hai ngày Giáng Sinh',
+        description:
+          'Từ ngày Giáng Sinh đến ngày 5 tháng 1: sự giáng sinh của Chúa Giê-su, Ngôi Lời trở nên xác thịt, và các nhà thông thái theo ngôi sao.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Mất mát',

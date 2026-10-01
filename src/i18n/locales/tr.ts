@@ -1493,6 +1493,19 @@ export const tr = {
       title: 'Tanrı’nın Sesini Duymak',
       description: 'Tanrı’yı peygamberler, mezmurlar, İsa ve ilk kilise aracılığıyla dinleyin.',
     },
+    churchYear: {
+      heading: 'Kilise yılı',
+      advent: {
+        title: 'Advent Dönemi',
+        description:
+          'Advent’in ilk pazarından Noel arifesine kadar: umut, esenlik, sevinç ve sevgi için birer hafta; peygamberlerin vaatlerinden meleğin Meryem’i ziyaretine.',
+      },
+      christmas: {
+        title: 'Noel’in on iki günü',
+        description:
+          'Noel gününden 5 Ocak’a kadar: İsa’nın doğuşu, insan olan Söz ve yıldızın ardından gelen bilge adamlar.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Kayıp',

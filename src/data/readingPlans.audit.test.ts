@@ -5,7 +5,13 @@ import { fileURLToPath, URL } from 'node:url';
 import { bibleBooks } from '../constants/books';
 import { en } from '../i18n/locales/en';
 import { localeLoaders } from '../i18n/localeLoaders';
-import { getActivePlanDayNumber, isRecurringPlan } from '../services/plans/readingPlanModel';
+import {
+  getActivePlanDayNumber,
+  getPlanLedgerDayNumbers,
+  getPlanSeason,
+  isRecurringPlan,
+  isSeasonalPlan,
+} from '../services/plans/readingPlanModel';
 import { readingPlans, readingPlanEntriesByPlanId } from './readingPlans.generated';
 
 test('every plan has every advertised day and each passage resolves in the shipped Bible', () => {
@@ -169,7 +175,9 @@ test('all plans have localized titles, descriptions, and category labels in ever
 });
 
 test('recurring plans resolve a valid daily assignment across leap years and week/month boundaries', () => {
-  for (const plan of readingPlans.filter(isRecurringPlan)) {
+  for (const plan of readingPlans.filter(
+    (item) => isRecurringPlan(item) && !isSeasonalPlan(item)
+  )) {
     for (
       let date = new Date(2024, 0, 1, 12);
       date.getFullYear() < 2026;
@@ -184,6 +192,26 @@ test('recurring plans resolve a valid daily assignment across leap years and wee
         day,
         plan.scheduleMode === 'calendar-day-of-month' ? date.getDate() : date.getDay() + 1
       );
+    }
+  }
+});
+
+test('seasonal plans have a reading for every day of their season, 2024 to 2040', () => {
+  for (const plan of readingPlans.filter(isSeasonalPlan)) {
+    const entries = readingPlanEntriesByPlanId[plan.id];
+    for (
+      let date = new Date(2024, 0, 1, 12);
+      date.getFullYear() < 2041;
+      date.setDate(date.getDate() + 1)
+    ) {
+      const season = getPlanSeason(plan, date)!;
+      const day = getActivePlanDayNumber(plan, { current_day: 1 }, date);
+      assert.ok(
+        entries.some((entry) => entry.day_number === day),
+        `${plan.id}: ${date}`
+      );
+      assert.ok(season.dayCount <= plan.duration_days, `${plan.id}: ${date}`);
+      assert.equal(getPlanLedgerDayNumbers(plan, entries, date).length, season.dayCount);
     }
   }
 });

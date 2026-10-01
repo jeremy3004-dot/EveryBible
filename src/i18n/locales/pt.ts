@@ -1520,6 +1520,19 @@ export const pt = {
       title: 'Ouvindo a voz de Deus',
       description: 'Ouça a Deus por meio dos profetas, dos salmos, de Jesus e da igreja primitiva.',
     },
+    churchYear: {
+      heading: 'Ano litúrgico',
+      advent: {
+        title: 'Advento',
+        description:
+          'Do primeiro domingo do Advento até a véspera de Natal: uma semana de esperança, uma de paz, uma de alegria e uma de amor, das promessas dos profetas à visita do anjo a Maria.',
+      },
+      christmas: {
+        title: 'Os doze dias de Natal',
+        description:
+          'Do dia de Natal até 5 de janeiro: o nascimento de Jesus, o Verbo que se fez carne e os magos que seguiram a estrela.',
+      },
+    },
     lifeSituations: {
       loss: {
         title: 'Luto',

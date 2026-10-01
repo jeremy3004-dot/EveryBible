@@ -309,3 +309,22 @@ test('the ledger reads tomorrow first, then the past newest-first, then the days
     'with no today card the ledger stays in day order'
   );
 });
+
+test('an Advent ledger dates each day from this year’s first Sunday, and is labelled by the church year', () => {
+  const advent = makePlan({
+    category: 'church-year',
+    scheduleMode: 'calendar-advent',
+    duration_days: 28,
+  });
+
+  // Joined in October: the days carry the coming season's dates.
+  assert.deepEqual(
+    getRecurringLedgerDayDate(advent, 1, new Date(2026, 9, 1)),
+    new Date(2026, 10, 29)
+  );
+  assert.deepEqual(
+    getRecurringLedgerDayDate(advent, 26, new Date(2026, 11, 10)),
+    new Date(2026, 11, 24)
+  );
+  assert.equal(getPlanCadenceLabelKey(advent), 'readingPlans.churchYear.heading');
+});

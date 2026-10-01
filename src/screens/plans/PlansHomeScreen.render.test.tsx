@@ -873,9 +873,9 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
   await openTab(view, 'readingPlans.findPlans');
 
   const rhythms = sectionOf(view, t('readingPlans.dailyRhythms'));
-  const recurring = CATALOG.filter((plan) => plan.scheduleMode?.startsWith('calendar-')).map(
-    (plan) => plan.id
-  );
+  const recurring = CATALOG.filter(
+    (plan) => plan.scheduleMode?.startsWith('calendar-') && plan.category !== 'church-year'
+  ).map((plan) => plan.id);
   assert.ok(recurring.includes(PROVERBS) && recurring.includes(KATHISMA));
   assert.ok(within(rhythms).getByText(t('readingPlans.plansCount', { count: recurring.length })));
   for (const id of recurring) {
@@ -888,6 +888,18 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
     topical: 'readingPlans.categoryTopical',
     devotional: 'readingPlans.categoryDevotional',
   };
+  // Advent and Christmas lead as the Church year cover grid, dated to this year's season.
+  const churchYear = CATALOG.filter((plan) => plan.category === 'church-year');
+  assert.deepEqual(
+    churchYear.map((plan) => plan.id),
+    ['advent', 'twelve-days-of-christmas']
+  );
+  const churchYearSection = sectionOf(view, t('readingPlans.churchYear.heading'));
+  for (const plan of churchYear) {
+    const card = within(churchYearSection).getByRole('button', { name: t(plan.title_key) });
+    assert.match(card.props.accessibilityValue.text, / – /, plan.id);
+  }
+
   // Seasons of life follows Daily rhythms as its own cover grid, not a row list.
   const seasons = CATALOG.filter((plan) => plan.category === 'life-situation');
   assert.equal(seasons.length, 15);
@@ -900,15 +912,20 @@ test('recurring plans are the two-up Daily rhythms grid; every other plan is a r
   }
 
   const sequential = CATALOG.filter(
-    (plan) => !recurring.includes(plan.id) && plan.category !== 'life-situation'
+    (plan) =>
+      !recurring.includes(plan.id) &&
+      plan.category !== 'life-situation' &&
+      plan.category !== 'church-year'
   );
   const categories = [...new Set(sequential.map((plan) => plan.category ?? 'other'))];
   assert.deepEqual(
     view
       .getAllByRole('header')
       .map((node) => node.props.children)
-      .slice(2),
+      .slice(1),
     [
+      t('readingPlans.churchYear.heading'),
+      t('readingPlans.dailyRhythms'),
       t('readingPlans.categoryLifeSituations'),
       ...categories.map((category) => t(categoryKeys[category])),
     ]

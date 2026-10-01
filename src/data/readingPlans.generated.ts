@@ -1,5 +1,6 @@
 import { bibleBooks } from '../constants/books';
-import { LIFE_SITUATION_PLANS } from './lifeSituationPlans';
+import { CHURCH_YEAR_PLANS } from './churchYearPlans';
+import { LIFE_SITUATION_PLANS, type LifeSituationChapter } from './lifeSituationPlans';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
 import type { ReadingPlanCoverKey } from '../services/plans/types';
 import type { ReadingPlanScheduleMode } from '../services/plans/types';
@@ -1155,18 +1156,13 @@ const timedChallengeRecipes: TimedChallengeRecipe[] = [
   },
 ];
 
-// Seasons of life: a day's chapters run in reading order, and back-to-back
-// chapters of one book (Ruth 1, Ruth 2) become one ranged entry.
-const lifeSituationRecipes: VersePlanRecipe[] = LIFE_SITUATION_PLANS.map((plan, index) => ({
-  id: plan.id,
-  slug: plan.id,
-  title_key: `readingPlans.lifeSituations.${plan.key}.title`,
-  description_key: `readingPlans.lifeSituations.${plan.key}.description`,
-  duration_days: plan.days.length,
-  category: 'life-situation',
-  sort_order: 40 + index,
-  cover_key: plan.coverKey,
-  entries: plan.days.flatMap((chapters, dayIndex) => {
+// Whole-chapter plans (Seasons of life, the church year): a day's chapters run in
+// reading order, and back-to-back chapters of one book (Ruth 1, Ruth 2) become
+// one ranged entry.
+function wholeChapterDayEntries(
+  days: readonly (readonly LifeSituationChapter[])[]
+): VersePlanRecipe['entries'] {
+  return days.flatMap((chapters, dayIndex) => {
     const entries: VersePlanRecipe['entries'] = [];
     for (const [book, chapter] of chapters) {
       const previous = entries[entries.length - 1];
@@ -1186,7 +1182,35 @@ const lifeSituationRecipes: VersePlanRecipe[] = LIFE_SITUATION_PLANS.map((plan, 
       }
     }
     return entries;
-  }),
+  });
+}
+
+const lifeSituationRecipes: VersePlanRecipe[] = LIFE_SITUATION_PLANS.map((plan, index) => ({
+  id: plan.id,
+  slug: plan.id,
+  title_key: `readingPlans.lifeSituations.${plan.key}.title`,
+  description_key: `readingPlans.lifeSituations.${plan.key}.description`,
+  duration_days: plan.days.length,
+  category: 'life-situation',
+  sort_order: 40 + index,
+  cover_key: plan.coverKey,
+  entries: wholeChapterDayEntries(plan.days),
+}));
+
+// Advent and Christmas are dated to their season each year. Advent's
+// duration_days is its longest run (28 days); a shorter year leaves off the tail,
+// the way a monthly plan leaves off day 31 in September.
+const churchYearRecipes: VersePlanRecipe[] = CHURCH_YEAR_PLANS.map((plan, index) => ({
+  id: plan.id,
+  slug: plan.id,
+  title_key: `readingPlans.churchYear.${plan.key}.title`,
+  description_key: `readingPlans.churchYear.${plan.key}.description`,
+  duration_days: plan.days.length,
+  category: 'church-year',
+  sort_order: 60 + index,
+  cover_key: plan.coverKey,
+  schedule_mode: plan.scheduleMode,
+  entries: wholeChapterDayEntries(plan.days),
 }));
 
 const sequentialPlans = sequentialRecipes.map(buildSequentialPlan);
@@ -1197,6 +1221,7 @@ const timedChallengePlans = timedChallengeRecipes.map(buildTimedChallengePlan);
 const weeklySessionPlans = weeklySessionRecipes.map(buildWeeklySessionPlan);
 const calendarRhythmPlans = calendarRhythmRecipes.map(buildVersePlan);
 const lifeSituationPlans = lifeSituationRecipes.map(buildVersePlan);
+const churchYearPlans = churchYearRecipes.map(buildVersePlan);
 
 export const readingPlans = [
   ...sequentialPlans,
@@ -1207,6 +1232,7 @@ export const readingPlans = [
   ...weeklySessionPlans,
   ...calendarRhythmPlans,
   ...lifeSituationPlans,
+  ...churchYearPlans,
 ]
   .map((item) => item.plan)
   .sort((left, right) => left.sort_order - right.sort_order);
@@ -1220,6 +1246,7 @@ export const readingPlanEntries = [
   ...weeklySessionPlans,
   ...calendarRhythmPlans,
   ...lifeSituationPlans,
+  ...churchYearPlans,
 ]
   .flatMap((item) => item.entries)
   .sort((left, right) => {

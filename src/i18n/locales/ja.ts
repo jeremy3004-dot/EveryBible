@@ -1462,6 +1462,19 @@ export const ja = {
       title: '神の声を聞く',
       description: '預言者、詩篇、イエス、そして初代教会を通して神の声に耳を傾けます。',
     },
+    churchYear: {
+      heading: '教会暦',
+      advent: {
+        title: '待降節',
+        description:
+          '待降節第一主日からクリスマス・イブまで。希望、平和、喜び、愛を一週間ずつ、預言者たちの約束から、天使がマリアを訪れる場面までを読みます。',
+      },
+      christmas: {
+        title: 'クリスマスの十二日間',
+        description:
+          'クリスマスから1月5日まで。イエスの誕生、人となられたことば、そして星に導かれた博士たち。',
+      },
+    },
     lifeSituations: {
       loss: {
         title: '喪失',

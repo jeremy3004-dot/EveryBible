@@ -23,6 +23,9 @@ import {
   resolvePlanLedgerDayState,
   getVisiblePlanDayNumbers,
   getPlanDayCount,
+  getPlanSeason,
+  isPlanInSeason,
+  isSeasonalPlan,
 } from './readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from './types';
 
@@ -983,4 +986,125 @@ test('sequential and weekly plans count every plan day whatever the month', () =
     7
   );
   assert.equal(getPlanDayCount({ duration_days: 31 }, new Date(2026, 1, 10)), 31);
+});
+
+// ---------------------------------------------------------------------------
+// Seasonal plans: Advent and the Twelve Days of Christmas
+// ---------------------------------------------------------------------------
+
+const advent = makePlan({ scheduleMode: 'calendar-advent', duration_days: 28 });
+const christmas = makePlan({ scheduleMode: 'calendar-christmas', duration_days: 12 });
+const localKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+test('Advent opens on the first Sunday of Advent and runs to Christmas Eve, every year', () => {
+  // [year, first Sunday of Advent, days to Christmas Eve]: the earliest and latest
+  // possible starts (27 Nov, 3 Dec) and 2026.
+  const years: [number, string, number][] = [
+    [2022, '2022-11-27', 28],
+    [2023, '2023-12-03', 22],
+    [2024, '2024-12-01', 24],
+    [2025, '2025-11-30', 25],
+    [2026, '2026-11-29', 26],
+    [2027, '2027-11-28', 27],
+    [2028, '2028-12-03', 22],
+  ];
+  for (const [year, start, days] of years) {
+    const season = getPlanSeason(advent, new Date(year, 5, 1))!;
+    assert.equal(localKey(season.start), start, `${year}`);
+    assert.equal(season.start.getDay(), 0, `${year} starts on a Sunday`);
+    assert.equal(season.dayCount, days, `${year}`);
+    assert.equal(getPlanDayCount(advent, new Date(year, 5, 1)), days);
+  }
+});
+
+test('Advent 2026: day 1 is Sunday 29 November and Christmas Eve is day 26', () => {
+  assert.equal(getActivePlanDayNumber(advent, null, new Date(2026, 10, 29, 9)), 1);
+  assert.equal(getActivePlanDayNumber(advent, null, new Date(2026, 11, 6, 9)), 8);
+  assert.equal(getActivePlanDayNumber(advent, null, new Date(2026, 11, 24, 21)), 26);
+  assert.equal(getPlanCompletionEntryKey(advent, 1, new Date(2026, 10, 29, 9)), '2026-11-29');
+  assert.equal(getPlanCompletionEntryKey(advent, 26, new Date(2026, 11, 24, 21)), '2026-12-24');
+});
+
+test('before Advent opens its first day waits, dated to the coming Sunday', () => {
+  const october = new Date(2026, 9, 1, 12);
+  assert.equal(isPlanInSeason(advent, october), false);
+  assert.equal(getActivePlanDayNumber(advent, null, october), 1);
+  assert.equal(getPlanCompletionEntryKey(advent, 1, october), '2026-11-29');
+  assert.equal(isPlanInSeason(advent, new Date(2026, 10, 28, 23)), false);
+  assert.equal(isPlanInSeason(advent, new Date(2026, 10, 29, 0, 5)), true);
+  // Every other plan always has a reading due.
+  assert.equal(isPlanInSeason(makePlan(), october), true);
+  assert.equal(isPlanInSeason(makePlan({ scheduleMode: 'calendar-day-of-week' }), october), true);
+});
+
+test('from Christmas Day Advent looks ahead to next year, and starts its count afresh', () => {
+  const christmasDay = new Date(2026, 11, 25, 12);
+  assert.equal(localKey(getPlanSeason(advent, christmasDay)!.start), '2027-11-28');
+  assert.equal(getActivePlanDayNumber(advent, null, christmasDay), 1);
+  assert.equal(
+    getVisibleCompletedEntryCount(
+      advent,
+      { '2026-11-29': '2026-11-29T08:00:00.000Z', '2026-12-24': '2026-12-24T08:00:00.000Z' },
+      christmasDay
+    ),
+    0
+  );
+  assert.equal(
+    getVisibleCompletedEntryCount(
+      advent,
+      {
+        '2025-12-24': '2025-12-24T08:00:00.000Z',
+        '2026-11-29': '2026-11-29T08:00:00.000Z',
+        '2026-12-24': '2026-12-24T08:00:00.000Z',
+      },
+      new Date(2026, 11, 24, 12)
+    ),
+    2
+  );
+});
+
+test("finishing Christmas Eve's Advent reading after midnight files it under Christmas Eve", () => {
+  assert.equal(getPlanCompletionEntryKey(advent, 26, new Date(2026, 11, 25, 0, 20)), '2026-12-24');
+  // The last of the Twelve Days, ticked early on 6 January.
+  assert.equal(getPlanCompletionEntryKey(christmas, 12, new Date(2027, 0, 6, 0, 20)), '2027-01-05');
+});
+
+test('the Twelve Days run from Christmas Day to 5 January, across the new year', () => {
+  assert.equal(getActivePlanDayNumber(christmas, null, new Date(2026, 11, 25, 8)), 1);
+  assert.equal(getActivePlanDayNumber(christmas, null, new Date(2026, 11, 31, 8)), 7);
+  assert.equal(getActivePlanDayNumber(christmas, null, new Date(2027, 0, 1, 8)), 8);
+  assert.equal(getActivePlanDayNumber(christmas, null, new Date(2027, 0, 5, 22)), 12);
+  assert.equal(getPlanCompletionEntryKey(christmas, 12, new Date(2027, 0, 2, 8)), '2027-01-05');
+  assert.equal(isPlanInSeason(christmas, new Date(2027, 0, 5, 22)), true);
+  // From 6 January the next Christmas is the one waiting.
+  const epiphany = new Date(2027, 0, 6, 12);
+  assert.equal(isPlanInSeason(christmas, epiphany), false);
+  assert.equal(localKey(getPlanSeason(christmas, epiphany)!.start), '2027-12-25');
+  assert.equal(getPlanDayCount(christmas, epiphany), 12);
+});
+
+test('a short Advent leaves the tail of the fourth week off its ledger', () => {
+  const entries = Array.from({ length: 28 }, (_, index) => ({
+    id: `day-${index + 1}`,
+    plan_id: advent.id,
+    day_number: index + 1,
+    book: 'ISA',
+    chapter_start: index + 1,
+    chapter_end: null,
+  }));
+  assert.deepEqual(
+    getPlanLedgerDayNumbers(advent, entries, new Date(2026, 11, 1)),
+    Array.from({ length: 26 }, (_, index) => index + 1)
+  );
+  assert.equal(getPlanLedgerDayNumbers(advent, entries, new Date(2023, 11, 10)).length, 22);
+});
+
+test('seasonal plans repeat like rhythms; no other schedule is seasonal', () => {
+  assert.equal(isSeasonalPlan(advent), true);
+  assert.equal(isSeasonalPlan(christmas), true);
+  assert.equal(isRecurringPlan(advent), true);
+  assert.equal(isSeasonalPlan(makePlan({ scheduleMode: 'calendar-day-of-month' })), false);
+  assert.equal(isSeasonalPlan(makePlan()), false);
+  assert.equal(getPlanSeason(makePlan(), new Date(2026, 0, 1)), null);
 });
