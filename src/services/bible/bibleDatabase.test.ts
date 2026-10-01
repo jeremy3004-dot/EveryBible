@@ -2346,7 +2346,7 @@ test('searchVerses ranks verses holding the query as a phrase above scattered ma
   const path = seedInstalledPack('phrase-rank');
   // Copy the shipped bundled database so the ranking is checked against the real text.
   copyFileSync(
-    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url)),
+    fileURLToPath(new URL('../../../assets/databases/bible-bsb-v2.db', import.meta.url).href),
     path
   );
   setBibleDatabaseSourceResolver((id) =>

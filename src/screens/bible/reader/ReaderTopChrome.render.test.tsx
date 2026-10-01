@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installRenderHarness, flattenStyle } from '../../../testing/render';
+import { assertDefined } from '../../../utils/assertDefined';
 
 const harness = installRenderHarness(mock);
 const noop = () => {};
@@ -34,7 +35,7 @@ test('the top chrome row sits on an opaque themed backdrop that reaches the scre
   );
 
   const backdrop = view.getByTestId('reader-top-chrome-backdrop');
-  const style = flattenStyle(backdrop.props.style);
+  const style = assertDefined(flattenStyle(backdrop.props.style), 'backdrop style');
   assert.equal(style.position, 'absolute');
   assert.equal(style.top, -59, 'covers the status bar area above the chips');
   assert.ok(typeof style.bottom === 'number' && style.bottom < 0, 'extends below the chips');

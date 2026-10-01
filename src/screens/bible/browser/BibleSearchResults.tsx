@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList, type ContentStyle, type ListRenderItem } from '@shopify/flash-list';
 import { VersesSkeleton } from '../../../components/skeleton/VersesSkeleton';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants/books';
+import { getTranslatedPassageBookName } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { layout, radius, spacing, typography } from '../../../design/system';
 import type { Verse } from '../../../types';

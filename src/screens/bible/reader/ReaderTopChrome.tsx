@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
 import {
   TOP_ACTION_HIT_SLOP,

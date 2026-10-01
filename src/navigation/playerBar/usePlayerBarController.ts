@@ -1,11 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  getAdjacentBibleChapter,
-  getTranslatedBookName,
-  getTranslatedPassageBookName,
-} from '../../constants/books';
+import { getAdjacentBibleChapter, getTranslatedPassageBookName } from '../../constants/books';
 import { useSelah } from '../../hooks/audioPlayer/useSelah';
 import {
   stepActivePlayback,

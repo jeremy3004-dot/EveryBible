@@ -6,7 +6,7 @@ import { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-nat
 import { Gesture } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { lightHaptic } from '../../../utils/haptics';
 import { announceForAccessibility } from '../../../utils/a11y';
 import { resolveSwipeChapterNavigation } from '../bibleReaderModel';

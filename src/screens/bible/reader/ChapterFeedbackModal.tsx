@@ -14,7 +14,7 @@ import { radius, spacing, typography } from '../../../design/system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { readerSharedStyles } from './readerSharedStyles';
 import { ChapterFeedbackAudioControls } from './ChapterFeedbackAudioControls';

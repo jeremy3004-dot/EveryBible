@@ -10,7 +10,7 @@ import type {
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants';
+import { getTranslatedPassageBookName } from '../../../constants';
 import { getPlanStepReadChapters } from '../../../services/plans/readingPlanActivity';
 import {
   markDayComplete,

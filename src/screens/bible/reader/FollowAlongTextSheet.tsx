@@ -12,7 +12,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { getTranslatedBookName, getTranslatedPassageBookName } from '../../../constants/books';
+import { getTranslatedPassageBookName } from '../../../constants/books';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { getReadingFontFamily } from '../../../design/fonts';
 import { layout, spacing, typography } from '../../../design/system';

@@ -5,11 +5,7 @@ import type { Dispatch, RefObject, SetStateAction } from 'react';
 import type { PlanSessionKey, RhythmSessionContext } from '../../../services/plans/types';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  getAdjacentBibleChapter,
-  getTranslatedBookName,
-  getTranslatedPassageBookName,
-} from '../../../constants';
+import { getAdjacentBibleChapter, getTranslatedPassageBookName } from '../../../constants';
 import { findAdjacentAvailableChapter } from '../../../services/bible/contentAvailability';
 import { useAudioStore } from '../../../stores/audioStore';
 import { getAdjacentAudioPlaybackSequenceEntry } from '../../../stores/audioPlaybackSequenceModel';
