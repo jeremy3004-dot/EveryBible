@@ -420,11 +420,12 @@ test('plans whose seasons run together never read the same chapter twice', async
   const mod = await import('./readingPlans.generated');
   const chaptersOf = (planIds: string[]) =>
     planIds.flatMap((planId) =>
-      mod.readingPlanEntriesByPlanId[planId].flatMap((entry: ReadingPlanEntry) =>
-        Array.from(
-          { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
-          (_, index) => `${entry.book} ${entry.chapter_start + index}`
-        )
+      assertDefined(mod.readingPlanEntriesByPlanId[planId], `entries for ${planId}`).flatMap(
+        (entry: ReadingPlanEntry) =>
+          Array.from(
+            { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
+            (_, index) => `${entry.book} ${entry.chapter_start + index}`
+          )
       )
     );
   const duplicates = (chapters: string[]) =>
@@ -444,7 +445,7 @@ test('plans whose seasons run together never read the same chapter twice', async
 test('Holy Week reads the week day by day, the same on both calendars', async () => {
   const mod = await import('./readingPlans.generated');
   const chaptersOn = (planId: string, day: number) =>
-    mod.readingPlanEntriesByPlanId[planId]
+    assertDefined(mod.readingPlanEntriesByPlanId[planId], `entries for ${planId}`)
       .filter((entry: ReadingPlanEntry) => entry.day_number === day)
       .map((entry: ReadingPlanEntry) => `${entry.book} ${entry.chapter_start}`);
 
