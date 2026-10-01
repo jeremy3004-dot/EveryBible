@@ -11,6 +11,10 @@ import test, { before, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mockModule, sourcePath } from '../../testing/mockModules';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const secureStore = new Map<string, string>();
 const setItemOptions: unknown[] = [];
@@ -253,7 +257,10 @@ test('a stored payload that is not an object at all is treated as no configurati
     consoleError.mock.restore();
   }
 
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to parse privacy settings/);
+  assert.match(
+    String(nth(consoleError.mock.calls, 0).arguments[0]),
+    /Failed to parse privacy settings/
+  );
 });
 
 test('switching to discreet mode without a code stores no credential at all', async () => {

@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import { mockExpoCrypto, mockModule } from '../../testing/mockModules';
 import { createReactNativeStub } from '../../testing/reactNativeStub';
 import type { PrivacyAppIconMode } from '../../types';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const PRIVACY_SETTINGS_KEY = 'everybible.privacy.settings';
 
@@ -234,7 +238,10 @@ test('a corrupt stored payload is logged and treated as no privacy configuration
     consoleError.mock.restore();
   }
 
-  assert.match(String(consoleError.mock.calls[0].arguments[0]), /Failed to parse privacy settings/);
+  assert.match(
+    String(nth(consoleError.mock.calls, 0).arguments[0]),
+    /Failed to parse privacy settings/
+  );
 });
 
 test('an unavailable keychain surfaces to the caller instead of silently unlocking', async () => {

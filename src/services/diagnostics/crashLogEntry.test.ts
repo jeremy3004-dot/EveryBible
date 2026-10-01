@@ -7,6 +7,10 @@ import {
   toRenderErrorCrashLogEntry,
   type CrashLogEntry,
 } from './crashLogEntry';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 test('appendCrashLogEntry appends within the max size', () => {
   const existing: CrashLogEntry[] = [{ message: 'first', isFatal: false, timestamp: 1 }];
@@ -68,7 +72,7 @@ test('appendCrashLogEntry keeps only the newest MAX_CRASH_LOG_ENTRIES entries by
   const result = appendCrashLogEntry(existing, entry);
 
   assert.equal(result.length, MAX_CRASH_LOG_ENTRIES);
-  assert.equal(result[0].message, 'entry-1');
+  assert.equal(nth(result, 0).message, 'entry-1');
   assert.deepEqual(result.at(-1), entry);
 });
 

@@ -17,9 +17,6 @@
     "src/services/audio/**",
     "src/stores/audio*",
     "src/hooks/useAudioPlayer*",
-    "src/services/sync/**",
-    "src/services/notifications/**",
-    "src/services/privacy/**",
-    "src/services/diagnostics/**"
+    "src/services/notifications/**"
   ]
 }
