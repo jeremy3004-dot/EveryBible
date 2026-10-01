@@ -145,6 +145,7 @@ export function Sheet({ visible, onClose, children, title, contentStyle, closeLa
             <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
             {title ? (
               <Text
+                accessibilityRole="header"
                 maxFontSizeMultiplier={DISPLAY_TEXT_MAX_FONT_SCALE}
                 style={[
                   typography.pageTitle,
