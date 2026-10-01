@@ -49,6 +49,19 @@ export function PlanDetailHero({
   return (
     <View>
       <View style={{ height: coverHeight }}>
+        {/* The ground and glyph sit under the plate, not instead of it: a plate that
+            fails to decode or draw (a blank hero was seen on Android for Advent and
+            Christmas) then shows the book glyph rather than empty page colour. */}
+        <View
+          testID="plan-cover-ground"
+          style={[
+            styles.coverImage,
+            styles.coverFallback,
+            { height: coverHeight, backgroundColor: colors.accentSecondary },
+          ]}
+        >
+          <BookOpen size={60} color={colors.secondaryText} strokeWidth={2} />
+        </View>
         {coverSource ? (
           <Image
             source={coverSource}
@@ -57,17 +70,7 @@ export function PlanDetailHero({
             accessible={false}
             importantForAccessibility="no-hide-descendants"
           />
-        ) : (
-          <View
-            style={[
-              styles.coverImage,
-              styles.coverFallback,
-              { height: coverHeight, backgroundColor: colors.accentSecondary },
-            ]}
-          >
-            <BookOpen size={60} color={colors.secondaryText} strokeWidth={2} />
-          </View>
-        )}
+        ) : null}
 
         <View style={[styles.coverControls, { top: controlTop }]} pointerEvents="box-none">
           <IconButton

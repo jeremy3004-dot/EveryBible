@@ -719,6 +719,17 @@ test('the plan title is a heading set in page ink beneath a full-width 4:3 cover
   assert.equal(isHiddenFromAccessibility(assertDefined(cover, 'cover')), true);
 });
 
+test('the cover plate sits over a ground and glyph so a plate that fails to draw is never blank', async () => {
+  const view = await renderPlan(PSALMS);
+
+  const ground = view.getByTestId('plan-cover-ground');
+  const frame = flattenStyle(ground.props.style)!;
+  assert.equal(frame.width, '100%');
+  assert.equal(frame.height, 293);
+  assert.ok(frame.backgroundColor, 'the ground has a colour of its own');
+  assert.equal(view.queryAllByType('Image').length > 0, true, 'the plate itself still renders');
+});
+
 test('the plan offers no save-for-later, sample, public completion count or manual mark-complete control', async () => {
   for (const enrolled of [false, true]) {
     if (enrolled) await enroll(PSALMS, { current_day: 3 });
