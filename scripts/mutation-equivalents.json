@@ -123,6 +123,124 @@
       "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
     }
   ],
+  "src/services/plans/readingPlanModel.ts": [
+    {
+      "key": "number-literal|5|6|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "number-literal|5|4|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;#1",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'",
+      "reason": "getLocalWeekStart is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'#1",
+      "reason": "isSameLocalWeek is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "nullish-drop-default|progress.completed_at ?? null|progress.completed_at|completed_at: progress.completed_at ?? null,",
+      "reason": "completed_at is string | null and always present in select('*') rows, and null ?? null is null"
+    },
+    {
+      "key": "remove-statement|return false;|;|return false;",
+      "reason": "An unreadable started_at gives NaN days, and NaN > 0 is false either way"
+    },
+    {
+      "key": "number-literal|1|0|return Math.min(Math.max(recurringDayNumber, 1), maxDay);",
+      "reason": "Every recurring day number is already at least 1, so a floor of 0 or 1 changes nothing"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);",
+      "reason": "Math.max(0, 1) and Math.max(1, 1) are both 1"
+    },
+    {
+      "key": "relational-boundary|>|>=|formatLocalDateKey(cycleDate) > todayKey",
+      "reason": "When this cycle's date is today, the previous cycle's date is never yesterday, so it falls through to the same key"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (dayNumber > currentDay) {",
+      "reason": "dayNumber === currentDay already returned 'today', so >= and > agree"
+    },
+    {
+      "key": "nullish-drop-default|plan.weekStartsOn ?? 'sunday'|plan.weekStartsOn|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')",
+      "reason": "Passing undefined triggers isSameLocalWeek's own 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')",
+      "reason": "Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "number-literal|1|2|const dayIndex = completedDate ? getLocalDaysBetween(season.start, completedDate) : -1;",
+      "reason": "-2 and -1 both fail dayIndex >= 0"
+    },
+    {
+      "key": "logical-swap|&&||||typeof left.session_order === 'number' && Number.isFinite(left.session_order)",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "logical-swap|&&||||typeof right.session_order === 'number' && Number.isFinite(right.session_order)",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "nullish-drop-default|remote.completed_sessions ?? {}|remote.completed_sessions|remote.completed_sessions ?? {},",
+      "reason": "Spreading undefined gives the same empty object as spreading {}"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|? (remote.current_session ?? null)",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|? (local.current_session ?? null)",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "relational-boundary|<|<=|return leftTime < rightTime ? left : right;",
+      "reason": "Only entered when the two times differ, so < and <= agree"
+    },
+    {
+      "key": "negate-condition|left <= right|!(left <= right)|return left <= right ? left : right;",
+      "reason": "Only changes which spelling of the same instant is kept, the same on every device; the choice is unspecified"
+    },
+    {
+      "key": "relational-boundary|<=|<|return left <= right ? left : right;",
+      "reason": "< and <= only differ when the two strings are identical"
+    },
+    {
+      "key": "logical-swap|&&||||typeof existing === 'string' && typeof completedAt === 'string'",
+      "reason": "With no existing stamp, earlierStamp(undefined, s) returns s anyway"
+    },
+    {
+      "key": "logical-swap||||&&|if (left === null || right === null) {",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "remove-statement|return left ?? right;|;|return left ?? right;",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "relational-boundary|>=|>|return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;",
+      "reason": "Equal indexes mean the same session key, so either side is returned"
+    }
+  ],
   "src/services/sync/syncMerge.ts": [
     {
       "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {",
