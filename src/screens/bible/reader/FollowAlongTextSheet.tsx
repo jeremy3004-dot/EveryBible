@@ -139,13 +139,13 @@ export const FollowAlongTextSheet = memo(function FollowAlongTextSheet({
             <X size={22} color={colors.biblePrimaryText} />
           </TouchableOpacity>
           <View style={styles.titleBlock}>
-            <Text style={[styles.eyebrow, { color: colors.bibleAccent }]} numberOfLines={1}>
+            <Text style={[styles.eyebrow, { color: colors.bibleAccent }]} numberOfLines={2}>
               {eyebrow}
             </Text>
             <Text
               accessibilityRole="header"
               style={[styles.title, { color: colors.biblePrimaryText }]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {title}
             </Text>
@@ -218,9 +218,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   title: {
     ...typography.cardTitle,
+    textAlign: 'center',
   },
   note: {
     ...typography.caption,

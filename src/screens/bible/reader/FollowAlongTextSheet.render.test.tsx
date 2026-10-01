@@ -437,6 +437,17 @@ test('it is a full-screen modal with the chapter title, and Close closes it', as
   assert.deepEqual(calls, ['close']);
 });
 
+test('the header title and eyebrow wrap at large text instead of cutting the chapter name', async () => {
+  const { view } = await renderReadAlong();
+
+  for (const node of [view.getByRole('header', { name: 'John 3' }), view.getByText('BSB')]) {
+    assert.ok(
+      node.props.numberOfLines === undefined || node.props.numberOfLines >= 2,
+      'the header grows with the text'
+    );
+  }
+});
+
 test('Android bounds the idle modal to the window and keeps Play available after resizing', async (ctx) => {
   harness.rn.Platform.OS = 'android';
   windowHeight = 800;
