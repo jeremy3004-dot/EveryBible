@@ -77,47 +77,23 @@ const TRANSLATION_LANGUAGE_NATIVE_LABELS: Record<string, string> = {
 
 const KNOWN_FULL_AUDIO_TRANSLATION_IDS = new Set(['bsb', 'web']);
 
-const SEARCHABLE_CODE_POINT_RANGES: Array<readonly [number, number]> = [
-  [0x0030, 0x0039], // 0-9
-  [0x0061, 0x007a], // a-z
-  [0x0400, 0x04ff], // Cyrillic
-  [0x0600, 0x06ff], // Arabic
-  [0x0900, 0x097f], // Devanagari
-  [0x0980, 0x09ff], // Bengali
-  [0x0b80, 0x0bff], // Tamil
-  [0x0c00, 0x0c7f], // Telugu
-  [0x0c80, 0x0cff], // Kannada
-  [0x0d00, 0x0d7f], // Malayalam
-  [0x0e00, 0x0e7f], // Thai
-  [0x3040, 0x30ff], // Hiragana and Katakana
-  [0x3400, 0x9fff], // CJK Unified Ideographs
-  [0xac00, 0xd7af], // Hangul syllables
-] as const;
-
-function isSearchableCharacter(char: string): boolean {
-  const codePoint = char.codePointAt(0);
-  if (codePoint == null) {
-    return false;
-  }
-
-  return SEARCHABLE_CODE_POINT_RANGES.some(
-    ([start, end]) => codePoint >= start && codePoint <= end
-  );
-}
-
 export function normalizeTranslationLanguage(language: string | null | undefined): string {
   return language?.trim() || 'Other';
 }
 
+// Letters, digits and the marks that belong to them stay; everything else separates words.
+// NFKD splits Hangul syllables into jamo, so the text is recomposed before the check: a script
+// listed by code-point range lost every Korean (and Gurmukhi, Greek, Hebrew...) name, and a
+// query in one of them became zero tokens, which matched every translation.
+const NON_SEARCHABLE_PATTERN = /[^\p{L}\p{N}\p{M}]+/gu;
+
 function normalizeTranslationSearchText(value: string | null | undefined): string {
-  const normalized = (value ?? '')
+  return (value ?? '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-
-  return Array.from(normalized, (char) => (isSearchableCharacter(char) ? char : ' '))
-    .join('')
-    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .normalize('NFC')
+    .replace(NON_SEARCHABLE_PATTERN, ' ')
     .trim();
 }
 
