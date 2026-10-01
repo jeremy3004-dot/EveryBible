@@ -439,12 +439,20 @@ const BIBLE_SEARCH_WORD_PATTERN =
 
 const MAX_INDEXED_SEARCH_WORDS = 16;
 
+// Zero-width space, byte-order mark and soft hyphen print as nothing, but a tokenizer ends the
+// word at them, so a pasted "lo\u200Bve" would search for "lo" and "ve". The joiners U+200C and
+// U+200D stay: they are part of Persian and Indic words, and the index splits verse text at them.
+const INVISIBLE_SEARCH_CHARACTER_PATTERN = /[\u200B\uFEFF\u00AD]/g;
+
+function normalizeBibleSearchText(query: string): string {
+  return query.replace(INVISIBLE_SEARCH_CHARACTER_PATTERN, '').normalize('NFC');
+}
+
 // NFC, like the stored verse text: a keyboard that types a composition exclusion (U+095B ज़)
 // or decomposed letters otherwise sends a token the index never saw.
 function getIndexedBibleSearchWords(query: string): string[] {
   const tokens =
-    query
-      .normalize('NFC')
+    normalizeBibleSearchText(query)
       .match(BIBLE_SEARCH_WORD_PATTERN)
       ?.map((token) => token.trim()) ?? [];
   // Each word once (the index folds case), and no more than a verse's worth: a pasted chapter
@@ -522,7 +530,7 @@ export function isSingleCharacterWordQuery(query: string): boolean {
 // terms. NFC matches how verse text is stored, so decomposed Hangul from some keyboards still
 // matches.
 export function buildBibleSubstringSearchTerms(query: string): string[] | null {
-  const normalizedQuery = query.normalize('NFC');
+  const normalizedQuery = normalizeBibleSearchText(query);
 
   if (!UNSPACED_SCRIPT_PATTERN.test(normalizedQuery)) {
     return null;
@@ -543,7 +551,9 @@ const APOSTROPHE_PATTERN = /['’ʼ]/g;
 // A word with an apostrophe also gets each apostrophe spelling, since keyboards type ' where
 // the text prints ’ (the FTS tokenizer treats them all as separators, so it needs none of this).
 export function buildBibleFallbackSearchTerms(query: string): string[][] {
-  const words = [...new Set(query.normalize('NFC').match(BIBLE_SEARCH_WORD_PATTERN) ?? [])];
+  const words = [
+    ...new Set(normalizeBibleSearchText(query).match(BIBLE_SEARCH_WORD_PATTERN) ?? []),
+  ];
 
   return words.slice(0, MAX_SUBSTRING_SEARCH_TERMS).map((word) => {
     const lower = word.toLowerCase();

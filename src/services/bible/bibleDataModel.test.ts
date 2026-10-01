@@ -803,3 +803,16 @@ test('verification terms use exactly the same deduplicated sixteen-word window a
   assert.equal(buildBibleSearchQuery(query)?.split(' ').length, 16);
   assert.deepEqual(buildBibleSearchVerificationTerms(query), ['येशू']);
 });
+
+test('invisible format characters pasted into a query do not split a word', () => {
+  // Zero-width space, byte-order mark and soft hyphen print as nothing but would otherwise
+  // end the word at the tokenizer.
+  assert.equal(buildBibleSearchQuery('lo​ve'), '"love"*');
+  assert.equal(buildBibleSearchQuery('﻿love one­another'), '"love"* "oneanother"*');
+  assert.equal(buildBibleFallbackSearchTerms('lo​ve')[0]?.includes('love'), true);
+  assert.deepEqual(buildBibleSubstringSearchTerms('愛​神'), ['愛神']);
+});
+
+test('joiners that belong to a word survive query normalisation', () => {
+  assert.equal(buildBibleSearchQuery('می‌خواهم'), '"می‌خواهم"*');
+});
