@@ -584,3 +584,32 @@ test('the Apple button ignores taps while another sign-in is in flight', async (
     ['goBack']
   );
 });
+
+// Both taps are delivered before React re-renders, so each handler still sees
+// isLoading=false from the render it was created in. State alone cannot tell the
+// second tap that a sign-in has already started.
+test('taps delivered before the form re-renders start one sign-in, not several', async () => {
+  const gate = deferred();
+  auth.gate = gate.promise;
+  const view = await renderAuth();
+  await view.changeText(view.getByLabelText(t('auth.email')), 'ruth@example.com');
+  await view.changeText(view.getByLabelText(t('auth.password')), 'secret-pass');
+  const signIn = view.getByRole('button', { name: t('auth.signIn') }).props
+    .onPress as () => Promise<void>;
+  const google = view.getByRole('button', { name: t('auth.continueWithGoogle') }).props
+    .onPress as () => Promise<void>;
+  const apple = appleButton(view).props.onPress as () => Promise<void>;
+
+  await act(async () => {
+    const taps = [signIn(), signIn(), google(), apple()];
+    gate.resolve();
+    await Promise.all(taps);
+  });
+
+  assert.deepEqual(auth.calls, ['email:ruth@example.com']);
+  assert.deepEqual(pulls, ['user-1']);
+  assert.deepEqual(
+    harness.navigation.calls.map((call) => call.method),
+    ['goBack']
+  );
+});
