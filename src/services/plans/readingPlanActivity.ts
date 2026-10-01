@@ -25,7 +25,7 @@ import {
 
 type PlanChapterActivitySource = 'read' | 'listen';
 
-interface PlanChapterActivityRecord {
+export interface PlanChapterActivityRecord {
   chapterKey: string;
   timestamp: number;
   source: PlanChapterActivitySource;
@@ -571,6 +571,17 @@ function mergeChapterActivityRecords(
   );
 }
 
+/**
+ * Today's reads and completed listens as one record per chapter. It walks the whole read
+ * ledger and listening history, so a screen summarising several plans merges once and hands
+ * the result to each `getCurrentPlanDaySummary`.
+ */
+export function getTodayChapterActivity(
+  input: MergeTodayChapterActivityInput
+): PlanChapterActivityRecord[] {
+  return mergeChapterActivityRecords(input);
+}
+
 export function mergeTodayCompletedChapterActivity(
   input: MergeTodayChapterActivityInput
 ): string[] {
@@ -717,6 +728,7 @@ export function getCurrentPlanDaySummary({
   occurrenceKey,
   today = new Date(),
   listenCompletionThreshold = DEFAULT_LISTEN_COMPLETION_THRESHOLD,
+  todayActivity: sharedTodayActivity,
 }: {
   plan?: ReadingPlan | null;
   entries: ReadingPlanEntry[];
@@ -729,17 +741,21 @@ export function getCurrentPlanDaySummary({
   occurrenceKey?: string;
   today?: Date;
   listenCompletionThreshold?: number;
+  /** Activity already merged by {@link getTodayChapterActivity}; the ledgers are then not read. */
+  todayActivity?: PlanChapterActivityRecord[];
 }): CurrentPlanDaySummary {
   const resolvedDayNumber =
     dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress.current_day);
 
-  const todayActivity = mergeChapterActivityRecords({
-    chaptersRead,
-    chaptersListened,
-    listeningHistory,
-    now: today,
-    listenCompletionThreshold,
-  });
+  const todayActivity =
+    sharedTodayActivity ??
+    mergeChapterActivityRecords({
+      chaptersRead,
+      chaptersListened,
+      listeningHistory,
+      now: today,
+      listenCompletionThreshold,
+    });
   const summary = summarizePlanDayCompletion(entries, resolvedDayNumber, todayActivity);
 
   const completionKey = plan

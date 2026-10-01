@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { EmptyState, SectionHeader } from '../../../components/ui';
 import { layout, spacing } from '../../../design/system';
+import { getTodayChapterActivity } from '../../../services/plans/readingPlanActivity';
 import { useLibraryStore } from '../../../stores/libraryStore';
 import { useProgressStore } from '../../../stores/progressStore';
 import { ActivePlanCard } from './ActivePlanCard';
@@ -34,6 +35,11 @@ export function MyPlansSection({
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const listeningHistory = useLibraryStore((state) => state.history);
+  // Merging walks the whole read ledger, so it happens once here, not once per card.
+  const todayActivity = useMemo(
+    () => getTodayChapterActivity({ chaptersRead, chaptersListened, listeningHistory, now: today }),
+    [chaptersRead, chaptersListened, listeningHistory, today]
+  );
   const { dailyReadings, dailyRhythms } = useMemo(
     () => splitActivePlanRows(activePlans),
     [activePlans]
@@ -67,9 +73,7 @@ export function MyPlansSection({
             key={row.plan.id}
             plan={row.plan}
             progress={row.progress}
-            chaptersRead={chaptersRead}
-            chaptersListened={chaptersListened}
-            listeningHistory={listeningHistory}
+            todayActivity={todayActivity}
             today={today}
             onPlanPress={onPlanPress}
             onDeletePlan={onDeletePlan}
