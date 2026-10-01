@@ -479,6 +479,15 @@ test('translation language display labels include native scripts when available'
   assert.equal(getTranslationLanguageDisplayLabel('English'), 'English');
 });
 
+// Each picker row asks for this label. Hermes has no JIT and localeCompare with
+// options builds ICU collation state per call.
+test('translation language display labels never collate through localeCompare', (t) => {
+  const localeCompare = t.mock.method(String.prototype, 'localeCompare');
+  getTranslationLanguageDisplayLabel('Spanish');
+  getTranslationLanguageDisplayLabel('English');
+  assert.equal(localeCompare.mock.callCount(), 0);
+});
+
 test('translation language filters expose bilingual labels while preserving canonical values', () => {
   const filters = buildTranslationLanguageFilters([{ language: 'Nepali' }, { language: 'Hindi' }]);
 

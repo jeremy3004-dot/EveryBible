@@ -36,12 +36,11 @@ export const getBibleSelectionShareTranslationLabel = ({
     return normalizedName || normalizedLanguage;
   }
 
+  // Case-insensitive, accent-sensitive, like the ICU localeCompare this replaced
+  // (see getCompactTranslatedBookName): the reader computes this on every render.
   const abbreviationMatchesLanguage =
     normalizedLanguage.length > 0 &&
-    normalizedAbbreviation.localeCompare(normalizedLanguage, undefined, {
-      sensitivity: 'accent',
-      usage: 'search',
-    }) === 0;
+    normalizedAbbreviation.toLowerCase() === normalizedLanguage.toLowerCase();
 
   if (abbreviationMatchesLanguage && normalizedName.length > 0) {
     return normalizedName;
