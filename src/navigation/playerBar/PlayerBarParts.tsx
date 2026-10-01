@@ -17,6 +17,8 @@ const SEEK_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }];
 const SCRUB_LINE_HEIGHT = 6;
 // The time label above the finger, and how far it may overhang the line's ends.
 const SCRUB_TIME_WIDTH = 52;
+// "10:30" at 12pt fits the bubble up to about this scale; beyond it the time wraps.
+const SCRUB_TIME_MAX_FONT_SCALE = 1.3;
 const SCRUB_TIME_OVERHANG = 8;
 
 /**
@@ -107,7 +109,11 @@ export const PlayerBarProgressFill = memo(function PlayerBarProgressFill({
           ]}
           pointerEvents="none"
         >
-          <Text style={[styles.scrubTimeText, { color: palette.ink }]}>
+          <Text
+            style={[styles.scrubTimeText, { color: palette.ink }]}
+            numberOfLines={1}
+            maxFontSizeMultiplier={SCRUB_TIME_MAX_FONT_SCALE}
+          >
             {formatPlaybackTime(shownPosition)}
           </Text>
         </View>
