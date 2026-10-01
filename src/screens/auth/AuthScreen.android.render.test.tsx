@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockBarrel, mockModule } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Platform.OS is read at render, but the harness fixes it per file: Android gets its own.
 const harness = installRenderHarness(mock, { os: 'android' });
@@ -39,6 +40,6 @@ test('Android pads the keyboard avoider by height, not padding', async () => {
   const { AuthScreen } = await import('./AuthScreen');
   const view = await harness.render(<AuthScreen />);
 
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  const avoider = assertDefined(view.queryAllByType('KeyboardAvoidingView')[0], 'avoider');
   assert.equal(avoider.props.behavior, 'height');
 });

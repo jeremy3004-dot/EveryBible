@@ -4,6 +4,7 @@ import { act } from 'react';
 import assert from 'node:assert/strict';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
 const authListeners = new Set<(event: AuthChangeEvent, session: Session | null) => void>();
@@ -259,7 +260,12 @@ test('a failed request for a new link keeps the reader on the screen with the re
 test('cancelling a reset closes the flow without exchanging anything', async () => {
   const view = await renderReset();
 
-  await view.press(view.getAllByRole('button', { name: t('common.cancel') })[0]);
+  await view.press(
+    assertDefined(
+      view.getAllByRole('button', { name: t('common.cancel') })[0],
+      "view.getAllByRole('button', { name: t('common.cancel') })[0]"
+    )
+  );
 
   assert.equal(recovery.signOuts, 0);
   assert.deepEqual(
@@ -535,7 +541,7 @@ test('the close button cancels from any step', async () => {
 
 test('the scroll content keeps the submit button above the bottom inset', async () => {
   const view = await renderReset();
-  const [scroll] = view.queryAllByType('ScrollView');
+  const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
   const style = [scroll.props.contentContainerStyle].flat() as Array<Record<string, unknown>>;
   assert.equal(style.at(-1)?.paddingBottom, harness.insets.bottom);
 });

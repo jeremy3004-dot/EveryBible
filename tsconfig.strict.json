@@ -14,6 +14,10 @@
     "src/i18n/**/*",
     "src/screens/learn/**/*",
     "src/screens/plans/**/*",
-    "src/screens/more/**/*"
+    "src/screens/more/**/*",
+    "src/screens/bible/**/*",
+    "src/screens/home/**/*",
+    "src/screens/onboarding/**/*",
+    "src/screens/auth/**/*"
   ]
 }

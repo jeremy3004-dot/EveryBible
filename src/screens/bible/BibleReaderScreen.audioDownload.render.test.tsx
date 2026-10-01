@@ -2,6 +2,7 @@ import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { BSB, installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 const reader = installReaderRenderFixture(mock);
 const { t, renderReader, bibleStore, bibleExperienceEvents, harness } = reader;
@@ -30,7 +31,11 @@ test('cancelled book audio never reports a saved offline book or download succes
 
   complete();
   await press;
-  assert.deepEqual(bibleStore.getState().translations[0].downloadedAudioBooks, []);
+  assert.deepEqual(
+    assertDefined(bibleStore.getState().translations[0], 'bibleStore.getState().translations[0]')
+      .downloadedAudioBooks,
+    []
+  );
   assert.deepEqual(harness.rn.__recorded.alerts, []);
   assert.deepEqual(downloadEvents(), []);
   await view.unmount();

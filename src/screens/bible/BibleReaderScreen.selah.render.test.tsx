@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, hostAncestors } from '../../testing/render';
 import { installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Selah on the reader: the button beside the listen screen's transport, and the chip
 // above the player bar on the text screen. The Selah lane owns the behaviour behind
@@ -51,7 +52,10 @@ test('the listen screen offers Selah beside its transport only while a sound can
   const selah = view.getByRole('button', { name: t('audio.playerBar.selah'), selected: false });
   const play = view.getByRole('button', { name: t('interface.playChapterAudio') });
   // Same row as play, in the trailing slot.
-  assert.equal(hostAncestors(hostAncestors(selah)[0])[0], hostAncestors(play)[0]);
+  assert.equal(
+    hostAncestors(assertDefined(hostAncestors(selah)[0], 'hostAncestors(selah)[0]'))[0],
+    hostAncestors(play)[0]
+  );
   await view.press(selah);
   assert.equal(selahToggles, 1);
   // The bar shows only its tab row here: the listen screen has its own transport.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { installRenderHarness } from '../../../testing/render';
 import { mockModule, sourcePath } from '../../../testing/mockModules';
+import { assertDefined } from '../../../utils/assertDefined';
 
 // The sheet loads the shared picker lazily; these cover a load that fails.
 const harness = installRenderHarness(mock);
@@ -77,6 +78,12 @@ test("VoiceOver's escape gesture closes the picker sheet", async () => {
   );
   await view.flush();
 
-  await view.fire(view.queryAllByType('TranslationPickerList')[0], 'onAccessibilityEscape');
+  await view.fire(
+    assertDefined(
+      view.queryAllByType('TranslationPickerList')[0],
+      "view.queryAllByType('TranslationPickerList')[0]"
+    ),
+    'onAccessibilityEscape'
+  );
   assert.equal(closed, 1);
 });

@@ -4,6 +4,7 @@ import { act, type ReactTestInstance } from 'react-test-renderer';
 import { within } from '../../testing/render';
 import { mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { installReaderRenderFixture, JOHN_3 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Sharing selected verses as an image from the background picker. On iOS the share
 // sheet is presented from the top view controller; while the picker Modal is still
@@ -86,7 +87,9 @@ type View = Awaited<ReturnType<typeof renderReader>>;
 /** Select a verse and open the image picker; returns the picker Modal. */
 async function openPicker(view: View) {
   if (!view.queryByRole('button', { name: t('bible.shareVerseImage') })) {
-    await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+    await view.press(
+      view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+    );
   }
   await view.press(view.getByRole('button', { name: t('bible.shareVerseImage') }));
   sharing.pickerDismissed = false;
@@ -170,7 +173,10 @@ test('the image share sheet is presented only after the picker has finished clos
 
   assert.deepEqual(sharing.dropped, []);
   assert.equal(sharing.sheets.length, 1);
-  assert.equal(sharing.sheets[0].uri, 'file:///tmp/verse-1.png');
+  assert.equal(
+    assertDefined(sharing.sheets[0], 'sharing.sheets[0]').uri,
+    'file:///tmp/verse-1.png'
+  );
   assert.deepEqual(harness.rn.__recorded.shares, [], 'no text share on the image path');
   assert.deepEqual(reported, []);
 });
@@ -204,7 +210,10 @@ test('an image share that fails is reported, falls back to text, and does not we
 
   assert.deepEqual(reported, [['reader.shareImage', sharing.error]]);
   const [textShare] = harness.rn.__recorded.shares as Array<{ message: string }>;
-  assert.ok(textShare?.message.includes(JOHN_3[1].text), 'the verse is still shared as text');
+  assert.ok(
+    textShare?.message.includes(assertDefined(JOHN_3[1], 'JOHN_3[1]').text),
+    'the verse is still shared as text'
+  );
 
   const again = await openPicker(view);
   const button = shareButton(again);
@@ -395,7 +404,9 @@ test('an old image failure cannot clear a replacement selection share or launch 
   });
   const view = await renderReader();
   await shareFromPicker(view);
-  await view.press(view.getByText(new RegExp(JOHN_3[0].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[0], 'JOHN_3[0]').text.slice(0, 20)))
+  );
   let finishCapture!: (uri: string) => void;
   pendingCapture = new Promise<string>((resolve) => {
     finishCapture = resolve;

@@ -7,6 +7,7 @@ import {
   feedbackPage,
   installFeedbackReviewFixture,
 } from './ChapterFeedbackReviewScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 const {
   harness,
@@ -66,9 +67,9 @@ test('each source label may wrap under its verdict instead of truncating beside 
   ];
   assert.ok(verdicts.length > 0);
   for (const verdict of verdicts) {
-    const row = hostAncestors(verdict)[1];
+    const row = assertDefined(hostAncestors(verdict)[1], 'row');
     assert.equal(flattenStyle(row.props.style)?.flexWrap, 'wrap');
-    const [, source] = within(row).queryAllByType('Text');
+    const source = assertDefined(within(row).queryAllByType('Text')[1], 'the source label');
     assert.equal(source.props.numberOfLines, 2);
   }
 });
@@ -261,7 +262,12 @@ test('an old Pause completion cannot clear the newer reviewer clip', async () =>
     view.queryAllByRole('button', { name: `${t(key)}, ${t('myFeedback.audioLabel')}` });
   let finishPause: () => void = () => {};
   try {
-    await view.press(buttons('bible.translatorReviewListen')[0]);
+    await view.press(
+      assertDefined(
+        buttons('bible.translatorReviewListen')[0],
+        "buttons('bible.translatorReviewListen')[0]"
+      )
+    );
     await loads.loadsStarted(1);
     const first = recordingSound('first');
     first.pauseAsync = () =>
@@ -270,8 +276,18 @@ test('an old Pause completion cannot clear the newer reviewer clip', async () =>
       });
     await act(async () => loads.release(0, first));
     await view.flush();
-    act(() => buttons('bible.translatorReviewPause')[0].props.onPress());
-    await view.press(buttons('bible.translatorReviewListen')[0]);
+    act(() =>
+      assertDefined(
+        buttons('bible.translatorReviewPause')[0],
+        "buttons('bible.translatorReviewPause')[0]"
+      ).props.onPress()
+    );
+    await view.press(
+      assertDefined(
+        buttons('bible.translatorReviewListen')[0],
+        "buttons('bible.translatorReviewListen')[0]"
+      )
+    );
     await loads.loadsStarted(2);
     await act(async () => loads.release(1, recordingSound('second')));
     await view.flush();
@@ -370,9 +386,12 @@ test('a replaced clip status cannot mark it listened or stop the current clip', 
     oldStatus = listener;
   };
   await view.press(
-    view.queryAllByRole('button', {
-      name: `${t('bible.translatorReviewListen')}, ${t('myFeedback.audioLabel')}`,
-    })[0]
+    assertDefined(
+      view.queryAllByRole('button', {
+        name: `${t('bible.translatorReviewListen')}, ${t('myFeedback.audioLabel')}`,
+      })[0],
+      "view.queryAllByRole('button', { name: `${t('bible.transla..."
+    )
   );
   await loads.loadsStarted(1);
   await act(async () => loads.release(0, first));

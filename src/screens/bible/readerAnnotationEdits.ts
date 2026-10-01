@@ -123,7 +123,9 @@ function reuseRowsOfReplacedHighlights(
     if (upsert.type !== 'highlight' || byId.has(upsert.id)) return upsert;
     const index = softDeleteIds.findIndex((id) => byId.get(id)?.verse_start === upsert.verse_start);
     if (index < 0) return upsert;
-    const [id] = softDeleteIds.splice(index, 1);
+    const id = softDeleteIds[index];
+    if (id === undefined) return upsert;
+    softDeleteIds.splice(index, 1);
     return { ...upsert, id };
   });
   // A reused row can shrink the original range. Persist every new replacement first:

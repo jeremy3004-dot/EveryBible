@@ -19,6 +19,7 @@ import {
   measuredChapterPanelWidth,
   searchResultKey,
 } from './bibleBrowserModel';
+import { assertDefined } from '../../../utils/assertDefined';
 
 const summary = (
   bookId: string,
@@ -51,7 +52,10 @@ test('list keys and item types come straight from the row, and verse keys from t
   assert.ok(divider);
   assert.deepEqual([browserRowKey(divider), browserRowType(divider)], ['divider-NT', 'divider']);
   assert.deepEqual(
-    [browserRowKey(bibleBrowserRows[0]), browserRowType(bibleBrowserRows[0])],
+    [
+      browserRowKey(assertDefined(bibleBrowserRows[0], 'bibleBrowserRows[0]')),
+      browserRowType(assertDefined(bibleBrowserRows[0], 'bibleBrowserRows[0]')),
+    ],
     ['book-GEN', 'books']
   );
   assert.equal(searchResultKey({ id: 42, bookId: 'JHN', chapter: 3, verse: 16, text: '' }), '42');

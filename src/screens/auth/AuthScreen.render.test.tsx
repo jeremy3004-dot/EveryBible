@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { hostComponent } from '../../testing/reactNativeHost';
 import { mockBarrel, mockModule } from '../../testing/mockModules';
 import { flattenStyle, installRenderHarness, type RenderResult } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { os: 'ios' });
 const t = (key: string) => harness.i18n.t(key);
@@ -253,7 +254,7 @@ test('the Every Language surface: close button, eyebrow, email divider, tagline 
   assert.ok(view.getByText(t('auth.tagline')));
   assert.equal(view.queryAllByType('Icon').length, 0, 'glyphs are Lucide, not Ionicons');
 
-  const [apple] = view.queryAllByType('AppleAuthenticationButton');
+  const apple = assertDefined(view.queryAllByType('AppleAuthenticationButton')[0], 'apple');
   assert.equal(flattenStyle(apple.props.style)?.height, layout.pillHeight);
   const google = view.getByRole('button', { name: t('auth.continueWithGoogle') });
   assert.equal(flattenStyle(google.props.style)?.minHeight, layout.pillHeight);
@@ -538,7 +539,7 @@ test('the verification notice offers sign-in, which switches mode and hides the 
 
   const buttons = view.getAllByRole('button', { name: t('auth.signIn') });
   assert.equal(buttons.length, 2, 'the notice button and the footer link');
-  await view.press(buttons[0]);
+  await view.press(assertDefined(buttons[0], 'buttons[0]'));
 
   assert.equal(view.queryByText(t('auth.accountCreated')), null);
   assert.ok(view.getByRole('header', { name: t('auth.welcomeBack') }));
@@ -557,7 +558,7 @@ test('the app mark and the Google mark are decorative', async () => {
 
 test('iOS pads the keyboard avoider', async () => {
   const view = await renderAuth();
-  const [avoider] = view.queryAllByType('KeyboardAvoidingView');
+  const avoider = assertDefined(view.queryAllByType('KeyboardAvoidingView')[0], 'avoider');
   assert.equal(avoider.props.behavior, 'padding');
 });
 

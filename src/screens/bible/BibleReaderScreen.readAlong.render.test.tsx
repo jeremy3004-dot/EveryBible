@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { hostAncestors, within } from '../../testing/render';
 import { BSB, installReaderRenderFixture } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Read Along opens from the reader's Audio sheet and from the listen page's artwork,
 // and drives the reader's own chapter transport.
@@ -60,7 +61,7 @@ test('the Audio sheet’s Read along closes the sheet and opens the chapter in R
     .queryAllByType('Text')
     .filter((node) => node.props.accessibilityState?.selected === true);
   assert.equal(current.length, 1);
-  assert.ok(within(current[0]).getByText(/He came to Jesus at night/));
+  assert.ok(within(assertDefined(current[0], 'current[0]')).getByText(/He came to Jesus at night/));
 
   await view.press(readAlong.getByRole('button', { name: t('interface.close') }));
   assert.equal(readAlongModal(view), null);

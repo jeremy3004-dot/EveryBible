@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 import { flattenStyle, hostAncestors, isHiddenFromAccessibility } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // With VoiceOver or TalkBack on, scrolling (a three-finger swipe) must not slide the
 // reader's Back/Search chrome and the tab bar away: those controls would vanish from
@@ -111,16 +112,18 @@ test('with a screen reader on, every verse of a prose paragraph is its own selec
     assert.deepEqual(button.props.accessibilityState, { selected: false });
   }
 
-  await view.press(buttons[1]);
+  await view.press(assertDefined(buttons[1], 'buttons[1]'));
   assert.ok(
     view.getByRole('header', { name: new RegExp(`${t('annotations.selected')}: John 3:2`) })
   );
   assert.deepEqual(
-    view.getByRole('button', { name: verseLabel(JOHN_3[1]) }).props.accessibilityState,
+    view.getByRole('button', { name: verseLabel(assertDefined(JOHN_3[1], 'JOHN_3[1]')) }).props
+      .accessibilityState,
     { selected: true }
   );
   assert.deepEqual(
-    view.getByRole('button', { name: verseLabel(JOHN_3[0]) }).props.accessibilityState,
+    view.getByRole('button', { name: verseLabel(assertDefined(JOHN_3[0], 'JOHN_3[0]')) }).props
+      .accessibilityState,
     { selected: false }
   );
 });
@@ -129,15 +132,21 @@ test('the paragraph goes back to one flowing Text when the screen reader turns o
   screenReader.enabled = true;
   const view = await renderReader();
   await view.flush();
-  assert.ok(view.getByRole('button', { name: verseLabel(JOHN_3[0]) }));
+  assert.ok(view.getByRole('button', { name: verseLabel(assertDefined(JOHN_3[0], 'JOHN_3[0]')) }));
 
   await setScreenReader(false);
-  assert.equal(view.queryByRole('button', { name: verseLabel(JOHN_3[0]) }), null);
+  assert.equal(
+    view.queryByRole('button', { name: verseLabel(assertDefined(JOHN_3[0], 'JOHN_3[0]')) }),
+    null
+  );
   const spans = view
     .queryAllByType('Text')
     .filter((node) => typeof node.props.onPress === 'function');
   assert.equal(spans.length, JOHN_3.length, 'inline tappable spans');
-  const [paragraph] = hostAncestors(spans[0]);
+  const paragraph = assertDefined(
+    hostAncestors(assertDefined(spans[0], 'spans[0]'))[0],
+    'paragraph'
+  );
   assert.equal(paragraph.type, 'Text', 'inside one paragraph Text');
-  assert.equal(hostAncestors(spans[1])[0], paragraph);
+  assert.equal(hostAncestors(assertDefined(spans[1], 'spans[1]'))[0], paragraph);
 });

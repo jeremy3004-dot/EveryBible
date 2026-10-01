@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { hostAncestors, within } from '../../testing/render';
 import { installReaderRenderFixture, JOHN_3, verseOf } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // What a reader does with a chapter: select verses and act on them, act on the
 // whole chapter, and finish a plan day.
@@ -12,7 +13,9 @@ const { harness, t, renderReader, navigateReader, chapters, serviceCalls } = rea
 type View = Awaited<ReturnType<typeof renderReader>>;
 
 const tapVerse = (view: View, index: number) =>
-  view.press(view.getByText(new RegExp(JOHN_3[index].text.slice(0, 20))));
+  view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[index], 'JOHN_3[index]').text.slice(0, 20)))
+  );
 
 const callsNamed = (name: string) => serviceCalls.filter(([call]) => call === name);
 
@@ -44,7 +47,7 @@ test('tapping the page outside the verses closes the action sheet', async () => 
   const view = await renderReader();
   await tapVerse(view, 1);
 
-  const verse = view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20)));
+  const verse = view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)));
   const page = hostAncestors(verse).find(
     (node) => node !== verse && typeof node.props.onPress === 'function'
   );
@@ -59,7 +62,7 @@ test('tapping the page outside the verses closes the action sheet', async () => 
 test('a tap on the page with nothing selected leaves the reader as it was', async () => {
   const view = await renderReader();
 
-  const verse = view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20)));
+  const verse = view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)));
   const page = hostAncestors(verse).find(
     (node) => node !== verse && typeof node.props.onPress === 'function'
   );
@@ -76,9 +79,12 @@ test('copy and share hand the selected verses over with their reference', async 
   await view.press(view.getByRole('button', { name: t('annotations.copy') }));
   await view.press(view.getByRole('button', { name: t('groups.share') }));
 
-  const [[, copied]] = callsNamed('Clipboard.setStringAsync');
+  const [, copied] = assertDefined(
+    callsNamed('Clipboard.setStringAsync')[0],
+    'the clipboard write'
+  );
   assert.equal(typeof copied, 'string');
-  assert.ok((copied as string).includes(JOHN_3[1].text));
+  assert.ok((copied as string).includes(assertDefined(JOHN_3[1], 'JOHN_3[1]').text));
   assert.ok((copied as string).includes('John 3:2'));
   assert.deepEqual(harness.rn.__recorded.shares, [{ message: copied }]);
 });
@@ -90,7 +96,7 @@ test('highlighting a selection saves it, clears the selection and announces it',
   await view.press(view.getByRole('button', { name: t('annotations.colors.yellow') }));
   await view.flush();
 
-  const [[, saved]] = callsNamed('upsertAnnotation');
+  const [, saved] = assertDefined(callsNamed('upsertAnnotation')[0], 'the saved annotation call');
   assert.deepEqual(
     {
       book: (saved as Record<string, unknown>).book,
@@ -164,7 +170,10 @@ test('sharing the chapter reference shares the book and chapter with its link', 
   await view.press(within(sheet).getByRole('button', { name: t('bible.shareChapterReference') }));
   await view.flush();
 
-  const [shared] = harness.rn.__recorded.shares as Array<{ message: string; url?: string }>;
+  const shared = assertDefined(
+    (harness.rn.__recorded.shares as Array<{ message: string; url?: string }>)[0],
+    'shared'
+  );
   assert.equal(shared.message, 'John 3');
   assert.equal(shared.url, 'com.everybible.app://bible/john/3');
 });

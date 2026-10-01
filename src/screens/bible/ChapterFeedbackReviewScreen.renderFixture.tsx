@@ -12,6 +12,7 @@ import { hostComponent } from '../../testing/reactNativeHost';
 import { mockBarrel, mockModule, mockPackage, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness, within, type RenderHarnessOptions } from '../../testing/render';
 import type { ChapterFeedbackReviewItem } from '../../services/feedback/chapterFeedbackReviewService';
+import { assertDefined } from '../../utils/assertDefined';
 
 export type PlaybackStatus = {
   isLoaded: boolean;
@@ -258,7 +259,8 @@ export function installFeedbackReviewFixture(
           await new Promise<void>((wake) => waiters.push(wake));
         }
       },
-      release: (index: number, loaded: FakeSound) => pending[index]({ sound: loaded }),
+      release: (index: number, loaded: FakeSound) =>
+        assertDefined(pending[index], `pending load ${index}`)({ sound: loaded }),
     };
   }
 

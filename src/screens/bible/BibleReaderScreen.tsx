@@ -64,6 +64,7 @@ import { buildReaderParagraphRenderSignature } from './bibleReaderRenderModel';
 import { createReaderFocusScroll } from './readerFocusScroll';
 import { HOME_VERSE_BACKGROUND_SOURCES } from '../../data/homeVerseBackgrounds';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../data/shareVerseBackgrounds';
+import { assertDefined } from '../../utils/assertDefined';
 import { getHomeVerseBackgroundIndex } from '../../data/homeVerseBackgroundSelection';
 import {
   buildReaderParagraphs,
@@ -242,12 +243,14 @@ export function BibleReaderScreen() {
   });
 
   const verseImageBackgroundCount = SHARE_VERSE_BACKGROUND_SOURCES.length;
-  const selectedVerseImageBackground =
+  const selectedVerseImageBackground = assertDefined(
     SHARE_VERSE_BACKGROUND_SOURCES[
       verseImageBackgroundCount > 0
         ? selectedVerseImageBackgroundIndex % verseImageBackgroundCount
         : 0
-    ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0];
+    ] ?? SHARE_VERSE_BACKGROUND_SOURCES[0],
+    'a bundled share-verse background'
+  );
   const dismissSelectedVerseSelection = useCallback(() => {
     setShowVerseImageSheet(false);
     setSelectedVerses((current) => (current.length === 0 ? current : []));

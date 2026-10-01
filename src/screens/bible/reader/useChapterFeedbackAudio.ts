@@ -16,6 +16,7 @@ import {
   waitForFeedbackAudioActiveAppState,
   restoreFeedbackAudioPlaybackMode,
 } from './feedbackAudioSession';
+import { assertDefined } from '../../../utils/assertDefined';
 import { CHAPTER_FEEDBACK_AUDIO_TIMER_MS } from './readerConstants';
 import type { ChapterFeedbackAudioState } from './feedbackAudioSession';
 
@@ -292,7 +293,10 @@ export function useChapterFeedbackAudio({
             // Expo's createAsync does not await cleanup when startAsync rejects.
             // Keep the instance here so takeover and a retry can drain it first.
             await recording.prepareToRecordAsync({
-              ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+              ...assertDefined(
+                Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                'the HIGH_QUALITY recording preset'
+              ),
               keepAudioActiveHint: true,
             });
             prepared = true;

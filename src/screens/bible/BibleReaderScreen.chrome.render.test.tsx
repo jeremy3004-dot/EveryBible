@@ -8,6 +8,7 @@ import {
   within,
 } from '../../testing/render';
 import { installReaderRenderFixture, verseOf } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // The reader's floating top chrome, its sheets and the read/listen layout frame.
 const reader = installReaderRenderFixture(mock);
@@ -143,7 +144,7 @@ test('the top chrome and the text start at the same offsets in read and listen',
   chapters.set('JHN:3', []); // audio-only: the listen player
   const listen = await renderReader();
   assert.equal(flattenStyle(reader.topChrome(listen).props.style)?.top, chromeTop);
-  const [scroll] = listen.queryAllByType('ScrollView');
+  const scroll = assertDefined(listen.queryAllByType('ScrollView')[0], 'scroll');
   assert.equal(flattenStyle(scroll.props.contentContainerStyle)?.paddingTop, contentTop);
 });
 
@@ -171,7 +172,12 @@ test('read mode masks the status-bar strip above the floating chrome; listen mod
   assert.equal(style.zIndex, 29, 'above the text, below the floating chrome');
   assert.equal(
     style.backgroundColor,
-    flattenStyle(read.root.findAllByType('View' as never)[0].props.style)?.backgroundColor
+    flattenStyle(
+      assertDefined(
+        read.root.findAllByType('View' as never)[0],
+        "read.root.findAllByType('View' as never)[0]"
+      ).props.style
+    )?.backgroundColor
   );
   await read.unmount();
 
@@ -289,7 +295,7 @@ test('translation selection from the overflow menu shows the shared picker in a 
 
   const [picker] = view.queryAllByType('TranslationPickerList');
   assert.ok(picker, 'the shared TranslationPickerList');
-  const [body] = hostAncestors(picker);
+  const body = assertDefined(hostAncestors(picker)[0], 'body');
   const style = flattenStyle(body.props.style) ?? {};
   assert.equal(style.height, '78%', 'a fixed body so the picker list has room to render');
   assert.equal(style.overflow, 'hidden');
@@ -312,7 +318,7 @@ function assertCloseTarget(close: ReactTestInstance) {
     'lays out at the glyph height, so the header is unchanged'
   );
   assert.equal(style.marginEnd, -11, 'the glyph keeps its place at the header edge');
-  const [glyph] = within(close).queryAllByType('Icon');
+  const glyph = assertDefined(within(close).queryAllByType('Icon')[0], 'glyph');
   assert.equal(glyph.props.size, 22);
 }
 
@@ -363,9 +369,12 @@ test('sheet backdrops that duplicate a visible Close are hidden from the screen 
 
   // Translation sheet.
   await view.press(view.getByRole('button', { name: 'BSB' }));
-  const [picker] = view.queryAllByType('TranslationPickerList');
+  const picker = assertDefined(view.queryAllByType('TranslationPickerList')[0], 'picker');
   const translationModal = modalOf(picker);
-  const [translationBackdrop] = within(translationModal).queryAllByType('TouchableOpacity');
+  const translationBackdrop = assertDefined(
+    within(translationModal).queryAllByType('TouchableOpacity')[0],
+    'translationBackdrop'
+  );
   assert.equal(translationBackdrop.props.importantForAccessibility, 'no-hide-descendants');
   assert.equal(isHiddenFromAccessibility(translationBackdrop), true);
   assert.equal(translationModal.props.statusBarTranslucent, true);

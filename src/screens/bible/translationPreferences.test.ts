@@ -5,6 +5,7 @@ import {
   buildTranslationSearchIndex,
   searchTranslationIndex,
 } from './bibleTranslationModel';
+import { assertDefined } from '../../utils/assertDefined';
 const rows = [
   { id: 'one', name: 'English Bible', language: 'en', isDownloaded: true, hasText: true },
   { id: 'two', name: 'Nepali Bible', language: 'ne', isDownloaded: false, hasText: false },
@@ -22,7 +23,7 @@ test('hidden downloads remain findable, pinned audio appears in My Translations,
     result.availableTranslations.map((x) => x.id),
     ['one']
   );
-  assert.equal(rows[0].isDownloaded, true);
+  assert.equal(assertDefined(rows[0], 'rows[0]').isDownloaded, true);
   assert.deepEqual(
     buildTranslationPickerSections(rows, null, {
       hiddenIds: ['one'],
@@ -35,7 +36,7 @@ test('indexed search preserves fuzzy search and does not re-read catalog fields 
   let reads = 0;
   const indexed = buildTranslationSearchIndex([
     {
-      ...rows[0],
+      ...assertDefined(rows[0], 'rows[0]'),
       get name() {
         reads++;
         return 'English Bible';

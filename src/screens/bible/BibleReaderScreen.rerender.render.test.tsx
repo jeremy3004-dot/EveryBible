@@ -8,6 +8,7 @@ import {
   JOHN_3,
   verseOf,
 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // How far an update reaches in the reader: which paragraphs redraw, and whether the
 // whole screen re-renders at all. A memoized paragraph that React skips keeps its
@@ -20,9 +21,9 @@ type View = Awaited<ReturnType<typeof renderReader>>;
 
 // One paragraph per verse, so each verse's redraws can be told apart.
 const HEADED = [
-  verseOf(1, JOHN_3[0].text, { heading: 'Jesus and Nicodemus' }),
-  verseOf(2, JOHN_3[1].text, { heading: 'The Visit at Night' }),
-  verseOf(3, JOHN_3[2].text, { heading: 'Born Again' }),
+  verseOf(1, assertDefined(JOHN_3[0], 'JOHN_3[0]').text, { heading: 'Jesus and Nicodemus' }),
+  verseOf(2, assertDefined(JOHN_3[1], 'JOHN_3[1]').text, { heading: 'The Visit at Night' }),
+  verseOf(3, assertDefined(JOHN_3[2], 'JOHN_3[2]').text, { heading: 'Born Again' }),
 ];
 
 const playJohn3 = (position: number) =>

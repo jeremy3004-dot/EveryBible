@@ -4,6 +4,7 @@ import { act } from 'react-test-renderer';
 import { within } from '../../testing/render';
 import { mockPackage } from '../../testing/mockModules';
 import { installReaderRenderFixture, JOHN_3 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Android's Modal never reports onDismiss, so the verse-image share waits for the
 // picker's close interaction instead (see the iOS cases in shareImage.render.test).
@@ -41,7 +42,9 @@ mockPackage(mock, 'react-native-view-shot', {
 
 test('on Android the image is shared once the picker has closed, without an onDismiss', async () => {
   const view = await renderReader();
-  await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+  );
   await view.press(view.getByRole('button', { name: t('bible.shareVerseImage') }));
   const sheet = view
     .queryAllByType('Modal')
@@ -87,7 +90,9 @@ test('unmount cancels Android image sharing queued behind the picker close inter
   );
   try {
     const view = await renderReader();
-    await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+    await view.press(
+      view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+    );
     await view.press(view.getByRole('button', { name: t('bible.shareVerseImage') }));
     const sheet = view
       .queryAllByType('Modal')
@@ -115,7 +120,9 @@ test('Cancel during Android image capture shares nothing and reopening permits a
     captureStarted = resolve;
   });
   const view = await renderReader();
-  await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+  );
   await view.press(view.getByRole('button', { name: t('bible.shareVerseImage') }));
   const sheet = view
     .queryAllByType('Modal')
@@ -163,7 +170,9 @@ for (const cleanupFails of [false, true]) {
       shareStarted = resolve;
     });
     const view = await renderReader();
-    await view.press(view.getByText(new RegExp(JOHN_3[1].text.slice(0, 20))));
+    await view.press(
+      view.getByText(new RegExp(assertDefined(JOHN_3[1], 'JOHN_3[1]').text.slice(0, 20)))
+    );
     const openPicker = async () => {
       await view.press(view.getByRole('button', { name: t('bible.shareVerseImage') }));
       const sheet = view

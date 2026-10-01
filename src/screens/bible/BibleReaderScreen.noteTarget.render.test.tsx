@@ -1,6 +1,7 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { installReaderRenderFixture, JOHN_3 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 const reader = installReaderRenderFixture(mock);
 const { t, renderReader, annotationRows } = reader;
@@ -22,12 +23,16 @@ test('changing the verse selection while writing a note cannot overwrite another
     deleted_at: null,
   });
   const view = await renderReader();
-  await view.press(view.getByText(new RegExp(JOHN_3[0].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[0], 'JOHN_3[0]').text.slice(0, 20)))
+  );
   await view.press(view.getByRole('button', { name: t('annotations.note') }));
   await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'My thought on verse 1');
 
   // The inline sheet leaves the Bible tappable above it.
-  await view.press(view.getByText(new RegExp(JOHN_3[2].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[2], 'JOHN_3[2]').text.slice(0, 20)))
+  );
   await view.press(view.getByText(t('common.done')));
   await view.flush();
 
@@ -43,7 +48,9 @@ test('changing the verse selection while writing a note cannot overwrite another
 
 test('a failed note save keeps the draft open so the listener can retry', async () => {
   const view = await renderReader();
-  await view.press(view.getByText(new RegExp(JOHN_3[0].text.slice(0, 20))));
+  await view.press(
+    view.getByText(new RegExp(assertDefined(JOHN_3[0], 'JOHN_3[0]').text.slice(0, 20)))
+  );
   await view.press(view.getByRole('button', { name: t('annotations.note') }));
   await view.changeText(view.getByLabelText(t('annotations.noteHint')), 'Keep my unsaved thought');
   reader.annotationWriteOutcome.succeeds = false;

@@ -17,6 +17,7 @@ import type {
   RepeatPassage,
   SleepTimerOption,
 } from '../../../types/audio';
+import { assertDefined } from '../../../utils/assertDefined';
 
 const harness = installRenderHarness(mock, { width: 375, height: 667 });
 const t = (key: string, options?: Record<string, unknown>) => harness.i18n.t(key, options);
@@ -562,7 +563,7 @@ test('sounds still to download carry a cloud badge, and one downloading a spinne
 
 test('Android back leaves a pushed page first, then closes the sheet', async () => {
   const { view, calls } = await renderSheet();
-  const [modal] = view.queryAllByType('Modal');
+  const modal = assertDefined(view.queryAllByType('Modal')[0], 'modal');
 
   await view.press(view.getByRole('button', { name: t('audio.backgroundSound') }));
   await view.fire(modal, 'onRequestClose');
@@ -575,8 +576,8 @@ test('Android back leaves a pushed page first, then closes the sheet', async () 
 
 test('Close and the backdrop dismiss it; the backdrop is hidden from the screen reader', async () => {
   const { view, calls } = await renderSheet();
-  const [modal] = view.queryAllByType('Modal');
-  const [backdrop] = within(modal).queryAllByType('TouchableOpacity');
+  const modal = assertDefined(view.queryAllByType('Modal')[0], 'modal');
+  const backdrop = assertDefined(within(modal).queryAllByType('TouchableOpacity')[0], 'backdrop');
 
   assert.equal(isHiddenFromAccessibility(backdrop), true);
   await view.press(backdrop);

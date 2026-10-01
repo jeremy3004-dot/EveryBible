@@ -7,6 +7,7 @@ import {
   readerChapterKey,
   type ReaderChapterLoad,
 } from './readerChapterLoader';
+import { assertDefined } from '../../utils/assertDefined';
 
 mock.method(console, 'error', () => undefined);
 
@@ -76,7 +77,7 @@ test('a chapter load defers the next-chapter text prefetch until interactions se
 
   assert.deepEqual(recorded.prefetched, []);
   assert.equal(tasks.length, 1);
-  tasks[0].run();
+  assertDefined(tasks[0], 'tasks[0]').run();
   assert.deepEqual(recorded.prefetched, [3]);
   assert.equal(load.prefetchTaskRef.current, null);
 });
@@ -87,10 +88,10 @@ test('a new chapter load cancels the superseded prefetch and ignores its late ca
   await loadReaderChapter(load);
   await loadReaderChapter(load);
 
-  assert.equal(tasks[0].cancelled, true);
-  tasks[0].run(); // A cancelled native callback may already have been queued.
+  assert.equal(assertDefined(tasks[0], 'tasks[0]').cancelled, true);
+  assertDefined(tasks[0], 'tasks[0]').run(); // A cancelled native callback may already have been queued.
   assert.deepEqual(recorded.prefetched, []);
-  tasks[1].run();
+  assertDefined(tasks[1], 'tasks[1]').run();
   assert.deepEqual(recorded.prefetched, [3]);
 });
 
@@ -100,7 +101,7 @@ test('reader cleanup makes a pending load stale and cancels its queued prefetch'
   const { load, tasks, recorded } = reader({ getChapter: () => results.shift()! });
 
   await loadReaderChapter(load);
-  const queued = tasks[0];
+  const queued = assertDefined(tasks[0], 'queued');
   const inFlight = loadReaderChapter(load);
   invalidateReaderChapterLoad(load);
   pending.resolve([verse(1)]);

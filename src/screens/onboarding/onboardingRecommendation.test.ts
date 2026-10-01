@@ -49,7 +49,7 @@ const bundled: TestTranslation[] = bibleTranslations.map((translation) => ({
 
 // A hydrated runtime catalog: languages both inside and outside the interface set,
 // named the way the catalog names them (and a few free-text names it does not).
-const runtime: TestTranslation[] = [
+const runtimeLanguages: ReadonlyArray<readonly [string, string]> = [
   ['spnblm', 'Spanish'],
   ['porbr', 'Portuguese'],
   ['arbvd', 'Arabic'],
@@ -63,7 +63,9 @@ const runtime: TestTranslation[] = [
   ['quzbible', 'Quechua'],
   ['bhojpuri', 'Bhojpuri'],
   ['mysterylang', 'Unlisted Dialect'],
-].map(([id, language]) => ({
+];
+
+const runtime: TestTranslation[] = runtimeLanguages.map(([id, language]) => ({
   id,
   name: `${language} Bible`,
   abbreviation: id.toUpperCase(),
@@ -94,7 +96,7 @@ function contextFor(tag: string): RecommendationContext {
   ) as LanguageCode;
   return {
     deviceLanguageCode,
-    deviceCountryCode: parts[parts.length - 1],
+    deviceCountryCode: parts[parts.length - 1] ?? null,
     interfaceLanguageCode,
   };
 }

@@ -79,6 +79,7 @@ import type { RootTabParamList } from '../../navigation/types';
 import { gatherFoundationRoute } from '../../navigation/learnRoutes';
 import { countCompletedLessons } from '../learn/gatherPathModel';
 import { motion, radius, spacing, typography } from '../../design/system';
+import { assertDefined } from '../../utils/assertDefined';
 import { hexWithAlpha } from '../../utils/color';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
@@ -338,19 +339,22 @@ export function HomeScreen() {
 
   // Find the active foundation: first one that has started but isn't fully complete.
   // Falls back to foundation-1 if none started yet.
-  const foundation = (() => {
-    const inProgress = gatherFoundations.find((item) => {
-      const done = countCompletedLessons(completedLessons[item.id], item.lessons);
-      return done > 0 && done < item.lessons.length;
-    });
-    if (inProgress) return inProgress;
-    // All complete? Show the last one. Nothing started? Show the first.
-    const allDone = gatherFoundations.every(
-      (item) =>
-        countCompletedLessons(completedLessons[item.id], item.lessons) >= item.lessons.length
-    );
-    return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
-  })();
+  const foundation = assertDefined(
+    (() => {
+      const inProgress = gatherFoundations.find((item) => {
+        const done = countCompletedLessons(completedLessons[item.id], item.lessons);
+        return done > 0 && done < item.lessons.length;
+      });
+      if (inProgress) return inProgress;
+      // All complete? Show the last one. Nothing started? Show the first.
+      const allDone = gatherFoundations.every(
+        (item) =>
+          countCompletedLessons(completedLessons[item.id], item.lessons) >= item.lessons.length
+      );
+      return allDone ? gatherFoundations[gatherFoundations.length - 1] : gatherFoundations[0];
+    })(),
+    'a bundled Gather foundation'
+  );
   const foundationCompletedLessons = completedLessons[foundation.id] ?? [];
   const foundationCompletedCount = countCompletedLessons(
     foundationCompletedLessons,

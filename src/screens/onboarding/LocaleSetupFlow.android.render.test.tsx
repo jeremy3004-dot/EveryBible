@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { isValidElement } from 'react';
 import { act } from 'react-test-renderer';
 import { installLocaleSetupFlowFakes } from './localeSetupFlowRenderFixtures';
+import { assertDefined } from '../../utils/assertDefined';
 
 // Android only: the hardware back button, and the keyboard overlap the flow
 // measures against its own list surface (edge-to-edge keeps adjustResize from
@@ -65,7 +66,7 @@ test('on keyboard show the flow measures its uncollapsed list wrapper, where the
 
   const measured = harness.refCalls.filter((call) => call.method === 'measureInWindow');
   assert.equal(measured.length, 1);
-  const [{ type, props }] = measured;
+  const { type, props } = assertDefined(measured[0], 'the measured call');
   assert.equal(type, 'View');
   assert.equal(props.collapsable, false, 'Android must not collapse the measured view away');
   assert.ok(

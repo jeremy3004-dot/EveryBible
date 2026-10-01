@@ -15,6 +15,7 @@ import {
   bible,
   installPickerRenderFixture,
 } from './TranslationPickerList.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 const {
   harness,
@@ -270,7 +271,7 @@ test('the manage sheet downloads the text without a prompt and shows it busy whi
   assert.equal(harness.rn.__recorded.alerts.length, 0);
 
   await textProgress('engnet', 60);
-  sheet = view.queryAllByType('Modal')[0];
+  sheet = assertDefined(view.queryAllByType('Modal')[0], 'the manage sheet');
   const busy = within(sheet).getByRole('button', { name: t('audio.showText') });
   assert.deepEqual(busy.props.accessibilityValue, { text: '60%' });
   assert.equal(busy.props.disabled, true);

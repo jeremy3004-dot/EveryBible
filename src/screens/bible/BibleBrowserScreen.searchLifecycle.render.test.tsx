@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { BIBLE_SEARCH_DEBOUNCE_MS } from './bibleSearchModel';
 import { installBrowserRenderFixture } from './BibleBrowserScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 const { harness, t, bibleStore, searches, verse, renderBrowser, bookList } =
   installBrowserRenderFixture(mock);
@@ -28,11 +29,15 @@ for (const change of ['query', 'translation'] as const) {
       await act(async () => bibleStore.setState({ currentTranslation: 'web' }));
     }
     await startSearch(context, 2);
-    await act(async () => searches[0].reject(new Error('obsolete query failed')));
+    await act(async () =>
+      assertDefined(searches[0], 'searches[0]').reject(new Error('obsolete query failed'))
+    );
     assert.equal(view.queryByText(t('bible.failedToLoad')), null);
     assert.equal(view.queryAllByType('VersesSkeleton').length, 1);
     assert.deepEqual(harness.rn.__recorded.announcements, []);
-    await act(async () => searches[1].resolve([verse('EPH', 2, 8, 'Current result.')]));
+    await act(async () =>
+      assertDefined(searches[1], 'searches[1]').resolve([verse('EPH', 2, 8, 'Current result.')])
+    );
     await view.press(view.getByRole('button', { name: /Current result\./ }));
     assert.deepEqual(harness.navigation.calls, [
       {
@@ -63,8 +68,11 @@ for (const outcome of ['success', 'failure'] as const) {
         await view.unmount();
       }
       await act(async () => {
-        if (outcome === 'success') searches[0].resolve([verse('1JN', 4, 8, 'Obsolete result.')]);
-        else searches[0].reject(new Error('obsolete query failed'));
+        if (outcome === 'success')
+          assertDefined(searches[0], 'searches[0]').resolve([
+            verse('1JN', 4, 8, 'Obsolete result.'),
+          ]);
+        else assertDefined(searches[0], 'searches[0]').reject(new Error('obsolete query failed'));
       });
       assert.deepEqual(harness.rn.__recorded.announcements, []);
       if (action !== 'unmount') {

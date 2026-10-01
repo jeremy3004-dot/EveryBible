@@ -7,6 +7,7 @@ import {
   getScreenReaderTrace,
 } from '../../services/diagnostics/screenReaderTrace';
 import { installReaderRenderFixture, JOHN_3 } from './BibleReaderScreen.renderFixture';
+import { assertDefined } from '../../utils/assertDefined';
 
 // TalkBack on at a cold start. On Android `isScreenReaderEnabled()` answers with the
 // native module's cached `isTouchExplorationEnabled`, over the bridge; on a busy cold
@@ -85,7 +86,10 @@ test('android: a TalkBack answer that lands after the first paint redraws the pa
   await view.flush();
   // Painted before the answer: the sighted layout, one Text with a span per verse.
   assert.equal(inlineSpans(view).length, JOHN_3.length);
-  assert.equal(view.queryByRole('button', { name: verseLabel(JOHN_3[0]) }), null);
+  assert.equal(
+    view.queryByRole('button', { name: verseLabel(assertDefined(JOHN_3[0], 'JOHN_3[0]')) }),
+    null
+  );
   assert.ok(query.pending, 'the reader asked whether a screen reader is running');
 
   await act(async () => {

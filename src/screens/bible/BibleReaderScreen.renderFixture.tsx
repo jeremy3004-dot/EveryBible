@@ -36,6 +36,7 @@ import {
   type RenderHarnessOptions,
   type RenderResult,
 } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
 
 export const BSB: BibleTranslation = {
   id: 'bsb',
@@ -534,7 +535,7 @@ export function installReaderRenderFixture(
     release: async (name: string) => {
       const index = av.pending.findIndex((entry) => entry.name === name);
       assert.ok(index >= 0, `a pending ${name}`);
-      const [entry] = av.pending.splice(index, 1);
+      const entry = assertDefined(av.pending.splice(index, 1)[0], 'entry');
       await act(async () => {
         entry.release();
       });
