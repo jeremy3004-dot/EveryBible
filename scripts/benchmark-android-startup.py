@@ -13,6 +13,11 @@ parser.add_argument('--serial', required=True, help='Explicit adb device serial'
 parser.add_argument('--label', required=True, help='Revision/build being measured')
 parser.add_argument('--output', required=True, type=Path)
 parser.add_argument('--runs', type=int, default=7)
+parser.add_argument(
+    '--package',
+    default='com.everybible.app',
+    help='Installed application id, e.g. a side-by-side variant like com.everybible.app.sprint',
+)
 args = parser.parse_args()
 if args.runs < 3:
     parser.error('Use at least three measured runs')
@@ -28,14 +33,15 @@ device = {
     'model': adb('shell', 'getprop', 'ro.product.model').strip(),
     'api': adb('shell', 'getprop', 'ro.build.version.sdk').strip(),
     'serial': args.serial,
+    'package': args.package,
 }
 samples = []
 for run in range(args.runs + 1):
-    adb('shell', 'am', 'force-stop', 'com.everybible.app')
+    adb('shell', 'am', 'force-stop', args.package)
     time.sleep(0.5)
     marker = f'START-{time.monotonic_ns()}'
     adb('shell', 'log', '-t', 'EBPerf', marker)
-    launch = adb('shell', 'am', 'start', '-W', '-n', 'com.everybible.app/.MainActivity')
+    launch = adb('shell', 'am', 'start', '-W', '-n', f'{args.package}/com.everybible.app.MainActivity')
     deadline = time.monotonic() + 15
     while True:
         logs = adb('logcat', '-d', '-v', 'epoch', '-s', 'EBPerf:I', 'ReactNativeJS:I', 'AndroidRuntime:E')
