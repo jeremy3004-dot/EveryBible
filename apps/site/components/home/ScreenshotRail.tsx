@@ -38,8 +38,11 @@ export function ScreenshotRail({ copy }: { copy: HomeCopy['app'] }) {
   const update = useCallback(() => {
     const rail = railRef.current;
     if (!rail) return;
-    setAtStart(rail.scrollLeft <= 1);
-    setAtEnd(rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1);
+    // In RTL scrollLeft is 0 at the start and runs negative toward the end, so
+    // the distance travelled is its absolute value either way.
+    const travelled = Math.abs(rail.scrollLeft);
+    setAtStart(travelled <= 1);
+    setAtEnd(travelled + rail.clientWidth >= rail.scrollWidth - 1);
   }, []);
 
   useEffect(() => {
@@ -56,10 +59,11 @@ export function ScreenshotRail({ copy }: { copy: HomeCopy['app'] }) {
     const card = rail?.firstElementChild as HTMLElement | null;
     if (!rail || !card) return;
     const gap = parseFloat(getComputedStyle(rail).columnGap) || 0;
-    // dir is flipped by the browser for scrollBy in RTL, so no special case.
+    // scrollBy is physical: "next" is leftward in RTL.
+    const inline = getComputedStyle(rail).direction === 'rtl' ? -1 : 1;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     rail.scrollBy({
-      left: direction * (card.offsetWidth + gap),
+      left: direction * inline * (card.offsetWidth + gap),
       behavior: reduced ? 'auto' : 'smooth',
     });
   };

@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- plan covers are pre-sized 800 px WebP
    plates; a plain <img> keeps this section a server component (see PlanCover). */
 import { type HomeCopy, homeCopyEn, fillCopy } from '../lib/home-copy';
-import { selectHomePlans } from '../lib/home-plans';
+import { homePlanTitle, selectHomePlans } from '../lib/home-plans';
 import { getPlans, planCoverPath, planPath, PLAN_COVER_SIZE, PLANS_PATH } from '../lib/plan-pages';
 import { DownloadCard } from './home/DownloadCard';
 import { ScreenshotRail } from './home/ScreenshotRail';
@@ -45,7 +45,11 @@ function AppShowcase({ copy }: { copy: HomeCopy['app'] }) {
 
 function Mission({ copy }: { copy: HomeCopy['mission'] }) {
   return (
-    <section className="home-section home-mission" id="mission" aria-labelledby="home-mission-quote">
+    <section
+      className="home-section home-mission"
+      id="mission"
+      aria-labelledby="home-mission-quote"
+    >
       <div className="wrap home-mission__inner">
         <p className="eyebrow">{copy.eyebrow}</p>
         <blockquote className="home-mission__quote">
@@ -69,7 +73,7 @@ function Mission({ copy }: { copy: HomeCopy['mission'] }) {
   );
 }
 
-function PlansShelf({ copy }: { copy: HomeCopy['plans'] }) {
+function PlansShelf({ copy, locale }: { copy: HomeCopy['plans']; locale: string }) {
   const { seasonal, plans } = selectHomePlans(getPlans(), new Date());
   if (plans.length === 0) return null;
   return (
@@ -85,23 +89,26 @@ function PlansShelf({ copy }: { copy: HomeCopy['plans'] }) {
           <p className="home-section__lede">{copy.lede}</p>
         </header>
         <ul className="home-plans__grid">
-          {plans.map((plan) => (
-            <li key={plan.id}>
-              <a className="home-plan" href={planPath(plan.slug)}>
-                <img
-                  className="home-plan__cover"
-                  src={planCoverPath(plan)}
-                  width={PLAN_COVER_SIZE.width}
-                  height={PLAN_COVER_SIZE.height}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                />
-                <h3>{plan.title}</h3>
-                <p>{fillCopy(copy.days, { count: plan.durationDays })}</p>
-              </a>
-            </li>
-          ))}
+          {plans.map((plan) => {
+            const { title, lang } = homePlanTitle(plan, locale);
+            return (
+              <li key={plan.id}>
+                <a className="home-plan" href={planPath(plan.slug)}>
+                  <img
+                    className="home-plan__cover"
+                    src={planCoverPath(plan)}
+                    width={PLAN_COVER_SIZE.width}
+                    height={PLAN_COVER_SIZE.height}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <h3 lang={lang}>{title}</h3>
+                  <p>{fillCopy(copy.days, { count: plan.durationDays })}</p>
+                </a>
+              </li>
+            );
+          })}
         </ul>
         <div className="home-actions">
           <a className="home-link" href={PLANS_PATH}>
@@ -118,12 +125,18 @@ function PlansShelf({ copy }: { copy: HomeCopy['plans'] }) {
  * mission, and a shelf of reading plans. A server component; only the
  * screenshot rail and the download card hydrate.
  */
-export function HomeBelowAtlas({ copy = homeCopyEn }: { copy?: HomeCopy }) {
+export function HomeBelowAtlas({
+  copy = homeCopyEn,
+  localeCode = 'en',
+}: {
+  copy?: HomeCopy;
+  localeCode?: string;
+}) {
   return (
     <>
       <AppShowcase copy={copy.app} />
       <Mission copy={copy.mission} />
-      <PlansShelf copy={copy.plans} />
+      <PlansShelf copy={copy.plans} locale={localeCode} />
     </>
   );
 }

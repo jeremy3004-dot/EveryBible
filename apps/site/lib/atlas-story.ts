@@ -69,16 +69,24 @@ export interface StoryPadding {
 /**
  * Desktop: the copy holds the left column and the globe sits to its right.
  * Phone: the globe holds the top of the screen and the copy sits below it.
+ * Right-to-left pages put the copy on the right, so the globe mirrors to the left.
  */
-export function storyPadding(width: number, height: number, headerHeight: number): StoryPadding {
+export function storyPadding(
+  width: number,
+  height: number,
+  headerHeight: number,
+  rtl = false
+): StoryPadding {
   if (width <= 760) {
     return { top: headerHeight + 8, right: 12, bottom: Math.round(height * 0.42), left: 12 };
   }
+  const copySide = Math.round(Math.min(width * 0.44, 640));
+  const farSide = Math.round(width * 0.04);
   return {
     top: headerHeight + 24,
-    right: Math.round(width * 0.04),
+    right: rtl ? copySide : farSide,
     bottom: 48,
-    left: Math.round(Math.min(width * 0.44, 640)),
+    left: rtl ? farSide : copySide,
   };
 }
 

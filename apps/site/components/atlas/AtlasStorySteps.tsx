@@ -44,7 +44,9 @@ export function AtlasStorySteps({
             </a>
             <button type="button" className="pa-button pa-button--quiet" onClick={onExplore}>
               {hero.exploreCta}
-              <span aria-hidden="true">→</span>
+              <span className="pa-arrow" aria-hidden="true">
+                →
+              </span>
             </button>
           </div>
         </div>
@@ -93,7 +95,9 @@ export function AtlasStorySteps({
             </a>
             <button type="button" className="pa-button pa-button--quiet" onClick={onExplore}>
               {hero.exploreCta}
-              <span aria-hidden="true">→</span>
+              <span className="pa-arrow" aria-hidden="true">
+                →
+              </span>
             </button>
           </div>
         </div>

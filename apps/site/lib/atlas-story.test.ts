@@ -34,6 +34,15 @@ test('desktop keeps the globe right of the copy; phones keep it above the copy',
   assert.equal(phone.left, phone.right);
 });
 
+test('right-to-left pages mirror the globe to the left of the copy', () => {
+  const ltr = storyPadding(1440, 900, 72);
+  const rtl = storyPadding(1440, 900, 72, true);
+  assert.equal(rtl.left, ltr.right);
+  assert.equal(rtl.right, ltr.left);
+  assert.equal(rtl.top, ltr.top);
+  assert.deepEqual(storyPadding(375, 812, 64, true), storyPadding(375, 812, 64));
+});
+
 test('no known Scripture counts every status the map paints red', () => {
   const stats = storyStats(
     {

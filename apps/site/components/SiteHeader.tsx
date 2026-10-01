@@ -15,11 +15,16 @@ export function SiteHeader({
   mainId = 'main',
   nav = homeCopyEn.nav,
   homeHref = '/',
+  lang,
+  dir,
 }: {
   overlay?: boolean;
   mainId?: string;
   nav?: HomeCopy['nav'];
   homeHref?: string;
+  /** The page language (`copy.locale`, `copy.dir`) when it is not English. */
+  lang?: string;
+  dir?: 'ltr' | 'rtl';
 } = {}) {
   const items = siteNavigation.map((item) => ({
     label: nav[item.key],
@@ -31,6 +36,8 @@ export function SiteHeader({
     <header
       className={overlay ? 'site-header site-header--overlay' : 'site-header'}
       aria-label="EveryBible navigation"
+      lang={lang}
+      dir={dir}
     >
       {overlay ? <HeaderScrollState /> : null}
       {/* Keyboard users skip the seven header stops. Hidden until focused. */}
