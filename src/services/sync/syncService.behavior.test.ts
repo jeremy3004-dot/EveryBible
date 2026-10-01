@@ -1,4 +1,4 @@
-import test, { before, beforeEach, mock } from 'node:test';
+import test, { before, beforeEach, mock, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { mockModule, sourcePath } from '../../testing/mockModules';
 import {
@@ -114,6 +114,7 @@ interface ProgressStubState {
 interface BibleStubState {
   currentBook: string;
   currentChapter: number;
+  readingPositionUpdatedAt?: number | null;
   applySyncedReadingPosition: (position: AppliedPosition) => void;
 }
 
@@ -357,7 +358,7 @@ beforeEach(() => {
     preferenceFieldStamps: {},
   });
   progressStore.setState({ chaptersRead: {}, streakDays: 0, lastReadDate: null });
-  bibleStore.setState({ currentBook: 'GEN', currentChapter: 1 });
+  bibleStore.setState({ currentBook: 'GEN', currentChapter: 1, readingPositionUpdatedAt: null });
   readingPlansStore.setState({ progressByPlanId: {} });
   appliedPreferences.length = 0;
   appliedProgress.length = 0;
@@ -406,10 +407,17 @@ test('pullFromCloud reports staleness rather than success when nobody is signed 
 });
 
 test('a sync for a different account than the one signed in never touches the backend', async () => {
+  let remoteChecks = 0;
+  resolveRemoteUserId = async () => {
+    remoteChecks += 1;
+    return USER_A;
+  };
+
   const result = await syncProgress(USER_B);
 
   assert.deepEqual(result, { success: false, error: STALE_SYNC_ERROR });
   assert.deepEqual(supabaseFake.calls, []);
+  assert.equal(remoteChecks, 0, 'the auth server is not asked to confirm another account');
 });
 
 test('a local session the auth server no longer recognises is treated as stale', async () => {
@@ -1551,6 +1559,7 @@ test('an account switch while pulling progress discards everything that followed
 
   assert.deepEqual(await pullFromCloud(USER_A), { success: false, error: STALE_SYNC_ERROR });
   assert.deepEqual(appliedProgress, []);
+  assert.deepEqual(callsFor('user_preferences', 'select'), []);
   assert.deepEqual(planPullCalls, []);
 });
 
@@ -1807,6 +1816,11 @@ test('a preference sync queued behind an account switch neither applies nor uplo
   );
   assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
   assert.deepEqual(appliedPreferences, []);
+  assert.equal(
+    supabaseFake.authCalls.filter((call) => call.method === 'getUser').length,
+    1,
+    'the queued sync is dropped before it asks the auth server for the old account'
+  );
 });
 
 test('a pull keeps the chapters and preferences edited while the cloud rows were read', async () => {
@@ -2107,6 +2121,8 @@ test('a newer local edit is uploaded with its stamp and the server copy is adopt
     font_size: '2026-09-01T00:00:00.000Z',
   });
   assert.equal((upsert?.payload as Record<string, unknown>).theme, 'dark');
+  assert.deepEqual(upsert?.options, { onConflict: 'user_id' });
+  assert.equal(upsert?.columns, '*', 'the upload reads back the whole stored row');
   assert.equal(upsert?.single, true, 'the upload reads back what the server kept');
   assert.equal(authStore.getState().preferences.theme, 'dark');
   assert.deepEqual(authStore.getState().preferenceFieldStamps, {
@@ -2268,4 +2284,668 @@ test('a cloud preference commit cannot cross the local account-check microtask b
   assert.equal(authStore.getState().user?.uid, USER_B);
   assert.deepEqual(authStore.getState().preferences, nextPreferences);
   assert.equal(callsFor('user_preferences', 'upsert').length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Account switches at each step of a sync
+// ---------------------------------------------------------------------------
+
+const STALE: SyncService.SyncResult = { success: false, error: STALE_SYNC_ERROR };
+
+/**
+ * Arms an account switch (to USER_B, in a new auth generation) that lands in a
+ * microtask queued by the next auth-store read. Every identity check reads the
+ * store synchronously, so the switch lands just after the check that consumed
+ * the arm has passed, before the step it guarded continues.
+ */
+const installAccountSwitchArm = (t: TestContext): (() => void) => {
+  let armed = false;
+  const getState = authStore.getState;
+  t.mock.method(authStore, 'getState', () => {
+    const snapshot = getState();
+    if (armed) {
+      armed = false;
+      queueMicrotask(() => authStore.setState({ user: { uid: USER_B }, authGeneration: 2 }));
+    }
+    return snapshot;
+  });
+  return () => {
+    armed = true;
+  };
+};
+
+const switchAccountNow = () => authStore.setState({ user: { uid: USER_B }, authGeneration: 2 });
+
+const getUserRequests = () => supabaseFake.authCalls.filter((call) => call.method === 'getUser');
+
+test('an account switch between the auth-user check and the profile write skips the write', async (t) => {
+  const armSwitch = installAccountSwitchArm(t);
+  supabaseFake.auth.handlers.getUser = () => {
+    armSwitch();
+    return originalGetUser();
+  };
+
+  // Reported as stale, never as a rejection or a write for the old account.
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+  assert.deepEqual(callsFor('profiles', 'upsert'), []);
+});
+
+test('an account switch while the profile is written stops the progress sync before it reads', async () => {
+  script.profiles = {
+    write: () => {
+      switchAccountNow();
+      return { error: null };
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+  assert.deepEqual(callsFor('user_progress', 'select'), []);
+});
+
+test('an account switch while the profile is written stops a pull before it reads', async () => {
+  script.profiles = {
+    write: () => {
+      switchAccountNow();
+      return { error: null };
+    },
+  };
+
+  assert.deepEqual(await pullFromCloud(USER_A), STALE);
+  assert.deepEqual(callsFor('user_progress', 'select'), []);
+  assert.deepEqual(callsFor('user_preferences', 'select'), []);
+});
+
+test('a progress sync queued behind an account switch is dropped before it makes any request', async () => {
+  const release = createDeferred();
+  const started = createDeferred();
+  supabaseFake.respondTo('user_progress', async (call) => {
+    if (call.operation !== 'select') {
+      return { error: null };
+    }
+    started.resolve();
+    await release.promise;
+    return NO_ROWS;
+  });
+
+  const first = syncProgress(USER_A);
+  await started.promise;
+  const queued = syncProgress(USER_A);
+  await drain();
+  switchAccountNow();
+  release.resolve();
+
+  assert.deepEqual(await Promise.all([first, queued]), [STALE, STALE]);
+  assert.equal(getUserRequests().length, 1, 'only the first sync asked the auth server');
+  assert.equal(callsFor('user_progress', 'select').length, 1);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('an account switch right after the local progress merge commits skips the push', async (t) => {
+  const armSwitch = installAccountSwitchArm(t);
+  progressStore.setState({ chaptersRead: { GEN_1: 500 } });
+  script.user_progress = {
+    select: () => {
+      // Consumed by the identity check that guards the local merge.
+      armSwitch();
+      return { data: remoteProgressRow() };
+    },
+  };
+
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+  assert.deepEqual(progressMergeCalls(), []);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+});
+
+test('an account switch right after the local preference merge commits skips the upload', async (t) => {
+  const armSwitch = installAccountSwitchArm(t);
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  script.user_preferences = {
+    select: () => {
+      armSwitch();
+      return NO_ROWS;
+    },
+  };
+
+  assert.deepEqual(await syncPreferences(USER_A), STALE);
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('an account switch while a stamped upload is refused skips the unstamped retry', async () => {
+  authStore.setState({
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+    preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+  });
+  script.user_preferences = {
+    select: NO_ROWS,
+    write: () => {
+      switchAccountNow();
+      return {
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message: "Could not find the 'field_updated_at' column of 'user_preferences'",
+        },
+      };
+    },
+  };
+
+  assert.deepEqual(await syncPreferences(USER_A), STALE);
+  assert.equal(callsFor('user_preferences', 'upsert').length, 1);
+});
+
+test('an account switch while the preference upload is in flight leaves the device unstamped', async () => {
+  authStore.setState({ preferencesUpdatedAt: '2026-09-09T00:00:00.000Z' });
+  script.user_preferences = {
+    select: NO_ROWS,
+    write: () => {
+      switchAccountNow();
+      return { error: null };
+    },
+  };
+
+  assert.deepEqual(await syncPreferences(USER_A), STALE);
+  assert.deepEqual(appliedPreferences, []);
+  assert.equal(authStore.getState().preferencesUpdatedAt, '2026-09-09T00:00:00.000Z');
+});
+
+test('an account switch as the reading-plan pull starts never asks for the old account plans', async (t) => {
+  const armSwitch = installAccountSwitchArm(t);
+  script.user_preferences = {
+    select: () => {
+      // No preference row, so the next identity check is the one before the plans.
+      armSwitch();
+      return { data: null };
+    },
+  };
+
+  assert.deepEqual(await pullFromCloud(USER_A), STALE);
+  assert.deepEqual(planPullCalls, []);
+});
+
+// ---------------------------------------------------------------------------
+// Cloud reads and the profile row
+// ---------------------------------------------------------------------------
+
+test('every cloud read asks for the whole row of the account being synced', async () => {
+  await syncProgress(USER_A);
+  await syncPreferences(USER_A);
+  await pullFromCloud(USER_A);
+
+  for (const table of ['user_progress', 'user_preferences']) {
+    const reads = callsFor(table, 'select');
+    assert.equal(reads.length, 2, table);
+    for (const read of reads) {
+      assert.deepEqual(
+        read.steps,
+        [
+          { method: 'select', args: ['*'] },
+          { method: 'eq', args: ['user_id', USER_A] },
+          { method: 'single', args: [] },
+        ],
+        table
+      );
+    }
+  }
+});
+
+test('a pull for an account with no progress or preference row yet still succeeds', async () => {
+  script.user_progress = { select: NO_ROWS };
+  script.user_preferences = { select: NO_ROWS };
+
+  assert.deepEqual(await pullFromCloud(USER_A), { success: true, merged: true });
+  assert.deepEqual(appliedProgress, []);
+  assert.deepEqual(appliedPreferences, []);
+  assert.equal(planPullCalls.length, 1);
+});
+
+test('a profile with no name takes the whole local part of the email as its display name', async () => {
+  await syncProgress(USER_A);
+
+  assert.equal(payloadOf('profiles').display_name, 'reader');
+});
+
+// ---------------------------------------------------------------------------
+// The merged flag
+// ---------------------------------------------------------------------------
+
+test('a syncAll cycle in which nothing came down reports nothing merged', async () => {
+  progressStore.setState({
+    chaptersRead: { JHN_3: 1000 },
+    streakDays: 4,
+    lastReadDate: '2026-09-01',
+  });
+  bibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: LOCAL_PREFERENCES,
+    preferencesUpdatedAt: SYNCED_AT,
+  });
+  readingPlansStore.setState({ progressByPlanId: { 'plan-1': { completed: 3 } } });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script.user_preferences = { select: { data: cloudRowFor(LOCAL_PREFERENCES, SYNCED_AT) } };
+
+  const result = await syncAll(USER_A, 1);
+
+  assert.deepEqual(result, { success: true, error: undefined, merged: false });
+  assert.equal(planSyncCalls.length, 1);
+  assert.deepEqual(callsFor('user_progress', 'upsert'), []);
+  assert.deepEqual(callsFor('user_preferences', 'upsert'), []);
+});
+
+test('chapters the merge brings back from another device are merged even when the push adopted nothing first', async () => {
+  // Local is ahead of the cloud on every field, so the pre-push merge changes nothing.
+  progressStore.setState({
+    chaptersRead: { ROM_8: 5000, JHN_3: 1000 },
+    streakDays: 4,
+    lastReadDate: '2026-09-01',
+  });
+  bibleStore.setState({ currentBook: 'ROM', currentChapter: 8 });
+  script.user_progress = { select: { data: remoteProgressRow() } };
+  script[PROGRESS_MERGE_RPC_TABLE] = {
+    write: {
+      data: remoteProgressRow({
+        chapters_read: { ROM_8: 5000, JHN_3: 1000, GEN_1: 7000 },
+        current_book: 'ROM',
+        current_chapter: 8,
+      }),
+    },
+  };
+
+  const result = await syncProgress(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.deepEqual(appliedProgress, [
+    {
+      chaptersRead: { ROM_8: 5000, JHN_3: 1000, GEN_1: 7000 },
+      streakDays: 4,
+      lastReadDate: '2026-09-01',
+    },
+  ]);
+});
+
+test('refusing an unstamped row that would reopen onboarding re-uploads the device row as merged', async () => {
+  script.user_preferences = {
+    select: {
+      data: remotePreferenceRow({
+        onboarding_completed: false,
+        // A NULL column from PostgREST; the generated row type says string.
+        synced_at: null as unknown as string,
+      }),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: true });
+  assert.equal(payloadOf('user_preferences').onboarding_completed, true);
+  assert.equal(
+    authStore.getState().preferencesUpdatedAt,
+    payloadOf('user_preferences').synced_at,
+    'the device is re-stamped with the upload'
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Preference uploads: stamps, missing columns, changes during the upload
+// ---------------------------------------------------------------------------
+
+for (const [name, error, retried] of [
+  [
+    'Postgres 42703 for the stamp column',
+    {
+      code: '42703',
+      message: 'column "field_updated_at" of relation "user_preferences" does not exist',
+    },
+    true,
+  ],
+  [
+    'a constraint error that only names the stamp column',
+    {
+      code: '23514',
+      message: 'new row violates check constraint "field_updated_at_is_object"',
+    },
+    false,
+  ],
+] as const) {
+  test(`a stamped upload refused with ${name} is ${retried ? 'retried without stamps' : 'reported'}`, async () => {
+    authStore.setState({
+      preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+      preferenceFieldStamps: { fontSize: '2026-09-11T00:00:00.000Z' },
+    });
+    let writes = 0;
+    script.user_preferences = {
+      select: NO_ROWS,
+      write: () => (++writes === 1 ? { data: null, error } : { data: null, error: null }),
+    };
+
+    const result = await syncPreferences(USER_A);
+
+    if (retried) {
+      assert.equal(result.success, true);
+      assert.equal(writes, 2);
+      assert.equal('field_updated_at' in payloadOf('user_preferences', 1), false);
+    } else {
+      assert.deepEqual(result, { success: false, error: error.message });
+      assert.equal(writes, 1);
+    }
+  });
+}
+
+test('a merged preference upload re-stamps the device with the upload time', async () => {
+  authStore.setState({
+    preferencesSyncBase: LOCAL_PREFERENCES,
+    preferences: { ...LOCAL_PREFERENCES, fontSize: 'large' },
+    preferencesUpdatedAt: '2026-09-11T00:00:00.000Z',
+  });
+  script.user_preferences = {
+    select: {
+      data: cloudRowFor({ ...LOCAL_PREFERENCES, theme: 'dark' }, '2026-09-12T00:00:00.000Z'),
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.equal(authStore.getState().preferencesUpdatedAt, payloadOf('user_preferences').synced_at);
+  assert.deepEqual(authStore.getState().preferencesSyncBase, {
+    ...LOCAL_PREFERENCES,
+    fontSize: 'large',
+    theme: 'dark',
+  });
+});
+
+test('values merged in without a new stamp during the upload stay, and the upload becomes the base', async () => {
+  // A concurrent pull that merges another device's change keeps the device's
+  // stamp and replaces only the values, so the stamp alone cannot reveal it.
+  const stamp = '2026-09-09T00:00:00.000Z';
+  authStore.setState({ preferencesUpdatedAt: stamp });
+  script.user_preferences = {
+    select: NO_ROWS,
+    write: () => {
+      authStore.setState({ preferences: { ...LOCAL_PREFERENCES, theme: 'dark' } });
+      return { error: null };
+    },
+  };
+
+  const result = await syncPreferences(USER_A);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(appliedPreferences, []);
+  assert.equal(authStore.getState().preferences.theme, 'dark');
+  assert.equal(authStore.getState().preferencesUpdatedAt, stamp);
+  assert.deepEqual(authStore.getState().preferencesSyncBase, LOCAL_PREFERENCES);
+});
+
+// ---------------------------------------------------------------------------
+// A server without the position-stamp columns (the plain-upsert fallback)
+// ---------------------------------------------------------------------------
+
+const POSITION_CHOSEN_AT = 6000;
+
+/** This device moved on to ROM 8 after the cloud's JHN 3, and stamped that choice. */
+const stampLocalPosition = () => {
+  progressStore.setState({
+    chaptersRead: { ROM_8: 5000, JHN_3: 1000 },
+    streakDays: 4,
+    lastReadDate: '2026-09-01',
+  });
+  bibleStore.setState({
+    currentBook: 'ROM',
+    currentChapter: 8,
+    readingPositionUpdatedAt: POSITION_CHOSEN_AT,
+  });
+};
+
+/** What a server without the stamp columns stores: the row, plus another device's chapter. */
+const legacyStoredRow = () =>
+  remoteProgressRow({
+    chapters_read: { ROM_8: 5000, JHN_3: 1000, GEN_1: 7000 },
+    current_book: 'ROM',
+    current_chapter: 8,
+  });
+
+/** Answers the stamped upsert with `stamped()` and the unstamped fallback with `fallback()`. */
+const respondToProgressWrites = (
+  stamped: () => SupabaseFakeResult,
+  fallback: () => SupabaseFakeResult
+) => {
+  supabaseFake.respondTo('user_progress', (call) => {
+    if (call.operation === 'select') {
+      return { data: remoteProgressRow() };
+    }
+    return 'position_updated_at' in (call.payload as object) ? stamped() : fallback();
+  });
+};
+
+const MISSING_POSITION_COLUMN: SupabaseFakeResult = {
+  data: null,
+  error: {
+    code: 'PGRST204',
+    message: "Could not find the 'position_updated_at' column of 'user_progress'",
+  },
+};
+
+for (const [name, missingColumn] of [
+  ['PGRST204', MISSING_POSITION_COLUMN],
+  [
+    'Postgres 42703',
+    {
+      data: null,
+      error: {
+        code: '42703',
+        message: 'column "position_updated_for" of relation "user_progress" does not exist',
+      },
+    },
+  ],
+] as const) {
+  test(`a server missing the position-stamp columns (${name}) gets the row without them and its reply is adopted`, async () => {
+    stampLocalPosition();
+    respondToProgressWrites(
+      () => missingColumn,
+      () => ({ data: legacyStoredRow() })
+    );
+
+    const result = await syncProgress(USER_A);
+
+    assert.deepEqual(result, { success: true, merged: true });
+    const writes = callsFor('user_progress', 'upsert');
+    assert.equal(writes.length, 2);
+    const {
+      position_updated_at: stampedAt,
+      position_updated_for: stampedFor,
+      ...unstamped
+    } = payloadOf('user_progress', 0);
+    assert.deepEqual([stampedAt, stampedFor], [POSITION_CHOSEN_AT, 'ROM_8']);
+    assert.deepEqual(payloadOf('user_progress', 1), unstamped);
+    assert.deepEqual(writes[1]?.options, { onConflict: 'user_id' });
+    assert.equal(writes[1]?.columns, '*', 'the fallback reads back the whole stored row');
+    assert.equal(writes[1]?.single, true);
+    assert.deepEqual(progressStore.getState().chaptersRead, {
+      ROM_8: 5000,
+      JHN_3: 1000,
+      GEN_1: 7000,
+    });
+  });
+}
+
+test('a stamped position the server accepts is written once, with its stamp', async () => {
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => ({ data: null }),
+    () => ({ data: legacyStoredRow() })
+  );
+
+  const result = await syncProgress(USER_A);
+
+  assert.deepEqual(result, { success: true, merged: false });
+  assert.equal(callsFor('user_progress', 'upsert').length, 1);
+  assert.equal(payloadOf('user_progress').position_updated_at, POSITION_CHOSEN_AT);
+  assert.equal(payloadOf('user_progress').position_updated_for, 'ROM_8');
+});
+
+test('an unrelated write error that names a position column is reported, not retried without it', async () => {
+  const message = 'null value in column "position_updated_for" violates not-null constraint';
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => ({ data: null, error: { code: '23502', message } }),
+    () => ({ data: legacyStoredRow() })
+  );
+
+  assert.deepEqual(await syncProgress(USER_A), { success: false, error: message });
+  assert.equal(callsFor('user_progress', 'upsert').length, 1);
+});
+
+test('a failing unstamped fallback write is reported with the server message', async () => {
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => MISSING_POSITION_COLUMN,
+    () => ({ data: null, error: { message: 'fallback write rejected' } })
+  );
+
+  assert.deepEqual(await syncProgress(USER_A), {
+    success: false,
+    error: 'fallback write rejected',
+  });
+});
+
+test('an unstamped fallback that returns no row asks the reader to sync the position later', async () => {
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => MISSING_POSITION_COLUMN,
+    () => ({ data: null })
+  );
+
+  const result = await syncProgress(USER_A);
+
+  assert.equal(result.success, false);
+  assert.match(result.error ?? '', /try again later/i);
+  assert.deepEqual(appliedProgress, []);
+});
+
+test('an account switch while the stamped write is refused skips the unstamped fallback', async () => {
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => {
+      switchAccountNow();
+      return MISSING_POSITION_COLUMN;
+    },
+    () => ({ data: legacyStoredRow() })
+  );
+
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+  assert.equal(callsFor('user_progress', 'upsert').length, 1);
+});
+
+test('an account switch while the unstamped fallback is in flight reports the sync as stale', async () => {
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => MISSING_POSITION_COLUMN,
+    () => {
+      switchAccountNow();
+      return { data: null };
+    }
+  );
+
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+});
+
+test('an account switch right after the fallback reply is checked leaves the reply unadopted', async (t) => {
+  const armSwitch = installAccountSwitchArm(t);
+  stampLocalPosition();
+  respondToProgressWrites(
+    () => MISSING_POSITION_COLUMN,
+    () => {
+      armSwitch();
+      return { data: legacyStoredRow() };
+    }
+  );
+
+  assert.deepEqual(await syncProgress(USER_A), STALE);
+  assert.equal(progressStore.getState().chaptersRead.GEN_1, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// The transient-retry backoff and overlapping cycles
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces setTimeout for one test: each transient-retry backoff is recorded
+ * and held until the test releases it. Nothing else on the sync path schedules
+ * a timer.
+ */
+const holdRetryBackoffs = (t: TestContext) => {
+  const delays: number[] = [];
+  const held: Array<() => void> = [];
+  t.mock.method(globalThis, 'setTimeout', ((fire: () => void, delay = 0) => {
+    delays.push(delay);
+    held.push(fire);
+    return delays.length;
+  }) as unknown as typeof setTimeout);
+  return {
+    delays,
+    waitForHeld: async (count: number) => {
+      for (let round = 0; round < 1000 && held.length < count; round += 1) {
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      assert.equal(held.length, count, `expected ${count} retry backoff(s) to be pending`);
+    },
+    releaseAll: () => {
+      for (const fire of held.splice(0)) fire();
+    },
+  };
+};
+
+test('a transient failure waits out a 250-750 ms jittered backoff before its one retry', async (t) => {
+  let draw = 0;
+  t.mock.method(Math, 'random', () => draw);
+  const backoffs = holdRetryBackoffs(t);
+
+  for (const nextDraw of [0, 0.999999]) {
+    draw = nextDraw;
+    let attempts = 0;
+    script.user_progress = {
+      write: () => (++attempts === 1 ? { error: { message: 'network timeout' } } : { error: null }),
+    };
+
+    const running = syncAll(USER_A, 1);
+    await backoffs.waitForHeld(1);
+    assert.equal(attempts, 1, 'nothing is retried before the backoff elapses');
+    backoffs.releaseAll();
+
+    assert.equal((await running).success, true);
+    assert.equal(attempts, 2);
+  }
+  // The lowest draw waits the window's floor; the highest stays under its ceiling.
+  assert.deepEqual(backoffs.delays, [250, 749]);
+});
+
+test('a failed branch that carries no error message is not retried as transient', async () => {
+  syncPlanProgressResult = () => ({ success: false });
+
+  const result = await withoutBackoffDelay(() => syncAll(USER_A, 1));
+
+  assert.equal(result.success, false);
+  assert.equal(planSyncCalls.length, 1);
+});
+
+test('a cycle that ends while an overlapping cycle is still retrying keeps their shared profile upsert', async (t) => {
+  const backoffs = holdRetryBackoffs(t);
+  let planPushes = 0;
+  syncPlanProgressResult = () =>
+    ++planPushes === 2 ? { success: false, error: 'network timeout' } : { success: true };
+
+  const cycles = [syncAll(USER_A, 1), syncAll(USER_A, 1)];
+  // One cycle's plan push failed transiently and waits on its backoff, so the
+  // other one finishes first and leaves the shared cycle state.
+  await Promise.race(cycles);
+  await backoffs.waitForHeld(1);
+  backoffs.releaseAll();
+  const results = await Promise.all(cycles);
+
+  assert.deepEqual(
+    results.map((result) => result.success),
+    [true, true]
+  );
+  assert.equal(planPushes, 3);
+  assert.equal(callsFor('profiles', 'upsert').length, 1);
 });

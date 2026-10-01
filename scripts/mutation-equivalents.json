@@ -123,6 +123,124 @@
       "reason": "Only picks between two records of the same chapter at the same instant, which differ only in fields nothing outside the module reads"
     }
   ],
+  "src/services/plans/readingPlanModel.ts": [
+    {
+      "key": "number-literal|5|6|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "number-literal|5|4|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "arithmetic-swap|*|/|const UNSYNCED_LOCAL_PROGRESS_GRACE_MS = 5 * 60 * 1000;#1",
+      "reason": "UNSYNCED_LOCAL_PROGRESS_GRACE_MS only feeds the _graceMs parameter, which is never read"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'",
+      "reason": "getLocalWeekStart is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|weekStartsOn: Pick<ReadingPlan, 'weekStartsOn'>['weekStartsOn'] = 'sunday'#1",
+      "reason": "isSameLocalWeek is always called with an explicit value; Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "nullish-drop-default|progress.completed_at ?? null|progress.completed_at|completed_at: progress.completed_at ?? null,",
+      "reason": "completed_at is string | null and always present in select('*') rows, and null ?? null is null"
+    },
+    {
+      "key": "remove-statement|return false;|;|return false;",
+      "reason": "An unreadable started_at gives NaN days, and NaN > 0 is false either way"
+    },
+    {
+      "key": "number-literal|1|0|return Math.min(Math.max(recurringDayNumber, 1), maxDay);",
+      "reason": "Every recurring day number is already at least 1, so a floor of 0 or 1 changes nothing"
+    },
+    {
+      "key": "number-literal|1|0|const currentDay = Math.max(progress?.current_day ?? 1, 1);",
+      "reason": "Math.max(0, 1) and Math.max(1, 1) are both 1"
+    },
+    {
+      "key": "relational-boundary|>|>=|formatLocalDateKey(cycleDate) > todayKey",
+      "reason": "When this cycle's date is today, the previous cycle's date is never yesterday, so it falls through to the same key"
+    },
+    {
+      "key": "relational-boundary|>|>=|if (dayNumber > currentDay) {",
+      "reason": "dayNumber === currentDay already returned 'today', so >= and > agree"
+    },
+    {
+      "key": "nullish-drop-default|plan.weekStartsOn ?? 'sunday'|plan.weekStartsOn|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')",
+      "reason": "Passing undefined triggers isSameLocalWeek's own 'sunday' default"
+    },
+    {
+      "key": "string-literal|'sunday'|''|? isSameLocalWeek(completedDate, today, plan.weekStartsOn ?? 'sunday')",
+      "reason": "Only 'monday' is special, so '' behaves like the 'sunday' default"
+    },
+    {
+      "key": "number-literal|1|2|const dayIndex = completedDate ? getLocalDaysBetween(season.start, completedDate) : -1;",
+      "reason": "-2 and -1 both fail dayIndex >= 0"
+    },
+    {
+      "key": "logical-swap|&&||||typeof left.session_order === 'number' && Number.isFinite(left.session_order)",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "logical-swap|&&||||typeof right.session_order === 'number' && Number.isFinite(right.session_order)",
+      "reason": "session_order is a finite number, null or absent in bundled/JSON data, where the type check and Number.isFinite agree"
+    },
+    {
+      "key": "nullish-drop-default|remote.completed_sessions ?? {}|remote.completed_sessions|remote.completed_sessions ?? {},",
+      "reason": "Spreading undefined gives the same empty object as spreading {}"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|? (remote.current_session ?? null)",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|? (local.current_session ?? null)",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|local.current_session ?? null|local.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "nullish-drop-default|remote.current_session ?? null|remote.current_session|: laterSession(local.current_session ?? null, remote.current_session ?? null),",
+      "reason": "Only turns a missing next session into undefined instead of null; the store normalizes ?? null and readers use Boolean()"
+    },
+    {
+      "key": "relational-boundary|<|<=|return leftTime < rightTime ? left : right;",
+      "reason": "Only entered when the two times differ, so < and <= agree"
+    },
+    {
+      "key": "negate-condition|left <= right|!(left <= right)|return left <= right ? left : right;",
+      "reason": "Only changes which spelling of the same instant is kept, the same on every device; the choice is unspecified"
+    },
+    {
+      "key": "relational-boundary|<=|<|return left <= right ? left : right;",
+      "reason": "< and <= only differ when the two strings are identical"
+    },
+    {
+      "key": "logical-swap|&&||||typeof existing === 'string' && typeof completedAt === 'string'",
+      "reason": "With no existing stamp, earlierStamp(undefined, s) returns s anyway"
+    },
+    {
+      "key": "logical-swap||||&&|if (left === null || right === null) {",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "remove-statement|return left ?? right;|;|return left ?? right;",
+      "reason": "When one side is null its index is -1, so the comparison picks the non-null side like left ?? right"
+    },
+    {
+      "key": "relational-boundary|>=|>|return PLAN_SESSION_ORDER.indexOf(left) >= PLAN_SESSION_ORDER.indexOf(right) ? left : right;",
+      "reason": "Equal indexes mean the same session key, so either side is returned"
+    }
+  ],
   "src/services/sync/syncMerge.ts": [
     {
       "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {",
@@ -187,6 +305,194 @@
     {
       "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,",
       "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    }
+  ],
+  "src/services/sync/syncService.ts": [
+    {
+      "key": "nullish-drop-default|identity.expectedGeneration ?? 'legacy'|identity.expectedGeneration|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;",
+      "reason": "captureSyncIdentity always passes a numeric generation, so the 'legacy' default is never used"
+    },
+    {
+      "key": "string-literal|'legacy'|''|`${identity.expectedUserId}:${identity.expectedGeneration ?? 'legacy'}`;",
+      "reason": "The default is never used, and the cycle key is only compared with itself"
+    },
+    {
+      "key": "remove-statement|return false;|;|if (!error) return false;",
+      "reason": "Not a transient pattern: the regex then tests the text 'undefined', which matches nothing, so the result is the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferencesSyncBase ?? null|authState.preferencesSyncBase|base: authState.preferencesSyncBase ?? null,",
+      "reason": "mergePreferences only checks base for truthiness, so undefined and null behave the same"
+    },
+    {
+      "key": "nullish-drop-default|authState.preferenceFieldStamps ?? {}|authState.preferenceFieldStamps|fieldStamps: authState.preferenceFieldStamps ?? {},",
+      "reason": "Both consumers already default fieldStamps with ?? {}"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/field_updated_at/.test(error.message ?? '')",
+      "reason": ".test(undefined) tests 'undefined', which never matches /field_updated_at/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/field_updated_at/.test(error.message ?? '')",
+      "reason": "'__mutant__' does not match /field_updated_at/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|merge.fieldStamps ?? undefined|merge.fieldStamps|const fieldStamps = merge.fieldStamps ?? undefined;",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "nullish-drop-default|error.message ?? ''|error.message|/position_updated_(at|for)/.test(error.message ?? '')",
+      "reason": ".test(undefined) never matches /position_updated_(at|for)/, same as ''"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|/position_updated_(at|for)/.test(error.message ?? '')",
+      "reason": "'__mutant__' does not match /position_updated_(at|for)/ either, same as ''"
+    },
+    {
+      "key": "nullish-drop-default|expectedUserId ?? useAuthStore.getState().user?.uid ?? null|expectedUserId ?? useAuthStore.getState().user?.uid|const candidate = expectedUserId ?? useAuthStore.getState().user?.uid ?? null;",
+      "reason": "The candidate is only checked for falsiness, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "For a falsy candidate the next check also returns null, because a signed-out store has no uid"
+    },
+    {
+      "key": "nullish-drop-default|useAuthStore.getState().user?.uid ?? null|useAuthStore.getState().user?.uid|() => useAuthStore.getState().user?.uid ?? null,",
+      "reason": "The uid is only compared !== to a non-empty expected uid, so undefined and null behave the same"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#1",
+      "reason": "Only runs inside syncAll, whose closing isCurrent check returns the same stale result; generations only move forward"
+    },
+    {
+      "key": "remove-statement|return { success: true };|;|return { success: true };",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "boolean-literal|true|false|return { success: true };",
+      "reason": "Unreachable: pullFromCloud already returns early when Supabase is unconfigured (a build-time constant)"
+    },
+    {
+      "key": "nullish-drop-default|mergedReading.readingPositionUpdatedAt ?? null|mergedReading.readingPositionUpdatedAt|updatedAt: mergedReading.readingPositionUpdatedAt ?? null,",
+      "reason": "mergeReadingSnapshot always returns readingPositionUpdatedAt as number | null, never undefined"
+    },
+    {
+      "key": "nullish-drop-default|mergedPreferences.fieldStamps ?? undefined|mergedPreferences.fieldStamps|mergedPreferences.fieldStamps ?? undefined",
+      "reason": "authStore.applySyncedPreferences handles null and undefined stamps the same way"
+    },
+    {
+      "key": "logical-swap||||&&|mergedPreferences.changed ||",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "equality-flip|!==|===|remotePreferences?.synced_at !== localSnapshot.updatedAt ||",
+      "reason": "Only differs if the snapshot stamp equals, to the millisecond, a timestamp taken after the upload round trip"
+    },
+    {
+      "key": "nullish-drop-default|activeSyncAllCycles.get(cycleKey) ?? 1|activeSyncAllCycles.get(cycleKey)|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|2|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "number-literal|1|0|const remaining = (activeSyncAllCycles.get(cycleKey) ?? 1) - 1;",
+      "reason": "The ?? 1 default is never used: each finally decrements a key its own cycle incremented"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#20",
+      "reason": "The runIfCurrent on the next line runs the same check synchronously and returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#21",
+      "reason": "The isCurrent check that follows immediately returns the same stale result"
+    },
+    {
+      "key": "remove-statement|return staleSyncResult();|;|return staleSyncResult();#22",
+      "reason": "pullReadingPlansFromCloud's own isCurrent check runs before any request and returns the same stale result"
+    }
+  ],
+  "src/stores/authStore.ts": [
+    {
+      "key": "number-literal|0|1|let authChangesApplied = 0;",
+      "reason": "authChangesApplied is only compared with its own earlier value"
+    },
+    {
+      "key": "logical-swap||||&&|if (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt))) {",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "remove-statement|return {};|;|return {};",
+      "reason": "merge re-sanitizes seeded stamps with the same rule, so an invalid updatedAt gives {} either way"
+    },
+    {
+      "key": "number-literal|0|1|authGeneration: 0,",
+      "reason": "authGeneration is only compared with values read from it earlier, never with a constant"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const previousUserId = get().user?.uid ?? null;#2",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|(get().user?.uid ?? null) === previousUserId && get().authGeneration === generation;",
+      "reason": "Only differs for a signOut() that starts with no user in the store, which no caller does; the one race that gets there finds the same reset already applied"
+    },
+    {
+      "key": "remove-statement|return;|;|if (!isCurrent()) return;#1",
+      "reason": "services/auth signOut(isCurrent) re-checks the same isCurrent first; the later check only lets through the SIGNED_OUT reset the handler already applied"
+    },
+    {
+      "key": "number-literal|0|1|get().user === null && get().authGeneration === generation + (previousUserId ? 1 : 0);",
+      "reason": "From a guest start the generation only moves when the uid changes, so the user cannot be null after exactly one bump"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|const endingUserId = get().user?.uid ?? null;",
+      "reason": "endingUserId is only read as a truthiness test, and undefined and null are both falsy"
+    },
+    {
+      "key": "remove-statement|recoverySignOutRequest = null;|;|recoverySignOutRequest = null;",
+      "reason": "recoverySignOutRequest is only compared in the finally of the signOut that just assigned it"
+    },
+    {
+      "key": "nullish-drop-default|get().user?.uid ?? null|get().user?.uid|reconcileUserBoundary: (userId, previousUserId = get().user?.uid ?? null) => {",
+      "reason": "undefined and null previousUserId are both falsy everywhere applyAuthBoundaryEffects reads it"
+    },
+    {
+      "key": "relational-boundary|<|<=|return version < 4",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "number-literal|4|5|return version < 4",
+      "reason": "zustand runs migrate only when the stored version differs from 4, so the bounds only differ at 4, which never migrates"
+    },
+    {
+      "key": "logical-swap|&&||||const restoreFailed = 'restoreFailed' in restored && restored.restoreFailed === true;",
+      "reason": "getCurrentSession only includes restoreFailed with the value true, so the key test and the value test agree"
+    },
+    {
+      "key": "remove-statement|stopRestoreRetry();|;|stopRestoreRetry();",
+      "reason": "resetRestoreRetryForTests is a test-only seam with no production caller"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (restoreRetryListener || restoreRetriesUsed >= RESTORE_RETRY_LIMIT) return;",
+      "reason": "scheduleRestoreRetry runs at most once per process, while restoreRetriesUsed is still 0"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "arithmetic-swap|+=|-=|authChangesApplied += 1;#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
+    },
+    {
+      "key": "number-literal|1|2|authChangesApplied += 1;#1",
+      "reason": "authChangesApplied is only compared with its own earlier value; any change marks the auth change"
     }
   ],
   "src/stores/bible/textPackInstallModel.ts": [
