@@ -21,6 +21,7 @@ import {
   getVerseImageScrim,
   type VerseImageStyle,
 } from './verseImage/verseImageStyle';
+import { VERSE_IMAGE_ASPECT_RATIO } from './verseImage/verseImageCapture';
 import { quoteVerseForImage } from './verseImage/verseImageQuote';
 
 const REFERENCE_FONT_SIZE = 13;
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    aspectRatio: 1.08,
+    aspectRatio: VERSE_IMAGE_ASPECT_RATIO,
   },
   verseImagePreviewBackground: {
     flex: 1,
