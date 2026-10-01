@@ -104,3 +104,28 @@ test('sequential session completion ignores an optional calendar occurrence', ()
   assert.equal(completion?.dayCompletionKey, '1');
   assert.equal(completion?.advanceDayOnCompletion, true);
 });
+
+test('a recurring session resolved across midnight keeps one date for every key it builds', () => {
+  const recurring = plan({ scheduleMode: 'calendar-day-of-month', duration_days: 31 });
+  const RealDate = Date;
+  // Worst case of a clock read at 23:59:59.999 on the last day of a month: every further
+  // read lands in the next month, where a day-of-month plan's keys differ.
+  let reads = 0;
+  class SteppingDate extends RealDate {
+    constructor(...args: ConstructorParameters<typeof RealDate>) {
+      if (args.length === 0) {
+        super(2026, 8 + reads++, 15, 23, 59, 59, 999);
+      } else {
+        super(...args);
+      }
+    }
+  }
+  globalThis.Date = SteppingDate as unknown as DateConstructor;
+  try {
+    const completion = resolvePlanSessionCompletion(recurring, entries, 1, 'morning', {});
+
+    assert.equal(completion?.completionKey, `${completion?.dayCompletionKey}:morning`);
+  } finally {
+    globalThis.Date = RealDate;
+  }
+});
