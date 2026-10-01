@@ -695,6 +695,9 @@ export function BibleReaderScreen() {
         setAnnotations(result.data);
       }
     };
+    // The previous chapter's rows are keyed by verse number, so they must not outlive it:
+    // drawn over the new chapter, or handed to an edit, they would hit the wrong verses.
+    setAnnotations((current) => (current.length === 0 ? current : []));
     void loadAnnotations();
     // A sign-in or sign-out elsewhere swaps whose annotations the store holds while this
     // chapter stays open; without a reload it kept drawing the previous account's.

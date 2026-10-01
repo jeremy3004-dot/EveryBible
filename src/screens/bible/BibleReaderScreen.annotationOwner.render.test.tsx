@@ -301,3 +301,20 @@ test('a failed note save leaves the current composer draft ready to retry', asyn
   assert.equal(annotationRows[0]?.verse_start, 3);
   assert.equal(annotationRows[0]?.content, 'Retry this note');
 });
+
+test("the previous chapter's highlights are not drawn on the new chapter while its own load is pending", async () => {
+  annotationRows.push(row({}));
+  reader.chapters.set('JHN:4', [verseOf(3, 'The next chapter.', {}, 'JHN', 4)]);
+  const view = await renderReader();
+  assert.equal(backgroundOf(view, 3), `${YELLOW}33`);
+
+  reader.holdAnnotations();
+  await reader.navigateReader(view, { chapter: 4 });
+  await view.flush();
+
+  assert.equal(reader.annotationLoads.at(-1)?.chapter, 'JHN:4', 'chapter 4 is still loading');
+  assert.equal(backgroundOf(view, 3), undefined, 'chapter 3 highlights stay on chapter 3');
+  await act(async () => {
+    reader.annotationLoads.at(-1)?.resolve([]);
+  });
+});
