@@ -204,10 +204,13 @@ export const completeSession = (
     ...existing,
     completed_entries,
     completed_sessions,
-    current_day:
-      options.isFinalSession && options.advanceDayOnCompletion
+    current_day: !options.advanceDayOnCompletion
+      ? Math.max(dayNumber, 1)
+      : options.isFinalSession
         ? computeNextDay(existing.current_day, dayNumber)
-        : Math.max(dayNumber, 1),
+        : // Like computeNextDay, a fixed-length plan only moves forward: ticking a session of an
+          // earlier day must not pull the reader back to it.
+          Math.max(existing.current_day, dayNumber, 1),
     current_session: options.isFinalSession ? null : (options.nextSessionKey ?? sessionKey),
     is_completed: isCompleted,
     completed_at: isCompleted ? now : null,
