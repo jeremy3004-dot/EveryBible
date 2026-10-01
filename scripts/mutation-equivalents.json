@@ -1,4 +1,36 @@
 {
+  "src/hooks/audioPlayer/useSleepTimerCountdown.ts": [
+    {
+      "key": "boolean-literal|false|true|selahActive = false,|useSleepTimerCountdown",
+      "reason": "The only caller, useAudioPlayer, always passes the store's selahActive, so the default is never used"
+    },
+    {
+      "key": "remove-statement|clearTimeout(sleepTimerRef.current);|;|clearTimeout(sleepTimerRef.current);|useSleepTimerCountdown.stopCountdown",
+      "reason": "clearInterval also clears a timeout: React Native, Node and browsers share one timer id pool"
+    },
+    {
+      "key": "remove-statement|sleepTimerRef.current = null;|;|sleepTimerRef.current = null;|useSleepTimerCountdown.stopCountdown",
+      "reason": "The ref is only read to clear it again, and clearing a fired or cleared timer does nothing"
+    },
+    {
+      "key": "remove-statement|stopCountdown();|;|stopCountdown();|useSleepTimerCountdown",
+      "reason": "React runs the previous effect's cleanup (the same stopCountdown) before every re-run, so the ref is already clear"
+    },
+    {
+      "key": "logical-swap|&&||||status === 'playing' || status === 'loading' || (selahActive && status === 'paused');|useSleepTimerCountdown.isRunning",
+      "reason": "The store holds an end time only while the timer runs, so a paused non-Selah input with an end time never reaches the hook"
+    },
+    {
+      "key": "number-literal|0|1|sleepTimerRef.current = setTimeout(tick, Math.max(0, sleepTimerEndTime - Date.now()));|useSleepTimerCountdown",
+      "reason": "Only matters once the deadline has passed: a 0 ms or 1 ms wait is the same single wakeup"
+    }
+  ],
+  "src/hooks/useLocalToday.ts": [
+    {
+      "key": "number-literal|1|0|return Math.max(graceEnd.getTime() - now.getTime(), 1);|getMillisecondsUntilNextBoundary",
+      "reason": "In the small hours, 04:00 the same local day is always at least 1 ms ahead, so floors of 0 and 1 never differ"
+    }
+  ],
   "src/services/audio/download/chapterTransfer.ts": [
     {
       "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());|delay",
