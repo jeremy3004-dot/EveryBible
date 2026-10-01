@@ -4,7 +4,7 @@ import {
   mapCatalogEntryToBibleTranslation,
   normalizeCatalogTranslationId,
 } from './translationCatalogModel';
-import { applyElRuntimeCatalog, type ElBootstrapStep } from './runtimeElCatalog';
+import { applyElRuntimeCatalog, defaultElStep, type ElBootstrapStep } from './runtimeElCatalog';
 import { resolveElCatalogUrl } from '../elMedia/elMediaConfig';
 
 interface CatalogListResult {
@@ -96,21 +96,26 @@ async function fetchRuntimeCatalog(
   const listTranslations =
     deps.listTranslations ?? (await import('./translationService')).listAvailableTranslations;
 
-  let catalogResult: CatalogListResult;
-  try {
-    catalogResult = await listTranslations();
-  } catch {
-    // Treat thrown transport errors like returned failures so EL can still refresh.
-    catalogResult = { success: false };
-  }
-  const hasSupabaseCatalog = Boolean(
-    catalogResult.success && catalogResult.data && catalogResult.data.length > 0
-  );
-
   // Cheap, side-effect-free check (feature flag + configured base URL). Null in every flag-off
   // build, which keeps this path byte-equivalent to the original Supabase-only flow.
   const resolveUrl = deps.resolveUrl ?? resolveElCatalogUrl;
-  const isElActive = resolveUrl() !== null;
+  const elCatalogUrl = resolveUrl();
+  const isElActive = elCatalogUrl !== null;
+
+  // The Supabase list (30 s timeout) and the EL fetch (10 s) are independent, so start both
+  // together: a blackhole network then costs max(30, 10) seconds, not their sum. Merging below
+  // stays sequential (Supabase apply first, then the combined EL apply), so results are identical.
+  const elStep = deps.elStep ?? defaultElStep;
+  const [listSettled, elSettled] = await Promise.allSettled([
+    (async () => listTranslations())(),
+    (async () => (elCatalogUrl !== null ? elStep(elCatalogUrl) : []))(),
+  ]);
+  // Treat thrown transport errors like returned failures so EL can still refresh.
+  const catalogResult: CatalogListResult =
+    listSettled.status === 'fulfilled' ? listSettled.value : { success: false };
+  const hasSupabaseCatalog = Boolean(
+    catalogResult.success && catalogResult.data && catalogResult.data.length > 0
+  );
 
   if (!hasSupabaseCatalog && !isElActive) {
     return {
@@ -154,7 +159,11 @@ async function fetchRuntimeCatalog(
   if (isElActive) {
     appliedElCatalog = await applyElRuntimeCatalog(runtimeTranslations, {
       resolveUrl,
-      elStep: deps.elStep,
+      // The EL fetch already ran alongside the Supabase request; replay its outcome.
+      elStep: async () => {
+        if (elSettled.status === 'rejected') throw elSettled.reason;
+        return elSettled.value;
+      },
       applyRuntimeCatalog,
     });
   }
