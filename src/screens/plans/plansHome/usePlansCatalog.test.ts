@@ -27,6 +27,14 @@ mockModule(mock, sourcePath('services/plans/readingPlanService.ts'), {
   },
 });
 
+// The hook reports a rejected read; the real queue pulls in React Native.
+const reportedErrors: string[] = [];
+mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
+  reportHandledError: (source: string) => {
+    reportedErrors.push(source);
+  },
+});
+
 const settle = async () => {
   for (let round = 0; round < 6; round += 1) {
     await new Promise((resolve) => setImmediate(resolve));
@@ -37,6 +45,7 @@ afterEach(() => {
   runtime.unmountAll();
   mock.timers.reset();
   progressReads = 0;
+  reportedErrors.length = 0;
   progressResult = async () => ({ success: true, data: [] });
 });
 
