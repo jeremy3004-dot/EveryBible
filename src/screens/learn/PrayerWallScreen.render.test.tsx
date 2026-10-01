@@ -856,3 +856,52 @@ test('a refresh which already contains the pending create result does not duplic
   assert.equal(rows[0].encouraged_count, 3);
   assert.equal(rows[0].is_answered, true);
 });
+
+test('a prayer posted while the first load is in flight does not discard the older requests', async () => {
+  const first = deferred<ListResult>();
+  backend.pages.push(first.promise);
+  const view = await renderWall();
+  const created = request({ id: 'created', content: 'Posted during load', user_id: 'viewer-1' });
+  await view.fire(
+    view.getByLabelText(t('prayer.requestPlaceholder')),
+    'onChangeText',
+    'Posted during load'
+  );
+  backend.mutationResult = { success: true, data: created };
+  await view.press(view.getByRole('button', { name: t('prayer.submitRequest') }));
+  backend.pages.push({ success: true, data: [created, request()] });
+  await act(async () => {
+    first.resolve({ success: true, data: [request()] });
+  });
+  await view.flush();
+  await view.flush();
+  assert.ok(view.getByText('Posted during load'));
+  assert.ok(view.getByText('Pray for my neighbour'));
+  const list = view.queryAllByType('FlatList')[0];
+  assert.equal((list.props.data as unknown[]).length, 2);
+});
+
+test('a failed pull to refresh tells the reader and does not turn the wall into an error screen', async () => {
+  backend.result = { success: true, data: [request({ user_id: 'viewer-1' })] };
+  const view = await renderWall();
+  backend.offline = true;
+  backend.pages.push({ success: false, error: 'Failed to fetch' });
+  const alertsBefore = harness.rn.__recorded.alerts.length;
+  await pullToRefresh(view);
+  await view.flush();
+  assert.equal(harness.rn.__recorded.alerts.length, alertsBefore + 1);
+  assert.equal(harness.rn.__recorded.alerts.at(-1)!.message, t('common.offlineTryAgain'));
+  assert.ok(view.getByText('Pray for my neighbour'));
+
+  // Deleting the last request now shows the empty wall, not "something went wrong".
+  backend.mutationResult = { success: true };
+  await showAction(view, t('common.delete'));
+  const confirm = (
+    harness.rn.__recorded.alerts.at(-1)!.buttons as Array<{ onPress?: () => Promise<void> }>
+  )[1].onPress!;
+  await act(async () => {
+    await confirm();
+  });
+  assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+  assert.ok(view.getByText(t('prayer.noPrayers')));
+});

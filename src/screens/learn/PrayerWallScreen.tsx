@@ -113,6 +113,11 @@ export function PrayerWallScreen() {
   const loadGenerationRef = useRef(0);
   // A list snapshot started before a confirmed write must not undo that write.
   const confirmedMutationRef = useRef(0);
+  // Whether this wall has shown a server snapshot yet; the first one is never just dropped.
+  const hasLoadedRef = useRef(false);
+  // Read by loadRequests, which must not change identity (and reload the wall) with the language.
+  const tRef = useRef(t);
+  tRef.current = t;
   // The request whose report form is open, if any.
   const [reportTarget, setReportTarget] = useState<PrayerRequestWithCounts | null>(null);
   const [isReporting, setIsReporting] = useState(false);
@@ -136,10 +141,33 @@ export function PrayerWallScreen() {
     setIsLoadingMore(false);
     const isCurrent = () => owner.isCurrent() && generation === loadGenerationRef.current;
     const isFresh = () => isCurrent() && mutation === confirmedMutationRef.current;
+    // With nothing on screen the error screen offers a retry. A failed refresh over a wall that
+    // already loaded keeps the rows, and an alert says why they did not update; flagging it as
+    // a load error would show the error screen once the reader deleted the last request.
+    const reportLoadFailure = (isOffline: boolean) => {
+      if (hasLoadedRef.current) {
+        const translate = tRef.current;
+        Alert.alert(
+          translate('common.error'),
+          isOffline ? translate('common.offlineTryAgain') : translate('common.somethingWentWrong')
+        );
+        return;
+      }
+      setOffline(isOffline);
+      setLoadError(true);
+    };
+    // A write confirmed while the very first load was in flight makes that snapshot stale, but
+    // dropping it would leave the wall with only the new row and no older requests or retry.
+    let reloadFirstSnapshot = false;
     try {
       const result = await prayerService.listPrayerRequests(groupId);
+      if (isCurrent() && !isFresh() && !hasLoadedRef.current) {
+        reloadFirstSnapshot = true;
+        return;
+      }
       if (!isFresh()) return;
       if (result.success && result.data) {
+        hasLoadedRef.current = true;
         setRequests(result.data);
         setNextCursor(result.nextCursor ?? null);
         confirmedRef.current = new Map();
@@ -148,17 +176,16 @@ export function PrayerWallScreen() {
       } else {
         const isOffline = await isDeviceOffline();
         if (!isFresh()) return;
-        setOffline(isOffline);
-        setLoadError(true);
+        reportLoadFailure(isOffline);
       }
     } catch {
       if (!isFresh()) return;
       const isOffline = await isDeviceOffline().catch(() => false);
       if (!isFresh()) return;
-      setOffline(isOffline);
-      setLoadError(true);
+      reportLoadFailure(isOffline);
     } finally {
-      if (isCurrent()) {
+      if (reloadFirstSnapshot) void loadRequests();
+      else if (isCurrent()) {
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -210,6 +237,7 @@ export function PrayerWallScreen() {
     inFlightRef.current = new Map();
     confirmedRef.current = new Map();
     loadingMoreRef.current = null;
+    hasLoadedRef.current = false;
     submittingRef.current = null;
     reportingRef.current = null;
     setRequests([]);
