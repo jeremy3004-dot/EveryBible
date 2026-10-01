@@ -536,6 +536,7 @@ export const ar = {
       'آية اليوم متاحة حاليًا في شكل صوتي، لذا يمكنك الاستماع حتى قبل إضافة النص المكتوب.',
     playSectionOfTheDay: 'تشغيل قسم اليوم',
     playVerseOfTheDay: 'تشغيل آية اليوم',
+    shareVerseOfTheDay: 'مشاركة آية اليوم',
     continueReading: 'مواصلة القراءة',
     sharePrompt: 'شارك النور. شجّع أحدهم اليوم.',
     lessonChip: 'الدرس {{number}}',

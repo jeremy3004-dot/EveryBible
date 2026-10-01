@@ -509,6 +509,7 @@ export const tr = {
       'Bugünün ayeti şu anda sesli olarak mevcuttur, böylece yazılı metin eklenmeden önce bile dinleyebilirsiniz.',
     playSectionOfTheDay: 'Günün bölümünü dinle',
     playVerseOfTheDay: 'Günün ayetini dinle',
+    shareVerseOfTheDay: 'Günün ayetini paylaş',
     continueReading: 'Okumaya devam et',
     sharePrompt: 'Işığı paylaşın. Bugün birini yüreklendirin.',
     lessonChip: 'Ders {{number}}',

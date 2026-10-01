@@ -496,6 +496,7 @@ export const ko = {
       '오늘의 말씀은 지금 오디오로 제공되어, 글로 된 본문이 추가되기 전에도 들을 수 있습니다.',
     playSectionOfTheDay: '오늘의 본문 재생',
     playVerseOfTheDay: '오늘의 말씀 재생',
+    shareVerseOfTheDay: '오늘의 말씀 공유',
     continueReading: '계속 읽기',
     sharePrompt: '빛을 나누세요. 오늘 누군가를 격려하세요.',
     lessonChip: '레슨 {{number}}',

@@ -153,6 +153,7 @@ export const hi = {
       'आज का वचन अभी ऑडियो रूप में उपलब्ध है, इसलिए लिखित पाठ जुड़ने से पहले भी आप इसे सुन सकते हैं।',
     playSectionOfTheDay: 'आज का भाग चलाएँ',
     playVerseOfTheDay: 'आज का वचन चलाएँ',
+    shareVerseOfTheDay: 'आज का वचन साझा करें',
     continueReading: 'पढ़ना जारी रखें',
     sharePrompt: 'प्रकाश फैलाएँ। आज किसी को प्रोत्साहित करें।',
     lessonChip: 'पाठ {{number}}',

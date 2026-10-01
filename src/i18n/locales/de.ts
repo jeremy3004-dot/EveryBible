@@ -512,6 +512,7 @@ export const de = {
       'Der heutige Vers ist derzeit als Audio verfügbar, sodass du ihn schon hören kannst, bevor der geschriebene Text ergänzt wird.',
     playSectionOfTheDay: 'Abschnitt des Tages abspielen',
     playVerseOfTheDay: 'Vers des Tages abspielen',
+    shareVerseOfTheDay: 'Vers des Tages teilen',
     continueReading: 'Weiterlesen',
     sharePrompt: 'Teile Licht. Ermutige heute jemanden.',
     lessonChip: 'Lektion {{number}}',

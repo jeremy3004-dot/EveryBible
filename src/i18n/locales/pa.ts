@@ -153,6 +153,7 @@ export const pa = {
       'ਅੱਜ ਦੀ ਆਇਤ ਇਸ ਵੇਲੇ ਆਡੀਓ ਰੂਪ ਵਿੱਚ ਉਪਲਬਧ ਹੈ, ਇਸ ਲਈ ਲਿਖਤੀ ਪਾਠ ਜੁੜਨ ਤੋਂ ਪਹਿਲਾਂ ਹੀ ਤੁਸੀਂ ਸੁਣ ਸਕਦੇ ਹੋ।',
     playSectionOfTheDay: 'ਦਿਨ ਦਾ ਭਾਗ ਚਲਾਓ',
     playVerseOfTheDay: 'ਦਿਨ ਦੀ ਆਇਤ ਚਲਾਓ',
+    shareVerseOfTheDay: 'ਦਿਨ ਦੀ ਆਇਤ ਸਾਂਝੀ ਕਰੋ',
     continueReading: 'ਪੜ੍ਹਨਾ ਜਾਰੀ ਰੱਖੋ',
     sharePrompt: 'ਰੋਸ਼ਨੀ ਸਾਂਝੀ ਕਰੋ। ਅੱਜ ਕਿਸੇ ਨੂੰ ਉਤਸ਼ਾਹਿਤ ਕਰੋ।',
     lessonChip: 'ਪਾਠ {{number}}',

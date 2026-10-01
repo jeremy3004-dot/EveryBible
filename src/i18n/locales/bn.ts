@@ -152,6 +152,7 @@ export const bn = {
       'আজকের পদটি এখন অডিওতে পাওয়া যাচ্ছে, তাই লিখিত পাঠ যোগ হওয়ার আগেই আপনি শুনতে পারেন।',
     playSectionOfTheDay: 'দিনের পাঠ্যাংশ শুনুন',
     playVerseOfTheDay: 'দিনের পদ শুনুন',
+    shareVerseOfTheDay: 'দিনের পদ শেয়ার করুন',
     continueReading: 'পড়া চালিয়ে যান',
     sharePrompt: 'আলো ছড়িয়ে দিন। আজ কাউকে উৎসাহিত করুন।',
     lessonChip: 'পাঠ {{number}}',

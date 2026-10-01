@@ -152,6 +152,7 @@ export const te = {
       'నేటి వచనం ప్రస్తుతం ఆడియో రూపంలో ఉంది, కాబట్టి వ్రాత రూపం జోడించక ముందే మీరు వినవచ్చు.',
     playSectionOfTheDay: 'నేటి భాగాన్ని వినండి',
     playVerseOfTheDay: 'నేటి వచనాన్ని వినండి',
+    shareVerseOfTheDay: 'నేటి వచనాన్ని షేర్ చేయండి',
     continueReading: 'చదవడం కొనసాగించండి',
     sharePrompt: 'వెలుగును పంచుకోండి. ఈరోజు ఎవరినైనా ప్రోత్సహించండి.',
     lessonChip: 'పాఠం {{number}}',

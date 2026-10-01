@@ -522,6 +522,7 @@ export const pt = {
       'O versículo de hoje está disponível em áudio, assim você pode ouvi-lo antes mesmo de o texto escrito ser adicionado.',
     playSectionOfTheDay: 'Ouvir a seção do dia',
     playVerseOfTheDay: 'Ouvir o versículo do dia',
+    shareVerseOfTheDay: 'Compartilhar o versículo do dia',
     continueReading: 'Continuar lendo',
     sharePrompt: 'Compartilhe luz. Encoraje alguém hoje.',
     lessonChip: 'Lição {{number}}',

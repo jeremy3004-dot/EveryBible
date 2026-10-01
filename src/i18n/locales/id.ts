@@ -509,6 +509,7 @@ export const id = {
       'Ayat hari ini tersedia dalam bentuk audio, sehingga Anda dapat mendengarkannya bahkan sebelum teks tertulis ditambahkan.',
     playSectionOfTheDay: 'Putar bagian hari ini',
     playVerseOfTheDay: 'Putar ayat hari ini',
+    shareVerseOfTheDay: 'Bagikan ayat hari ini',
     continueReading: 'Lanjutkan membaca',
     sharePrompt: 'Bagikan terang. Semangati seseorang hari ini.',
     lessonChip: 'Pelajaran {{number}}',

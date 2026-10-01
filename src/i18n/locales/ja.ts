@@ -497,6 +497,7 @@ export const ja = {
       '今日の聖句は今のところ音声で用意されているので、本文が加わる前でも聞くことができます。',
     playSectionOfTheDay: '今日の箇所を再生',
     playVerseOfTheDay: '今日の聖句を再生',
+    shareVerseOfTheDay: '今日の聖句を共有',
     continueReading: '続きを読む',
     sharePrompt: '光を分かち合いましょう。今日、誰かを励ましましょう。',
     lessonChip: 'レッスン {{number}}',

@@ -525,6 +525,7 @@ export const ru = {
       'Сегодняшний стих пока доступен в аудио, поэтому его можно послушать ещё до того, как появится текст.',
     playSectionOfTheDay: 'Слушать отрывок дня',
     playVerseOfTheDay: 'Слушать стих дня',
+    shareVerseOfTheDay: 'Поделиться стихом дня',
     continueReading: 'Продолжить чтение',
     sharePrompt: 'Делитесь светом. Поддержите кого-нибудь сегодня.',
     lessonChip: 'Урок {{number}}',

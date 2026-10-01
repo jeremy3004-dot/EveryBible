@@ -480,6 +480,7 @@ export const en = {
       'Today’s verse is currently available in audio form, so you can listen even before written text is added.',
     playSectionOfTheDay: 'Play Section of the Day',
     playVerseOfTheDay: 'Play Verse of the Day',
+    shareVerseOfTheDay: 'Share Verse of the Day',
     continueReading: 'Continue Reading',
     sharePrompt: 'Share light. Encourage someone today.',
     lessonChip: 'Lesson {{number}}',

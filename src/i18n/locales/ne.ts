@@ -151,6 +151,7 @@ export const ne = {
       'आजको पद हाल अडियोमा उपलब्ध छ, त्यसैले लिखित पाठ थपिनुअघि नै तपाईं सुन्न सक्नुहुन्छ।',
     playSectionOfTheDay: 'आजको खण्ड बजाउनुहोस्',
     playVerseOfTheDay: 'आजको पद बजाउनुहोस्',
+    shareVerseOfTheDay: 'आजको पद साझा गर्नुहोस्',
     continueReading: 'पढाइ जारी राख्नुहोस्',
     sharePrompt: 'ज्योति बाँड्नुहोस्। आज कसैलाई प्रोत्साहन दिनुहोस्।',
     lessonChip: 'पाठ {{number}}',

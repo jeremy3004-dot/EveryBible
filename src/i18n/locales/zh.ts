@@ -488,6 +488,7 @@ export const zh = {
     verseAudioBody: '今天的经文目前先以音频形式提供，文字版上线前你就可以收听。',
     playSectionOfTheDay: '播放每日段落',
     playVerseOfTheDay: '播放每日经文',
+    shareVerseOfTheDay: '分享每日经文',
     continueReading: '继续阅读',
     sharePrompt: '把光传出去。今天去鼓励一个人吧。',
     lessonChip: '第 {{number}} 课',
