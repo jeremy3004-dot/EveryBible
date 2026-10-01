@@ -95,6 +95,23 @@ export const listeningChapterEquivalent = (ms: number | undefined): number =>
     : 0;
 
 /**
+ * Each day's listening time snapped to its chapter equivalent (zero below the
+ * minimum, dropped). Feeding the result back through getDailyChapterCounts gives
+ * the same counts, but it only changes when a day crosses a chapter boundary, so a
+ * screen can select it and ignore the 30-second ticks while audio plays.
+ */
+export const quantizeListeningMs = (
+  listeningMsByDate: Record<string, number>
+): Record<string, number> => {
+  const quantized: Record<string, number> = {};
+  for (const [dateKey, ms] of Object.entries(listeningMsByDate)) {
+    const chapters = listeningChapterEquivalent(ms);
+    if (chapters > 0) quantized[dateKey] = chapters * LISTENING_MS_PER_CHAPTER;
+  }
+  return quantized;
+};
+
+/**
  * Chapters per local day, reading and listening together. The day tally is exact
  * from the build that added it; chapter timestamps fill in earlier days (a lower
  * bound, since a reread moves a chapter's timestamp forward) and anything synced

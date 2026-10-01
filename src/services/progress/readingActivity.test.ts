@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReadingActivityMonthView, summarizeReadingActivity } from './readingActivity';
+import {
+  buildReadingActivityMonthView,
+  getDailyChapterCounts,
+  quantizeListeningMs,
+  summarizeReadingActivity,
+} from './readingActivity';
 
 test('summarizes chapter reads by local day with counts and recency', () => {
   const summary = summarizeReadingActivity({
@@ -93,4 +98,22 @@ test('days known only from the tally or listening time still count', () => {
   assert.equal(summary.daysByDateKey['2026-03-20']?.chapterCount, 3, 'the larger source wins');
   assert.equal(summary.daysByDateKey['2026-03-21'], undefined, 'twenty seconds is a stray tap');
   assert.equal(summary.totalReadDays, 3);
+});
+
+test('quantized listening time yields the same daily counts as the raw time', () => {
+  const raw = {
+    '2026-09-14': 30_000, // under the minimum: not a day in the Word
+    '2026-09-15': 60_000, // one minute still rounds up to a chapter
+    '2026-09-16': 9 * 60_000 + 5_000,
+    '2026-09-17': 13 * 60_000,
+  };
+  const quantized = quantizeListeningMs(raw);
+
+  assert.equal(quantized['2026-09-14'], undefined);
+  assert.deepEqual(
+    [...getDailyChapterCounts({ chaptersRead: {}, listeningMsByDate: quantized })],
+    [...getDailyChapterCounts({ chaptersRead: {}, listeningMsByDate: raw })]
+  );
+  // A few more seconds inside the same chapter leave the result unchanged.
+  assert.deepEqual(quantizeListeningMs({ ...raw, '2026-09-16': 9 * 60_000 + 20_000 }), quantized);
 });

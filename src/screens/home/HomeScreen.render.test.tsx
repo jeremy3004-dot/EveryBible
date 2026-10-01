@@ -1057,6 +1057,37 @@ test('the heatmap shades each day by chapters read or heard, and outlines today'
   );
 });
 
+// Listening time is banked every 30 seconds while audio plays, in any tab. Home stays
+// mounted, so a tick too small to change a day's chapter count must not hand the
+// heatmap new data (and rebuild its grid) every time.
+test('banking a few seconds of listening does not rebuild the heatmap data', async () => {
+  progressStore.setState({ listeningMsByDate: { '2026-09-16': 9 * 60_000 } });
+  const view = await renderHome();
+  const heatmapActivity = () => {
+    const [node] = view.root.findAll(
+      (candidate) => candidate.props.activity && candidate.props.nowMs !== undefined
+    );
+    assert.ok(node, 'the heatmap is mounted');
+    return node.props.activity as unknown;
+  };
+  const before = heatmapActivity();
+
+  await act(async () => {
+    progressStore.setState({
+      listeningMsByDate: { '2026-09-16': 9 * 60_000 + 5_000, '2026-09-17': 5_000 },
+    });
+  });
+  await view.flush();
+  assert.equal(heatmapActivity(), before);
+
+  // Enough time to change a day's chapter count does reach it.
+  await act(async () => {
+    progressStore.setState({ listeningMsByDate: { '2026-09-16': 13 * 60_000 } });
+  });
+  await view.flush();
+  assert.notEqual(heatmapActivity(), before);
+});
+
 test('the ledger totals chapters read and listened since the first one', async () => {
   progressStore.setState({
     chaptersRead: { JHN_1: Date.now(), JHN_2: Date.now() },

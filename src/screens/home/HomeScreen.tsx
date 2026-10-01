@@ -37,6 +37,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
 import { useGatherStore } from '../../stores/gatherStore';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
+import { quantizeListeningMs } from '../../services/progress/readingActivity';
 import { useReadingPlansStore } from '../../stores/readingPlansStore';
 import {
   FOUNDATION_LESSON_TITLE_KEYS,
@@ -400,7 +401,12 @@ export function HomeScreen() {
   // so their boundaries stay testable.
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
-  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  // Listening time is banked every 30 seconds while audio plays, in any tab; only its
+  // per-day chapter equivalent reaches the heatmap, so a tick that crosses no chapter
+  // boundary does not rebuild it.
+  const listeningMsByDate = useProgressStore(
+    useShallow((state) => quantizeListeningMs(state.listeningMsByDate))
+  );
   const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
   const streakDays = useProgressStore(selectCurrentStreakDays);
 
@@ -412,11 +418,11 @@ export function HomeScreen() {
   const allTimeStats = useMemo(
     () =>
       getHomeReadingStats(
-        { chaptersRead, chaptersListened, listeningMsByDate },
+        { chaptersRead, chaptersListened },
         'allTime',
         new Date(clockMs)
       ),
-    [chaptersRead, chaptersListened, clockMs, listeningMsByDate]
+    [chaptersRead, chaptersListened, clockMs]
   );
 
   const ledgerTotalLabel =

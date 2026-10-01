@@ -56,7 +56,18 @@ const useProgressStore = create(() => ({
 }));
 mockModule(mock, sourcePath('stores/progressStore.ts'), {
   useProgressStore,
-  selectCurrentStreakDays: (state: { streakDays: number }) => state.streakDays,
+  // The real rule: a run is over once a whole local day has passed without a read.
+  selectCurrentStreakDays: (
+    state: { streakDays: number; lastReadDate: string | null },
+    now: Date = new Date()
+  ) => {
+    const key = (offset: number) => {
+      const day = new Date(now);
+      day.setDate(day.getDate() + offset);
+      return day.toISOString().slice(0, 10);
+    };
+    return [key(-1), key(0), key(1)].includes(state.lastReadDate ?? '') ? state.streakDays : 0;
+  },
 });
 
 // The last successful sync per account, as the sync hook records it.
@@ -199,6 +210,20 @@ test('left open overnight, the calendar moves today when the app comes back', as
 
   assert.equal(value('Thursday, September 24'), '');
   assert.equal(value('Friday, September 25'), todayLabel);
+});
+
+test('left open for days, the streak ends when the app comes back', async () => {
+  const view = await renderScreen();
+  const streak = () => within(hostAncestors(view.getByText(t('readingActivity.currentStreak')))[0]);
+  assert.ok(streak().getByText('2'));
+
+  // The last read was 23 September; the app is resumed on the 26th with no store change.
+  harness.rn.AppState.emit('background');
+  mock.timers.setTime(new Date('2026-09-26T07:00:00.000Z').getTime());
+  harness.rn.AppState.emit('active');
+  await view.flush();
+
+  assert.ok(streak().getByText('0'));
 });
 
 test('choosing a day does not rebuild a date formatter for every calendar cell', async (context) => {
