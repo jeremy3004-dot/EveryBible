@@ -67,6 +67,136 @@
       "reason": "createJobRecord checks existing for truthiness, so null and undefined take the same branch"
     }
   ],
+  "src/services/audio/download/orchestrator.ts": [
+    {
+      "key": "nullish-drop-default|params.rootUri ?? DEFAULT_AUDIO_ROOT_URI|params.rootUri|params.rootUri ?? DEFAULT_AUDIO_ROOT_URI",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|const resolvedRootUri = rootUri ?? DEFAULT_AUDIO_ROOT_URI;",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedProgress = -1;",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedProgress = -1;",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedCompletedChapters = -1;",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedCompletedChapters = -1;",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "remove-statement|return;|;|return;",
+      "reason": "Unreachable: emitBookProgress only runs from a chapter target's worker, so the book has at least one chapter"
+    },
+    {
+      "key": "remove-statement|chapterProgressByNumber.set(target.chapter, 0);|;|chapterProgressByNumber.set(target.chapter, 0);",
+      "reason": "An unset chapter reads the same as 0 everywhere (?? 0 in the average, === 100 / !== 100 in the counts)"
+    },
+    {
+      "key": "remove-statement|throw new AudioDownloadCancelledError();|;|if (signal.aborted) throw new AudioDownloadCancelledError();#3",
+      "reason": "The next statement re-checks the signal before anything is reported or changed; the mutant only adds one file-size read"
+    },
+    {
+      "key": "logical-swap|&&||||if (!wrongSize && remoteAudio?.sha256 && fileSystem.readBase64Chunk) {#1",
+      "reason": "The extra verification only runs where it cannot change the outcome (size already failed, no checksum, or the lookup failed)"
+    },
+    {
+      "key": "relational-boundary|>|>=|bytesTotal > 0",
+      "reason": "With bytesTotal 0 the ratio is Infinity or NaN, which clampProgress turns into the same 0"
+    },
+    {
+      "key": "number-literal|0|1|bytesTotal > 0",
+      "reason": "Only differs for a 1-byte total, which no chapter has (below the 1 KB floor, fails verification)"
+    },
+    {
+      "key": "remove-statement|throw new AudioDownloadCancelledError();|;|if (signal.aborted) throw new AudioDownloadCancelledError();#7",
+      "reason": "Only an abort in the few microtasks after a fully transferred and verified chapter gets here; recording it is correct and the run still ends cancelled"
+    },
+    {
+      "key": "remove-statement|throw failure;|;|throw failure;",
+      "reason": "Falling through, failAudioDownloadJob finds the job already removed and does nothing; the same cancellation error is thrown"
+    },
+    {
+      "key": "remove-statement|externalSignal?.removeEventListener('abort', onExternalAbort);|;|externalSignal?.removeEventListener('abort', onExternalAbort);",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "string-literal|'abort'|''|externalSignal?.removeEventListener('abort', onExternalAbort);",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "remove-statement|await verifiedSizes.flush();|;|await verifiedSizes.flush();",
+      "reason": "Every record()/forget() awaits its own write and runWithConcurrency waits for every worker, so nothing is pending in finally"
+    },
+    {
+      "key": "remove-statement|void tail.then(() => {\n      if (translationRunTails.get(jobId) === tail) translationRunTails.delete(jobId);\n    });|;|void tail.then(() => {",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "early-return|| return;|void tail.then(() => {",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "remove-statement|translationRunTails.delete(jobId);|;|if (translationRunTails.get(jobId) === tail) translationRunTails.delete(jobId);",
+      "reason": "A settled tail left in translationRunTails only makes the next run await an already-resolved promise"
+    },
+    {
+      "key": "boolean-literal|true|false|else signal.addEventListener('abort', onAbort, { once: true });",
+      "reason": "An abort event fires at most once and the listener is removed in finally, so once changes nothing"
+    },
+    {
+      "key": "remove-statement|signal.removeEventListener('abort', onAbort);|;|signal.removeEventListener('abort', onAbort);",
+      "reason": "The leftover listener can only reject after Promise.race has settled (race handles it), and the caller's signal is per request"
+    },
+    {
+      "key": "string-literal|'abort'|''|signal.removeEventListener('abort', onAbort);",
+      "reason": "The leftover listener can only reject after Promise.race has settled (race handles it), and the caller's signal is per request"
+    },
+    {
+      "key": "string-literal|'translation'|''|createAudioDownloadJobId({ translationId: params.translationId, scope: 'translation' }),",
+      "reason": "The id is only a key into translationRunTails, and the replacement is just as unique per translation"
+    },
+    {
+      "key": "nullish-drop-default|rootUri ?? DEFAULT_AUDIO_ROOT_URI|rootUri|const resolvedRootUri = rootUri ?? DEFAULT_AUDIO_ROOT_URI;#1",
+      "reason": "rootUri consumers default undefined to DEFAULT_AUDIO_ROOT_URI themselves"
+    },
+    {
+      "key": "nullish-drop-default|transport ?? { downloadFile: fileSystem.downloadFile }|transport|const activeTransport = transport ?? { downloadFile: fileSystem.downloadFile };#1",
+      "reason": "downloadAudioBook falls back to { downloadFile: fileSystem.downloadFile } itself when transport is undefined"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedProgress = -1;#1",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedProgress = -1;#1",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|2|let lastEmittedCompletedChapters = -1;#1",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "number-literal|1|0|let lastEmittedCompletedChapters = -1;#1",
+      "reason": "Progress is clamped to 0..100 and counts are >= 0, so neither ever equals the -1 sentinel"
+    },
+    {
+      "key": "remove-statement|externalSignal?.removeEventListener('abort', onExternalAbort);|;|externalSignal?.removeEventListener('abort', onExternalAbort);#1",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    },
+    {
+      "key": "string-literal|'abort'|''|externalSignal?.removeEventListener('abort', onExternalAbort);#1",
+      "reason": "Only detaches the listener from the caller's per-request signal after the run; a later abort only aborts a released controller nothing uses"
+    }
+  ],
   "src/services/auth/authErrors.ts": [
     {
       "key": "relational-boundary|>|>=|error.code.length > 0",
