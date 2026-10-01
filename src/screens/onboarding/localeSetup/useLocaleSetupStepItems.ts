@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LocaleCountry, LocaleLanguage } from '../../../services/onboarding/localeSelection';
 import { announceForAccessibility } from '../../../utils/a11y';
@@ -74,12 +74,6 @@ export function useLocaleSetupStepItems({
   debouncedTranslationQuery,
 }: LocaleSetupStepItemsInput): LocaleSetupStepItem[] {
   const { t } = useTranslation();
-  // Once the catalog spinner has shown, its row stays as a gap (see reservesLoadingRow). Set
-  // during render, the supported way to derive state from props, so there is no extra frame.
-  const [hasShownCatalogSpinner, setHasShownCatalogSpinner] = useState(false);
-  if (isHydratingRuntimeCatalog && !hasShownCatalogSpinner) {
-    setHasShownCatalogSpinner(true);
-  }
   const isSearchingBibles = debouncedTranslationQuery.trim().length > 0;
 
   return useMemo<LocaleSetupStepItem[]>(() => {
@@ -100,7 +94,6 @@ export function useLocaleSetupStepItems({
         hasAnyOptions: hasOnboardingLanguageOptions,
         recommendedLabel: t('onboarding.recommendedBadge'),
         isSearching: isSearchingBibles,
-        reservesLoadingRow: hasShownCatalogSpinner,
       });
     }
 
@@ -130,7 +123,6 @@ export function useLocaleSetupStepItems({
   }, [
     debouncedCountryQuery,
     hasOnboardingLanguageOptions,
-    hasShownCatalogSpinner,
     isHydratingRuntimeCatalog,
     isPrimaryOptionPending,
     isSearchingBibles,

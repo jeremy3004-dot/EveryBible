@@ -244,34 +244,6 @@ test('search results are never pinned or labelled as a recommendation', () => {
   );
 });
 
-test('the spinner row keeps its height once hydration ends, so the list does not jump', () => {
-  const hydrating = buildBibleLanguageListItems(
-    bibleInput({ isHydratingRuntimeCatalog: true, reservesLoadingRow: true })
-  );
-  const settled = buildBibleLanguageListItems(
-    bibleInput({
-      reservesLoadingRow: true,
-      sections: [{ groupLabel: 'E', options: [option('english')] }],
-    })
-  );
-
-  assert.deepEqual(
-    hydrating.map((item) => item.type),
-    ['loading']
-  );
-  assert.deepEqual(settled.map((item) => item.type)[0], 'loadingSpacer');
-  assert.equal(
-    countLocaleSetupSearchMatches(settled),
-    1,
-    'the reserved gap is not a match, and it does not mean the catalog is still loading'
-  );
-  assert.equal(
-    buildBibleLanguageListItems(bibleInput()).some((item) => item.type === 'loadingSpacer'),
-    false,
-    'a catalog that never had to load reserves nothing'
-  );
-});
-
 test('a failed catalog load keeps its retry card above whatever is already bundled', () => {
   const items = buildBibleLanguageListItems(
     bibleInput({
