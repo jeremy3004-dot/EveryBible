@@ -684,6 +684,42 @@ test('getCurrentPlanDaySummary builds ordered session summaries for multi-sessio
   );
 });
 
+test('getCurrentPlanDaySummary scans the read ledger once however many sessions the day has', () => {
+  let ledgerScans = 0;
+  const chaptersRead = new Proxy(
+    { PSA_63: new Date(2026, 3, 7, 8, 0, 0).getTime() } as Record<string, number>,
+    {
+      ownKeys(target) {
+        ledgerScans += 1;
+        return Reflect.ownKeys(target);
+      },
+    }
+  );
+  const sessions = (['morning', 'midday', 'evening'] as const).map((sessionKey, index) =>
+    makeEntry({
+      id: `day-1-${sessionKey}`,
+      day_number: 1,
+      session_key: sessionKey,
+      session_order: index + 1,
+      book: 'PSA',
+      chapter_start: 63 + index,
+    })
+  );
+
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({ format: 'multi-session', sessionOrder: ['morning', 'midday', 'evening'] }),
+    entries: sessions,
+    progress: makeProgress('plan-1', { current_day: 1 }),
+    chaptersRead,
+    listeningHistory: [],
+    dayNumber: 1,
+    today: new Date(2026, 3, 7, 12, 0, 0),
+  });
+
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(ledgerScans, 1);
+});
+
 test('getCurrentPlanDaySummary keeps weekly multi-session rhythms ordered across morning and evening', () => {
   const summary = getCurrentPlanDaySummary({
     plan: makePlan({
@@ -1426,4 +1462,47 @@ test('legacy near-complete history still counts without a completion ledger and 
     }).completedChapters,
     1
   );
+});
+
+test('a rhythm leaves out a seasonal plan until its season opens', () => {
+  const planId = 'advent';
+  const buildSession = (today: Date) =>
+    buildRhythmReaderSession({
+      rhythm: {
+        id: 'audit',
+        title: 'Audit',
+        items: [
+          { id: 'item-advent', type: 'plan', planId },
+          {
+            id: 'item-passage',
+            type: 'passage',
+            title: 'Psalm 23',
+            bookId: 'PSA',
+            startChapter: 23,
+            endChapter: 23,
+          },
+        ],
+        createdAt: '',
+        updatedAt: '',
+      },
+      planEntriesById: readingPlanEntriesByPlanId,
+      progressByPlanId: { [planId]: makeProgress(planId) },
+      today,
+    });
+
+  // Advent 2026 opens on Sunday 29 November: in October it has nothing due, so the
+  // session must not queue day 1 or file a tick under a late-November date.
+  const october = buildSession(new Date(2026, 9, 1, 12));
+  assert.deepEqual(
+    october.sessionContext.segments.map((segment) => segment.itemId),
+    ['item-passage']
+  );
+  assert.equal(october.startSegment?.itemId, 'item-passage');
+
+  const december = buildSession(new Date(2026, 11, 1, 12));
+  assert.deepEqual(
+    december.sessionContext.segments.map((segment) => segment.itemId),
+    ['item-advent', 'item-passage']
+  );
+  assert.equal(december.startSegment?.occurrenceKey, '2026-12-01');
 });

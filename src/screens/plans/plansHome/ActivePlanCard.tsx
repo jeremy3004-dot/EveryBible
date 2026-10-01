@@ -11,12 +11,15 @@ import { getCurrentPlanDaySummary } from '../../../services/plans/readingPlanAct
 import {
   getActivePlanDayNumber,
   getPlanDayCount,
+  getPlanSeason,
   isMultiSessionPlan,
+  isPlanInSeason,
   isRecurringPlan,
 } from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
 import type { ListeningHistoryEntry } from '../../../stores/libraryModel';
 import {
+  formatPlanSeasonDates,
   formatProgressPercent,
   formatSessionStatusSummary,
   getActivePlanProgressRatio,
@@ -53,7 +56,7 @@ export const ActivePlanCard = memo(function ActivePlanCard({
   onDeletePlan,
 }: ActivePlanCardProps) {
   const { colors } = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const displayFont = useDisplayFont();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -76,10 +79,14 @@ export const ActivePlanCard = memo(function ActivePlanCard({
       ? getLocalizedSessionLabel(currentDaySummary.nextIncompleteSessionKey, t)
       : t('common.continue');
   const title = t(plan.title_key as Parameters<typeof t>[0]);
-  const dayOf = t('readingPlans.dayOf', {
-    current: currentDay,
-    total: getPlanDayCount(plan, today),
-  });
+  // Advent joined in October has no day yet: say when it runs, as Find plans does.
+  const season = isPlanInSeason(plan, today) ? null : getPlanSeason(plan, today);
+  const dayOf = season
+    ? formatPlanSeasonDates(season, i18n.language)
+    : t('readingPlans.dayOf', {
+        current: currentDay,
+        total: getPlanDayCount(plan, today),
+      });
 
   return (
     <SwipeablePlanRow onDelete={() => onDeletePlan(plan.id)}>

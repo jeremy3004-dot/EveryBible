@@ -128,6 +128,18 @@ test('a non-final session records its tick and points at the next session', () =
   });
 });
 
+test('ticking a session of an earlier day does not move a fixed-length plan back', () => {
+  const existing = row('plan-a', {
+    current_day: 5,
+    completed_entries: { '1': 'x', '2': 'x', '3': 'x', '4': 'x' },
+  });
+
+  const progress = completeSession(existing, 2, 'morning', sessionOptions, NOW);
+
+  assert.equal(progress.current_day, 5);
+  assert.deepEqual(progress.completed_entries, existing.completed_entries);
+});
+
 test('the final session completes the day, and only a fixed-length plan finishes', () => {
   const final = { ...sessionOptions, completionKey: '2:evening', isFinalSession: true };
   const existing = row('plan-a', { completed_entries: { '1': 'x' } });
