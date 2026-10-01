@@ -565,3 +565,140 @@ test('the lock after enabling discreet mode is not held when the icon already ma
 
   assert.equal(usePrivacyStore.getState().isLocked, true, 'no change, so no alert to wait for');
 });
+
+// ─── Spells away that follow one another ─────────────────────────────────────
+
+test('a second prompt soon after the first was answered gets its whole grace', async () => {
+  prepareInactiveGraceTest();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    mock.timers.tick(1_000);
+  });
+  rn.AppState.emit('active');
+
+  mock.timers.tick(4_000);
+  await whileSystemPromptOpen(() => {
+    rn.AppState.emit('inactive');
+    // Past the first prompt's cap and its settlement tail, still inside the second's.
+    mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS - 1_000);
+    assert.equal(
+      usePrivacyStore.getState().isLocked,
+      false,
+      'the first prompt left nothing behind to cut this one short'
+    );
+  });
+  rn.AppState.emit('active');
+
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('a request left hanging does not cut short the grace of a newer prompt', async () => {
+  prepareInactiveGraceTest();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+  let finishHanging!: () => void;
+  const hanging = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        finishHanging = resolve;
+      })
+  );
+  mock.timers.tick(5_000);
+  try {
+    await whileSystemPromptOpen(() => {
+      rn.AppState.emit('inactive');
+      mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS - 1_000);
+      assert.equal(
+        usePrivacyStore.getState().isLocked,
+        false,
+        "the new prompt is still inside its grace, though the hanging request's has run out"
+      );
+    });
+    rn.AppState.emit('active');
+    assert.equal(usePrivacyStore.getState().isLocked, false);
+  } finally {
+    finishHanging();
+    await hanging;
+  }
+});
+
+test('a lock timer armed for a prompt does not fire under an icon alert raised in the same spell away', async () => {
+  prepareInactiveGraceTest();
+  let answerPrompt!: () => void;
+  let finishIconChange!: () => void;
+  const prompt = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        answerPrompt = resolve;
+      })
+  );
+  rn.AppState.emit('inactive');
+  const iconChange = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        finishIconChange = resolve;
+      }),
+    { untilNextActive: true }
+  );
+  // iOS puts the icon alert up.
+  rn.AppState.emit('inactive');
+  try {
+    mock.timers.tick(ICON_ALERT_OPEN_MS);
+    assert.equal(usePrivacyStore.getState().isLocked, false, 'no timer locks under the icon alert');
+  } finally {
+    finishIconChange();
+    answerPrompt();
+    await Promise.all([iconChange, prompt]);
+  }
+  rn.AppState.emit('active');
+
+  assert.equal(usePrivacyStore.getState().isLocked, false);
+});
+
+test('after leaving the app, an icon alert still to come no longer excuses the app switcher', async () => {
+  prepareInactiveGraceTest();
+  // The icon change has completed; iOS has not put its alert up yet.
+  await withPrivacyLockGrace(async () => undefined, { untilNextActive: true });
+  rn.AppState.emit('background');
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+
+  rn.AppState.emit('active');
+  // The reader unlocks, then opens the app switcher once the settlement tail has passed.
+  usePrivacyStore.setState({ isLocked: false });
+  mock.timers.tick(GRACE_MS + 1);
+  rn.AppState.emit('inactive');
+
+  assert.equal(usePrivacyStore.getState().isLocked, true);
+});
+
+test('an error while the grace timer locks still leaves a discreet install locked', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  prepareInactiveGraceTest();
+  const { PRIVACY_LOCK_GRACE_MAX_PENDING_MS } =
+    await import('../services/privacy/privacyLockGrace');
+  usePrivacyStore.setState({
+    lock: () => {
+      throw new Error('lock failed');
+    },
+  });
+  let answer!: () => void;
+  const prompt = withPrivacyLockGrace(
+    () =>
+      new Promise<void>((resolve) => {
+        answer = resolve;
+      })
+  );
+  try {
+    rn.AppState.emit('inactive');
+    assert.equal(usePrivacyStore.getState().isLocked, false, 'the prompt is excused at first');
+
+    mock.timers.tick(PRIVACY_LOCK_GRACE_MAX_PENDING_MS);
+
+    assert.equal(usePrivacyStore.getState().isLocked, true);
+  } finally {
+    answer();
+    await prompt;
+  }
+});
