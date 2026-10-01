@@ -166,18 +166,102 @@ Instrumentation, also on the branch:
   benchmark could not finish. `App.tsx` documents that contract.
 - `5ec06bc2` adds the `reader:committed` mark.
 
+## Follow-up: expo-updates and the main-queue modules
+
+Requested by the sprint coordinator after the Android thread found the disabled
+expo-updates module on its critical path (`529dcf4a` left it out of Android builds).
+
+**expo-updates is now left out of iOS builds too** (`59426615`). The app ships no update
+URL, so the module only ever ran disabled. The change adds it to
+`expo.autolinking.ios.exclude` and runs `pod install`, which drops the EXUpdates and
+ReachabilitySwift pods and their two resource bundles; the shared manifests/interface
+pods stay because other Expo pods use them.
+
+Two Release simulator builds were measured interleaved, 4 rounds × 3 launches, n = 12 each,
+on fresh heavy-reader data: A is the sprint branch at `eebacbcd`, B is the same tree with
+the exclusion. p is a two-sided Mann-Whitney test.
+
+| ms from process start (median, min–max)    |    A (linked) |  B (excluded) |   Δ |    p |
+| ------------------------------------------ | ------------: | ------------: | --: | ---: |
+| JS starts executing                        | 768 (726–803) | 746 (709–770) | −22 | 0.05 |
+| `App.tsx` body runs                        | 806 (756–843) | 776 (739–812) | −30 | 0.05 |
+| Home first layout                          | 886 (836–924) | 855 (816–892) | −31 | 0.05 |
+| Home interaction-ready                     | 905 (855–943) | 874 (834–911) | −30 | 0.05 |
+| Native module main-thread setup (`rctpl`)  | 306 (294–351) | 296 (286–315) | −10 | 0.02 |
+| Bundle execution (`rctpl` ScriptExecution) |    31 (29–44) |    30 (29–42) |   0 | 0.44 |
+
+That is a smaller win than Android's but a consistent one, about 3% of cold start.
+Roughly 10 ms comes out of native setup. The other ~20 ms falls between bundle load and
+`App.tsx`: with the module present, expo-constants reads the updates manifest at
+import. A temporary check in both builds logged the following 2 s after launch (it was
+never committed):
+
+- `Constants.expoConfig` was identical in A and B: "Every Bible", its slug, version 1.0.12
+  and the four `extra` keys.
+- A font and a plan cover resolved through expo-asset to `file://` URLs inside the app
+  bundle in both builds.
+- The ExpoUpdates module was linked in A and missing in B.
+
+Release builds load `main.jsbundle` from the app bundle (`AppDelegate.bundleURL`), so
+launch does not depend on the network either way. The network was not physically cut
+on the simulator. Home, its plan covers and the reader rendered normally in B.
+`src/config/androidAutolinkedModules.test.ts` now asserts that both platforms leave
+expo-updates out; it failed against the old configuration.
+
+**What the 14 main-queue modules cost.** React Native sets these up on the main thread
+before the bundle may run:
+
+- React Native core: `RCTDeviceInfo`, `RCTAccessibilityManager`, `RCTStatusBarManager`,
+  `RCTAppState`, `RCTPlatform` and `RCTAppearance` (plus `RCTDevMenu` in debug builds);
+- safe-area-context and NetInfo;
+- the app's own `EveryBiblePrivacyModule` and `EveryBibleAudioNowPlayingModule`;
+- Expo's `EXNativeModulesProxy`.
+
+In gated `sample` traces of build B
+([native-main-queue-modules.txt](assets/ios-profiling-2026-10-01/native-main-queue-modules.txt))
+the main-queue block is 246 samples, all inside `EXNativeModulesProxy setBridge:`:
+
+- 206 samples: Expo's `ModuleRegistry` building each module's definition;
+- 24 samples: expo-av's `EXAudioSessionManager` setting the audio session category when
+  its registry initializes;
+- 15 samples: lazily loading `ExpoBridgeModule`.
+
+The other 13 modules do not register a sample.
+
+None of it can be made lazy from app code. Expo's old-architecture proxy builds every
+definition eagerly, and JS needs the registry before any module import runs. The levers
+are:
+
+- **Drop modules nobody uses.** Per launch, the definitions cost, in samples:
+  - SQLite 36, FileSystem 27.5 + FileSystemLegacy 15 and GlassEffect 14.5, all used at
+    launch;
+  - AppleAuthentication 15.5, Clipboard 15, Crypto 6.5 and ImagePicker 3, used only on
+    demand but still needed;
+  - expo-av's video view 7, which the app never uses but cannot drop separately from
+    expo-av audio;
+  - WebBrowser 2. **expo-web-browser has no JS consumer** in `src/` or `node_modules`
+    (it outlived expo-auth-session) and could be removed outright, from `package.json`
+    and the `app.json` plugin list. The gain is a couple of milliseconds, below what
+    n = 12 can resolve, so it was left for an owner decision.
+- **Patch the framework.** One option is to make chosen modules register lazily in
+  `expo-modules-core`. Another is to have expo-av set its audio session on first
+  playback rather than at registry start. Both are upstream-sized changes with
+  background-audio risk.
+- **Move to the new architecture.**
+
 ## Hot spots left, and why
 
-- **Native module setup, 324–346 ms on the main thread.** This is the largest single cost of
-  cold start, and it is Expo's module registry on the old architecture: every module's
-  Swift definition is built synchronously in `EXNativeModulesProxy setBridge:` before the
-  bundle may run. It is framework code, and the simulator probably overstates it. The
-  trace is dominated by Swift conformance lookups, which on a device can use dyld's
-  prebuilt conformance tables, and the audio-session part initializes simulated hardware.
-  Measure it on a device first (Instruments' App Launch template, or this shim's
-  `rctpl:NativeModuleMainThread` line). Options after that: the new architecture (a
-  separate migration; the app pins `react-native-mmkv` v2 for the old one), or dropping
-  autolinked native modules the app no longer needs (each definition is 1–48 samples).
+- **Native module setup, ~296 ms on the main thread after the expo-updates exclusion.** This is
+  the largest single cost of cold start. It is nearly all Expo's module registry on the
+  old architecture: every module's Swift definition is built synchronously in
+  `EXNativeModulesProxy setBridge:` before the bundle may run (breakdown in
+  [the follow-up](#follow-up-expo-updates-and-the-main-queue-modules)). It is framework
+  code, and the simulator may overstate it. The trace is dominated by Swift conformance
+  lookups, which on a device can use dyld's prebuilt conformance tables, and the
+  audio-session part initializes simulated hardware. Measure it on a device first
+  (Instruments' App Launch template, or this shim's `rctpl:NativeModuleMainThread` line).
+  The new architecture is a separate migration; the app pins `react-native-mmkv` v2 for
+  the old one.
 - **About 370 ms before `+load`.** This is dyld and image loading on the simulator, which
   does not use the launch closures a device does. It is not representative and has no app
   lever here.
