@@ -801,7 +801,7 @@ export const id = {
     translatorReviewListened: 'Sudah didengarkan',
     translatorReviewListen: 'Dengarkan',
     translatorReviewPause: 'Jeda',
-    nextChapterHint: 'Buka pasal berikutnya',
+    nextChapterHint: 'Membuka pasal berikutnya',
     openBookAndChapterPickerHint: 'Membuka pemilih kitab dan pasal',
     openTranslationOptionsHint: 'Membuka opsi terjemahan',
     returnToPlanHint: 'Kembali ke layar detail rencana',
