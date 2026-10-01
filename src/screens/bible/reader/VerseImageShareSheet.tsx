@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { announceLiveRegionText } from '../../../utils/a11y';
+import { useModalContentPresence } from '../../../hooks/useModalContentPresence';
 import { SHARE_VERSE_BACKGROUND_SOURCES } from '../../../data/shareVerseBackgrounds';
 import { Slider } from '../../../components/ui/Slider';
 import { TabSwitch } from '../../../components/ui/TabSwitch';
@@ -33,6 +34,8 @@ import {
 } from './verseImage/verseImageStyle';
 
 type EditorTab = 'picture' | 'font' | 'color' | 'size';
+
+const NO_FONTS: ReturnType<typeof getDrawableVerseImageFonts> = [];
 
 const toSliderValue = (size: number) =>
   (size - VERSE_IMAGE_SIZE.min) / (VERSE_IMAGE_SIZE.max - VERSE_IMAGE_SIZE.min);
@@ -82,22 +85,41 @@ export function VerseImageShareSheet({
   const [isSizeCapped, setIsSizeCapped] = useState(false);
   const handleFitChange = useCallback((capped: boolean) => setIsSizeCapped(capped), []);
   const fontsLoaded = useVerseImageFonts(showVerseImageSheet);
+  // The reader and Home keep this mounted and re-render it with every chapter or Home
+  // update; while it is hidden (and done closing) nothing below is built.
+  const { isContentPresent, handleDismiss } = useModalContentPresence(
+    showVerseImageSheet,
+    handleVerseImageSheetDismissed
+  );
   // Only the faces with a glyph for every character of this verse are offered: all
   // eight for English, those with Cyrillic for Russian, none for Hindi or Arabic
   // (the verse keeps the platform font, so there is nothing to choose).
-  const drawableFonts = getDrawableVerseImageFonts(selectedVerseText);
+  const drawableFonts = isContentPresent ? getDrawableVerseImageFonts(selectedVerseText) : NO_FONTS;
   const canChooseFont = drawableFonts.length > 1;
   const activeTab = !canChooseFont && tab === 'font' ? 'picture' : tab;
+  // The hint under the slider is a live region, which VoiceOver ignores.
+  const isSizeMaxedShown = isContentPresent && isSizeCapped && activeTab === 'size';
+  useEffect(() => {
+    if (isSizeMaxedShown) announceLiveRegionText(t('bible.verseImage.sizeMaxed'));
+  }, [isSizeMaxedShown, t]);
+
+  const modalProps = {
+    transparent: true,
+    statusBarTranslucent: true,
+    navigationBarTranslucent: true,
+    animationType: 'fade' as const,
+    onRequestClose: handleCloseVerseImageSheet,
+    onDismiss: handleDismiss,
+  };
+  if (!isContentPresent) {
+    return <Modal visible={false} {...modalProps} />;
+  }
+
   const selectedFontId = canVerseImageFontDraw(style.fontId, selectedVerseText)
     ? style.fontId
     : 'classic';
   // Each chip shows a word from the verse, so the sample is in the verse's own script.
   const fontSample = getVerseImageFontSample(selectedVerseText);
-  // The hint under the slider is a live region, which VoiceOver ignores.
-  const isSizeMaxedShown = isSizeCapped && activeTab === 'size';
-  useEffect(() => {
-    if (isSizeMaxedShown) announceLiveRegionText(t('bible.verseImage.sizeMaxed'));
-  }, [isSizeMaxedShown, t]);
   const tabs: { key: EditorTab; label: string }[] = [
     { key: 'picture', label: t('bible.verseImage.tabs.picture') },
     ...(canChooseFont ? [{ key: 'font' as const, label: t('bible.verseImage.tabs.font') }] : []),
@@ -302,15 +324,7 @@ export function VerseImageShareSheet({
   );
 
   return (
-    <Modal
-      visible={showVerseImageSheet}
-      transparent
-      statusBarTranslucent
-      navigationBarTranslucent
-      animationType="fade"
-      onRequestClose={handleCloseVerseImageSheet}
-      onDismiss={handleVerseImageSheetDismissed}
-    >
+    <Modal visible={showVerseImageSheet} {...modalProps}>
       <View
         style={[styles.verseImageSheetOverlay, { backgroundColor: colors.overlay }]}
         // VoiceOver's escape gesture closes it, as Android back does.
