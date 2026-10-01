@@ -21,6 +21,7 @@ import {
   getReadingPlanRhythmSummary,
   getPlanChapterListenStatus,
   getPlanDayTargetChapterKeys,
+  getPlanLedgerDayDate,
   getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
@@ -330,6 +331,24 @@ test('formatScheduledPlanDayLabel renders the scheduled day as a short calendar 
   assert.equal(formatScheduledPlanDayLabel(startedAt, 1), 'Dec 16');
   assert.equal(formatScheduledPlanDayLabel(startedAt, 2), 'Dec 17');
   assert.equal(formatScheduledPlanDayLabel(startedAt, 3), 'Dec 18');
+});
+
+test('the ledger keeps the enrolment date for days behind the reader and counts on from today', () => {
+  // Enrolled on 1 Sep, but on day 3 by 20 Sep: the reader fell behind.
+  const startedAt = new Date(2026, 8, 1, 12, 0, 0).toISOString();
+  const today = new Date(2026, 8, 20, 9, 0, 0);
+  const day = (dayNumber: number) =>
+    getPlanLedgerDayDate(startedAt, dayNumber, 3, today).toDateString();
+
+  assert.deepEqual(
+    [day(1), day(2), day(3), day(4)],
+    [
+      new Date(2026, 8, 1).toDateString(),
+      new Date(2026, 8, 2).toDateString(),
+      new Date(2026, 8, 20).toDateString(),
+      new Date(2026, 8, 21).toDateString(),
+    ]
+  );
 });
 
 test('labelling a year of plan days builds one date formatter, not one per day', (t) => {
