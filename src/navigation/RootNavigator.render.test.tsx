@@ -60,6 +60,17 @@ test('the tab navigator is the only thing mounted inside the navigation containe
   assert.deepEqual(types, ['TabNavigator']);
 });
 
+test('a re-render with the same colours hands the container the same theme object', async () => {
+  const { RootNavigator } = await import('./RootNavigator');
+  const view = await harness.render(<RootNavigator />);
+  const themeOf = () => view.queryAllByType('NavigationContainer')[0].props.theme;
+  const first = themeOf();
+
+  await view.rerender(<RootNavigator />);
+
+  assert.equal(themeOf(), first, 'a new theme object re-renders every navigator element');
+});
+
 test('the lock remembers the latest state the container reports, not only the first', async () => {
   rootState = readerState;
   const first = await renderRoot();

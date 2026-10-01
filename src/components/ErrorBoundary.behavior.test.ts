@@ -96,7 +96,10 @@ test('a boundary given fallback={null} renders nothing after a crash instead of 
     scope: 'runtime-effects',
   });
 
-  boundary.state = ErrorBoundary.getDerivedStateFromError(new Error('hook threw'));
+  boundary.state = {
+    ...boundary.state,
+    ...ErrorBoundary.getDerivedStateFromError(new Error('hook threw')),
+  };
 
   assert.equal(boundary.render(), null);
 });
