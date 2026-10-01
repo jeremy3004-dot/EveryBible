@@ -70,7 +70,12 @@ export function BibleBrowserScreen() {
   const expansion = useBookExpansion(currentBook, initialBookId, currentTranslation);
   const { expandedBookId, toggleBook, showUnavailableChapter, clearUnavailableChapter } = expansion;
   const { tileSizeStyle, onPanelLayout } = useChapterTileLayout();
-  const search = useBibleSearch(currentTranslation, currentLanguage, t);
+  const search = useBibleSearch(
+    currentTranslation,
+    currentLanguage,
+    t,
+    currentTranslationInfo?.hasText !== false
+  );
   const { resolveSubmitIntent } = search;
   const feedback = useTranslatorFeedbackSummaries(
     currentTranslation,

@@ -41,7 +41,9 @@ export interface BibleSearchState {
 export function useBibleSearch(
   translationId: string,
   language: string,
-  t: TFunction
+  t: TFunction,
+  /** False for an audio-only translation: it has no text, so there is nothing to search. */
+  hasText = true
 ): BibleSearchState {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<{
@@ -97,6 +99,19 @@ export function useBibleSearch(
 
     const requestId = searchRequestIdRef.current + 1;
     searchRequestIdRef.current = requestId;
+
+    if (!hasText) {
+      // The bundled database would answer an audio-only id with an empty list, which reads
+      // as "No results" for a Bible that simply has no text.
+      setSearchResult(null);
+      setCompletedSearchKey(null);
+      setIsSearching(false);
+      setSearchError(searchUnavailableMessage);
+      return () => {
+        isCancelled = true;
+      };
+    }
+
     setIsSearching(true);
     setSearchError(null);
 
@@ -137,7 +152,7 @@ export function useBibleSearch(
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [translationId, searchIntent, failedToLoadMessage, searchUnavailableMessage, t]);
+  }, [translationId, hasText, searchIntent, failedToLoadMessage, searchUnavailableMessage, t]);
 
   const hasNoResults =
     searchIntent.kind === 'full-text' &&
