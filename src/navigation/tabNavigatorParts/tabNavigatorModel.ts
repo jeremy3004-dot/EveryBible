@@ -142,7 +142,9 @@ export function getBibleTabResumeParams(
   route: TabRoute,
   resume: BibleTabResumeState
 ): BibleStackParamList['BibleReader'] | null {
-  const focusedRoute = route.state?.routes?.[route.state.index ?? 0];
+  // Same fallback as resolveActiveNestedRoute: a state without an index shows its last route.
+  const nestedRoutes = route.state?.routes;
+  const focusedRoute = nestedRoutes?.[route.state?.index ?? nestedRoutes.length - 1];
   const nestedRouteName = focusedRoute?.name ?? route.params?.screen;
   const nestedRouteParams = focusedRoute?.params ?? route.params?.params;
   const isPlanSessionReader =
