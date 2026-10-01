@@ -5,12 +5,14 @@ import {
   buildHomeStructuredData,
   buildRobots,
   buildSitemap,
+  homeMetadata,
   pageMetadata,
   serializeJsonLd,
   SHARE_IMAGE,
   siteMetadata,
 } from './site-metadata';
 import { EVERYBIBLE_APP_STORE_URL, EVERYBIBLE_GOOGLE_PLAY_URL } from './site-links';
+import { PUBLISHED_HOME_LOCALE_CODES } from './home-locale-meta';
 
 test('root metadata resolves relative URLs against the production origin', () => {
   assert.equal(siteMetadata.metadataBase?.toString(), 'https://everybible.app/');
@@ -50,8 +52,21 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   const lastModified = new Date('2026-09-24T00:00:00Z');
   const entries = buildSitemap(lastModified);
 
+  const homepages = entries.filter((entry) =>
+    /^https:\/\/everybible\.app\/[a-z]{2}$/.test(entry.url)
+  );
+  assert.equal(
+    homepages.length,
+    PUBLISHED_HOME_LOCALE_CODES.length,
+    'only translations that have been checked are listed'
+  );
+  const hreflang = entries[0].alternates?.languages ?? {};
+  assert.equal(Object.keys(hreflang).length, PUBLISHED_HOME_LOCALE_CODES.length + 2);
+  assert.equal(hreflang['x-default'], 'https://everybible.app/');
+  assert.equal(hreflang['en'], 'https://everybible.app/');
+
   assert.deepEqual(
-    entries.map((entry) => entry.url),
+    entries.slice(0, 10).map((entry) => entry.url),
     [
       'https://everybible.app/',
       'https://everybible.app/about',
@@ -68,6 +83,20 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
   assert.ok(entries.every((entry) => entry.lastModified === lastModified));
   assert.equal(entries[0].priority, 1);
   assert.ok(!entries.some((entry) => entry.url.includes('/download')));
+});
+
+test('a localized homepage carries its own canonical, Open Graph locale and hreflang links', () => {
+  const metadata = homeMetadata('es', { title: 'Título', description: 'Descripción' });
+  assert.equal(metadata.alternates?.canonical, '/es');
+  assert.equal(metadata.openGraph?.locale, 'es_ES');
+  assert.equal(metadata.alternates?.languages?.['en'], '/');
+  assert.equal(metadata.alternates?.languages?.['x-default'], '/');
+  if (!PUBLISHED_HOME_LOCALE_CODES.includes('zh'))
+    assert.equal(
+      metadata.alternates?.languages?.['zh-Hans'],
+      undefined,
+      'unchecked translations stay unlinked'
+    );
 });
 
 test('robots allows the site, keeps crawlers out of the data API, and names every sitemap', () => {

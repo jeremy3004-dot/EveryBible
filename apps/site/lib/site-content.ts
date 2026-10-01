@@ -8,14 +8,13 @@ import {
   EVERYBIBLE_TERMS_PATH,
 } from './site-links';
 
+export type SiteNavigationKey = 'atlas' | 'bible' | 'plans' | 'app' | 'mission' | 'give';
+
 export interface SiteNavigationItem {
+  /** Key into `HomeCopy['nav']`, so the header can localize the label. */
+  key: SiteNavigationKey;
   label: string;
   href: string;
-}
-
-export interface AppStoreScreenshot {
-  src: string;
-  alt: string;
 }
 
 export interface FooterColumn {
@@ -34,31 +33,12 @@ export interface MobileTabItem {
 }
 
 export const siteNavigation: SiteNavigationItem[] = [
-  { label: 'Language atlas', href: '/' },
-  { label: 'Bible', href: '/bible' },
-  { label: 'Plans', href: '/plans' },
-  { label: 'The app', href: '/#app' },
-  { label: 'Mission', href: '/about' },
-  { label: 'Give', href: '/give' },
-];
-
-export const appStoreScreenshots: AppStoreScreenshot[] = [
-  {
-    src: '/everybible/app-store-screenshots/01-home.png',
-    alt: 'EveryBible home screen with a daily Scripture, reading progress, and Foundations pathway.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/02-bible.png',
-    alt: 'EveryBible Bible reader showing Psalm 19 with audio, search, and reading controls.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/03-gather.png',
-    alt: 'EveryBible Gather screen showing Foundations discipleship pathways.',
-  },
-  {
-    src: '/everybible/app-store-screenshots/04-plans.png',
-    alt: 'EveryBible Reading Plans screen showing daily rhythms and chronological plans.',
-  },
+  { key: 'atlas', label: 'Language atlas', href: '/#explore' },
+  { key: 'bible', label: 'Bible', href: '/bible' },
+  { key: 'plans', label: 'Plans', href: '/plans' },
+  { key: 'app', label: 'The app', href: '/#app' },
+  { key: 'mission', label: 'Mission', href: '/about' },
+  { key: 'give', label: 'Give', href: '/give' },
 ];
 
 export const footerColumns: FooterColumn[] = [

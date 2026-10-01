@@ -25,12 +25,34 @@ import { fileURLToPath } from 'node:url';
 
 import { readingPlanEntriesByPlanId, readingPlans } from '../../../src/data/readingPlans.generated';
 import { en } from '../../../src/i18n/locales/en';
+import { ar } from '../../../src/i18n/locales/ar';
+import { bn } from '../../../src/i18n/locales/bn';
+import { de } from '../../../src/i18n/locales/de';
+import { es } from '../../../src/i18n/locales/es';
+import { fr } from '../../../src/i18n/locales/fr';
+import { hi } from '../../../src/i18n/locales/hi';
+import { id } from '../../../src/i18n/locales/id';
+import { ja } from '../../../src/i18n/locales/ja';
+import { ko } from '../../../src/i18n/locales/ko';
+import { mr } from '../../../src/i18n/locales/mr';
+import { ne } from '../../../src/i18n/locales/ne';
+import { pa } from '../../../src/i18n/locales/pa';
+import { pt } from '../../../src/i18n/locales/pt';
+import { ru } from '../../../src/i18n/locales/ru';
+import { ta } from '../../../src/i18n/locales/ta';
+import { te } from '../../../src/i18n/locales/te';
+import { tr } from '../../../src/i18n/locales/tr';
+import { ur } from '../../../src/i18n/locales/ur';
+import { vi } from '../../../src/i18n/locales/vi';
+import { zh } from '../../../src/i18n/locales/zh';
+import { HOME_PLAN_SLUGS } from '../lib/home-plans';
 import { buildPlanSnapshot, formatPlanSnapshot, type PlanSnapshot } from '../lib/plan-snapshot';
 
 const repoRoot = new URL('../../../', import.meta.url);
 const coverMapFile = new URL('src/services/plans/readingPlanAssets.ts', repoRoot);
 const appCovers = new URL('assets/plans/covers/', repoRoot);
 export const PLANS_JSON = new URL('../data/plans.json', import.meta.url);
+export const PLAN_TITLES_JSON = new URL('../data/plan-titles.json', import.meta.url);
 export const WEB_COVERS = new URL('../public/plans/covers/', import.meta.url);
 
 const COVER_WIDTH = 800;
@@ -44,6 +66,59 @@ function englishText(key: string): string | undefined {
     value = (value as Record<string, unknown>)[part];
   }
   return typeof value === 'string' ? value : undefined;
+}
+
+const LOCALE_TEXT: Record<string, unknown> = {
+  ar,
+  bn,
+  de,
+  es,
+  fr,
+  hi,
+  id,
+  ja,
+  ko,
+  mr,
+  ne,
+  pa,
+  pt,
+  ru,
+  ta,
+  te,
+  tr,
+  ur,
+  vi,
+  zh,
+};
+
+function lookup(tree: unknown, key: string): string | undefined {
+  let value = tree;
+  for (const part of key.split('.')) {
+    if (typeof value !== 'object' || value === null) return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+/**
+ * The homepage plans shelf titles in each interface language, read from the
+ * app's locale files at build time so the site never bundles them. A locale
+ * that lacks a title is left out and the shelf shows the English one.
+ */
+export function generatePlanTitles(snapshot: PlanSnapshot): string {
+  const titles: Record<string, Record<string, string>> = {};
+  for (const slug of [...HOME_PLAN_SLUGS].sort()) {
+    const plan = snapshot.plans.find((candidate) => candidate.slug === slug);
+    const source = readingPlans.find((candidate) => candidate.id === plan?.id);
+    if (!plan || !source) continue;
+    const byLocale: Record<string, string> = {};
+    for (const [code, tree] of Object.entries(LOCALE_TEXT)) {
+      const title = lookup(tree, source.title_key);
+      if (title) byLocale[code] = title;
+    }
+    titles[slug] = byLocale;
+  }
+  return `${JSON.stringify(titles, null, 2)}\n`;
 }
 
 /**
@@ -100,7 +175,12 @@ function main(): void {
   const coverFile = (stem: string) => new URL(`${stem}.webp`, WEB_COVERS);
 
   if (check) {
-    const stale = !existsSync(PLANS_JSON) || readFileSync(PLANS_JSON, 'utf8') !== json;
+    const titles = generatePlanTitles(snapshot);
+    const titlesStale =
+      !existsSync(PLAN_TITLES_JSON) || readFileSync(PLAN_TITLES_JSON, 'utf8') !== titles;
+    if (titlesStale) console.error('data/plan-titles.json is out of date; run npm run plans:pages');
+    const stale =
+      titlesStale || !existsSync(PLANS_JSON) || readFileSync(PLANS_JSON, 'utf8') !== json;
     const missing = covers.filter((stem) => !existsSync(coverFile(stem)));
     if (stale) console.error('data/plans.json is out of date; run npm run plans:pages');
     if (missing.length) console.error(`Missing covers: ${missing.join(', ')}`);
@@ -109,6 +189,7 @@ function main(): void {
   }
 
   writeFileSync(PLANS_JSON, json);
+  writeFileSync(PLAN_TITLES_JSON, generatePlanTitles(snapshot));
   mkdirSync(WEB_COVERS, { recursive: true });
   const wanted = new Set(covers.map((stem) => `${stem}.webp`));
   for (const name of readdirSync(WEB_COVERS))
