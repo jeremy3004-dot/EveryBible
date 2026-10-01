@@ -57,6 +57,8 @@ const trimDependencies = {
   isValidTrimMediaFile: async () => ({ isValid: true, duration: 60_000 }),
   trimAudioMedia: (...args: unknown[]) => trim(...args),
 };
+const releases: Array<{ previousUri: string | null; keepUris: string[] }> = [];
+const deletedClips: string[] = [];
 let loadTrim = async () => trimDependencies;
 let sharingAvailable = true;
 mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
@@ -66,6 +68,12 @@ mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
       return prepare();
     },
   }),
+  releaseStaleAudioShares: async (options: { previousUri: string | null; keepUris: string[] }) => {
+    releases.push(options);
+  },
+  deleteSharedAudioFile: async (uri: string) => {
+    deletedClips.push(uri);
+  },
   loadVideoTrimDependencies: () => loadTrim(),
   tryLoadSharing: async () => ({
     isAvailableAsync: async () => sharingAvailable,
@@ -77,12 +85,19 @@ mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
 
 let useChapterAudioShare: typeof import('./useChapterAudioShare').useChapterAudioShare;
 let useAudioPortionShare: typeof import('./useAudioPortionShare').useAudioPortionShare;
+let forgetLastExportedChapterAudio: () => void;
+let forgetLastTrimmedAudioClip: () => void;
 before(async () => {
-  ({ useChapterAudioShare } = await import('./useChapterAudioShare'));
-  ({ useAudioPortionShare } = await import('./useAudioPortionShare'));
+  ({ useChapterAudioShare, forgetLastExportedChapterAudio } =
+    await import('./useChapterAudioShare'));
+  ({ useAudioPortionShare, forgetLastTrimmedAudioClip } = await import('./useAudioPortionShare'));
 });
 afterEach(() => {
   runtime.unmountAll();
+  forgetLastExportedChapterAudio();
+  forgetLastTrimmedAudioClip();
+  releases.length = 0;
+  deletedClips.length = 0;
   alerts.length = 0;
   shares.length = 0;
   platform.OS = 'android';
@@ -244,6 +259,42 @@ test('portion preparation opens a validated draft with the chosen range', async 
   ]);
   assert.deepEqual(shares, []);
   assert.equal(view.rerender().pendingChapterAudioShareAction, null);
+});
+
+test('a new chapter export releases the previous one but never a downloaded library file', async () => {
+  const view = mountChapter();
+  await view.result.handleShareFullChapterAudio();
+  prepare = async () => ({ ...asset, uri: 'file:///john-4.mp3' });
+  await view.result.handleShareFullChapterAudio();
+  prepare = async () => ({ ...asset, uri: 'file:///library/john-5.mp3', isTemporary: false });
+  await view.result.handleShareFullChapterAudio();
+  prepare = async () => ({ ...asset, uri: 'file:///john-6.mp3' });
+  await view.result.handleShareFullChapterAudio();
+
+  assert.deepEqual(releases, [
+    { previousUri: null, keepUris: ['file:///john-3.mp3'] },
+    { previousUri: 'file:///john-3.mp3', keepUris: ['file:///john-4.mp3'] },
+    { previousUri: null, keepUris: ['file:///library/john-5.mp3'] },
+    { previousUri: 'file:///john-4.mp3', keepUris: ['file:///john-6.mp3'] },
+  ]);
+});
+
+test('a new clip deletes the previous trimmed clip only once the new one exists', async () => {
+  const view = mountPortion();
+  await view.result.handleConfirmAudioPortionShare();
+  assert.deepEqual(deletedClips, [], 'the first clip has nothing before it to delete');
+
+  trim = async () => 'file:///clip-2.mp3';
+  const second = mountPortion();
+  await second.result.handleConfirmAudioPortionShare();
+  assert.deepEqual(deletedClips, ['file:///clip.mp3']);
+
+  trim = async () => {
+    throw new Error('trim failed');
+  };
+  const failing = mountPortion();
+  await failing.result.handleConfirmAudioPortionShare();
+  assert.deepEqual(deletedClips, ['file:///clip.mp3'], 'a failed trim keeps the last good clip');
 });
 
 test('same-tick chapter share presses prepare only one asset', async () => {

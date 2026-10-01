@@ -20,6 +20,46 @@ export async function loadAudioShareDependencies() {
   };
 }
 
+/** Deletes one file the app exported for sharing. A file that is already gone is not an error. */
+export async function deleteSharedAudioFile(uri: string): Promise<void> {
+  const FileSystem = await import('expo-file-system/legacy');
+  await FileSystem.deleteAsync(uri, { idempotent: true });
+}
+
+/**
+ * Keeps the chapter-audio export cache bounded: deletes the export handed to sharing last time
+ * (the recipient may read it until then), then prunes the cache by age and size. `keepUris` are
+ * the files the share now starting uses; they are never deleted. Never throws, since a stale file
+ * must not block a share.
+ */
+export async function releaseStaleAudioShares({
+  previousUri,
+  keepUris,
+}: {
+  previousUri: string | null;
+  keepUris: readonly string[];
+}): Promise<void> {
+  try {
+    const [FileSystem, shareService] = await Promise.all([
+      import('expo-file-system/legacy'),
+      import('../../../services/audio/audioShareService'),
+    ]);
+    if (previousUri && !keepUris.includes(previousUri)) {
+      await FileSystem.deleteAsync(previousUri, { idempotent: true }).catch(() => {});
+    }
+    const rootUri = `${
+      FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? 'file:///'
+    }everybible-audio-share/`;
+    await shareService.pruneAudioShareCache({
+      fileSystem: shareService.createExpoAudioShareCacheFileSystem(FileSystem),
+      rootUri,
+      protectedUris: keepUris,
+    });
+  } catch {
+    // Cleanup is best effort.
+  }
+}
+
 // expo-sharing relies on a native module that may not be registered in all
 // build configurations (e.g. Expo Go, stale dev client). Wrap the import so
 // any "Requiring unknown module" error at the factory level falls back to the
