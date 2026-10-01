@@ -32,7 +32,11 @@ async function load() {
   return useInteractionHandleUntil;
 }
 
-test('the handle is held from mount until the content is committed', async () => {
+// React Native runs runAfterInteractions work with setImmediate, at the end of the
+// current JS batch and before that batch's view updates reach the native side. Releasing
+// in the commit's own batch would run the held work ahead of the content it waited for.
+test('the handle is held until the batch after the content is committed', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const useInteractionHandleUntil = await load();
   const view = runtime.mount(useInteractionHandleUntil, false, 1500);
   view.flushEffects();
@@ -40,6 +44,9 @@ test('the handle is held from mount until the content is committed', async () =>
 
   view.rerender(true, 1500);
   view.flushEffects();
+  assert.equal(interactions.open.size, 1, 'still held within the batch that drew the content');
+
+  context.mock.timers.tick(0);
   assert.equal(interactions.open.size, 0);
 });
 
@@ -55,7 +62,8 @@ test('content that never finishes releases the handle after the cap', async (con
   assert.equal(interactions.open.size, 0);
 });
 
-test('leaving the screen releases the handle, and later renders take no new one', async () => {
+test('leaving the screen releases the handle, and later renders take no new one', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const useInteractionHandleUntil = await load();
   const view = runtime.mount(useInteractionHandleUntil, false, 1500);
   view.flushEffects();
@@ -64,6 +72,7 @@ test('leaving the screen releases the handle, and later renders take no new one'
 
   const done = runtime.mount(useInteractionHandleUntil, true, 1500);
   done.flushEffects();
+  context.mock.timers.tick(0);
   done.rerender(false, 1500);
   done.flushEffects();
   assert.equal(interactions.open.size, 0, 'a later chapter change holds nothing');

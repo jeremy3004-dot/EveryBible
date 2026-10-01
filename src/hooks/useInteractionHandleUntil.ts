@@ -2,11 +2,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { InteractionManager } from 'react-native';
 
 /**
- * Holds an InteractionManager interaction handle from mount until `done` is
- * committed, or for `maxMs` at most. Work queued with `runAfterInteractions`
+ * Holds an InteractionManager interaction handle from mount until the JS batch after
+ * `done` is committed, or for `maxMs` at most. Work queued with `runAfterInteractions`
  * meanwhile, such as a screen mounted underneath or a prefetch, then waits for this
- * screen's first content instead of competing with it on the JS thread. Queued work
- * starts in a later task, after this commit has gone to the native side. Only the
+ * screen's first content instead of competing with it on the JS thread. Only the
  * first `done` counts: later changes hold nothing.
  */
 export function useInteractionHandleUntil(done: boolean, maxMs: number) {
@@ -28,6 +27,11 @@ export function useInteractionHandleUntil(done: boolean, maxMs: number) {
   }, [maxMs, release]);
 
   useEffect(() => {
-    if (done) release();
+    if (!done || handleRef.current === null) return;
+    // Not in this batch: React Native runs the queued work with setImmediate at the
+    // end of the current batch, before its view updates reach the native side, so the
+    // work would still go ahead of the content. A timer is a later batch.
+    const timeout = setTimeout(release, 0);
+    return () => clearTimeout(timeout);
   }, [done, release]);
 }
