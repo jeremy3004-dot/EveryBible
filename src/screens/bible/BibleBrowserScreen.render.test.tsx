@@ -238,6 +238,39 @@ test('a typed reference offers a jump card that opens the passage', async () => 
   assert.deepEqual(harness.navigation.calls[1], harness.navigation.calls[0]);
 });
 
+test('a bare book name offers its first chapter above the full-text results', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderBrowser();
+  await view.changeText(view.getByLabelText(t('common.search')), 'john');
+  await view.flush();
+  await tickTimers(context, BIBLE_SEARCH_DEBOUNCE_MS);
+  await waitUntil(() => searches.length > 0);
+
+  assert.deepEqual(
+    searches.map(({ query }) => query),
+    ['john'],
+    'the word is still searched'
+  );
+  await view.press(view.getByText('John 1'));
+  assert.deepEqual(harness.navigation.calls, [
+    {
+      method: 'navigate',
+      args: [
+        'BibleReader',
+        { bookId: 'JHN', chapter: 1, focusVerse: undefined, preferredMode: 'listen' },
+      ],
+    },
+  ]);
+});
+
+test('a short word that prefixes a book gets no book card', async () => {
+  const view = await renderBrowser();
+  await view.changeText(view.getByLabelText(t('common.search')), 'am');
+  await view.flush();
+
+  assert.equal(view.queryByText('Amos 1'), null);
+});
+
 test('full-text search waits for the debounce window, then lists and announces results', async (context) => {
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const view = await renderBrowser();

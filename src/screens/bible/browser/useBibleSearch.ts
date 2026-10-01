@@ -1,10 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
-import { bibleBooks, getTranslatedBookName } from '../../../constants/books';
+import { bibleBooks, getBookById, getTranslatedBookName } from '../../../constants/books';
 import {
+  parsePassageBookLocale,
   parsePassageReferenceLocale,
   warmReferenceParser,
   type LocalizedBookName,
+  type PassageReferenceTarget,
 } from '../../../services/bible/referenceParser';
 import type { Verse } from '../../../types';
 import { announceForAccessibility, announceLiveRegionText } from '../../../utils/a11y';
@@ -71,13 +73,23 @@ export function useBibleSearch(
     (q: string) => parsePassageReferenceLocale(q, language, bookNames),
     [bookNames, language]
   );
+  // A query that is only a book's name has no chapter, so it is not a reference; it opens the
+  // book's first chapter from a card above the full-text hits for the same word.
+  const parseBook = useCallback(
+    (q: string): PassageReferenceTarget | null => {
+      const bookId = parsePassageBookLocale(q, language, bookNames);
+      const book = bookId ? getBookById(bookId) : undefined;
+      return bookId && book ? { bookId, chapter: 1, label: book.name } : null;
+    },
+    [bookNames, language]
+  );
   // Memoised on the trimmed query: the reference parser otherwise runs again on every unrelated
   // re-render, and a new intent for the same words (the space typed before the next word)
   // would run the same search again and re-announce its result count.
   const trimmedDeferredQuery = deferredSearchQuery.trim();
   const searchIntent = useMemo(
-    () => resolveBibleSearchIntent(trimmedDeferredQuery, parseRef),
-    [trimmedDeferredQuery, parseRef]
+    () => resolveBibleSearchIntent(trimmedDeferredQuery, parseRef, parseBook),
+    [trimmedDeferredQuery, parseRef, parseBook]
   );
   const failedToLoadMessage = t('bible.failedToLoad');
   const searchUnavailableMessage = t('bible.searchUnavailable');
@@ -169,8 +181,8 @@ export function useBibleSearch(
     setTimeout(() => warmReferenceParser(language), 0);
   }, [language]);
   const resolveSubmitIntent = useCallback(
-    () => resolveBibleSearchIntent(searchQuery, parseRef),
-    [parseRef, searchQuery]
+    () => resolveBibleSearchIntent(searchQuery, parseRef, parseBook),
+    [parseBook, parseRef, searchQuery]
   );
 
   return {

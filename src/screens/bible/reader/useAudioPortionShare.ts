@@ -5,9 +5,23 @@ import { Alert, InteractionManager, Platform, Share } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { buildBibleDeepLink } from '../../../services/bible/deepLinkParser';
 import type { ReaderAudioPositionSnapshot } from '../ReaderAudioPositionParts';
-import { tryLoadSharing, loadVideoTrimDependencies } from './audioShareDependencies';
+import {
+  deleteSharedAudioFile,
+  tryLoadSharing,
+  loadVideoTrimDependencies,
+} from './audioShareDependencies';
 import { AUDIO_PORTION_MIN_DURATION_MS } from './readerConstants';
 import type { AudioPortionShareDraft } from './audioShareDependencies';
+
+// The trimmed clip handed to native sharing last. The recipient may keep reading it after the
+// share returns, so it is deleted when the next clip is trimmed, which keeps one clip on disk
+// instead of one per share.
+let lastTrimmedClipUri: string | null = null;
+
+/** Test seam: forget the last clip so one test's file is not deleted in the next. */
+export function forgetLastTrimmedAudioClip() {
+  lastTrimmedClipUri = null;
+}
 
 export interface UseAudioPortionShareInput {
   audioPositionRef: RefObject<ReaderAudioPositionSnapshot>;
@@ -252,6 +266,12 @@ export function useAudioPortionShare({
       const trimOutputUri = trimOutputPath.startsWith('file://')
         ? trimOutputPath
         : `file://${trimOutputPath}`;
+      const previousClipUri = lastTrimmedClipUri;
+      lastTrimmedClipUri = trimOutputUri;
+      if (previousClipUri && previousClipUri !== trimOutputUri) {
+        // A stale clip that cannot be deleted must not block this share.
+        void deleteSharedAudioFile(previousClipUri).catch(() => {});
+      }
       const Sharing = await tryLoadSharing();
       if (!isCurrent()) return;
       const available = Sharing && (await Sharing.isAvailableAsync());

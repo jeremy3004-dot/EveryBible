@@ -381,3 +381,60 @@ export const parsePassageReferenceLocale = (
 
   return bookNames ? parseWithBookNames(query, bookNames) : null;
 };
+
+// Shorter than this is too likely a common word that happens to prefix or abbreviate a book
+// ("am", "is", "go"); "job", "gen" and "joh" are the shortest a person types on purpose.
+const MIN_BOOK_ONLY_QUERY_LENGTH = 3;
+
+const parseBookOnlyWithParser = (query: string, parser: bcv_parser): string | null => {
+  // The grammar ignores a bare book name, so it is read as chapter 1 of that book. The whole
+  // text must be consumed: "john" but not "john loves", whose "1" would not be reached.
+  const withChapter = `${query} 1`;
+  const [match] = parser.parse(withChapter).osis_and_indices();
+  if (!match || match.indices[0] !== 0 || match.indices[1] !== withChapter.length) {
+    return null;
+  }
+  // A lone book token with chapter 1: no list or range, which would mean more was typed.
+  const [bookToken = '', chapter, verse, ...rest] = match.osis.split('.');
+  const isLoneChapterOne =
+    /^[1-3]?[A-Za-z]+$/.test(bookToken) &&
+    (chapter === undefined || chapter === '1') &&
+    (verse === undefined || verse === '1') &&
+    rest.length === 0;
+  return isLoneChapterOne ? (OSIS_TO_BOOK_ID[bookToken] ?? null) : null;
+};
+
+/**
+ * The book a query names and nothing else ("john", "1 john", "psalms", "Gen", or the interface
+ * language's own name for it), or null. `parsePassageReferenceLocale` treats these as word
+ * searches because they carry no chapter; the browser uses this to offer the book alongside the
+ * full-text hits. Needs at least three characters and an exact book name or abbreviation.
+ */
+export const parsePassageBookLocale = (
+  query: string,
+  locale: string,
+  bookNames?: readonly LocalizedBookName[]
+): string | null => {
+  const normalizedQuery = normalizeReferenceNumerals(trimReferenceQuery(query));
+  if (
+    normalizedQuery.length < MIN_BOOK_ONLY_QUERY_LENGTH ||
+    normalizedQuery.length > MAX_NAMED_REFERENCE_LENGTH ||
+    /\p{Nd}\s*$/u.test(normalizedQuery)
+  ) {
+    return null;
+  }
+
+  const parserLocale: ReferenceParserLocale = isSupportedParserLocale(locale) ? locale : 'en';
+  const bookId =
+    parseBookOnlyWithParser(normalizedQuery, getParser(parserLocale)) ??
+    (parserLocale === 'en' ? null : parseBookOnlyWithParser(normalizedQuery, getParser('en')));
+  if (bookId && getBookById(bookId)) {
+    return bookId;
+  }
+
+  if (!bookNames) {
+    return null;
+  }
+  const folded = foldForNameMatch(normalizedQuery);
+  return prepareBookNames(bookNames).find(({ names }) => names.includes(folded))?.bookId ?? null;
+};

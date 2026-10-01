@@ -1,0 +1,63 @@
+# Main-queue native module setup with expo-updates excluded (build 59426615 + profiling shim).
+# macOS 'sample' at 1 ms of two gated launches on an iPhone 17 simulator; counts are samples
+# (inflated by sample's own overhead, so read them as proportions).
+
+## RCTCxxBridge _prepareModulesWithDispatchGroup main-queue block, launch 1
+  246 .................__49-[RCTCxxBridge _prepareModulesWithDispatchGroup:]_block_invoke  (in EveryBible) + 112  RCTCxxBridge.mm:1001
+  206 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 88  EXNativeModulesProxy.mm:192
+  206 ........................-[ExpoBridgeModule legacyProxyDidSetBridge:legacyModuleRegistry:]  (in EveryBible) + 84  ExpoBridgeModule.mm:71
+  205 ...........................specialized ModuleRegistry.register(module:preventModuleOverriding:)  (in EveryBible) + 120  ModuleRegistry.swift:39
+  205 ............................specialized ModuleHolder.init(appContext:module:)  (in EveryBible) + 124  ModuleHolder.swift:42
+   24 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 208  EXNativeModulesProxy.mm:201
+   24 ........................-[EXNativeModulesProxy registerExpoModulesInBridge:]  (in EveryBible) + 812  EXNativeModulesProxy.mm:304
+   24 ..........................-[EXAV setModuleRegistry:]  (in EveryBible) + 240  EXAV.m:155
+   24 .............................-[AVAudioSession setCategory:withOptions:error:]  (in AudioSession) + 64
+   23 ..............................avas::client::SessionCore::setCategory(NSString*, NSString*, AVAudioSessionRouteSharingPolicy, unsigned long)  (in AudioSession) + 484
+   15 .......................-[EXNativeModulesProxy setBridge:]  (in EveryBible) + 64  EXNativeModulesProxy.mm:191
+   15 ........................-[RCTCxxBridge moduleForClass:]  (in EveryBible) + 52  RCTCxxBridge.mm:683
+    8 ..............................-[ExpoBridgeModule setBridge:]  (in EveryBible) + 96  ExpoBridgeModule.mm:49
+    8 ...................................specialized ModuleHolder.init(appContext:module:)  (in EveryBible) + 116
+    7 .............................-[ExpoBridgeModule init]  (in EveryBible) + 72  ExpoBridgeModule.mm:21
+    6 ................................specialized ModuleRegistry.register(module:preventModuleOverriding:)  (in EveryBible) + 128  ModuleRegistry.swift:39
+    6 .................................specialized ModuleHolder.init(appContext:module:)  (in EveryBible) + 116
+    6 .................__49-[RCTCxxBridge _prepareModulesWithDispatchGroup:]_block_invoke  (in EveryBible) + 128  RCTCxxBridge.mm:1002
+    6 .....................-[EXNativeModulesProxy constantsToExport]  (in EveryBible) + 16  EXNativeModulesProxy.mm:186
+    4 ......................-[EXNativeModulesProxy nativeModulesConfig]  (in EveryBible) + 996  EXNativeModulesProxy.mm:178
+
+## Expo module definitions built in ModuleHolder.init (mean samples per launch, 2 launches)
+  36.0 SQLiteModule
+  27.5 FileSystemModule
+  15.5 AppleAuthenticationModule
+  15.0 FileSystemLegacyModule
+  15.0 ClipboardModule
+  14.5 GlassEffectModule
+  13.0 ExpoFetchModule
+   8.0 CoreModule
+   7.0 VideoViewModule
+   6.5 SecureStoreModule
+   6.5 CryptoModule
+   6.5 JSLoggerModule
+   6.0 LinearGradientModule
+   5.0 BlurViewModule
+   4.5 ApplicationModule
+   3.5 CategoriesModule
+   3.0 ImagePickerModule
+   3.0 HapticsModule
+   2.0 EmitterModule
+   2.0 FontLoaderModule
+   2.0 PermissionsModule
+   2.0 PresentationModule
+   2.0 WebBrowserModule
+   2.0 SchedulerModule
+   1.5 ExpoLinkingModule
+   1.5 ConstantsModule
+   1.0 ScreenCaptureModule
+   1.0 AssetModule
+   1.0 HandlerModule
+   1.0 KeepAwakeModule
+   1.0 LocalizationModule
+   1.0 SharingModule
+   1.0 SplashScreenModule
+   1.0 BadgeModule
+   1.0 FontUtilsModule
+   0.5 ServerRegistrationModule

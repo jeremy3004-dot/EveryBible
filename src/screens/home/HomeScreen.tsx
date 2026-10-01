@@ -162,7 +162,8 @@ export function HomeScreen() {
             if (frame !== undefined) cancelAnimationFrame(frame);
           };
         },
-        // Unguarded on purpose: the Android startup benchmark reads it from release logcat.
+        // Unguarded on purpose: scripts/benchmark-android-startup.py times cold start
+        // to this line in release logcat (see the App:module-start note in App.tsx).
         report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
       }),
     []
