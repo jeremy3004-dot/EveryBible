@@ -1314,7 +1314,7 @@ export const id = {
     startPlan: 'Mulai rencana',
     enrolled: 'Terdaftar',
     dayOf: 'Hari {{current}} dari {{total}}',
-    inSeason: 'Sesuai musim',
+    inSeason: 'Untuk masa ini',
     seasonStarts: 'Mulai {{date}}',
     seasonStartsToday: 'Mulai hari ini',
     markComplete: 'Tandai selesai',
@@ -1541,7 +1541,7 @@ export const id = {
       pentecost: {
         title: 'Kenaikan sampai Pentakosta',
         description:
-          'Sebelas hari dari Kenaikan Tuhan sampai Pentakosta: menanti dan berdoalah bersama para murid pertama untuk Roh Kudus, yang membawa Injil kepada setiap bahasa.',
+          'Sebelas hari dari Kenaikan Tuhan sampai Pentakosta: bersama para murid pertama, nantikan dan doakan kedatangan Roh Kudus, yang membawa Injil kepada setiap bahasa.',
       },
       translationWeek: {
         title: 'Firman dalam Setiap Bahasa',
@@ -1551,12 +1551,12 @@ export const id = {
       allSaints: {
         title: 'Hari Semua Orang Kudus',
         description:
-          'Mulai 1 November: awan saksi yang besar yang telah berlari mendahului kita, dan orang-orang kudus yang setia dan sederhana yang disebut Alkitab.',
+          'Mulai 1 November: banyak saksi bagaikan awan, yang telah berlomba mendahului kita, dan orang-orang kudus biasa yang setia, yang namanya disebut dalam Alkitab.',
       },
       persecutedChurch: {
         title: 'Gereja yang Dianiaya',
         description:
-          'Sepekan mulai Minggu kedua November, ketika banyak gereja berdoa bagi orang percaya yang menderita karena Yesus: saksi-saksi berani dalam Kisah Para Rasul, orang buangan yang setia dalam Daniel, dan janji-janji untuk jalan yang berat.',
+          'Sepekan mulai hari Minggu kedua bulan November, ketika banyak gereja berdoa bagi orang percaya yang menderita karena Yesus: saksi-saksi berani dalam Kisah Para Rasul, orang buangan yang setia dalam Daniel, dan janji-janji untuk jalan yang berat.',
       },
       hardChristmas: {
         title: 'Ketika Natal Terasa Berat',
