@@ -1244,7 +1244,7 @@ const StorySection = memo(function StorySection({
                       ]}
                     >
                       {/* RN has no baseline shift, so the marker is approximated
-                          with a small mono figure and a thin space. */}
+                          with a small mono figure and a space. */}
                       {verse.verse}
                       {STORY_VERSE_NUMBER_GAP}
                     </Text>

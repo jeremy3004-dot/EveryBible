@@ -1,7 +1,10 @@
 import type { Verse } from '../../types';
 
-/** Between a verse number and its words in the story paragraph (a thin space). */
-export const STORY_VERSE_NUMBER_GAP = ' ';
+/**
+ * Between a verse number and its words in the story paragraph. A plain space: the thin
+ * space it replaced rendered as no gap at all in the number's mono face.
+ */
+export const STORY_VERSE_NUMBER_GAP = ' ';
 
 /** Identifies a verse across the story's passage blocks. */
 export const storyVerseKey = (verse: Pick<Verse, 'bookId' | 'chapter' | 'verse'>): string =>
@@ -10,7 +13,7 @@ export const storyVerseKey = (verse: Pick<Verse, 'bookId' | 'chapter' | 'verse'>
 /**
  * Where each verse's number starts in its paragraph's text, in UTF-16 units. Mirrors how the
  * story paragraph is rendered: a heading on its own line ("\n" + heading + "\n"), otherwise a
- * space between verses, then the number, the thin space and the words.
+ * space between verses, then the number, the gap and the words.
  */
 export function storyVerseTextStarts(
   verses: readonly Pick<Verse, 'verse' | 'text' | 'heading'>[]
