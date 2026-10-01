@@ -11,12 +11,14 @@ export const TranslatorFeedbackBadge = memo(function TranslatorFeedbackBadge({
 }: {
   status: TranslatorFeedbackAggregateStatus | null;
 }) {
+  // Nearly every tile has no feedback (Psalms alone draws 150), so those skip the theme
+  // and i18n subscriptions entirely.
+  return status ? <FeedbackBadge status={status} /> : null;
+});
+
+function FeedbackBadge({ status }: { status: TranslatorFeedbackAggregateStatus }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-
-  if (!status) {
-    return null;
-  }
 
   const isPending = status === 'pending';
   return (
@@ -39,7 +41,7 @@ export const TranslatorFeedbackBadge = memo(function TranslatorFeedbackBadge({
       <Ionicons name={isPending ? 'alert' : 'checkmark'} size={10} color={colors.onAccent} />
     </View>
   );
-});
+}
 
 const styles = StyleSheet.create({
   badge: {
