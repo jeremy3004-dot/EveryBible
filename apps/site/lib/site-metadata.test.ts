@@ -57,6 +57,8 @@ test('the sitemap lists every indexable page as an absolute URL and skips redire
       'https://everybible.app/about',
       'https://everybible.app/give',
       'https://everybible.app/languages',
+      'https://everybible.app/bible',
+      'https://everybible.app/plans',
       'https://everybible.app/support',
       'https://everybible.app/privacy',
       'https://everybible.app/terms',

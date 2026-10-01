@@ -43,7 +43,8 @@ export function SiteHeader({
         </a>
 
         <div className="site-mobile-menu">
-          <a href="/about">Mission</a>
+          <a href="/bible">Bible</a>
+          <a href="/plans">Plans</a>
           <a className="site-mobile-menu__cta" href={EVERYBIBLE_SMART_DOWNLOAD_PATH}>
             Get the app
           </a>

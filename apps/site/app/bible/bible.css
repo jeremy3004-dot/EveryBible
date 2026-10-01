@@ -1,0 +1,328 @@
+/* /bible reading pages. Built on the shared .static-page styles in globals.css. */
+
+/* The site bundles no serif, so Scripture is set in the reader's own book
+   face: no extra download on pages that exist to be found and read fast. */
+.bible-page {
+  --font-reading:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman',
+    serif;
+  --bible-link: var(--primary-deep);
+}
+
+/* --primary-deep is 3.7:1 on the dark surface; links there use --primary,
+   as .static-page__content links do. */
+html.dark .bible-page {
+  --bible-link: var(--primary);
+}
+
+/* ── Breadcrumb and hero ─────────────────────────────────────────── */
+
+.bible-breadcrumb {
+  margin-bottom: 40px;
+  font-size: 14px;
+}
+
+.bible-breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: hsl(var(--muted-foreground));
+}
+
+.bible-breadcrumb li + li::before {
+  content: '›';
+  margin-right: 6px;
+}
+
+.bible-breadcrumb a {
+  color: hsl(var(--bible-link));
+  font-weight: 700;
+}
+
+.bible-breadcrumb a:hover {
+  color: hsl(var(--primary));
+}
+
+.bible-page .static-page__hero {
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+}
+
+.bible-page .static-page__hero h1 {
+  overflow-wrap: anywhere;
+}
+
+.bible-page .static-page__hero a {
+  color: hsl(var(--bible-link));
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.4);
+  text-underline-offset: 2px;
+}
+
+.bible-count {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* ── Book and chapter lists ──────────────────────────────────────── */
+
+.static-page__content .bible-books {
+  columns: 3 180px;
+  column-gap: 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.static-page__content .bible-books li {
+  margin: 0 0 8px;
+  break-inside: avoid;
+}
+
+.static-page__content .bible-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.static-page__content .bible-chapter-grid li {
+  margin: 0;
+}
+
+.static-page__content .bible-chapter-grid a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height-touch);
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-md);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.static-page__content .bible-chapter-grid a:hover,
+.static-page__content .bible-chapter-grid a:focus-visible {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+
+/* ── Scripture text ─────────────────────────────────────────────── */
+
+.static-page__content .bible-text {
+  max-width: 65ch;
+  margin-bottom: 48px;
+  color: hsl(var(--foreground));
+  font-family: var(--font-reading);
+  font-size: 19px;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.static-page__content .bible-text p {
+  margin: 0 0 1em;
+  color: inherit;
+}
+
+.static-page__content .bible-text .bible-heading {
+  margin: 1.8em 0 0.6em;
+  color: hsl(var(--foreground));
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-heading);
+}
+
+.static-page__content .bible-text .bible-heading:first-child {
+  margin-top: 0;
+}
+
+.static-page__content .bible-text .bible-superscription {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Each line on its own row; a long line wraps with a deeper hanging indent. */
+.static-page__content .bible-text .bible-poetry {
+  margin-left: 0;
+}
+
+.bible-line {
+  display: block;
+  padding-left: 2em;
+  text-indent: -2em;
+}
+
+.bible-line[data-indent='1'] {
+  padding-left: 3.5em;
+}
+
+/* Small and quiet so the text reads through them, but still legible. */
+.bible-verse,
+.bible-note-ref {
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+.bible-verse {
+  color: hsl(var(--muted-foreground));
+  font-weight: 700;
+}
+
+.bible-verse:target {
+  border-radius: var(--radius-sm);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  outline: 0.3em solid hsl(var(--accent));
+}
+
+.static-page__content .bible-note-ref a {
+  padding: 0 1px;
+  color: hsl(var(--bible-link));
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ── Footnotes ──────────────────────────────────────────────────── */
+
+.static-page__content .bible-notes ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.static-page__content .bible-notes li {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.static-page__content .bible-notes li:target {
+  color: hsl(var(--foreground));
+}
+
+.static-page__content .bible-notes__label {
+  display: inline-block;
+  min-width: 1.5em;
+  color: hsl(var(--bible-link));
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bible-notes__verse {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+/* ── Previous and next chapter ──────────────────────────────────── */
+
+.bible-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 48px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.static-page__content .bible-pager__link {
+  display: flex;
+  flex: 1 1 200px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius-lg);
+  background: hsl(var(--card));
+  text-decoration: none;
+}
+
+.static-page__content .bible-pager__link--next {
+  align-items: flex-end;
+  margin-left: auto;
+  text-align: right;
+}
+
+.static-page__content .bible-pager__link:hover {
+  border-color: hsl(var(--primary));
+}
+
+.bible-pager__hint {
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+}
+
+.bible-pager__label {
+  color: hsl(var(--foreground));
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: 700;
+}
+
+.static-page__content .bible-pager__link--prev .bible-pager__label::before {
+  content: '← ';
+  content: '← ' / ''; /* decorative: no "left arrow" read aloud */
+}
+
+.static-page__content .bible-pager__link--next .bible-pager__label::after {
+  content: ' →';
+  content: ' →' / '';
+}
+
+/* ── App invitation and attribution ─────────────────────────────── */
+
+.bible-page .language-stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.static-page__content .bible-app .language-stores a {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.bible-page .language-stores img {
+  display: block;
+}
+
+.static-page__content .bible-attribution {
+  color: hsl(var(--text-faint));
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 520px) {
+  .static-page__content .bible-text {
+    font-size: 18px;
+  }
+
+  .bible-line {
+    padding-left: 1.5em;
+    text-indent: -1.5em;
+  }
+
+  .bible-line[data-indent='1'] {
+    padding-left: 2.5em;
+  }
+}

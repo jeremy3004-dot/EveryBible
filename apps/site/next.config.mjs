@@ -27,6 +27,9 @@ const nextConfig = {
     // Languages outside the prerendered set render on first request from one
     // ~30 KB shard; the full atlas snapshot is never loaded for a page.
     '/languages/[slug]': ['./data/language-atlas/pages/*'],
+    // A chapter outside the prerendered set renders on first request from its
+    // book's shard (95 KB at most); the book and index pages read no text.
+    '/bible/[book]/[chapter]': ['./data/bible/bsb/*'],
   },
   eslint: {
     ignoreDuringBuilds: true,

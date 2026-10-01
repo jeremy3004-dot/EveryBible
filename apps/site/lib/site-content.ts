@@ -35,9 +35,10 @@ export interface MobileTabItem {
 
 export const siteNavigation: SiteNavigationItem[] = [
   { label: 'Language atlas', href: '/' },
+  { label: 'Bible', href: '/bible' },
+  { label: 'Plans', href: '/plans' },
   { label: 'The app', href: '/#app' },
   { label: 'Mission', href: '/about' },
-  { label: 'About the data', href: '/#atlas-sources' },
   { label: 'Give', href: '/give' },
 ];
 
@@ -61,6 +62,18 @@ export const appStoreScreenshots: AppStoreScreenshot[] = [
 ];
 
 export const footerColumns: FooterColumn[] = [
+  {
+    // Crawlable links into the reading pages; also the chapters people look up most.
+    title: 'Scripture',
+    links: [
+      { label: 'Read the Bible', href: '/bible' },
+      { label: 'Reading plans', href: '/plans' },
+      { label: 'Psalm 23', href: '/bible/psalms/23' },
+      { label: 'John 3', href: '/bible/john/3' },
+      { label: 'Romans 8', href: '/bible/romans/8' },
+      { label: '1 Corinthians 13', href: '/bible/1-corinthians/13' },
+    ],
+  },
   {
     title: 'Ministry',
     links: [
