@@ -2477,6 +2477,7 @@ test('superseded old-pack failure cannot break the current reader replacement lo
       currentText = verses[0]?.text ?? '';
     },
     setVersesChapterKey: () => {},
+    batchUpdates: (updates: () => void) => updates(),
     t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => key,
   };
   const oldLoad = loadReaderChapter(load);
@@ -2542,6 +2543,7 @@ test('installed reader initial load, Retry and search remain usable while bundle
       text = verses[0]?.text ?? '';
     },
     setVersesChapterKey: () => {},
+    batchUpdates: (updates: () => void) => updates(),
     t: (key: 'bible.packMissingRecovering' | 'bible.failedToLoad') => key,
   };
   await loadReaderChapter(load);
