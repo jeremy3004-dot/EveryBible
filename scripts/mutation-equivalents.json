@@ -25,6 +25,72 @@
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
     }
   ],
+  "src/services/sync/syncMerge.ts": [
+    {
+      "key": "relational-boundary|>|>=|if (!localTimestamp || remoteTimestamp > localTimestamp) {",
+      "reason": "On equal timestamps the mutant assigns the same number the merged map already holds"
+    },
+    {
+      "key": "remove-statement|return right;|;|return right;",
+      "reason": "Differs only for an empty-string local lastReadDate, which the progress sanitizer turns into null first"
+    },
+    {
+      "key": "relational-boundary|>|>=|return left > right ? left : right;",
+      "reason": "On equal date strings both branches return the same string"
+    },
+    {
+      "key": "number-literal|1|0|remoteChapter >= 1 &&",
+      "reason": "Chapter 0 is already rejected by the !remoteData.current_chapter guard on the next line"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|(localStamp === null ? Date.parse(remoteData.synced_at || '') : 0) ||",
+      "reason": "Date.parse('') and Date.parse('__mutant__') are both NaN, which falls through to 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|`${remoteData.current_book}_${remoteData.current_chapter}` >",
+      "reason": "On a same-position tie only positionSource flips, and no production code reads positionSource"
+    },
+    {
+      "key": "relational-boundary|>=|>|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|2|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "number-literal|1|0|year >= 1 &&",
+      "reason": "Date.UTC maps years 0-99 to 1900-1999, so the getUTCFullYear check already rejects them; year >= 1 is redundant"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;",
+      "reason": "A bound built from an invalid now compares false against everything, so it clamps nothing, like no bound"
+    },
+    {
+      "key": "logical-swap||||&&|if (!bound || !Object.values(chapters).some(isAhead)) {",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return chapters;|;|return chapters;",
+      "reason": "When nothing is ahead the mutant returns an equal copy instead of the same object, and no caller compares identity"
+    },
+    {
+      "key": "remove-statement|return localTime === null ? undefined : local;|;|return localTime === null ? undefined : local;",
+      "reason": "Remote stamps are pre-filtered by readRemoteFieldStamps; differs only for a local stamp at or before the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|const remoteUpdatedAt = remotePreferences.synced_at ?? null;",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    },
+    {
+      "key": "logical-swap|&&||||} else if (localTime !== null && remoteTime !== null) {",
+      "reason": "With one stamp present, x >= null answers like the else branch for any stamp after the Unix epoch"
+    },
+    {
+      "key": "nullish-drop-default|remotePreferences.synced_at ?? null|remotePreferences.synced_at|source === 'remote' ? (remotePreferences.synced_at ?? null) : localSnapshot.updatedAt,",
+      "reason": "user_preferences is read with select('*'), so synced_at is a string or null, never undefined"
+    }
+  ],
   "src/stores/bible/textPackInstallModel.ts": [
     {
       "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0",
