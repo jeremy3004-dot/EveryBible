@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -51,10 +52,13 @@ export function TranslatorReviewQueueScreen() {
   const [notCovered, setNotCovered] = useState<{ coveredTranslationIds?: string[] } | null>(null);
 
   const loadQueueRequestIdRef = useRef(0);
+  // The translation whose queue loaded on screen, or null while none has.
+  const loadedTranslationRef = useRef<string | null>(null);
 
   const loadQueue = useCallback(async () => {
     if (!translatorReviewEnabled || !translatorReviewPasscode) {
       loadQueueRequestIdRef.current += 1;
+      loadedTranslationRef.current = null;
       setQueue([]);
       setLoadError(false);
       setNotCovered(null);
@@ -64,6 +68,15 @@ export function TranslatorReviewQueueScreen() {
 
     const requestId = loadQueueRequestIdRef.current + 1;
     loadQueueRequestIdRef.current = requestId;
+
+    // Another translation's chapters are not this one's queue; show loading, not stale rows.
+    if (loadedTranslationRef.current !== currentTranslation) {
+      loadedTranslationRef.current = null;
+      setQueue([]);
+      setLoadError(false);
+      setNotCovered(null);
+      setLoading(true);
+    }
 
     const result = await fetchChapterFeedbackReviewSummaryForTranslation({
       translationId: currentTranslation,
@@ -75,6 +88,7 @@ export function TranslatorReviewQueueScreen() {
     }
 
     if (result.success) {
+      loadedTranslationRef.current = currentTranslation;
       setQueue(sortTranslatorFeedbackQueue(result.chapters));
       setLoadError(false);
       setNotCovered(null);
@@ -83,17 +97,26 @@ export function TranslatorReviewQueueScreen() {
       if (requestId !== loadQueueRequestIdRef.current) {
         return;
       }
-      setOffline(deviceOffline);
-      setQueue([]);
-      setLoadError(true);
-      setNotCovered(
-        result.code === TRANSLATION_NOT_COVERED
-          ? { coveredTranslationIds: result.coveredTranslationIds }
-          : null
-      );
+      if (loadedTranslationRef.current === currentTranslation && !result.code) {
+        // A failed refresh over a queue that already loaded keeps the rows and says why.
+        Alert.alert(
+          t('common.error'),
+          deviceOffline ? t('common.offlineTryAgain') : t('common.somethingWentWrong')
+        );
+      } else {
+        loadedTranslationRef.current = null;
+        setOffline(deviceOffline);
+        setQueue([]);
+        setLoadError(true);
+        setNotCovered(
+          result.code === TRANSLATION_NOT_COVERED
+            ? { coveredTranslationIds: result.coveredTranslationIds }
+            : null
+        );
+      }
     }
     setLoading(false);
-  }, [currentTranslation, translatorReviewEnabled, translatorReviewPasscode]);
+  }, [currentTranslation, t, translatorReviewEnabled, translatorReviewPasscode]);
 
   useFocusEffect(
     useCallback(() => {

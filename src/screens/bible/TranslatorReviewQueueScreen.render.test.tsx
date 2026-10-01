@@ -1,5 +1,6 @@
 import test, { beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { flattenStyle, installRenderHarness } from '../../testing/render';
@@ -16,9 +17,12 @@ const useTranslatorReviewStore = create(() => ({
 }));
 mockModule(mock, sourcePath('stores/translatorReviewStore.ts'), { useTranslatorReviewStore });
 // The queue lives only on the server.
+type QueueResult = { success: boolean; chapters?: unknown[]; code?: string };
 const backend = {
   offline: false,
-  result: { success: true, chapters: [] } as { success: boolean; chapters?: unknown[] },
+  result: { success: true, chapters: [] } as QueueResult,
+  // When set, a fetch waits for the test to settle it, per translation.
+  gate: null as null | ((translationId: string) => Promise<QueueResult>),
 };
 mockModule(mock, sourcePath('utils/connectivity.ts'), {
   isDeviceOffline: async () => backend.offline,
@@ -26,7 +30,11 @@ mockModule(mock, sourcePath('utils/connectivity.ts'), {
 mockBarrel(mock, 'services/feedback/index.ts', {
   real: ['getTranslatorFeedbackUnresolvedCount', 'sortTranslatorFeedbackQueue'],
   provide: {
-    fetchChapterFeedbackReviewSummaryForTranslation: async () => backend.result,
+    fetchChapterFeedbackReviewSummaryForTranslation: async ({
+      translationId,
+    }: {
+      translationId: string;
+    }) => (backend.gate ? backend.gate(translationId) : backend.result),
     TRANSLATION_NOT_COVERED: 'translation_not_covered',
   },
 });
@@ -38,6 +46,8 @@ mockBarrel(mock, 'constants/index.ts', { real: ['getTranslatedBookName'] });
 beforeEach(() => {
   backend.offline = false;
   backend.result = { success: true, chapters: [] };
+  backend.gate = null;
+  useBibleStore.setState({ currentTranslation: 'bsb' });
   useTranslatorReviewStore.setState({ enabled: false, accessPasscode: null });
 });
 
@@ -124,4 +134,83 @@ test('with everything addressed the queue says so instead of a pending count', a
 
   assert.ok(view.getByText(t('translatorQueue.empty')));
   assert.ok(view.getByText(t('translatorQueue.subtitle')));
+});
+
+const GENESIS = { bookId: 'GEN', chapter: 1, total: 2, unresolvedDown: 1, unresolvedUp: 0 };
+
+async function pullToRefresh(view: Awaited<ReturnType<typeof renderQueue>>) {
+  // The fake FlatList forwards its refreshControl element as a prop rather than rendering it.
+  const list = view.root.findByType('FlatList' as never);
+  const onRefresh = (list.props.refreshControl as { props: { onRefresh: () => Promise<void> } })
+    .props.onRefresh;
+  await act(async () => {
+    await onRefresh();
+  });
+}
+
+test('a failed refresh keeps the loaded chapters and tells the reader why', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: '1234' });
+  backend.result = { success: true, chapters: [GENESIS] };
+  const view = await renderQueue();
+  const row = harness.i18n.t('translatorQueue.openLabel', { reference: 'Genesis 1' });
+  assert.ok(view.getByRole('button', { name: row }));
+
+  backend.result = { success: false };
+  await pullToRefresh(view);
+
+  assert.ok(view.getByRole('button', { name: row }));
+  assert.equal(view.queryByText(t('common.somethingWentWrong')), null);
+  assert.deepEqual(
+    harness.rn.__recorded.alerts.map((alert) => [alert.title, alert.message]),
+    [[t('common.error'), t('common.somethingWentWrong')]]
+  );
+});
+
+test('switching translation drops the previous queue while the new one loads', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: '1234' });
+  backend.result = { success: true, chapters: [GENESIS] };
+  const view = await renderQueue();
+  const row = harness.i18n.t('translatorQueue.openLabel', { reference: 'Genesis 1' });
+  assert.ok(view.getByRole('button', { name: row }));
+
+  let settleWeb!: (result: QueueResult) => void;
+  backend.gate = () => new Promise<QueueResult>((resolve) => (settleWeb = resolve));
+  await act(async () => useBibleStore.setState({ currentTranslation: 'web' }));
+  await view.flush();
+
+  assert.equal(view.queryByRole('button', { name: row }), null);
+  assert.equal(view.queryByText(t('translatorQueue.empty')), null);
+
+  await act(async () =>
+    settleWeb({
+      success: true,
+      chapters: [{ bookId: 'JHN', chapter: 3, total: 1, unresolvedDown: 1, unresolvedUp: 0 }],
+    })
+  );
+  assert.ok(
+    view.getByRole('button', {
+      name: harness.i18n.t('translatorQueue.openLabel', { reference: 'John 3' }),
+    })
+  );
+});
+
+test('a slow response for the previous translation never replaces the new queue', async () => {
+  useTranslatorReviewStore.setState({ enabled: true, accessPasscode: '1234' });
+  const settlers: Record<string, (result: QueueResult) => void> = {};
+  backend.gate = (id) => new Promise<QueueResult>((resolve) => (settlers[id] = resolve));
+  const { TranslatorReviewQueueScreen } = await import('./TranslatorReviewQueueScreen');
+  const view = await harness.render(<TranslatorReviewQueueScreen />);
+  await act(async () => useBibleStore.setState({ currentTranslation: 'web' }));
+  await view.flush();
+
+  await act(async () => settlers.web?.({ success: true, chapters: [] }));
+  await act(async () => settlers.bsb?.({ success: true, chapters: [GENESIS] }));
+
+  assert.equal(
+    view.queryByRole('button', {
+      name: harness.i18n.t('translatorQueue.openLabel', { reference: 'Genesis 1' }),
+    }),
+    null
+  );
+  assert.ok(view.getByText(t('translatorQueue.empty')));
 });
