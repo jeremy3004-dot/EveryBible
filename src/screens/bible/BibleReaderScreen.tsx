@@ -1343,6 +1343,7 @@ export function BibleReaderScreen() {
         hasPrevChapter={hasPrevChapter}
         isCollapsed={isReadBottomChromeCollapsed}
         isLastPlanChapter={isLastPlanChapter}
+        onOpenPlan={handleExitPlanSession}
         planDayNumber={planDayNumber}
         planSessionBottomBarAnimatedStyle={planSessionBottomBarAnimatedStyle}
         rootTabBarBottomPadding={rootTabBarBottomPadding}
