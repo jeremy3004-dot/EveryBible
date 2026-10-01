@@ -31,7 +31,11 @@ const initialCalcState: CalcState = {
 
 function formatNumber(n: number): string {
   if (!Number.isFinite(n)) return 'Error';
-  const s = String(n);
+  // Binary floats make 0.1 + 0.2 = 0.30000000000000004, which is too long to show and
+  // fell through to exponent form ("3.000000e-1"): a calculator that cannot add 0.1
+  // and 0.2 gives away that it is a disguise. Fractions settle at the 9 digits a
+  // calculator display holds; whole numbers keep every digit.
+  const s = String(Number.isInteger(n) ? n : Number(n.toPrecision(9)));
   if (s.length > 12) {
     return n.toExponential(6);
   }

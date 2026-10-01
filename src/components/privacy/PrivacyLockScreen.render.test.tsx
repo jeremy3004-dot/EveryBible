@@ -99,6 +99,16 @@ test('multiplication, division and clear preserve ordinary calculator behavior',
   assert.deepEqual(unlockAttempts, [['*7/2', '6*7/2']]);
 });
 
+test('fractional results are shown like a calculator would, without floating-point noise', async () => {
+  const view = await renderLockScreen();
+
+  await tap(view, ['0', '.', '1', '+', '0', '.', '2', '=']);
+  assert.equal(display(view), '0.3');
+
+  await tap(view, ['C', '1', '÷', '3', '=']);
+  assert.equal(display(view), '0.333333333');
+});
+
 test('while unlock attempts are throttled, a wrong code shows only a generic Error', async () => {
   privacyStore.setState({ pinLockedUntil: Date.now() + 60_000 });
   const view = await renderLockScreen();
