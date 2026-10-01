@@ -75,6 +75,16 @@ export function ReaderTopChrome({
         useAnimatedChrome ? topChromeAnimatedStyle : null,
       ]}
     >
+      {/* Verse text scrolls under the chips; without a backdrop it showed in the gaps between
+          them and above them. Opaque theme background, reaching up through the status bar. */}
+      <View
+        pointerEvents="none"
+        testID="reader-top-chrome-backdrop"
+        style={[
+          styles.floatingReaderTopBackdrop,
+          { top: -sharedTopChromeTop, backgroundColor: colors.bibleBackground },
+        ]}
+      />
       <View style={styles.floatingReaderReferenceCluster}>
         {showPlanSessionChrome ? (
           <TouchableOpacity
@@ -256,6 +266,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.sm,
+  },
+  floatingReaderTopBackdrop: {
+    position: 'absolute',
+    left: -24,
+    right: -22,
+    bottom: -spacing.xs,
   },
   floatingReaderReferenceCluster: {
     flexDirection: 'row',
