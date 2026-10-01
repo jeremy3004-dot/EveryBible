@@ -20,6 +20,7 @@ import {
   type PlanSnapshot,
   type SitePlan,
 } from './plan-snapshot';
+import { getPlanCopy } from './plan-copy';
 import { EVERYBIBLE_SITE_URL } from './site-links';
 import { pageMetadata, SITE_NAME } from './site-metadata';
 
@@ -129,8 +130,11 @@ export function planMetaLabel(plan: Pick<SitePlan, 'schedule' | 'durationDays' |
   return [planLengthLabel(plan), plan.sessions.join(' + ')].filter(Boolean).join(' · ');
 }
 
-/** How the plan's days meet the calendar, in the app's terms. */
-export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions'>): string {
+/**
+ * How the plan's days meet the calendar, in the app's terms. A plan that simply
+ * starts the day you do has nothing to explain, so it has no sentence.
+ */
+export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions'>): string | null {
   const sessions =
     plan.sessions.length > 1
       ? ` Readings are set for the ${listNames(plan.sessions.map((name) => name.toLowerCase()))}.`
@@ -156,10 +160,7 @@ export function planScheduleSentence(plan: Pick<SitePlan, 'schedule' | 'sessions
     );
   if (plan.schedule === 'christmas')
     return 'This plan follows the church year: it begins on Christmas Day and ends on 5 January, the twelfth day of Christmas.';
-  return (
-    'Day 1 is the day you start. EveryBible keeps your place, marks each day you read and opens every reading in the Bible reader.' +
-    sessions
-  );
+  return null;
 }
 
 /* ── Summaries ──────────────────────────────────────────────────── */
@@ -232,6 +233,25 @@ export function planPaceSentence(plan: Pick<SitePlan, 'days' | 'schedule'>): str
   const average = counts.reduce((sum, count) => sum + count, 0) / counts.length;
   const rounded = Math.round(average);
   return rounded <= 1 ? `1 or 2 chapters a day.` : `About ${rounded} chapters a day.`;
+}
+
+/**
+ * The numbers behind a plan, as a small secondary line: "16 chapters · 11 books ·
+ * about 2 chapters a day · 7 days". Counted from the schedule, like the sentences above.
+ */
+export function planFactsLine(plan: Pick<SitePlan, 'days' | 'schedule' | 'durationDays'>): string {
+  const scope = planScope(plan);
+  const pace = planPaceSentence(plan)?.replace(/\.$/, '');
+  return [
+    scope.passages
+      ? 'Selected passages'
+      : `${formatCount(scope.chapters)} chapter${scope.chapters === 1 ? '' : 's'}`,
+    `${scope.books.length} book${scope.books.length === 1 ? '' : 's'}`,
+    pace && `${pace.charAt(0).toLowerCase()}${pace.slice(1)}`,
+    planLengthLabel(plan).replace(/^Every/, 'every'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /* ── Long schedules ─────────────────────────────────────────────── */
@@ -377,10 +397,13 @@ export function planPageTitle(
   return firstThatFits(candidates, TITLE_MAX_LENGTH);
 }
 
-/** The plan's own description stays; the invitation shortens or goes to fit. */
+/** Without a hand-written one, the plan's own description stays; the invitation shortens or goes to fit. */
 export function planPageDescription(
-  plan: Pick<SitePlan, 'title' | 'description' | 'category' | 'schedule' | 'durationDays'>
+  plan: Pick<SitePlan, 'slug' | 'title' | 'description' | 'category' | 'schedule' | 'durationDays'>
 ): string {
+  // A hand-written description beats the template, where the copy module has one.
+  const written = getPlanCopy(plan.slug)?.metaDescription;
+  if (written) return written;
   const kind = planKind(plan);
   // Season names stay capitalised; "free" always takes "A".
   const noun =
