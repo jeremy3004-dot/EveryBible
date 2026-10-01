@@ -136,6 +136,33 @@ function covers(ranges: readonly (readonly [number, number])[], codePoint: numbe
   return false;
 }
 
+function computeDrawableFontIds(text: string): ReadonlySet<VerseImageFontId> {
+  const drawable = new Set<VerseImageFontId>(VERSE_IMAGE_FONTS.map((font) => font.id));
+  for (const character of text) {
+    if (NEEDS_NO_GLYPH.test(character)) continue;
+    const codePoint = character.codePointAt(0)!;
+    for (const id of drawable) {
+      if (!covers(VERSE_IMAGE_FONT_COVERAGE[id], codePoint)) drawable.delete(id);
+    }
+    if (drawable.size === 0) break;
+  }
+  return drawable;
+}
+
+// The editor asks about the same few texts on every render (dragging the size slider
+// re-renders it each frame), and a long selection is thousands of characters per face.
+const DRAWABLE_FONT_CACHE_LIMIT = 8;
+const drawableFontCache = new Map<string, ReadonlySet<VerseImageFontId>>();
+
+function getDrawableFontIds(text: string): ReadonlySet<VerseImageFontId> {
+  const cached = drawableFontCache.get(text);
+  if (cached) return cached;
+  const computed = computeDrawableFontIds(text);
+  if (drawableFontCache.size >= DRAWABLE_FONT_CACHE_LIMIT) drawableFontCache.clear();
+  drawableFontCache.set(text, computed);
+  return computed;
+}
+
 /**
  * Whether a face has a glyph for every character of the text. The picture is set in
  * the verse's own language, whatever the app's is: a Russian verse can use the faces
@@ -143,17 +170,13 @@ function covers(ranges: readonly (readonly [number, number])[], codePoint: numbe
  * rather than a language code, so it holds for every Bible language.
  */
 export function canVerseImageFontDraw(id: VerseImageFontId, text: string): boolean {
-  const ranges = VERSE_IMAGE_FONT_COVERAGE[id];
-  for (const character of text) {
-    if (NEEDS_NO_GLYPH.test(character)) continue;
-    if (!covers(ranges, character.codePointAt(0)!)) return false;
-  }
-  return true;
+  return getDrawableFontIds(text).has(id);
 }
 
 /** The faces that can set this text, in menu order. */
 export function getDrawableVerseImageFonts(text: string): VerseImageFont[] {
-  return VERSE_IMAGE_FONTS.filter((font) => canVerseImageFontDraw(font.id, text));
+  const ids = getDrawableFontIds(text);
+  return VERSE_IMAGE_FONTS.filter((font) => ids.has(font.id));
 }
 
 /**
