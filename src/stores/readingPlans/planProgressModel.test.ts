@@ -140,6 +140,39 @@ test('ticking a session of an earlier day does not move a fixed-length plan back
   assert.deepEqual(progress.completed_entries, existing.completed_entries);
 });
 
+test('ticking a non-final session of a finished plan does not un-finish it', () => {
+  const finishedAt = '2026-08-20T08:00:00.000Z';
+  const existing = row('plan-a', {
+    completed_entries: { '1': 'x', '2': 'x' },
+    current_day: 3,
+    is_completed: true,
+    completed_at: finishedAt,
+  });
+
+  const progress = completeSession(existing, 1, 'morning', sessionOptions, NOW);
+
+  assert.deepEqual(
+    [progress.is_completed, progress.completed_at],
+    [true, finishedAt],
+    'a re-read of one session keeps the plan finished, with its original finish time'
+  );
+});
+
+test('re-ticking the final session of a finished plan keeps its original finish time', () => {
+  const finishedAt = '2026-08-20T08:00:00.000Z';
+  const final = { ...sessionOptions, completionKey: '2:evening', isFinalSession: true };
+  const existing = row('plan-a', {
+    completed_entries: { '1': 'x', '2': 'x' },
+    current_day: 3,
+    is_completed: true,
+    completed_at: finishedAt,
+  });
+
+  const progress = completeSession(existing, 2, 'evening', final, NOW);
+
+  assert.deepEqual([progress.is_completed, progress.completed_at], [true, finishedAt]);
+});
+
 test('the final session completes the day, and only a fixed-length plan finishes', () => {
   const final = { ...sessionOptions, completionKey: '2:evening', isFinalSession: true };
   const existing = row('plan-a', { completed_entries: { '1': 'x' } });

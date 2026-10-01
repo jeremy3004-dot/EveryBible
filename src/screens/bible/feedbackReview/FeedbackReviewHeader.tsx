@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Check, CheckCheck, ChevronDown, Users } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import type { ChapterReviewHeadline, FeedbackStatusFilter } from '../../../servi
 import { TranslationNotCoveredNotice } from '../../../components/feedback';
 import { AppButton, AppCard, TabSwitch } from '../../../components/ui';
 import { announceLiveRegionText } from '../../../utils/a11y';
+import { isDeviceOffline } from '../../../utils/connectivity';
 
 interface FeedbackReviewHeaderProps {
   translationId: string;
@@ -50,11 +51,28 @@ export function FeedbackReviewHeader({
   // A failed first load leaves no summary, which reads as "no feedback yet";
   // the failure is said instead, beside its Retry.
   const loadFailed = failed && !notCovered;
-  const loadFailedMessage = t('common.somethingWentWrong');
+  // The list lives only on the server, so offline a failed load says why. The reason is
+  // read once per failure; the announcement waits for it so it is spoken once.
+  const [failureOffline, setFailureOffline] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!loadFailed) return;
+    let cancelled = false;
+    void isDeviceOffline().then((offline) => {
+      if (!cancelled) setFailureOffline(offline);
+    });
+    return () => {
+      cancelled = true;
+      // The next failure reads its own reason.
+      setFailureOffline(null);
+    };
+  }, [loadFailed]);
+  const loadFailedMessage = t(
+    failureOffline ? 'common.offlineTryAgain' : 'common.somethingWentWrong'
+  );
 
   useEffect(() => {
-    if (loadFailed) announceLiveRegionText(loadFailedMessage);
-  }, [loadFailed, loadFailedMessage]);
+    if (loadFailed && failureOffline !== null) announceLiveRegionText(loadFailedMessage);
+  }, [loadFailed, failureOffline, loadFailedMessage]);
 
   return (
     <View style={styles.header}>

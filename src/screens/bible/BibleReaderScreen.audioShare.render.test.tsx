@@ -17,6 +17,7 @@ const shares: string[] = [];
 let prepare = async () => asset;
 let trim = async () => 'file:///clip.mp3';
 let trimLoadFails = false;
+let shareFails = false;
 let beforeTrimLoad: (() => Promise<void>) | null = null;
 mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
   loadAudioShareDependencies: async () => ({ prepareChapterAudioShareAsset: () => prepare() }),
@@ -32,6 +33,7 @@ mockModule(mock, sourcePath('screens/bible/reader/audioShareDependencies.ts'), {
   tryLoadSharing: async () => ({
     isAvailableAsync: async () => true,
     shareAsync: async (uri: string) => {
+      if (shareFails) throw new Error('another share is still open');
       shares.push(uri);
     },
   }),
@@ -41,6 +43,7 @@ afterEach(() => {
   prepare = async () => asset;
   trim = async () => 'file:///clip.mp3';
   trimLoadFails = false;
+  shareFails = false;
   beforeTrimLoad = null;
 });
 
@@ -88,6 +91,38 @@ test('full audio sharing waits for the iOS chooser dismissal before presenting a
   await act(async () => onDismiss?.());
   await view.flush();
   assert.deepEqual(shares, [asset.uri]);
+});
+
+test('a share sheet failure after the audio is ready is not reported as a failed download', async () => {
+  shareFails = true;
+  const view = await renderReader();
+  const sheet = await openAudioShare(view);
+  const onDismiss = sheet.props.onDismiss as (() => void) | undefined;
+  await view.press(within(sheet).getByRole('button', { name: t('bible.shareChapterAudio') }));
+  await act(async () => onDismiss?.());
+  await view.flush();
+
+  assert.deepEqual(
+    reader.harness.rn.__recorded.alerts.map((alert) => alert.message),
+    [t('common.somethingWentWrong')]
+  );
+});
+
+test('a chapter whose audio cannot be prepared is reported as a failed download', async () => {
+  prepare = async () => {
+    throw new Error('network down');
+  };
+  const view = await renderReader();
+  const sheet = await openAudioShare(view);
+  const onDismiss = sheet.props.onDismiss as (() => void) | undefined;
+  await view.press(within(sheet).getByRole('button', { name: t('bible.shareChapterAudio') }));
+  await act(async () => onDismiss?.());
+  await view.flush();
+
+  assert.deepEqual(
+    reader.harness.rn.__recorded.alerts.map((alert) => alert.message),
+    [t('bible.audioDownloadFailed')]
+  );
 });
 
 test('a chapter download resolving after privacy-lock unmount cannot open native sharing', async () => {

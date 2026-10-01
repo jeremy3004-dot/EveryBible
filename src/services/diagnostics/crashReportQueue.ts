@@ -153,6 +153,18 @@ function getAppVersions(os: string): { appVersion: string; buildNumber: string |
   }
 }
 
+/**
+ * One line naming the build and the OS, for the exported diagnostics report: a log shared
+ * for support is much less useful without the version it came from.
+ */
+export function describeAppEnvironment(): string {
+  const platform = getPlatform();
+  const { appVersion, buildNumber } = getAppVersions(platform.os);
+  const build = buildNumber ? ` (${buildNumber})` : '';
+  const os = platform.version ? `${platform.os} ${platform.version}` : platform.os;
+  return `Every Bible ${appVersion}${build}, ${os}`;
+}
+
 function getCurrentScreen(): string | null {
   try {
     const { rootNavigationRef } =

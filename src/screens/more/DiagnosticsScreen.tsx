@@ -12,6 +12,7 @@ import {
   clearCrashLogs,
   type CrashLogEntry,
 } from '../../services/diagnostics/crashLogStore';
+import { describeAppEnvironment } from '../../services/diagnostics/crashReportQueue';
 
 const STACK_PREVIEW_LINES = 6;
 
@@ -43,7 +44,7 @@ export function DiagnosticsScreen() {
     }
     try {
       const body = entries.map(formatEntryForExport).join('\n\n');
-      const message = `${t('settings.diagnostics.exportHeader')}\n\n${body}`;
+      const message = `${t('settings.diagnostics.exportHeader')}\n${describeAppEnvironment()}\n\n${body}`;
       await Share.share({ message });
     } catch {
       Alert.alert(t('common.error'), t('settings.diagnostics.exportError'));
