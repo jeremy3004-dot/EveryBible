@@ -387,6 +387,8 @@ export interface NavigationFake {
   navigation: Record<string, (...args: unknown[]) => unknown>;
   /** Listeners added through `navigation.addListener(event, fn)`. */
   emit: (event: string, payload?: unknown) => void;
+  /** What `useIsFocused()` and `navigation.isFocused()` answer; true unless a test says otherwise. */
+  focused: boolean;
   reset: () => void;
 }
 
@@ -413,7 +415,7 @@ export function createNavigationFake(): NavigationFake {
     setParams: record('setParams'),
     setOptions: record('setOptions'),
     canGoBack: () => true,
-    isFocused: () => true,
+    isFocused: () => fake.focused,
     getState: () => ({ routes: [route], index: 0 }),
     getId: () => undefined,
     addListener: (event: unknown, listener: unknown) => {
@@ -425,17 +427,20 @@ export function createNavigationFake(): NavigationFake {
     removeListener: () => {},
   };
   navigation.getParent = () => navigation;
-  return {
+  const fake: NavigationFake = {
     calls,
     route,
     navigation,
     emit: (event, payload) => listeners.get(event)?.forEach((listener) => listener(payload)),
+    focused: true,
     reset: () => {
       calls.length = 0;
       listeners.clear();
       route.params = {};
+      fake.focused = true;
     },
   };
+  return fake;
 }
 
 export function createReactNavigationFake(fake: NavigationFake) {
@@ -445,7 +450,7 @@ export function createReactNavigationFake(fake: NavigationFake) {
   return {
     useNavigation: () => fake.navigation,
     useRoute: () => fake.route,
-    useIsFocused: () => true,
+    useIsFocused: () => fake.focused,
     useFocusEffect: (effect: () => void | (() => void)) => {
       // Mirrors useFocusEffect: runs on focus (mount) and again when the callback changes.
       useEffect(effect, [effect]);

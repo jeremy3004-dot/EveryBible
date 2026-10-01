@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, type TextInput as TextInputType } from 'react-native';
+import { InteractionManager, StyleSheet, type TextInput as TextInputType } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { config } from '../../constants/config';
 import { getBookById } from '../../constants/books';
@@ -66,6 +66,19 @@ export function BibleBrowserScreen() {
   const canOpenTranslationPicker = !isPickerModal && config.features.multipleTranslations;
   const [showTranslationModal, setShowTranslationModal] = useState(false);
   const searchInputRef = useRef<TextInputType | null>(null);
+
+  // Home opens a chapter with this screen underneath the reader (back returns here),
+  // and both mount in one commit. The book list is unseen until the reader is popped,
+  // so it waits for that commit's interactions instead of doubling the reader's first
+  // render (Psalms alone expands to 150 chapter tiles).
+  const isFocused = useIsFocused();
+  const [isBookListReady, setIsBookListReady] = useState(isFocused);
+  if (isFocused && !isBookListReady) setIsBookListReady(true);
+  useEffect(() => {
+    if (isBookListReady) return;
+    const handle = InteractionManager.runAfterInteractions(() => setIsBookListReady(true));
+    return () => handle.cancel();
+  }, [isBookListReady]);
 
   const expansion = useBookExpansion(currentBook, initialBookId, currentTranslation);
   const { expandedBookId, toggleBook, showUnavailableChapter, clearUnavailableChapter } = expansion;
@@ -236,7 +249,7 @@ export function BibleBrowserScreen() {
         />
       ) : searchIntent.kind === 'reference' ? (
         <ReferenceJumpCard target={searchIntent.target} onPress={handleReferencePress} />
-      ) : (
+      ) : isBookListReady ? (
         <BibleBookList
           listRef={expansion.listRef}
           initialScrollIndex={expansion.initialScrollIndex}
@@ -253,7 +266,7 @@ export function BibleBrowserScreen() {
           onPressBook={toggleBook}
           onPressChapter={handleChapterPress}
         />
-      )}
+      ) : null}
 
       {config.features.multipleTranslations ? (
         <TranslationPickerSheet visible={showTranslationModal} onClose={closeTranslationPicker} />
