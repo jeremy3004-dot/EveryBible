@@ -236,29 +236,37 @@ async function fetchRemoteChapterTimestamps(
     });
 
     if (!response.ok) {
-      if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
-        verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
+      // A chapter the server says it does not have stays missing; a server error, rate limit
+      // or timeout says nothing about the chapter, so the next look-up asks again.
+      if (
+        response.status >= 400 &&
+        response.status < 500 &&
+        response.status !== 408 &&
+        response.status !== 429
+      ) {
+        rememberTimestamps(cacheKey, null);
       }
-      verseTimestampCache.set(cacheKey, null);
       return null;
     }
 
     const payload = (await response.json()) as unknown;
     const parsed = isTimestampRecord(payload) ? parseTimestampJson(payload) : null;
-    if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
-      verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
-    }
-    verseTimestampCache.set(cacheKey, parsed);
+    rememberTimestamps(cacheKey, parsed);
     return parsed;
   } catch {
-    if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
-      verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
-    }
-    verseTimestampCache.set(cacheKey, null);
+    // Offline, a dropped connection or the timeout: transient, so not remembered. Remembering it
+    // kept follow-along on word-weight estimates for the chapter until the app restarted.
     return null;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function rememberTimestamps(cacheKey: string, timestamps: VerseTimestamps | null): void {
+  if (verseTimestampCache.size >= MAX_VERSE_TIMESTAMP_CACHE_SIZE) {
+    verseTimestampCache.delete(verseTimestampCache.keys().next().value as string);
+  }
+  verseTimestampCache.set(cacheKey, timestamps);
 }
 
 function isTimestampRecord(value: unknown): value is Record<string, unknown> {

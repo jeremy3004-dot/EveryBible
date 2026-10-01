@@ -151,6 +151,41 @@ describe('verseTimestamps — remote stream templates', () => {
       assert.equal(await module.getChapterTimestamps('npiulb', 'JHN', 3), null);
     });
   });
+
+  it('asks again after a network failure instead of remembering it for the session', async () => {
+    await withRemoteTimestamps({ '1': 0, '2': 4.2 }, async (module) => {
+      const healthyFetch = globalThis.fetch;
+      globalThis.fetch = (async () => {
+        throw new TypeError('Network request failed');
+      }) as typeof fetch;
+      assert.equal(await module.getChapterTimestamps('npiulb', 'JHN', 3), null);
+
+      globalThis.fetch = healthyFetch;
+      assert.deepEqual(await module.getChapterTimestamps('npiulb', 'JHN', 3), { 1: 0, 2: 4.2 });
+    });
+  });
+
+  it('asks again after a server error but keeps a missing chapter remembered', async () => {
+    await withRemoteTimestamps({ '1': 0 }, async (module) => {
+      const healthyFetch = globalThis.fetch;
+      let status = 503;
+      let requests = 0;
+      globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+        requests += 1;
+        return status === 200 ? healthyFetch(...args) : new Response('unavailable', { status });
+      }) as typeof fetch;
+
+      assert.equal(await module.getChapterTimestamps('npiulb', 'JHN', 3), null);
+      status = 200;
+      assert.deepEqual(await module.getChapterTimestamps('npiulb', 'JHN', 3), { 1: 0 });
+
+      status = 404;
+      assert.equal(await module.getChapterTimestamps('npiulb', 'JHN', 4), null);
+      const requestsAfterMissing = requests;
+      assert.equal(await module.getChapterTimestamps('npiulb', 'JHN', 4), null);
+      assert.equal(requests, requestsAfterMissing, 'a 404 is cached, not refetched');
+    });
+  });
 });
 
 describe('verseTimestamps — every bundled chapter ships', () => {
