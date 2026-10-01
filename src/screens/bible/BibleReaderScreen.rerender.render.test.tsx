@@ -137,6 +137,37 @@ test('a change to another translation, such as its download progress, does not r
   assert.equal(reader.renders.count, renders);
 });
 
+test('download progress ticks on the current translation do not re-render the reader', async () => {
+  await renderHeadedChapter();
+  const job = (progress: number) => ({
+    id: 'job-1',
+    kind: 'translation-audio' as const,
+    state: 'running' as const,
+    progress,
+    startedAt: 0,
+    updatedAt: progress,
+    bytesDownloaded: progress * 1000,
+    bytesTotal: 100_000,
+  });
+  const setProgress = (progress: number) =>
+    act(async () => {
+      reader.bibleStore.setState((state) => ({
+        translations: state.translations.map((translation) =>
+          translation.id === 'bsb'
+            ? { ...translation, activeDownloadJob: job(progress) }
+            : translation
+        ),
+      }));
+    });
+
+  const renders = reader.renders.count;
+  for (let progress = 1; progress <= 11; progress += 1) {
+    await setProgress(progress);
+  }
+
+  assert.equal(reader.renders.count, renders, '11 progress updates re-rendered the reader');
+});
+
 test('a change to the current translation still reaches the reader', async () => {
   await renderHeadedChapter();
   const renders = reader.renders.count;
