@@ -131,6 +131,20 @@ test('Hindi, Arabic and Chinese verses have no face to offer', () => {
   }
 });
 
+// The editor asks about the same text on every frame of a size drag, so answers are
+// remembered per text; a remembered answer must never leak into another text's.
+test('which faces can draw a text does not depend on what was asked before it', () => {
+  const russian = '"В начале сотворил Бог небо и землю."';
+  const expected = drawable(russian);
+  for (let index = 0; index < 20; index += 1) {
+    assert.equal(drawable(`"Verse ${index} in English"`).length, 8);
+    assert.equal(canVerseImageFontDraw('modern', `"Verse ${index} ğ"`), false);
+    assert.deepEqual(drawable(russian), expected);
+  }
+  assert.equal(canVerseImageFontDraw('classic', russian), true);
+  assert.equal(canVerseImageFontDraw('block', russian), false);
+});
+
 test('spaces and invisible joiners need no glyph', () => {
   assert.equal(canVerseImageFontDraw('modern', 'In the\u00A0beginning\u200D'), true);
 });
