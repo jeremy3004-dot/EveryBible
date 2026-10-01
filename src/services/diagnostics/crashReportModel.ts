@@ -93,7 +93,7 @@ function toStorableText(text: string): string {
     const code = text.charCodeAt(i);
     if (code === 0) continue;
     if (isHighSurrogate(code) && i + 1 < text.length && isLowSurrogate(text.charCodeAt(i + 1))) {
-      result += text[i] + text[i + 1];
+      result += text.charAt(i) + text.charAt(i + 1);
       i += 1;
     } else if (isHighSurrogate(code) || isLowSurrogate(code)) {
       result += '\ufffd';
@@ -136,7 +136,7 @@ const JSC_FRAME = /^(.*?)@(.+?):(\d+):(\d+)$/;
 const BUNDLE_FILE = /\.(?:jsbundle|bundle|hbc)$/;
 
 function bundleFileName(location: string): string | null {
-  const withoutQuery = location.split(/[?&]/)[0].replace(/\/+$/, '');
+  const withoutQuery = (location.split(/[?&]/)[0] ?? '').replace(/\/+$/, '');
   const name = withoutQuery.slice(withoutQuery.lastIndexOf('/') + 1);
   return BUNDLE_FILE.test(name) ? name : null;
 }
@@ -161,7 +161,7 @@ export function extractBundleFrames(
     const line = rawLine.trim();
     const match = V8_FRAME.exec(line) ?? JSC_FRAME.exec(line);
     if (!match) continue;
-    const file = bundleFileName(match[2]);
+    const file = bundleFileName(match[2] ?? '');
     if (!file) continue;
     frames.push(`${cleanFunctionName(match[1])} (${file}:${match[3]}:${match[4]})`);
   }
@@ -178,7 +178,7 @@ export function summarizeComponentStack(
   for (const rawLine of componentStack.split('\n')) {
     if (names.length >= max) break;
     const match = /^(?:in|at)\s+([A-Za-z_$][\w$.]{0,63})/.exec(rawLine.trim());
-    if (match) names.push(match[1]);
+    if (match?.[1]) names.push(match[1]);
   }
   return names.length > 0 ? names.join(' < ') : null;
 }

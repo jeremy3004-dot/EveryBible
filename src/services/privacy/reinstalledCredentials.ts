@@ -17,8 +17,9 @@ export function getSupabaseAuthStorageKeys(supabaseUrl: string | undefined): str
   if (!match) {
     return [];
   }
-  const host = match[1].slice(match[1].lastIndexOf('@') + 1).replace(/:\d*$/, '');
-  const label = host.split('.')[0].toLowerCase();
+  const authority = match[1] ?? '';
+  const host = authority.slice(authority.lastIndexOf('@') + 1).replace(/:\d*$/, '');
+  const label = (host.split('.')[0] ?? '').toLowerCase();
   if (!label) {
     return [];
   }

@@ -205,7 +205,7 @@ function serverMergeUserProgress(
     for (const [key, value] of Object.entries(source)) {
       if (typeof value !== 'number') continue;
       const readAt = boundTime(value);
-      chapters[key] = key in chapters ? Math.max(chapters[key], readAt) : readAt;
+      chapters[key] = Math.max(chapters[key] ?? readAt, readAt);
     }
   }
 
@@ -397,7 +397,7 @@ test('mergeChapterProgress keeps every local chapter and adopts only numeric rem
     fc.property(chaptersArb, hostileChaptersArb, (local, remote) => {
       const merged = mergeChapterProgress(local, remote);
       for (const [key, readAt] of Object.entries(local)) {
-        assert.ok(merged[key] >= readAt, `lost or regressed local ${key}`);
+        assert.ok((merged[key] ?? -Infinity) >= readAt, `lost or regressed local ${key}`);
       }
       for (const [key, value] of Object.entries(merged)) {
         assert.equal(typeof value, 'number', `${key} holds ${String(value)}`);
@@ -671,8 +671,11 @@ test('a merge never drops a well-formed local chapter, whatever the remote row h
       const merged = mergeReadingSnapshot(local, remote);
       const payload = buildRemoteProgressPayload(USER_ID, merged, '2026-09-24T00:00:00.000Z');
       for (const [key, readAt] of Object.entries(local.chaptersRead)) {
-        assert.ok(merged.progress.chaptersRead[key] >= readAt, key);
-        assert.ok((payload.chapters_read as Record<string, number>)[key] >= readAt, key);
+        assert.ok((merged.progress.chaptersRead[key] ?? -Infinity) >= readAt, key);
+        assert.ok(
+          ((payload.chapters_read as Record<string, number>)[key] ?? -Infinity) >= readAt,
+          key
+        );
       }
     }),
     FC_PARAMS
