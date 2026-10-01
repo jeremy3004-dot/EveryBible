@@ -77,7 +77,7 @@ export const DayRow = memo(function DayRow({
   const displayFont = useDisplayFont();
   // Today's references share the row with Read + Listen; at large text sizes
   // that left the references a word per line, so the actions drop beneath.
-  const { rowDirection: todayRowDirection } = useLargeText();
+  const { rowDirection: todayRowDirection, isLargeText } = useLargeText();
 
   const { t } = useTranslation();
   const refs = entries.map((entry) => formatChapterRef(entry, t)).join(', ');
@@ -163,7 +163,7 @@ export const DayRow = memo(function DayRow({
           >
             <Text
               style={[typography.eyebrow, displayFont.regular, { color: colors.accentPrimary }]}
-              numberOfLines={1}
+              numberOfLines={isLargeText ? 2 : 1}
             >
               {`${t('home.today')} · ${t('readingPlans.dayLabel', { day: dayNumber })}`}
             </Text>
@@ -255,6 +255,7 @@ export const DayRow = memo(function DayRow({
       <View
         style={[
           styles.ledgerRow,
+          isLargeText ? styles.ledgerRowStacked : null,
           isFirst ? null : { borderTopWidth: 1, borderTopColor: colors.borderStrong },
         ]}
       >
@@ -268,12 +269,18 @@ export const DayRow = memo(function DayRow({
           {t('readingPlans.dayLabel', { day: dayNumber })}
         </Text>
         <Text
-          style={[styles.ledgerRef, { color: isFuture ? colors.textTertiary : colors.primaryText }]}
-          numberOfLines={2}
+          style={[
+            styles.ledgerRef,
+            isLargeText ? styles.ledgerRefStacked : null,
+            { color: isFuture ? colors.textTertiary : colors.primaryText },
+          ]}
+          numberOfLines={isLargeText ? undefined : 2}
         >
           {refs}
         </Text>
-        <View style={styles.ledgerTrailing}>{trailing}</View>
+        <View style={[styles.ledgerTrailing, isLargeText ? styles.ledgerTrailingStacked : null]}>
+          {trailing}
+        </View>
       </View>
       {hasSessionActions && !isFuture ? (
         <View style={styles.ledgerSessions}>{sessionActionRow}</View>
@@ -345,6 +352,14 @@ const styles = StyleSheet.create({
     minHeight: 48,
     marginHorizontal: spacing.lg,
   },
+  // At large text the date beside the passages left them a word per line: the day, passages
+  // and date each take a line instead.
+  ledgerRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
   ledgerDay: {
     ...typography.mono,
     fontWeight: '600',
@@ -358,8 +373,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     flex: 1,
   },
+  // flex: 1 in a column of unknown height collapses; size to the text instead.
+  ledgerRefStacked: {
+    flex: 0,
+    alignSelf: 'stretch',
+  },
   ledgerTrailing: {
     alignItems: 'flex-end',
+  },
+  ledgerTrailingStacked: {
+    alignItems: 'flex-start',
   },
   ledgerTrailingGroup: {
     flexDirection: 'row',
@@ -379,6 +402,7 @@ const styles = StyleSheet.create({
   },
   sessionActionButton: {
     minHeight: 32,
+    maxWidth: '100%',
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -389,5 +413,6 @@ const styles = StyleSheet.create({
   },
   sessionActionLabel: {
     ...typography.monoSmall,
+    flexShrink: 1,
   },
 });
