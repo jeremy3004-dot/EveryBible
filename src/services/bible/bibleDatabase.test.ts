@@ -30,6 +30,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { mockModule } from '../../testing/mockModules';
 import { BUNDLED_BIBLE_SCHEMA_VERSION, buildBibleSearchQuery } from './bibleDataModel';
+import { bibleBooks } from '../../constants/books';
 import { assertDefined } from '../../utils/assertDefined';
 import type { Verse } from '../../types';
 
@@ -2251,6 +2252,11 @@ type VerseKey = [number, string, number, number, string];
 
 // The ranking every search had before it was confined to one translation: bm25 over the matches
 // of all translations, then the translation filter, then the limit.
+// Equal scores fall back to canon order, as the substring search lists its matches.
+const CANONICAL_BOOK_ORDER_SQL = `CASE v.book_id ${bibleBooks
+  .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
+  .join(' ')} ELSE ${bibleBooks.length} END`;
+
 function searchEveryTranslationThenFilter(
   path: string,
   translationId: string,
@@ -2265,7 +2271,7 @@ function searchEveryTranslationThenFilter(
       .prepare(
         `SELECT v.* FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid
          WHERE verses_fts MATCH ? AND v.translation_id = ?
-         ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
+         ORDER BY bm25(verses_fts), ${CANONICAL_BOOK_ORDER_SQL}, v.chapter, v.verse
          LIMIT ?`
       )
       .all(ftsQuery, translationId, limit) as {
@@ -2673,4 +2679,24 @@ test('indexed Bengali and Arabic search distinguishes typed marks without changi
     (await searchVerses('marked', 'Trời')).map((verse) => verse.verse),
     [5]
   );
+});
+
+test('indexed search lists equally ranked verses in canonical book order, not by book id text', async () => {
+  const file = 'tied-ranks.db';
+  const text = 'Peace be with you.';
+  writeSeedDatabase(`${installedDirectory}/${file}`, {
+    verses: [
+      { translationId: 'tied', bookId: 'JHN', chapter: 20, verse: 19, text },
+      { translationId: 'tied', bookId: '1PE', chapter: 5, verse: 14, text },
+      { translationId: 'tied', bookId: 'GEN', chapter: 43, verse: 23, text },
+    ],
+  });
+  const { searchVerses, setBibleDatabaseSourceResolver } = await loadModule();
+  setBibleDatabaseSourceResolver((id) => (id === 'tied' ? installedSource(id, file) : null));
+
+  assert.deepEqual(refs(await searchVerses('tied', 'peace')), [
+    'GEN 43:23',
+    'JHN 20:19',
+    '1PE 5:14',
+  ]);
 });

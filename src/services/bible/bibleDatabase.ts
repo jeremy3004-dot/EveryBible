@@ -621,15 +621,19 @@ function toVerse(row: VerseRow): Verse {
   };
 }
 
-let canonicalBookOrderSql: string | null = null;
+const canonicalBookOrderSql = new Map<string, string>();
 
 // Pack row ids follow the upstream import, not the canon, so order by book explicitly.
-function getCanonicalBookOrderSql(): string {
-  canonicalBookOrderSql ??= `CASE book_id ${bibleBooks
-    .filter((book) => /^[A-Z0-9]+$/.test(book.id))
-    .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
-    .join(' ')} ELSE ${bibleBooks.length} END`;
-  return canonicalBookOrderSql;
+function getCanonicalBookOrderSql(column: 'book_id' | 'v.book_id' = 'book_id'): string {
+  let sql = canonicalBookOrderSql.get(column);
+  if (!sql) {
+    sql = `CASE ${column} ${bibleBooks
+      .filter((book) => /^[A-Z0-9]+$/.test(book.id))
+      .map((book, index) => `WHEN '${book.id}' THEN ${index}`)
+      .join(' ')} ELSE ${bibleBooks.length} END`;
+    canonicalBookOrderSql.set(column, sql);
+  }
+  return sql;
 }
 
 // Devanagari and other Indic text writes zero-width joiners after a virama (परमेश्‍वर; 19,594
@@ -773,7 +777,7 @@ export async function searchVerses(
           AND verses_fts.rowid BETWEEN ? AND ?
           AND v.translation_id = ?
           ${verificationSql}
-        ORDER BY bm25(verses_fts), v.book_id, v.chapter, v.verse
+        ORDER BY bm25(verses_fts), ${getCanonicalBookOrderSql('v.book_id')}, v.chapter, v.verse
         LIMIT ?
       `,
       [ftsQuery, idRange.first, idRange.last, translationId, ...verificationTerms, limit]
