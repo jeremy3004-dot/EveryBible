@@ -684,6 +684,42 @@ test('getCurrentPlanDaySummary builds ordered session summaries for multi-sessio
   );
 });
 
+test('getCurrentPlanDaySummary scans the read ledger once however many sessions the day has', () => {
+  let ledgerScans = 0;
+  const chaptersRead = new Proxy(
+    { PSA_63: new Date(2026, 3, 7, 8, 0, 0).getTime() } as Record<string, number>,
+    {
+      ownKeys(target) {
+        ledgerScans += 1;
+        return Reflect.ownKeys(target);
+      },
+    }
+  );
+  const sessions = (['morning', 'midday', 'evening'] as const).map((sessionKey, index) =>
+    makeEntry({
+      id: `day-1-${sessionKey}`,
+      day_number: 1,
+      session_key: sessionKey,
+      session_order: index + 1,
+      book: 'PSA',
+      chapter_start: 63 + index,
+    })
+  );
+
+  const summary = getCurrentPlanDaySummary({
+    plan: makePlan({ format: 'multi-session', sessionOrder: ['morning', 'midday', 'evening'] }),
+    entries: sessions,
+    progress: makeProgress('plan-1', { current_day: 1 }),
+    chaptersRead,
+    listeningHistory: [],
+    dayNumber: 1,
+    today: new Date(2026, 3, 7, 12, 0, 0),
+  });
+
+  assert.equal(summary.completedSessionCount, 1);
+  assert.equal(ledgerScans, 1);
+});
+
 test('getCurrentPlanDaySummary keeps weekly multi-session rhythms ordered across morning and evening', () => {
   const summary = getCurrentPlanDaySummary({
     plan: makePlan({

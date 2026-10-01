@@ -597,6 +597,18 @@ export function buildPlanDayCompletionSummary(
   dayNumber: number,
   input: MergeTodayChapterActivityInput
 ): PlanDayCompletionSummary {
+  return summarizePlanDayCompletion(entries, dayNumber, mergeChapterActivityRecords(input));
+}
+
+/**
+ * The day's summary over today's already-merged chapter activity. Merging walks the whole read
+ * ledger and listening history, so a caller summarising a day and each of its sessions merges once.
+ */
+function summarizePlanDayCompletion(
+  entries: ReadingPlanEntry[],
+  dayNumber: number,
+  todayActivity: PlanChapterActivityRecord[]
+): PlanDayCompletionSummary {
   const targetChapterKeys = getPlanDayTargetChapterKeys(entries, dayNumber);
   // Chapter activity cannot identify which verse assignment was completed.
   // Partial-chapter days require their own explicit completion record.
@@ -608,7 +620,7 @@ export function buildPlanDayCompletionSummary(
       )
     )
   );
-  const completedActivity = mergeChapterActivityRecords(input).filter(
+  const completedActivity = todayActivity.filter(
     (record) => !partialChapterKeys.has(record.chapterKey)
   );
   const completedChapterKeys = completedActivity.map((record) => record.chapterKey);
@@ -721,13 +733,14 @@ export function getCurrentPlanDaySummary({
   const resolvedDayNumber =
     dayNumber ?? (plan ? getActivePlanDayNumber(plan, progress, today) : progress.current_day);
 
-  const summary = buildPlanDayCompletionSummary(entries, resolvedDayNumber, {
+  const todayActivity = mergeChapterActivityRecords({
     chaptersRead,
     chaptersListened,
     listeningHistory,
     now: today,
     listenCompletionThreshold,
   });
+  const summary = summarizePlanDayCompletion(entries, resolvedDayNumber, todayActivity);
 
   const completionKey = plan
     ? getPlanCompletionEntryKey(plan, resolvedDayNumber, today, occurrenceKey)
@@ -746,13 +759,7 @@ export function getCurrentPlanDaySummary({
     dayNumber: resolvedDayNumber,
     occurrenceKey,
     today,
-    input: {
-      chaptersRead,
-      chaptersListened,
-      listeningHistory,
-      now: today,
-      listenCompletionThreshold,
-    },
+    todayActivity,
   });
   const completedSessionCount = sessionSummaries.filter((session) => session.isComplete).length;
 
@@ -785,7 +792,7 @@ function buildPlanDaySessionSummaries({
   dayNumber,
   occurrenceKey,
   today,
-  input,
+  todayActivity,
 }: {
   plan?: ReadingPlan | null;
   progress: UserReadingPlanProgress;
@@ -793,13 +800,13 @@ function buildPlanDaySessionSummaries({
   dayNumber: number;
   occurrenceKey?: string;
   today: Date;
-  input: MergeTodayChapterActivityInput;
+  todayActivity: PlanChapterActivityRecord[];
 }): PlanDaySessionSummary[] {
   return getDaySessionEntries(entries, dayNumber).map((sessionGroup) => {
-    const sessionCompletionSummary = buildPlanDayCompletionSummary(
+    const sessionCompletionSummary = summarizePlanDayCompletion(
       sessionGroup.entries,
       dayNumber,
-      input
+      todayActivity
     );
     const persistedCompletionKey = plan
       ? buildPlanSessionCompletionKey(
