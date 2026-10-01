@@ -539,8 +539,6 @@ export const ko = {
     recommendedLanguages: '{{country}}에서 추천하는 성경 언어',
     moreLanguages: '기타 일치하는 언어',
     noLanguagesFound: '일치하는 언어가 없습니다',
-    noLanguagesFoundBody:
-      '철자를 바꾸거나 영어 또는 현지 문자로 검색해 보세요. 유사 검색도 지원됩니다.',
     catalogUnavailableTitle: '성경 라이브러리에 연결할 수 없습니다',
     catalogUnavailableBody:
       '인터넷 연결을 확인한 뒤 다시 시도해 주세요. 아래 성경은 이미 이 기기에 있어 오프라인에서도 사용할 수 있습니다.',

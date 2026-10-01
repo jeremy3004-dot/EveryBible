@@ -540,8 +540,6 @@ export const ja = {
     recommendedLanguages: '{{country}}でおすすめの聖書の言語',
     moreLanguages: 'その他の該当する言語',
     noLanguagesFound: '該当する言語が見つかりません',
-    noLanguagesFoundBody:
-      '別のつづりを試すか、英語または現地の文字で検索してください。あいまい検索に対応しています。',
     catalogUnavailableTitle: '聖書ライブラリに接続できません',
     catalogUnavailableBody:
       'インターネット接続を確認して、もう一度お試しください。下の聖書はこの端末に保存済みで、オフラインでも使えます。',

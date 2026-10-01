@@ -462,6 +462,81 @@ test('the search field is the same mounted input while the list re-filters, and 
   );
 });
 
+test('searching the Bibles lists matches only: nothing is pinned or labelled Recommended', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await fakes.renderFlow();
+
+  await view.changeText(view.getByTestId('onboarding-translation-search'), 'Nepa');
+  await pause(context.mock.timers, 150);
+
+  assert.ok(view.getByRole('button', { name: /^Nepali \// }));
+  assert.equal(view.queryByTestId('onboarding-primary-recommendation'), null);
+  assert.equal(view.queryByText(t('onboarding.recommendedBadge')), null, 'no badge, no heading');
+});
+
+test('a search with no match says how to search, without developer wording', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await fakes.renderFlow();
+
+  await view.changeText(view.getByTestId('onboarding-translation-search'), 'zzzzqq');
+  await pause(context.mock.timers, 150);
+
+  assert.ok(view.getByText(t('onboarding.noLanguagesFound')));
+  assert.ok(view.getByText(t('onboarding.noNationsFoundBody')));
+  assert.equal(view.queryByText(/fuzzy/i), null);
+});
+
+test('the catalog spinner leaves a same-height gap, so the list does not jump when it ends', async () => {
+  let finishLoad: () => void = () => {};
+  fakes.catalog.impl = () =>
+    new Promise<void>((resolve) => {
+      finishLoad = resolve;
+    });
+  const view = await fakes.renderFlow();
+  const dataTypes = () =>
+    (fakes.flashList.props?.data as Array<{ type: string }>).map((item) => item.type);
+  const heightOf = (node: ReactTestInstance) =>
+    hostAncestors(node)
+      .map((ancestor) => flattenStyle(ancestor.props.style)?.height)
+      .find((height) => height !== undefined);
+
+  assert.equal(dataTypes()[0], 'loading');
+  const spinnerRowHeight = heightOf(
+    view.queryAllByType('ActivityIndicator')[0] as ReactTestInstance
+  );
+  assert.ok(spinnerRowHeight, 'the spinner row has a fixed height');
+
+  await act(async () => finishLoad());
+  await view.flush();
+
+  assert.equal(view.queryAllByType('ActivityIndicator').length, 0);
+  assert.equal(dataTypes()[0], 'loadingSpacer');
+  const spacer = assertDefined(
+    view
+      .queryAllByType('View')
+      .find((node) => flattenStyle(node.props.style)?.height === spinnerRowHeight),
+    'spacer'
+  );
+  assert.ok(spacer);
+});
+
+test('choosing a Bible shows its row busy while the app language switches', async () => {
+  let finishSwitch: () => void = () => {};
+  fakes.changeLanguage.impl = () =>
+    new Promise<void>((resolve) => {
+      finishSwitch = resolve;
+    });
+  const view = await fakes.renderFlow();
+  const bsbRow = () => view.getByRole('button', { name: /^English, Berean Standard Bible/ });
+
+  assert.equal(within(bsbRow()).queryAllByType('ActivityIndicator').length, 0);
+  await view.press(bsbRow());
+
+  assert.equal(within(bsbRow()).queryAllByType('ActivityIndicator').length, 1, 'busy, not blank');
+  await act(async () => finishSwitch());
+  await view.flush();
+});
+
 test('rows draw their own grouped-card edges by position in their letter group', async () => {
   const { radius } = await design();
   const view = await fakes.renderFlow();

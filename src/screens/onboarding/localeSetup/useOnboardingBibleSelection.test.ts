@@ -194,7 +194,11 @@ test('a Bible that needs a download finishes onboarding once it is installed', a
   view.result.handleTranslationSelect(bible('npiulb', 'Nepali'));
   await settle();
   view.rerender();
-  assert.deepEqual(view.result.bibleSelectionState, { downloadingId: 'npiulb', queuedId: null });
+  assert.deepEqual(view.result.bibleSelectionState, {
+    downloadingId: 'npiulb',
+    queuedId: null,
+    finishingId: null,
+  });
   assert.equal(finished.count, 0);
 
   assertDefined(downloads[0], 'downloads[0]').resolve();

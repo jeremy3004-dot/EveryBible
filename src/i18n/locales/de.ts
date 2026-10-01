@@ -556,8 +556,6 @@ export const de = {
     recommendedLanguages: 'Empfohlene Bibelsprachen in {{country}}',
     moreLanguages: 'Andere passende Sprachen',
     noLanguagesFound: 'Noch keine passende Sprache',
-    noLanguagesFoundBody:
-      'Probiere eine andere Schreibweise oder suche auf Englisch oder in der lokalen Schrift. Die Suche findet auch ähnliche Schreibweisen.',
     catalogUnavailableTitle: 'Die Bibelbibliothek ist nicht erreichbar',
     catalogUnavailableBody:
       'Prüfe deine Internetverbindung und versuche es noch einmal. Die Bibeln unten sind bereits auf diesem Gerät und funktionieren offline.',

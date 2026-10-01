@@ -21,10 +21,12 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { config } from '../../constants/config';
 import { useAuthStore } from '../../stores/authStore';
 import { useBibleStore } from '../../stores/bibleStore';
+import { useTranslationPreferenceStore } from '../../stores/translationPreferenceStore';
 import { selectCurrentStreakDays, useProgressStore } from '../../stores/progressStore';
 import { useAnnotationStore } from '../../stores/annotationStore';
 import { selectLastSuccessfulSyncAt, useSyncStatusStore } from '../../stores/syncStatusStore';
 import type { MoreStackParamList } from '../../navigation/types';
+import { countOfflineMyTranslations } from '../bible/bibleTranslationModel';
 import { openAuthFlow } from '../../navigation/rootNavigation';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
@@ -110,6 +112,8 @@ export function MoreScreen() {
   const annotations = useAnnotationStore((state) => state.annotations);
   const translations = useBibleStore((state) => state.translations);
   const currentTranslation = useBibleStore((state) => state.currentTranslation);
+  const pinnedTranslationIds = useTranslationPreferenceStore((state) => state.pinnedIds);
+  const hiddenTranslationIds = useTranslationPreferenceStore((state) => state.hiddenIds);
 
   // Email sign-up stores no display name: such an account is named by its email
   // (shown once), never as a guest.
@@ -133,7 +137,13 @@ export function MoreScreen() {
   // Right-hand row values are metadata, not decoration: each one answers the
   // question the row would otherwise make you tap to find out.
   const annotationCount = annotations.filter((annotation) => !annotation.deleted_at).length;
-  const offlineCount = translations.filter((translation) => translation.isDownloaded).length;
+  // Counted over the same membership the translation picker lists under My Translations, so the
+  // number here never disagrees with the list it leads to.
+  const offlineCount = countOfflineMyTranslations(translations, {
+    pinnedIds: pinnedTranslationIds,
+    hiddenIds: hiddenTranslationIds,
+    currentTranslationId: currentTranslation,
+  });
   const currentAbbreviation =
     translations.find((translation) => translation.id === currentTranslation)?.abbreviation ??
     currentTranslation;

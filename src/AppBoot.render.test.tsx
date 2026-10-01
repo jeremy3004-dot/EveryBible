@@ -251,7 +251,13 @@ async function renderApp() {
   return view;
 }
 
-type Surface = 'crash fallback' | 'lock screen' | 'onboarding' | 'navigator' | 'boot shell';
+type Surface =
+  | 'crash fallback'
+  | 'lock screen'
+  | 'onboarding'
+  | 'navigator'
+  | 'boot shell'
+  | 'navigator loading';
 
 /** Which of LoadingScreen's surfaces is on screen. */
 function surface(view: RenderResult): Surface {
@@ -261,6 +267,8 @@ function surface(view: RenderResult): Surface {
   if (shown('PrivacyLockScreen')) onScreen.push('lock screen');
   if (shown('LocaleSetupFlow')) onScreen.push('onboarding');
   if (shown('RootNavigator')) onScreen.push('navigator');
+  // Onboarding is done and the navigator module is still loading: a spinner, not a blank screen.
+  if (view.queryByTestId('navigator-loading-shell')) onScreen.push('navigator loading');
   assert.ok(onScreen.length <= 1, `LoadingScreen showed ${onScreen.join(' and ')} at once`);
   if (onScreen[0]) return onScreen[0];
   const emptyViews = view.queryAllByType('View').filter((node) => node.children.length === 0);
@@ -306,7 +314,7 @@ test('the navigator is not scheduled until privacy initializes', async (t) => {
 
   // Had the navigator been scheduled early it would appear in this same commit.
   await setPrivacy({ isInitialized: true });
-  assert.equal(surface(view), 'boot shell');
+  assert.equal(surface(view), 'navigator loading');
 
   await tickTimers(t);
   assert.equal(surface(view), 'navigator');
@@ -445,7 +453,7 @@ test('the navigator is not scheduled while the install is locked', async (t) => 
   assert.equal(surface(view), 'lock screen');
 
   await setPrivacy({ isLocked: false });
-  assert.equal(surface(view), 'boot shell', 'the navigator mounts only after unlocking');
+  assert.equal(surface(view), 'navigator loading', 'the navigator mounts only after unlocking');
 
   await tickTimers(t);
   assert.equal(surface(view), 'navigator');

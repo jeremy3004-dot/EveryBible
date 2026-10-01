@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LocaleCountry, LocaleLanguage } from '../../../services/onboarding/localeSelection';
 import { announceForAccessibility } from '../../../utils/a11y';
@@ -43,6 +43,8 @@ interface LocaleSetupStepItemsInput {
   debouncedCountryQuery: string;
   languageResults: { recommended: LocaleLanguage[]; global: LocaleLanguage[] };
   selectedCountryDisplayName: string;
+  /** The Bible step's debounced search text; non-blank means its results are matches. */
+  debouncedTranslationQuery: string;
 }
 
 /**
@@ -69,8 +71,16 @@ export function useLocaleSetupStepItems({
   debouncedCountryQuery,
   languageResults,
   selectedCountryDisplayName,
+  debouncedTranslationQuery,
 }: LocaleSetupStepItemsInput): LocaleSetupStepItem[] {
   const { t } = useTranslation();
+  // Once the catalog spinner has shown, its row stays as a gap (see reservesLoadingRow). Set
+  // during render, the supported way to derive state from props, so there is no extra frame.
+  const [hasShownCatalogSpinner, setHasShownCatalogSpinner] = useState(false);
+  if (isHydratingRuntimeCatalog && !hasShownCatalogSpinner) {
+    setHasShownCatalogSpinner(true);
+  }
+  const isSearchingBibles = debouncedTranslationQuery.trim().length > 0;
 
   return useMemo<LocaleSetupStepItem[]>(() => {
     if (step === 'interfaceLanguage') {
@@ -89,6 +99,8 @@ export function useLocaleSetupStepItems({
         runtimeCatalogLoadFailed,
         hasAnyOptions: hasOnboardingLanguageOptions,
         recommendedLabel: t('onboarding.recommendedBadge'),
+        isSearching: isSearchingBibles,
+        reservesLoadingRow: hasShownCatalogSpinner,
       });
     }
 
@@ -118,8 +130,10 @@ export function useLocaleSetupStepItems({
   }, [
     debouncedCountryQuery,
     hasOnboardingLanguageOptions,
+    hasShownCatalogSpinner,
     isHydratingRuntimeCatalog,
     isPrimaryOptionPending,
+    isSearchingBibles,
     languageResults.global,
     languageResults.recommended,
     listedCountries,
