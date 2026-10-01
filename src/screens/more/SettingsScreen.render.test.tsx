@@ -17,6 +17,9 @@ import { isPrivacyLockGraceActive } from '../../services/privacy/privacyLockGrac
 // Why the OS keeps the in-app reminder from appearing, if it does.
 let reminderBlock: 'needs-permission' | 'blocked' | null = null;
 const languageCalls: string[] = [];
+// What the language hook reports: false when a newer request superseded this one.
+let languageApplied = true;
+const countryNameCalls: string[] = [];
 const harness = installRenderHarness(mock);
 // Settings and its sections import each hook from its own module, not the hooks barrel.
 mockModule(mock, sourcePath('hooks/useNotificationsBlockedBySystem.ts'), {
@@ -41,6 +44,7 @@ mockModule(mock, sourcePath('hooks/useI18n.ts'), {
       currentLanguage: 'en',
       setLanguage: async (code: string) => {
         languageCalls.push(code);
+        return languageApplied;
       },
       availableLanguages: { en: { nativeName: 'English' } },
     };
@@ -108,7 +112,12 @@ mockModule(mock, sourcePath('stores/deviceCaches.ts'), {
   },
 });
 mockModule(mock, sourcePath('services/onboarding/localeSelection.ts'), {
-  localeSearchEngine: { getCountryDisplayName: (code: string) => `Country ${code}` },
+  localeSearchEngine: {
+    getCountryDisplayName: (code: string) => {
+      countryNameCalls.push(code);
+      return `Country ${code}`;
+    },
+  },
 });
 let pauseReminderSchedule: (() => Promise<void>) | null = null;
 let pauseReminderReconciliation: (() => Promise<void>) | null = null;
@@ -178,6 +187,7 @@ mockModule(mock, sourcePath('components/feedback/TranslationNotCoveredNotice.tsx
 afterEach(async () => {
   reminderBlock = null;
   languageCalls.length = 0;
+  countryNameCalls.length = 0;
   account.result = { success: true };
   account.calls = 0;
   accountOutcome = null;
@@ -1316,6 +1326,33 @@ test('the language row opens the interface language list and a choice switches a
   await view.press(view.getByRole('button', { name: /^Español/ }));
   assert.deepEqual(languageCalls, ['es']);
   assert.equal(view.queryByRole('header', { name: t('settings.selectLanguage') }), null);
+});
+
+test('a language choice that a newer request superseded leaves the list open', async () => {
+  languageApplied = false;
+  try {
+    const view = await renderSettings();
+
+    await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+    await view.press(view.getByRole('button', { name: /^Español/ }));
+
+    assert.deepEqual(languageCalls, ['es']);
+    assert.ok(view.getByRole('header', { name: t('settings.selectLanguage') }));
+  } finally {
+    languageApplied = true;
+  }
+});
+
+test('the country name in the locale row is not recomputed by an unrelated re-render', async () => {
+  harness.authStore.getState().setPreferences({ countryCode: 'NP' });
+  const view = await renderSettings();
+  const callsAfterMount = countryNameCalls.length;
+  assert.ok(callsAfterMount > 0, 'the row asked the engine for the saved country');
+
+  // Opening the language list re-renders the screen without touching locale preferences.
+  await view.press(view.getByRole('button', { name: `${t('settings.language')}, English` }));
+
+  assert.equal(countryNameCalls.length, callsAfterMount);
 });
 
 test("VoiceOver's escape gesture closes the interface language list without choosing", async () => {
