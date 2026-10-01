@@ -13,6 +13,10 @@ import {
 import type { SharedValue } from 'react-native-reanimated';
 import type { ReaderPlayerBarControls } from '../../stores/readerPlayerBarStore';
 import type { AudioReturnTarget, AudioStatus, BackgroundMusicChoice } from '../../types/audio';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock, { os: 'ios' });
 const t = (key: string, values?: Record<string, unknown>) => harness.i18n.t(key, values);
@@ -200,7 +204,7 @@ test('the capsule stacks the player row and its progress line on the tab row', a
   const { PLAYER_BAR_SECTION_HEIGHT } = await import('../readerTabBarMotion');
 
   assert.equal(heightOf(capsuleOf(view)), PLAYER_BAR_SECTION_HEIGHT + 64);
-  const tabs = hostAncestors(view.getByTestId('tab-row'))[0];
+  const tabs = nth(hostAncestors(view.getByTestId('tab-row')), 0);
   assert.equal(flattenStyle(tabs.props.style)?.top, PLAYER_BAR_SECTION_HEIGHT);
   // The row reads left to right: sound, previous, play, next (Selah's slot is empty).
   const row = view.getByTestId('player-bar-row');
@@ -234,7 +238,7 @@ test('the play glyph is an outlined triangle or pair of bars on a soft tile, one
   // The tile is a backing behind the glyph, so it can fade as the bar collapses.
   const tile = within(play).getByTestId('player-bar-play-tile');
   assert.equal(flattenStyle(tile.props.style)?.borderRadius, 12);
-  assert.equal(flattenStyle(hostAncestors(playGlyph)[0].props.style)?.width, 42);
+  assert.equal(flattenStyle(nth(hostAncestors(playGlyph), 0).props.style)?.width, 42);
   assert.equal(isHiddenFromAccessibility(playGlyph), true, 'the button carries the name');
 
   await publishReader({ isPlaying: true });
@@ -306,7 +310,10 @@ test('on the audio-only listen screen the bar is only the tab row', async () => 
 
   assert.equal(view.queryByTestId('player-bar-row'), null);
   assert.equal(heightOf(capsuleOf(view)), 64);
-  assert.equal(flattenStyle(hostAncestors(view.getByTestId('tab-row'))[0].props.style)?.top, 0);
+  assert.equal(
+    flattenStyle(nth(hostAncestors(view.getByTestId('tab-row')), 0).props.style)?.top,
+    0
+  );
 });
 
 test('a failure on the displayed chapter floats above the capsule', async () => {
@@ -558,13 +565,14 @@ test('with audio loaded, scrolling down shrinks the one player row into a 44pt s
     assert.ok(Number(style.height) + slop * 2 >= 44, 'at least 44pt tall');
   }
   // Collapsed, the row is the strip's height, scaled down, and its tile has faded.
-  const row = flattenStyle(hostAncestors(buttons[0] as ReactTestInstance)[0].props.style) ?? {};
+  const row =
+    flattenStyle(nth(hostAncestors(buttons[0] as ReactTestInstance), 0).props.style) ?? {};
   assert.equal(row.height, 44);
   assert.deepEqual(row.transform, [{ scale: 0.88 }]);
   const tile = within(strip).getByTestId('player-bar-play-tile');
   assert.equal(flattenStyle(tile.props.style)?.opacity, 0);
   // The progress line is the strip's bottom edge.
-  const line = hostAncestors(view.getByTestId('player-bar-progress'))[0];
+  const line = nth(hostAncestors(view.getByTestId('player-bar-progress')), 0);
   assert.equal(flattenStyle(line.props.style)?.top, 42);
 
   await view.press(within(strip).getByRole('button', { name: pauseName() }));

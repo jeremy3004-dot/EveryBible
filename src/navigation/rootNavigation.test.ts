@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 
 import { mockModule } from '../testing/mockModules';
 import type { AuthScreenMode } from './types';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 /**
  * rootNavigation owns the app-wide navigation ref and the one imperative entry
@@ -78,7 +82,7 @@ test('openAuthFlow defaults to sign-in when no mode is given', async () => {
   ready = true;
   openAuthFlow();
   assert.equal(navigateCalls.length, 1);
-  assert.deepEqual(navigateCalls[0].params, {
+  assert.deepEqual(nth(navigateCalls, 0).params, {
     screen: 'Auth',
     params: { screen: 'AuthScreen', params: { initialMode: 'signIn' } },
     initial: false,

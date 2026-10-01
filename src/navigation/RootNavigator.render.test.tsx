@@ -4,6 +4,10 @@ import { hostComponent } from '../testing/reactNativeHost';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { installRenderHarness } from '../testing/render';
 import { create } from 'zustand';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -45,7 +49,7 @@ const homeState = { index: 0, routes: [{ name: 'Home' }, { name: 'Bible' }] };
 async function renderRoot() {
   const { RootNavigator } = await import('./RootNavigator');
   const view = await harness.render(<RootNavigator />);
-  const container = view.queryAllByType('NavigationContainer')[0];
+  const container = nth(view.queryAllByType('NavigationContainer'), 0);
   return { view, container };
 }
 
@@ -63,7 +67,7 @@ test('the tab navigator is the only thing mounted inside the navigation containe
 test('a re-render with the same colours hands the container the same theme object', async () => {
   const { RootNavigator } = await import('./RootNavigator');
   const view = await harness.render(<RootNavigator />);
-  const themeOf = () => view.queryAllByType('NavigationContainer')[0].props.theme;
+  const themeOf = () => nth(view.queryAllByType('NavigationContainer'), 0).props.theme;
   const first = themeOf();
 
   await view.rerender(<RootNavigator />);

@@ -2,6 +2,10 @@ import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReactElement } from 'react';
 import { flattenStyle, installRenderHarness } from '../testing/render';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 const styleOf = (style: unknown) => flattenStyle(style) ?? {};
@@ -31,18 +35,20 @@ async function renderSelection(selectedIndex: number) {
   const view = await harness.render(
     <TabBarSelection selectedIndex={selectedIndex} count={5} color={PILL_COLOR} />
   );
-  const layer = view.queryAllByType('View')[0];
-  const pill = () => view.queryAllByType('View')[1];
+  const layer = nth(view.queryAllByType('View'), 0);
+  // Undefined until the capsule has been measured.
+  const maybePill = () => view.queryAllByType('View')[1];
+  const pill = () => assertDefined(maybePill(), 'the selection pill');
   const layout = () =>
     view.fire(layer, 'onLayout', { nativeEvent: { layout: { width: CAPSULE_WIDTH, height: 64 } } });
-  return { view, layer, pill, layout, TabBarSelection };
+  return { view, layer, pill, maybePill, layout, TabBarSelection };
 }
 
 test('the pill waits for the capsule to be measured and never takes touches', async () => {
-  const { layer, pill, layout } = await renderSelection(0);
+  const { layer, pill, maybePill, layout } = await renderSelection(0);
 
   assert.equal(layer.props.pointerEvents, 'none');
-  assert.equal(pill(), undefined, 'no pill before the capsule width is known');
+  assert.equal(maybePill(), undefined, 'no pill before the capsule width is known');
 
   await layout();
   assert.ok(pill());
