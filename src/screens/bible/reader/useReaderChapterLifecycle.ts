@@ -5,7 +5,7 @@ import { type ChapterPresentationMode } from '../../../services/bible/presentati
 import type { Verse } from '../../../types';
 import { getInitialChapterSessionMode } from '../bibleReaderModel';
 import { invalidateReaderChapterLoad, type CancellableTask } from '../readerChapterLoader';
-import { perfMarkAfterFrame } from '../../../services/diagnostics/perfMarks';
+import { perfMark, perfMarkAfterFrame } from '../../../services/diagnostics/perfMarks';
 import { useInteractionHandleUntil } from '../../../hooks/useInteractionHandleUntil';
 
 // How long the reader's first chapter may hold back after-interaction work (see below).
@@ -107,7 +107,11 @@ export function useReaderChapterLifecycle({
 
   useEffect(() => {
     if (hasLoadedRouteChapter) {
-      perfMarkAfterFrame('reader:painted', `${currentTranslation}:${bookId}:${chapter}`);
+      // Committed: the chapter's view updates go to the native side when this JS batch
+      // ends. Painted: the next frame callback, which later JS work can delay.
+      const key = `${currentTranslation}:${bookId}:${chapter}`;
+      perfMark('reader:committed', key);
+      perfMarkAfterFrame('reader:painted', key);
     }
   }, [hasLoadedRouteChapter, bookId, chapter, currentTranslation]);
 
