@@ -12,7 +12,11 @@ import {
   isRecurringPlan,
   isSeasonalPlan,
 } from '../services/plans/readingPlanModel';
+import { assertDefined } from '../utils/assertDefined';
 import { readingPlans, readingPlanEntriesByPlanId } from './readingPlans.generated';
+
+const entriesFor = (planId: string) =>
+  assertDefined(readingPlanEntriesByPlanId[planId], `entries for ${planId}`);
 
 test('every plan has every advertised day and each passage resolves in the shipped Bible', () => {
   const db = new DatabaseSync(
@@ -33,7 +37,7 @@ test('every plan has every advertised day and each passage resolves in the shipp
     assert.equal(new Set(readingPlans.map((plan) => plan.id)).size, readingPlans.length);
     const ids = new Set<string>();
     for (const plan of readingPlans) {
-      const entries = readingPlanEntriesByPlanId[plan.id];
+      const entries = entriesFor(plan.id);
       assert.deepEqual(
         [...new Set(entries.map((entry) => entry.day_number))],
         Array.from({ length: plan.duration_days }, (_, index) => index + 1),
@@ -122,7 +126,7 @@ for (const [planId, bookIds] of Object.entries(expectedBooks)) {
         (_, index) => `${id}:${index + 1}`
       )
     );
-    const actual = readingPlanEntriesByPlanId[planId].flatMap((entry) =>
+    const actual = entriesFor(planId).flatMap((entry) =>
       Array.from(
         { length: (entry.chapter_end ?? entry.chapter_start) - entry.chapter_start + 1 },
         (_, index) => `${entry.book}:${entry.chapter_start + index}`
@@ -136,7 +140,7 @@ test('Sermon on the Mount covers Matthew 5–7 exactly once at verse level', () 
   const expected = [48, 34, 29].flatMap((count, index) =>
     Array.from({ length: count }, (_, verse) => `${index + 5}:${verse + 1}`)
   );
-  const actual = readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'].flatMap((entry) =>
+  const actual = entriesFor('sermon-on-the-mount-7-days').flatMap((entry) =>
     Array.from(
       { length: entry.verse_end! - entry.verse_start! + 1 },
       (_, index) => `${entry.chapter_start}:${entry.verse_start! + index}`
@@ -185,7 +189,7 @@ test('recurring plans resolve a valid daily assignment across leap years and wee
     ) {
       const day = getActivePlanDayNumber(plan, { current_day: 1 }, date);
       assert.ok(
-        readingPlanEntriesByPlanId[plan.id].some((entry) => entry.day_number === day),
+        entriesFor(plan.id).some((entry) => entry.day_number === day),
         `${plan.id}: ${date}`
       );
       assert.equal(
@@ -198,7 +202,7 @@ test('recurring plans resolve a valid daily assignment across leap years and wee
 
 test('seasonal plans have a reading for every day of their season, 2024 to 2040', () => {
   for (const plan of readingPlans.filter(isSeasonalPlan)) {
-    const entries = readingPlanEntriesByPlanId[plan.id];
+    const entries = entriesFor(plan.id);
     for (
       let date = new Date(2024, 0, 1, 12);
       date.getFullYear() < 2041;

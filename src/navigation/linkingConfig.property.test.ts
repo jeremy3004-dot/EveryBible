@@ -7,6 +7,10 @@ import fc from 'fast-check';
 
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { bibleBooks } from '../constants/books';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // ---------------------------------------------------------------------------
 // Randomised checks of the whole inbound-link pipeline React Navigation runs on a
@@ -117,7 +121,7 @@ const assertAllowedDestination = (url: string, state: State | undefined) => {
     return;
   }
   assert.equal(state.routes.length, 1, `${JSON.stringify(url)} opened several tabs`);
-  const [tab] = state.routes;
+  const tab = nth(state.routes, 0);
   const chain = routeChain(tab);
   if (tab.name === 'Bible') {
     assert.deepEqual(

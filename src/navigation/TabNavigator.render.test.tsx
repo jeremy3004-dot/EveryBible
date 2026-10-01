@@ -12,6 +12,10 @@ import { flattenStyle, hostAncestors, installRenderHarness, within } from '../te
 import { getTabBarCapsuleFill, getTabBarGlassTint } from './tabBarCapsuleStyle';
 import { getReaderTabBarTranslation, PLAYER_BAR_SECTION_HEIGHT } from './readerTabBarMotion';
 import { hexWithAlpha } from '../utils/color';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock, { os: 'ios' });
 const styleOf = (style: unknown) => flattenStyle(style) ?? {};
@@ -42,6 +46,8 @@ type TabOptions = Record<string, unknown> & {
   tabBarItemStyle?: unknown;
 };
 type Descriptor = { route: FakeRoute; options: TabOptions };
+const descriptorFor = (descriptors: Record<string, Descriptor>, key: string): Descriptor =>
+  assertDefined(descriptors[key], `a descriptor for ${key}`);
 
 const TAB_NAMES = ['Home', 'Bible', 'Learn', 'Plans', 'More'];
 let tabState: { index: number; routes: FakeRoute[] };
@@ -102,13 +108,13 @@ function FakeBottomTabBar({
   descriptors: Record<string, Descriptor>;
 }) {
   bottomTabBarRenders += 1;
-  const focused = descriptors[state.routes[state.index].key].options;
+  const focused = descriptorFor(descriptors, nth(state.routes, state.index).key).options;
   return createElement(
     'BottomTabBar',
     { style: focused.tabBarStyle, descriptors },
     createElement('TabBarBackgroundSlot', null, focused.tabBarBackground?.()),
     state.routes.map((route, index) => {
-      const options = descriptors[route.key].options;
+      const options = descriptorFor(descriptors, route.key).options;
       const isFocused = index === state.index;
       // Like BottomTabBar, every item takes its tints from the focused route.
       const color = (
@@ -233,19 +239,21 @@ beforeEach(async () => {
 async function renderTabs() {
   const { TabNavigator } = await import('./TabNavigator');
   const view = await harness.render(<TabNavigator />);
-  const bar = view.queryAllByType('BottomTabBar')[0];
+  const bar = nth(view.queryAllByType('BottomTabBar'), 0);
   const playerBar = view.getByTestId('player-bar');
   // Outermost first: the tab bar's full-screen wrapper, then the capsule's placement.
-  const [frame, wrapper] = hostAncestors(playerBar);
-  const capsule = hostAncestors(view.getByTestId('player-bar-material'))[0];
+  const ancestors = hostAncestors(playerBar);
+  const frame = nth(ancestors, 0);
+  const wrapper = nth(ancestors, 1);
+  const capsule = nth(hostAncestors(view.getByTestId('player-bar-material')), 0);
   const descriptors = bar.props.descriptors as Record<string, Descriptor>;
-  const optionsFor = (name: string) => descriptors[`${name}-key`].options;
+  const optionsFor = (name: string) => descriptorFor(descriptors, `${name}-key`).options;
   const screen = (name: string) =>
     view.queryAllByType('TabScreen').find((node) => node.props.name === name) as ReactTestInstance;
   // The capsule's glass, which the player bar draws behind both of its rows.
   const material = () => view.getByTestId('player-bar-material');
   // What the library bar draws behind the tabs themselves: the selection pill.
-  const selectionSlot = () => view.queryAllByType('TabBarBackgroundSlot')[0];
+  const selectionSlot = () => nth(view.queryAllByType('TabBarBackgroundSlot'), 0);
   return {
     view,
     bar,
@@ -290,14 +298,17 @@ function expectCollapsed(wrapper: ReactTestInstance) {
 test('registers the five root tabs over their stacks and freezes the tabs that are not showing', async () => {
   const { view, optionsFor, screen } = await renderTabs();
 
-  assert.equal(view.queryAllByType('TabNavigatorHost')[0].props.id, 'RootTab');
+  assert.equal(nth(view.queryAllByType('TabNavigatorHost'), 0).props.id, 'RootTab');
   const screens = view.queryAllByType('TabScreen');
   assert.deepEqual(
     screens.map((node) => node.props.name),
     TAB_NAMES
   );
   for (const name of TAB_NAMES) {
-    assert.equal(screen(name).props.component, (await stackComponent(STACKS[name])) as unknown);
+    assert.equal(
+      screen(name).props.component,
+      (await stackComponent(assertDefined(STACKS[name], `a stack for ${name}`))) as unknown
+    );
     assert.equal(optionsFor(name).freezeOnBlur, true, `${name} stops repainting off-screen`);
     assert.equal(optionsFor(name).headerShown, false);
   }
@@ -466,7 +477,7 @@ test('Home, Gather and More tab presses give a light haptic and keep the default
 
 test('each tab is a button announcing its label and position, with a Lucide glyph from the manifest', async () => {
   const { view } = await renderTabs();
-  const expected = [
+  const expected: Array<[string, string]> = [
     ['Home', 'House'],
     ['Bible', 'BookOpen'],
     ['Gather', 'Users'],
@@ -483,9 +494,9 @@ test('each tab is a button announcing its label and position, with a Lucide glyp
 
     const icons = within(tab).queryAllByType('LucideIcon');
     assert.equal(icons.length, 1);
-    assert.equal(icons[0].props.name, glyph);
-    assert.equal(icons[0].props.size, 22);
-    assert.equal(icons[0].props.strokeWidth, 2);
+    assert.equal(nth(icons, 0).props.name, glyph);
+    assert.equal(nth(icons, 0).props.size, 22);
+    assert.equal(nth(icons, 0).props.strokeWidth, 2);
 
     const text = within(tab).getByText(label);
     assert.equal(text.props.numberOfLines, 1);
@@ -552,7 +563,7 @@ test('outside the reader the tabs use primary ink on the card-surface glass', as
     assert.equal(icon.props.color, colors.primaryText, 'the pill alone carries selection');
   }
 
-  const [glassView] = within(material()).queryAllByType('GlassView');
+  const glassView = nth(within(material()).queryAllByType('GlassView'), 0);
   assert.equal(glassView.props.tintColor, getTabBarGlassTint(colors.cardBackground));
 });
 
@@ -592,7 +603,7 @@ test('native glass carries the page tint itself, clipped to the rounded capsule'
   assert.equal(glassView.props.colorScheme, 'light');
   assert.equal(slot.queryAllByType('BlurView').length, 0);
 
-  const capsule = hostAncestors(glassView)[0];
+  const capsule = nth(hostAncestors(glassView), 0);
   const capsuleStyle = styleOf(capsule.props.style);
   assert.equal(capsuleStyle.borderRadius, 32);
   assert.equal(capsuleStyle.overflow, 'hidden');
@@ -615,10 +626,10 @@ test('without native glass the capsule is a tinted blur under the same paper and
   const slot = within(material());
 
   assert.equal(slot.queryAllByType('GlassView').length, 0);
-  const blur = slot.queryAllByType('BlurView')[0];
+  const blur = nth(slot.queryAllByType('BlurView'), 0);
   assert.equal(blur.props.tint, 'dark');
   assert.equal(blur.props.intensity, 40);
-  const capsuleStyle = styleOf(hostAncestors(blur)[0].props.style);
+  const capsuleStyle = styleOf(nth(hostAncestors(blur), 0).props.style);
   assert.equal(capsuleStyle.borderRadius, 32);
   assert.equal(capsuleStyle.overflow, 'hidden');
 });
@@ -626,9 +637,12 @@ test('without native glass the capsule is a tinted blur under the same paper and
 test('the selection pill is a neutral wash of the scope ink, never the accent', async () => {
   focusTab('Plans');
   const first = await renderTabs();
-  const selection = first
-    .selectionSlot()
-    .findAll((node) => (node.type as { name?: string }).name === 'TabBarSelection')[0];
+  const selection = nth(
+    first
+      .selectionSlot()
+      .findAll((node) => (node.type as { name?: string }).name === 'TabBarSelection'),
+    0
+  );
   assert.deepEqual(selection.props, {
     selectedIndex: 3,
     count: 5,
@@ -642,8 +656,8 @@ test('the selection pill is a neutral wash of the scope ink, never the accent', 
   const pill = reader
     .selectionSlot()
     .findAll((node) => (node.type as { name?: string }).name === 'TabBarSelection');
-  assert.equal(pill[0].props.color, hexWithAlpha(colors.biblePrimaryText, 0.1));
-  assert.equal(pill[0].props.selectedIndex, 1);
+  assert.equal(nth(pill, 0).props.color, hexWithAlpha(colors.biblePrimaryText, 0.1));
+  assert.equal(nth(pill, 0).props.selectedIndex, 1);
 });
 
 // --- Shape, collapse and hiding ----------------------------------------------------
@@ -875,7 +889,7 @@ test('on the Bible tab’s other screens the player row sits on the tabs while a
   assert.ok(view.getByRole('button', { name: playName() }));
   assert.equal(styleOf(capsule.props.style).height, PLAYER_BAR_SECTION_HEIGHT + 64);
   // The tabs keep their place under the player, in the same capsule.
-  const tabRow = hostAncestors(bar)[0];
+  const tabRow = nth(hostAncestors(bar), 0);
   assert.equal(styleOf(tabRow.props.style).top, PLAYER_BAR_SECTION_HEIGHT);
   assert.equal(view.getAllByRole('tab').length, 5);
 
@@ -976,7 +990,7 @@ test('a plan-session display-only hide clears the capsule transform through the 
   });
   const { TabNavigator } = await import('./TabNavigator');
   await view.rerender(<TabNavigator />);
-  const nextFrame = hostAncestors(view.getByTestId('player-bar'))[0];
+  const nextFrame = nth(hostAncestors(view.getByTestId('player-bar')), 0);
   const next = styleOf(nextFrame.props.style);
   assert.equal(next.display, 'none');
   assert.doesNotThrow(() => nativeTransformUpdate(previous, next.transform));
@@ -984,7 +998,7 @@ test('a plan-session display-only hide clears the capsule transform through the 
   focusedTabBarStyle = { transform: [{ translateY: 12 }] };
   focusTab('Bible', { state: { index: 0, routes: [{ name: 'BibleReader' }] } });
   await view.rerender(<TabNavigator />);
-  const restored = styleOf(hostAncestors(view.getByTestId('player-bar'))[0].props.style);
+  const restored = styleOf(nth(hostAncestors(view.getByTestId('player-bar')), 0).props.style);
   assert.doesNotThrow(() => nativeTransformUpdate(next.transform, restored.transform));
   assert.deepEqual(restored.transform, [{ translateY: 12 }]);
 });

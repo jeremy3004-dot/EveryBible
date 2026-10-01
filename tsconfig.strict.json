@@ -18,6 +18,14 @@
     "src/screens/bible/**/*",
     "src/screens/home/**/*",
     "src/screens/onboarding/**/*",
-    "src/screens/auth/**/*"
+    "src/screens/auth/**/*",
+    "src/navigation/**/*",
+    "src/components/**/*",
+    "src/data/**/*",
+    "src/design/**/*",
+    "src/contexts/**/*",
+    "src/config/**/*",
+    "src/testing/**/*",
+    "src/types/**/*"
   ]
 }

@@ -14,6 +14,10 @@ import {
   sanitizeUserPreferences,
 } from '../stores/persistedStateSanitizers';
 import { mergePreferences } from '../services/sync/syncMerge';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 // The real ThemeContext, loaded with `react` replaced by the shared hook runtime and the
 // auth store by a mutable preferences object. The provider's value comes from
@@ -55,14 +59,16 @@ const themeFor = (stored: Partial<UserPreferences>) => {
 
 function contrastRatio(foreground: string, background: string): number {
   const luminance = (hex: string) => {
-    const [r, g, b] = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)]
-      .map(([channel]) => parseInt(channel, 16) / 255)
+    const channels = [...hex.matchAll(/[A-Fa-f0-9]{2}/g)]
+      .map(([channel]) => parseInt(nth([channel ?? ''], 0), 16) / 255)
       .map((channel) =>
         channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4)
       );
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 0.2126 * nth(channels, 0) + 0.7152 * nth(channels, 1) + 0.0722 * nth(channels, 2);
   };
-  const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  const [first, second] = [luminance(foreground), luminance(background)];
+  const light = Math.max(first, second);
+  const dark = Math.min(first, second);
   return (light + 0.05) / (dark + 0.05);
 }
 

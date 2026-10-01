@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { createElement, type ReactNode } from 'react';
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { installRenderHarness } from '../testing/render';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -46,8 +50,8 @@ test('AuthStack registers one shared auth route plus password reset, not split s
     screens.map((screen) => screen.name),
     ['AuthScreen', 'ResetPassword']
   );
-  assert.equal(screens[0].getComponent(), AuthScreen);
-  assert.equal(screens[1].getComponent(), ResetPasswordScreen);
+  assert.equal(nth(screens, 0).getComponent(), AuthScreen);
+  assert.equal(nth(screens, 1).getComponent(), ResetPasswordScreen);
 });
 
 test('BibleStack presents the reader chapter picker as a modal that reuses the browser screen', async () => {
@@ -86,9 +90,9 @@ test('every stack navigator wraps each of its screens in the per-screen error bo
   assert.deepEqual(Object.keys(stacks), onDisk, 'a new *Stack.tsx must be added here');
 
   for (const [name, load] of Object.entries(stacks)) {
-    const Stack = (await load())[name];
+    const Stack = assertDefined((await load())[name], `the ${name} export`);
     const view = await harness.render(<Stack />);
-    const [navigator] = view.queryAllByType('Navigator');
+    const navigator = nth(view.queryAllByType('Navigator'), 0);
     assert.equal(
       navigator.props.screenLayout,
       renderScreenWithErrorBoundary,

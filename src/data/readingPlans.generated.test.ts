@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { ReadingPlanCoverKey, ReadingPlanEntry } from '../services/plans/types';
+import { assertDefined } from '../utils/assertDefined';
+
+const entriesIn = (byPlan: Record<string, ReadingPlanEntry[]>, planId: string) =>
+  assertDefined(byPlan[planId], `entries for ${planId}`);
 
 test('bundled reading plans expose the bundled plans in sort order', async () => {
   const mod = await import('./readingPlans.generated');
@@ -62,17 +66,17 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.coverKey, 'kathisma');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.scheduleMode, 'calendar-day-of-week');
   assert.equal(mod.readingPlansById.get('kathisma-weekly')?.format, 'multi-session');
-  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-1-year'].length, 365);
-  assert.equal(mod.readingPlanEntriesByPlanId['sermon-on-the-mount-7-days'].length, 7);
-  assert.equal(mod.readingPlanEntriesByPlanId['bible-in-30-days'].length, 94);
-  assert.equal(mod.readingPlanEntriesByPlanId['acts-28-days'].length, 28);
-  assert.equal(mod.readingPlanEntriesByPlanId['foundations-of-the-gospel'].length, 18);
-  assert.equal(mod.readingPlanEntriesByPlanId['prayer-intimacy-with-god'].length, 12);
-  assert.equal(mod.readingPlanEntriesByPlanId['identity-in-christ'].length, 8);
-  assert.equal(mod.readingPlanEntriesByPlanId['kathisma-weekly'].length, 20);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'bible-in-1-year').length, 365);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'sermon-on-the-mount-7-days').length, 7);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'bible-in-30-days').length, 94);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'acts-28-days').length, 28);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'foundations-of-the-gospel').length, 18);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'prayer-intimacy-with-god').length, 12);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'identity-in-christ').length, 8);
+  assert.equal(entriesIn(mod.readingPlanEntriesByPlanId, 'kathisma-weekly').length, 20);
 
   assert.deepEqual(
-    mod.readingPlanEntriesByPlanId['kathisma-weekly']
+    entriesIn(mod.readingPlanEntriesByPlanId, 'kathisma-weekly')
       .filter((entry) => entry.day_number === 1)
       .map((entry) => ({
         session: entry.session_key,
@@ -96,7 +100,7 @@ test('bundled reading plans expose the bundled plans in sort order', async () =>
     ]
   );
   assert.deepEqual(
-    mod.readingPlanEntriesByPlanId['kathisma-weekly']
+    entriesIn(mod.readingPlanEntriesByPlanId, 'kathisma-weekly')
       .filter((entry) => entry.day_number === 2)
       .map((entry) => ({
         session: entry.session_key,
@@ -196,7 +200,7 @@ test('the new daily rhythms repeat on the calendar and carry their own covers', 
 
 test('Week of Christ keeps the weekly remembrance of the early church, Sunday first', async () => {
   const mod = await import('./readingPlans.generated');
-  const entries = mod.readingPlanEntriesByPlanId['week-of-christ'];
+  const entries = entriesIn(mod.readingPlanEntriesByPlanId, 'week-of-christ');
 
   assert.deepEqual(
     [1, 2, 3, 4, 5, 6, 7].map((day) => entriesForDay(entries, day)),
@@ -214,7 +218,7 @@ test('Week of Christ keeps the weekly remembrance of the early church, Sunday fi
 
 test("Lord's Prayer Week prays the prayer daily, then dwells on one petition", async () => {
   const mod = await import('./readingPlans.generated');
-  const entries = mod.readingPlanEntriesByPlanId['lords-prayer-week'];
+  const entries = entriesIn(mod.readingPlanEntriesByPlanId, 'lords-prayer-week');
   const prayer = 'MAT 6:9-13';
 
   assert.deepEqual(
@@ -233,7 +237,7 @@ test("Lord's Prayer Week prays the prayer daily, then dwells on one petition", a
 
 test('Gospels monthly reads all four Gospels in order, about three chapters a day', async () => {
   const mod = await import('./readingPlans.generated');
-  const entries = mod.readingPlanEntriesByPlanId['gospels-monthly'];
+  const entries = entriesIn(mod.readingPlanEntriesByPlanId, 'gospels-monthly');
   const chaptersOnDay = (day: number) =>
     entries
       .filter((entry) => entry.day_number === day)
@@ -251,7 +255,7 @@ test('Gospels monthly reads all four Gospels in order, about three chapters a da
 
 test('the Common Prayer Psalter follows the 1662 monthly table, repeating day 30 on the 31st', async () => {
   const mod = await import('./readingPlans.generated');
-  const entries = mod.readingPlanEntriesByPlanId['common-prayer-psalter'];
+  const entries = entriesIn(mod.readingPlanEntriesByPlanId, 'common-prayer-psalter');
 
   assert.deepEqual(entriesForDay(entries, 1), ['morning PSA 1-5', 'evening PSA 6-8']);
   assert.deepEqual(entriesForDay(entries, 3), ['morning PSA 15-17', 'evening PSA 18']);
@@ -305,7 +309,7 @@ test('Seasons of life plans are seven days of at least two whole chapters, each 
   for (const plan of plans) {
     assert.equal(plan.duration_days, 7, plan.id);
     assert.equal(plan.scheduleMode, undefined, `${plan.id} runs from its start date`);
-    const entries: ReadingPlanEntry[] = mod.readingPlanEntriesByPlanId[plan.id];
+    const entries: ReadingPlanEntry[] = entriesIn(mod.readingPlanEntriesByPlanId, plan.id);
     for (let day = 1; day <= 7; day += 1) {
       const dayEntries = entries.filter((entry) => entry.day_number === day);
       const chapterCount = dayEntries.reduce(
@@ -323,7 +327,7 @@ test('Seasons of life plans are seven days of at least two whole chapters, each 
 
 test('back-to-back chapters of one book in a Seasons of life day read as one range', async () => {
   const mod = await import('./readingPlans.generated');
-  const lossDay3 = mod.readingPlanEntriesByPlanId['life-loss-7-days'].filter(
+  const lossDay3 = entriesIn(mod.readingPlanEntriesByPlanId, 'life-loss-7-days').filter(
     (entry: ReadingPlanEntry) => entry.day_number === 3
   );
 
@@ -345,7 +349,7 @@ test('Advent and the Twelve Days of Christmas are dated to their season, in whol
     ]
   );
   for (const plan of plans) {
-    const entries: ReadingPlanEntry[] = mod.readingPlanEntriesByPlanId[plan.id];
+    const entries: ReadingPlanEntry[] = entriesIn(mod.readingPlanEntriesByPlanId, plan.id);
     for (let day = 1; day <= plan.duration_days; day += 1) {
       const dayEntries = entries.filter((entry) => entry.day_number === day);
       const chapterCount = dayEntries.reduce(
@@ -364,7 +368,7 @@ test('Advent and the Twelve Days of Christmas are dated to their season, in whol
 test('the shortest Advent still reaches the annunciations, and Christmas reads every Nativity account', async () => {
   const mod = await import('./readingPlans.generated');
   const chaptersOn = (planId: string, day: number) =>
-    mod.readingPlanEntriesByPlanId[planId]
+    entriesIn(mod.readingPlanEntriesByPlanId, planId)
       .filter((entry: ReadingPlanEntry) => entry.day_number === day)
       .map((entry: ReadingPlanEntry) => `${entry.book} ${entry.chapter_start}`);
 

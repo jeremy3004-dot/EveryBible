@@ -5,6 +5,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { assertDefined } from '../utils/assertDefined';
+
+const byteAt = (buffer: Uint8Array, index: number): number =>
+  assertDefined(buffer[index], `byte ${index}`);
 
 const REPO_ROOT = process.cwd();
 
@@ -45,19 +49,21 @@ function readRgbaPng(file: string): { width: number; height: number; pixels: Buf
   const stride = width * 4;
   const pixels = Buffer.alloc(stride * height);
   for (let y = 0; y < height; y += 1) {
-    const filter = raw[y * (stride + 1)];
+    const filter = byteAt(raw, y * (stride + 1));
     for (let x = 0; x < stride; x += 1) {
-      const value = raw[y * (stride + 1) + 1 + x];
-      const left = x >= 4 ? pixels[y * stride + x - 4] : 0;
-      const up = y > 0 ? pixels[(y - 1) * stride + x] : 0;
-      const upLeft = x >= 4 && y > 0 ? pixels[(y - 1) * stride + x - 4] : 0;
+      const value = byteAt(raw, y * (stride + 1) + 1 + x);
+      const left = x >= 4 ? byteAt(pixels, y * stride + x - 4) : 0;
+      const up = y > 0 ? byteAt(pixels, (y - 1) * stride + x) : 0;
+      const upLeft = x >= 4 && y > 0 ? byteAt(pixels, (y - 1) * stride + x - 4) : 0;
       let predictor = 0;
       if (filter === 1) predictor = left;
       else if (filter === 2) predictor = up;
       else if (filter === 3) predictor = Math.floor((left + up) / 2);
       else if (filter === 4) {
         const estimate = left + up - upLeft;
-        const [dl, du, dul] = [left, up, upLeft].map((v) => Math.abs(estimate - v));
+        const dl = Math.abs(estimate - left);
+        const du = Math.abs(estimate - up);
+        const dul = Math.abs(estimate - upLeft);
         predictor = dl <= du && dl <= dul ? left : du <= dul ? up : upLeft;
       }
       pixels[y * stride + x] = (value + predictor) & 0xff;

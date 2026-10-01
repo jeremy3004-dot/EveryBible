@@ -66,7 +66,7 @@ export function GatherIconBadge({
         .replace(/stroke="#(?:000000|000)"/g, `stroke="${resolvedColor}"`);
     }
 
-    const [, attributes, innerXml] = rootMatch;
+    const [, attributes = '', innerXml = ''] = rootMatch;
     const widthMatch = attributes.match(/\bwidth="([^"]+)"/i);
     const heightMatch = attributes.match(/\bheight="([^"]+)"/i);
     const viewBoxMatch = attributes.match(/\bviewBox="([^"]+)"/i);

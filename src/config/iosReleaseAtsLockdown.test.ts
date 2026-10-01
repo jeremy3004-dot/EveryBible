@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import atsPlugin from '../../plugins/withReleaseAtsLockdown';
+import { assertDefined } from '../utils/assertDefined';
 
 interface XcodeBuildPhaseRef {
   value: string;
@@ -51,8 +52,14 @@ const canRunPlistBuddy = process.platform === 'darwin' && fs.existsSync(PLISTBUD
 
 const loadProject = (file = PROJECT_FILE): XcodeProject => xcode.project(file).parseSync();
 
+const appTarget = (project: XcodeProject) =>
+  assertDefined(
+    project.hash.project.objects.PBXNativeTarget[project.getFirstTarget().uuid],
+    'the app native target'
+  );
+
 const appTargetPhaseNames = (project: XcodeProject): string[] => {
-  const target = project.hash.project.objects.PBXNativeTarget[project.getFirstTarget().uuid];
+  const target = appTarget(project);
   return (target.buildPhases ?? []).map((phase) => phase.comment ?? phase.value);
 };
 
@@ -118,7 +125,7 @@ test('the config plugin adds the phase to a project without it, once', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'everybible-pbx-'));
   const withoutPhase = path.join(tempDir, 'project.pbxproj');
   const committed = loadProject();
-  const target = committed.hash.project.objects.PBXNativeTarget[committed.getFirstTarget().uuid];
+  const target = appTarget(committed);
   target.buildPhases = (target.buildPhases ?? []).filter(
     (phase) => phase.comment !== RELEASE_ATS_PHASE_NAME
   );

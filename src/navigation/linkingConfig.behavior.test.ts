@@ -6,6 +6,10 @@ import { pathToFileURL } from 'node:url';
 
 import { mockModule, sourcePath } from '../testing/mockModules';
 import { rootTabManifest } from './tabManifest';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 /**
  * Exercises the real linkingConfig object: its prefixes, its screen path map and
@@ -147,8 +151,8 @@ test('a bible path with a non-numeric chapter opens nothing', async () => {
 test('the reset-password link resolves through the More > Auth > ResetPassword template', async () => {
   const state = await parse('/reset-password?access_token=abc&type=recovery');
   assert.ok(state);
-  assert.deepEqual(routeChain(state.routes[0]), ['More', 'Auth', 'ResetPassword']);
-  assert.deepEqual(leafParams(state.routes[0]), { access_token: 'abc', type: 'recovery' });
+  assert.deepEqual(routeChain(nth(state.routes, 0)), ['More', 'Auth', 'ResetPassword']);
+  assert.deepEqual(leafParams(nth(state.routes, 0)), { access_token: 'abc', type: 'recovery' });
 });
 
 // A cold-start reset link used to build More: [Auth] with no More page beneath the

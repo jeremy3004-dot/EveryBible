@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertDefined } from '../utils/assertDefined';
 
 export const MIGRATIONS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -75,21 +76,25 @@ const splitTopLevel = (text: string, separator: string): string[] => {
   return parts;
 };
 
+// Capture groups that the regex makes mandatory; `noUncheckedIndexedAccess` can't see that.
+const group = (match: RegExpExecArray | RegExpMatchArray, index: number): string =>
+  assertDefined(match[index], `capture group ${index}`);
+
 const unquoteIdentifier = (identifier: string): string => identifier.replace(/^"|"$/g, '');
 
 const parseInCheck = (text: string): InCheck | null => {
   const match = /check\s*\(\s*\(?\s*"?([a-z_][a-z0-9_]*)"?\s+in\s*\(([^)]*)\)/i.exec(text);
   if (!match) return null;
-  const values = [...match[2].matchAll(/'((?:[^']|'')*)'/g)].map((value) =>
-    value[1].replace(/''/g, "'")
+  const values = [...group(match, 2).matchAll(/'((?:[^']|'')*)'/g)].map((value) =>
+    group(value, 1).replace(/''/g, "'")
   );
-  return { column: match[1].toLowerCase(), values };
+  return { column: group(match, 1).toLowerCase(), values };
 };
 
 const tablePattern = (table: string): string => `(?:public\\.)?"?${table}"?`;
 
 const applyColumnDefinition = (table: string, state: MigratedTable, definition: string): void => {
-  const [rawName] = definition.split(/\s+/);
+  const rawName = definition.split(/\s+/)[0] ?? '';
   const column = unquoteIdentifier(rawName).toLowerCase();
   state.columns.add(column);
   const check = parseInCheck(definition);
@@ -104,7 +109,7 @@ const applyStatement = (table: string, state: MigratedTable, statement: string):
   if (create) {
     const body = statement.slice(create[0].length, statement.lastIndexOf(')'));
     for (const entry of splitTopLevel(body, ',')) {
-      const keyword = entry.split(/\s+/)[0].toLowerCase();
+      const keyword = (entry.split(/\s+/)[0] ?? '').toLowerCase();
       if (!CONSTRAINT_KEYWORDS.has(keyword)) applyColumnDefinition(table, state, entry);
     }
     return;
@@ -119,12 +124,12 @@ const applyStatement = (table: string, state: MigratedTable, statement: string):
   for (const action of splitTopLevel(statement.slice(alter[0].length), ',')) {
     let match = /^add\s+column\s+(?:if\s+not\s+exists\s+)?([\s\S]+)$/i.exec(action);
     if (match) {
-      applyColumnDefinition(table, state, match[1]);
+      applyColumnDefinition(table, state, group(match, 1));
       continue;
     }
     match = /^drop\s+column\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(action);
     if (match) {
-      const column = match[1].toLowerCase();
+      const column = group(match, 1).toLowerCase();
       state.columns.delete(column);
       for (const [name, check] of state.checks) {
         if (check.column === column) state.checks.delete(name);
@@ -133,13 +138,13 @@ const applyStatement = (table: string, state: MigratedTable, statement: string):
     }
     match = /^drop\s+constraint\s+(?:if\s+exists\s+)?"?([a-z0-9_]+)"?/i.exec(action);
     if (match) {
-      state.checks.delete(match[1].toLowerCase());
+      state.checks.delete(group(match, 1).toLowerCase());
       continue;
     }
     match = /^add\s+constraint\s+"?([a-z0-9_]+)"?\s+([\s\S]+)$/i.exec(action);
     if (match) {
-      const check = parseInCheck(match[2]);
-      if (check) state.checks.set(match[1].toLowerCase(), check);
+      const check = parseInCheck(group(match, 2));
+      if (check) state.checks.set(group(match, 1).toLowerCase(), check);
     }
   }
 };

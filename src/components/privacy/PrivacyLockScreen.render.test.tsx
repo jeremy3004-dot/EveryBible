@@ -4,6 +4,10 @@ import { act } from 'react-test-renderer';
 import { create } from 'zustand';
 import { mockBarrel, mockModule, sourcePath } from '../../testing/mockModules';
 import { installRenderHarness, type RenderResult } from '../../testing/render';
+import { assertDefined } from '../../utils/assertDefined';
+
+const nth = <T,>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 const harness = installRenderHarness(mock);
 
@@ -49,7 +53,7 @@ async function settlePinCheck() {
   await act(async () => {});
 }
 
-const display = (view: RenderResult) => view.getAllByText(/./)[0].props.accessibilityLabel;
+const display = (view: RenderResult) => nth(view.getAllByText(/./), 0).props.accessibilityLabel;
 
 test('the lock screen works as a plain calculator', async () => {
   const view = await renderLockScreen();

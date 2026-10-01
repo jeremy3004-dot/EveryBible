@@ -15,6 +15,7 @@ import { create } from 'zustand';
 import { mockModule, mockPackage, sourcePath } from '../testing/mockModules';
 import { createReactNativeStub } from '../testing/reactNativeStub';
 import { hostComponent } from '../testing/reactNativeHost';
+import { assertDefined } from '../utils/assertDefined';
 
 const globalFlags = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
 globalFlags.IS_REACT_ACT_ENVIRONMENT = true;
@@ -114,7 +115,12 @@ async function load() {
       return React.createElement(
         NavigationContent,
         null,
-        focused ? ((descriptors as Descriptors)[focused.key].render() as React.ReactNode) : null
+        focused
+          ? (assertDefined(
+              (descriptors as Descriptors)[focused.key],
+              'a descriptor for the focused route'
+            ).render() as React.ReactNode)
+          : null
       );
     });
 

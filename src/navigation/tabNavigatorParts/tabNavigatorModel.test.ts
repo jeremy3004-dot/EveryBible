@@ -82,12 +82,13 @@ test('a route collapse progress is clamped to 0..1', () => {
 });
 
 test('screens that hide the bar collapse it fully on every stack but Home', () => {
-  for (const [tab, screen] of [
+  const hidingScreens: Array<[string, string]> = [
     ['Bible', 'BiblePicker'],
     ['Learn', 'LessonDetail'],
     ['Plans', 'PlanDetail'],
     ['More', 'LocalePreferences'],
-  ]) {
+  ];
+  for (const [tab, screen] of hidingScreens) {
     assert.equal(getTabBarCollapseProgress(tab, { nestedRouteName: screen }), 1, screen);
   }
   assert.equal(getTabBarCollapseProgress('Bible', { nestedRouteName: 'BibleReader' }), 0);
