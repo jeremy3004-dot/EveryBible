@@ -151,16 +151,24 @@ export const replaceProgressCollections = (
 };
 
 /** The row after completing a numbered day of a fixed-length plan at `now`. */
+/**
+ * `entries` with `key` ticked at `now`, unless it already was: a day re-read from the plan
+ * keeps the time it was first completed (the sync merge keeps the earlier time too), so
+ * Home does not take an old day ticked again today for today's reading.
+ */
+const tickEntry = (
+  entries: Record<string, string>,
+  key: string,
+  now: string
+): Record<string, string> => (key in entries ? entries : { ...entries, [key]: now });
+
 export const completeDay = (
   existing: ReadingPlanProgress,
   dayNumber: number,
   totalDays: number,
   now: string
 ): ReadingPlanProgress => {
-  const completed_entries: Record<string, string> = {
-    ...existing.completed_entries,
-    [String(dayNumber)]: now,
-  };
+  const completed_entries = tickEntry(existing.completed_entries, String(dayNumber), now);
 
   return {
     ...existing,
@@ -184,15 +192,13 @@ export const completeSession = (
   options: SessionCompletionOptions,
   now: string
 ): ReadingPlanProgress => {
-  const completed_sessions: Record<string, string> = {
-    ...(existing.completed_sessions ?? {}),
-    [options.completionKey]: now,
-  };
+  const completed_sessions = tickEntry(
+    existing.completed_sessions ?? {},
+    options.completionKey,
+    now
+  );
   const completed_entries = options.isFinalSession
-    ? {
-        ...existing.completed_entries,
-        [options.dayCompletionKey]: now,
-      }
+    ? tickEntry(existing.completed_entries, options.dayCompletionKey, now)
     : existing.completed_entries;
   const completedDayCount = Object.keys(completed_entries).length;
   const isCompleted =
@@ -226,10 +232,7 @@ export const completeRecurringDay = (
   now: string
 ): ReadingPlanProgress => ({
   ...existing,
-  completed_entries: {
-    ...existing.completed_entries,
-    [completionKey]: now,
-  },
+  completed_entries: tickEntry(existing.completed_entries, completionKey, now),
   current_day: Math.max(dayNumber, 1),
   current_session: null,
   is_completed: false,

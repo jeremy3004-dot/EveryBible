@@ -180,3 +180,45 @@ test('a recurring day is keyed by its completion key and never finishes the plan
     synced_at: NOW,
   });
 });
+
+const EARLIER = '2026-08-20T09:00:00.000Z';
+
+test('re-ticking an already completed day keeps the time it was first completed', () => {
+  const progress = completeDay(
+    row('plan-a', { completed_entries: { '2': EARLIER }, current_day: 5 }),
+    2,
+    30,
+    NOW
+  );
+
+  assert.deepEqual(progress.completed_entries, { '2': EARLIER });
+  assert.equal(progress.current_day, 5);
+});
+
+test('re-ticking a completed session and its day keeps their first completion times', () => {
+  const progress = completeSession(
+    row('plan-a', {
+      completed_entries: { '2': EARLIER },
+      completed_sessions: { '2:morning': EARLIER },
+      current_day: 5,
+    }),
+    2,
+    'morning',
+    { ...sessionOptions, isFinalSession: true, advanceDayOnCompletion: true },
+    NOW
+  );
+
+  assert.deepEqual(progress.completed_entries, { '2': EARLIER });
+  assert.deepEqual(progress.completed_sessions, { '2:morning': EARLIER });
+});
+
+test('re-ticking a recurring dated entry keeps its first completion time', () => {
+  const progress = completeRecurringDay(
+    row('plan-a', { completed_entries: { '2026-08-20': EARLIER } }),
+    '2026-08-20',
+    1,
+    NOW
+  );
+
+  assert.deepEqual(progress.completed_entries, { '2026-08-20': EARLIER });
+});
