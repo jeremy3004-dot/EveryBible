@@ -1,0 +1,27 @@
+# Render work started from readerChapterLoader.ts after the chapter's SQLite read resolves, by the
+# loader line that set state (Hermes profile, ms). Separate lines = separate synchronous render passes,
+# because React Native's old architecture does not batch updates made outside events.
+
+== m-base
+  open Psalm 119:
+     39.7 ms  readerChapterLoader.ts:122 -> dispatchSetState
+     11.9 ms  readerChapterLoader.ts:102 -> markChapterRead
+     11.1 ms  readerChapterLoader.ts:90 -> dispatchSetState
+      5.9 ms  readerChapterLoader.ts:89 -> dispatchSetState
+  next chapter:
+     10.9 ms  readerChapterLoader.ts:89 -> dispatchSetState
+      8.2 ms  readerChapterLoader.ts:102 -> markChapterRead
+      7.6 ms  readerChapterLoader.ts:90 -> dispatchSetState
+  previous chapter:
+     43.0 ms  readerChapterLoader.ts:89 -> dispatchSetState
+      8.6 ms  readerChapterLoader.ts:102 -> markChapterRead
+      7.7 ms  readerChapterLoader.ts:90 -> dispatchSetState
+
+== m-own
+  open Psalm 119:
+     39.5 ms  readerChapterLoader.ts:98 -> unstable_batchedUpdates
+  next chapter:
+      8.8 ms  readerChapterLoader.ts:98 -> unstable_batchedUpdates
+      0.9 ms  readerChapterLoader.ts:103 -> markChapterRead
+  previous chapter:
+     38.8 ms  readerChapterLoader.ts:98 -> unstable_batchedUpdates

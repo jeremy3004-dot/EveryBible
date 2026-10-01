@@ -1,0 +1,1412 @@
+{
+ "m-base": [
+  {
+   "cold": {
+    "marks": {
+     "native:load": 399,
+     "native:jsWillStartLoading": 455,
+     "native:didFinishLaunching": 476,
+     "native:jsWillStartExecuting": 808,
+     "App:module-start": 848,
+     "native:jsDidLoad": 849,
+     "native:contentDidAppear": 850,
+     "home:first-layout": 933,
+     "tab:focus": 957,
+     "Home:interaction-ready": 957
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 172,
+    "touch_to_mark": 241
+   },
+   "next_chapter": {
+    "touch_to_committed": 43,
+    "touch_to_mark": 52
+   },
+   "prev_chapter": {
+    "touch_to_committed": 74,
+    "touch_to_mark": 83
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 374,
+     "native:jsWillStartLoading": 414,
+     "native:didFinishLaunching": 430,
+     "native:jsWillStartExecuting": 750,
+     "App:module-start": 780,
+     "native:jsDidLoad": 780,
+     "native:contentDidAppear": 781,
+     "home:first-layout": 865,
+     "tab:focus": 888,
+     "Home:interaction-ready": 888
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 165,
+    "touch_to_mark": 234
+   },
+   "next_chapter": {
+    "touch_to_committed": 50,
+    "touch_to_mark": 61
+   },
+   "prev_chapter": {
+    "touch_to_committed": 80,
+    "touch_to_mark": 89
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 363,
+     "native:jsWillStartLoading": 403,
+     "native:didFinishLaunching": 420,
+     "native:jsWillStartExecuting": 760,
+     "App:module-start": 790,
+     "native:jsDidLoad": 791,
+     "native:contentDidAppear": 792,
+     "home:first-layout": 872,
+     "tab:focus": 896,
+     "Home:interaction-ready": 896
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 171,
+    "touch_to_mark": 239
+   },
+   "next_chapter": {
+    "touch_to_committed": 47,
+    "touch_to_mark": 58
+   },
+   "prev_chapter": {
+    "touch_to_committed": 82,
+    "touch_to_mark": 91
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 36
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 403,
+     "native:jsWillStartLoading": 469,
+     "native:didFinishLaunching": 491,
+     "native:jsWillStartExecuting": 890,
+     "App:module-start": 933,
+     "native:jsDidLoad": 933,
+     "native:contentDidAppear": 935,
+     "home:first-layout": 1025,
+     "tab:focus": 1049,
+     "Home:interaction-ready": 1049
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 173,
+    "touch_to_mark": 246
+   },
+   "next_chapter": {
+    "touch_to_committed": 42,
+    "touch_to_mark": 53
+   },
+   "prev_chapter": {
+    "touch_to_committed": 77,
+    "touch_to_mark": 87
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 370,
+     "native:jsWillStartLoading": 429,
+     "native:didFinishLaunching": 447,
+     "native:jsWillStartExecuting": 798,
+     "App:module-start": 829,
+     "native:jsDidLoad": 829,
+     "native:contentDidAppear": 830,
+     "home:first-layout": 913,
+     "tab:focus": 938,
+     "Home:interaction-ready": 938
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 170,
+    "touch_to_mark": 244
+   },
+   "next_chapter": {
+    "touch_to_committed": 47,
+    "touch_to_mark": 58
+   },
+   "prev_chapter": {
+    "touch_to_committed": 78,
+    "touch_to_mark": 88
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 377,
+     "native:jsWillStartLoading": 420,
+     "native:didFinishLaunching": 437,
+     "native:jsWillStartExecuting": 772,
+     "App:module-start": 803,
+     "native:jsDidLoad": 804,
+     "native:contentDidAppear": 805,
+     "home:first-layout": 885,
+     "tab:focus": 909,
+     "Home:interaction-ready": 909
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 166,
+    "touch_to_mark": 237
+   },
+   "next_chapter": {
+    "touch_to_committed": 45,
+    "touch_to_mark": 54
+   },
+   "prev_chapter": {
+    "touch_to_committed": 74,
+    "touch_to_mark": 83
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 393,
+     "native:jsWillStartLoading": 447,
+     "native:didFinishLaunching": 465,
+     "native:jsWillStartExecuting": 798,
+     "App:module-start": 837,
+     "native:jsDidLoad": 838,
+     "native:contentDidAppear": 839,
+     "home:first-layout": 924,
+     "tab:focus": 948,
+     "Home:interaction-ready": 948
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 165,
+    "touch_to_mark": 236
+   },
+   "next_chapter": {
+    "touch_to_committed": 41,
+    "touch_to_mark": 50
+   },
+   "prev_chapter": {
+    "touch_to_committed": 74,
+    "touch_to_mark": 82
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 374,
+     "native:jsWillStartLoading": 417,
+     "native:didFinishLaunching": 434,
+     "native:jsWillStartExecuting": 811,
+     "App:module-start": 842,
+     "native:jsDidLoad": 843,
+     "native:contentDidAppear": 844,
+     "home:first-layout": 931,
+     "tab:focus": 956,
+     "Home:interaction-ready": 956
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 170,
+    "touch_to_mark": 240
+   },
+   "next_chapter": {
+    "touch_to_committed": 44,
+    "touch_to_mark": 54
+   },
+   "prev_chapter": {
+    "touch_to_committed": 73,
+    "touch_to_mark": 82
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 366,
+     "native:jsWillStartLoading": 408,
+     "native:didFinishLaunching": 425,
+     "native:jsWillStartExecuting": 752,
+     "App:module-start": 782,
+     "native:jsDidLoad": 782,
+     "native:contentDidAppear": 783,
+     "home:first-layout": 863,
+     "tab:focus": 887,
+     "Home:interaction-ready": 887
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 162,
+    "touch_to_mark": 232
+   },
+   "next_chapter": {
+    "touch_to_committed": 42,
+    "touch_to_mark": 51
+   },
+   "prev_chapter": {
+    "touch_to_committed": 72,
+    "touch_to_mark": 81
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  }
+ ],
+ "m-own": [
+  {
+   "cold": {
+    "marks": {
+     "native:load": 394,
+     "native:jsWillStartLoading": 446,
+     "native:didFinishLaunching": 463,
+     "native:jsWillStartExecuting": 783,
+     "App:module-start": 823,
+     "native:jsDidLoad": 824,
+     "native:contentDidAppear": 825,
+     "home:first-layout": 906,
+     "tab:focus": 925,
+     "Home:interaction-ready": 925
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 169,
+    "touch_to_mark": 183
+   },
+   "next_chapter": {
+    "touch_to_committed": 29,
+    "touch_to_mark": 31
+   },
+   "prev_chapter": {
+    "touch_to_committed": 68,
+    "touch_to_mark": 69
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 38
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 21
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 367,
+     "native:jsWillStartLoading": 407,
+     "native:didFinishLaunching": 424,
+     "native:jsWillStartExecuting": 738,
+     "App:module-start": 768,
+     "native:jsDidLoad": 768,
+     "native:contentDidAppear": 769,
+     "home:first-layout": 845,
+     "tab:focus": 863,
+     "Home:interaction-ready": 863
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 111,
+    "touch_to_mark": 180
+   },
+   "next_chapter": {
+    "touch_to_committed": 36,
+    "touch_to_mark": 38
+   },
+   "prev_chapter": {
+    "touch_to_committed": 66,
+    "touch_to_mark": 68
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 367,
+     "native:jsWillStartLoading": 406,
+     "native:didFinishLaunching": 421,
+     "native:jsWillStartExecuting": 734,
+     "App:module-start": 764,
+     "native:jsDidLoad": 765,
+     "native:contentDidAppear": 766,
+     "home:first-layout": 843,
+     "tab:focus": 863,
+     "Home:interaction-ready": 863
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 114,
+    "touch_to_mark": 182
+   },
+   "next_chapter": {
+    "touch_to_committed": 33,
+    "touch_to_mark": 35
+   },
+   "prev_chapter": {
+    "touch_to_committed": 72,
+    "touch_to_mark": 73
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 36
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 397,
+     "native:jsWillStartLoading": 454,
+     "native:didFinishLaunching": 473,
+     "native:jsWillStartExecuting": 845,
+     "App:module-start": 887,
+     "native:jsDidLoad": 888,
+     "native:contentDidAppear": 889,
+     "home:first-layout": 972,
+     "tab:focus": 991,
+     "Home:interaction-ready": 991
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 111,
+    "touch_to_mark": 181
+   },
+   "next_chapter": {
+    "touch_to_committed": 34,
+    "touch_to_mark": 36
+   },
+   "prev_chapter": {
+    "touch_to_committed": 63,
+    "touch_to_mark": 65
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 371,
+     "native:jsWillStartLoading": 414,
+     "native:didFinishLaunching": 431,
+     "native:jsWillStartExecuting": 778,
+     "App:module-start": 809,
+     "native:jsDidLoad": 809,
+     "native:contentDidAppear": 810,
+     "home:first-layout": 886,
+     "tab:focus": 905,
+     "Home:interaction-ready": 905
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 167,
+    "touch_to_mark": 182
+   },
+   "next_chapter": {
+    "touch_to_committed": 31,
+    "touch_to_mark": 34
+   },
+   "prev_chapter": {
+    "touch_to_committed": 64,
+    "touch_to_mark": 65
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 20
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 35
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 374,
+     "native:jsWillStartLoading": 417,
+     "native:didFinishLaunching": 435,
+     "native:jsWillStartExecuting": 796,
+     "App:module-start": 828,
+     "native:jsDidLoad": 828,
+     "native:contentDidAppear": 829,
+     "home:first-layout": 908,
+     "tab:focus": 927,
+     "Home:interaction-ready": 927
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 111,
+    "touch_to_mark": 182
+   },
+   "next_chapter": {
+    "touch_to_committed": 29,
+    "touch_to_mark": 31
+   },
+   "prev_chapter": {
+    "touch_to_committed": 66,
+    "touch_to_mark": 68
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 394,
+     "native:jsWillStartLoading": 450,
+     "native:didFinishLaunching": 468,
+     "native:jsWillStartExecuting": 799,
+     "App:module-start": 839,
+     "native:jsDidLoad": 839,
+     "native:contentDidAppear": 840,
+     "home:first-layout": 920,
+     "tab:focus": 940,
+     "Home:interaction-ready": 940
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 111,
+    "touch_to_mark": 183
+   },
+   "next_chapter": {
+    "touch_to_committed": 34,
+    "touch_to_mark": 36
+   },
+   "prev_chapter": {
+    "touch_to_committed": 65,
+    "touch_to_mark": 66
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 369,
+     "native:jsWillStartLoading": 411,
+     "native:didFinishLaunching": 427,
+     "native:jsWillStartExecuting": 753,
+     "App:module-start": 784,
+     "native:jsDidLoad": 784,
+     "native:contentDidAppear": 785,
+     "home:first-layout": 861,
+     "tab:focus": 881,
+     "Home:interaction-ready": 881
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 164,
+    "touch_to_mark": 179
+   },
+   "next_chapter": {
+    "touch_to_committed": 32,
+    "touch_to_mark": 33
+   },
+   "prev_chapter": {
+    "touch_to_committed": 62,
+    "touch_to_mark": 64
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 36
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 363,
+     "native:jsWillStartLoading": 404,
+     "native:didFinishLaunching": 421,
+     "native:jsWillStartExecuting": 754,
+     "App:module-start": 785,
+     "native:jsDidLoad": 785,
+     "native:contentDidAppear": 786,
+     "home:first-layout": 862,
+     "tab:focus": 881,
+     "Home:interaction-ready": 881
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 107,
+    "touch_to_mark": 179
+   },
+   "next_chapter": {
+    "touch_to_committed": 31,
+    "touch_to_mark": 33
+   },
+   "prev_chapter": {
+    "touch_to_committed": 65,
+    "touch_to_mark": 67
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 20
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   }
+  }
+ ],
+ "m-head": [
+  {
+   "cold": {
+    "marks": {
+     "native:load": 393,
+     "native:jsWillStartLoading": 450,
+     "native:didFinishLaunching": 468,
+     "native:jsWillStartExecuting": 808,
+     "App:module-start": 847,
+     "native:jsDidLoad": 847,
+     "native:contentDidAppear": 849,
+     "home:first-layout": 925,
+     "tab:focus": 944,
+     "Home:interaction-ready": 944
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 112,
+    "touch_to_mark": 182
+   },
+   "next_chapter": {
+    "touch_to_committed": 35,
+    "touch_to_mark": 37
+   },
+   "prev_chapter": {
+    "touch_to_committed": 69,
+    "touch_to_mark": 71
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 35
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 19
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 367,
+     "native:jsWillStartLoading": 409,
+     "native:didFinishLaunching": 427,
+     "native:jsWillStartExecuting": 762,
+     "App:module-start": 793,
+     "native:jsDidLoad": 794,
+     "native:contentDidAppear": 795,
+     "home:first-layout": 879,
+     "tab:focus": 898,
+     "Home:interaction-ready": 898
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 111,
+    "touch_to_mark": 184
+   },
+   "next_chapter": {
+    "touch_to_committed": 31,
+    "touch_to_mark": 33
+   },
+   "prev_chapter": {
+    "touch_to_committed": 67,
+    "touch_to_mark": 69
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 371,
+     "native:jsWillStartLoading": 415,
+     "native:didFinishLaunching": 432,
+     "native:jsWillStartExecuting": 764,
+     "App:module-start": 795,
+     "native:jsDidLoad": 795,
+     "native:contentDidAppear": 796,
+     "home:first-layout": 875,
+     "tab:focus": 894,
+     "Home:interaction-ready": 894
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 118,
+    "touch_to_mark": 188
+   },
+   "next_chapter": {
+    "touch_to_committed": 36,
+    "touch_to_mark": 38
+   },
+   "prev_chapter": {
+    "touch_to_committed": 73,
+    "touch_to_mark": 75
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 35
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 394,
+     "native:jsWillStartLoading": 450,
+     "native:didFinishLaunching": 469,
+     "native:jsWillStartExecuting": 837,
+     "App:module-start": 878,
+     "native:jsDidLoad": 879,
+     "native:contentDidAppear": 881,
+     "home:first-layout": 963,
+     "tab:focus": 983,
+     "Home:interaction-ready": 983
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 113,
+    "touch_to_mark": 185
+   },
+   "next_chapter": {
+    "touch_to_committed": 36,
+    "touch_to_mark": 38
+   },
+   "prev_chapter": {
+    "touch_to_committed": 66,
+    "touch_to_mark": 68
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 21
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 373,
+     "native:jsWillStartLoading": 416,
+     "native:didFinishLaunching": 435,
+     "native:jsWillStartExecuting": 818,
+     "App:module-start": 849,
+     "native:jsDidLoad": 849,
+     "native:contentDidAppear": 850,
+     "home:first-layout": 935,
+     "tab:focus": 954,
+     "Home:interaction-ready": 954
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 112,
+    "touch_to_mark": 184
+   },
+   "next_chapter": {
+    "touch_to_committed": 34,
+    "touch_to_mark": 36
+   },
+   "prev_chapter": {
+    "touch_to_committed": 61,
+    "touch_to_mark": 62
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 34
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 19
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 366,
+     "native:jsWillStartLoading": 408,
+     "native:didFinishLaunching": 425,
+     "native:jsWillStartExecuting": 786,
+     "App:module-start": 817,
+     "native:jsDidLoad": 818,
+     "native:contentDidAppear": 819,
+     "home:first-layout": 895,
+     "tab:focus": 914,
+     "Home:interaction-ready": 914
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 164,
+    "touch_to_mark": 178
+   },
+   "next_chapter": {
+    "touch_to_committed": 30,
+    "touch_to_mark": 31
+   },
+   "prev_chapter": {
+    "touch_to_committed": 64,
+    "touch_to_mark": 66
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 33
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 27
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 21
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 393,
+     "native:jsWillStartLoading": 446,
+     "native:didFinishLaunching": 463,
+     "native:jsWillStartExecuting": 787,
+     "App:module-start": 826,
+     "native:jsDidLoad": 827,
+     "native:contentDidAppear": 828,
+     "home:first-layout": 907,
+     "tab:focus": 925,
+     "Home:interaction-ready": 925
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 114,
+    "touch_to_mark": 185
+   },
+   "next_chapter": {
+    "touch_to_committed": 29,
+    "touch_to_mark": 30
+   },
+   "prev_chapter": {
+    "touch_to_committed": 65,
+    "touch_to_mark": 67
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 22
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 35
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 36
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 25
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 372,
+     "native:jsWillStartLoading": 412,
+     "native:didFinishLaunching": 428,
+     "native:jsWillStartExecuting": 739,
+     "App:module-start": 769,
+     "native:jsDidLoad": 769,
+     "native:contentDidAppear": 770,
+     "home:first-layout": 844,
+     "tab:focus": 862,
+     "Home:interaction-ready": 863
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 112,
+    "touch_to_mark": 183
+   },
+   "next_chapter": {
+    "touch_to_committed": 35,
+    "touch_to_mark": 37
+   },
+   "prev_chapter": {
+    "touch_to_committed": 73,
+    "touch_to_mark": 75
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 29
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 31
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 28
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 24
+   }
+  },
+  {
+   "cold": {
+    "marks": {
+     "native:load": 368,
+     "native:jsWillStartLoading": 407,
+     "native:didFinishLaunching": 423,
+     "native:jsWillStartExecuting": 739,
+     "App:module-start": 770,
+     "native:jsDidLoad": 770,
+     "native:contentDidAppear": 771,
+     "home:first-layout": 849,
+     "tab:focus": 868,
+     "Home:interaction-ready": 868
+    }
+   },
+   "reader_open": {
+    "touch_to_committed": 162,
+    "touch_to_mark": 177
+   },
+   "next_chapter": {
+    "touch_to_committed": 39,
+    "touch_to_mark": 41
+   },
+   "prev_chapter": {
+    "touch_to_committed": 66,
+    "touch_to_mark": 68
+   },
+   "audio_sheet": {
+    "touch_to_committed": null,
+    "touch_to_mark": 26
+   },
+   "tab_Learn": {
+    "touch_to_committed": null,
+    "touch_to_mark": 30
+   },
+   "tab_Plans": {
+    "touch_to_committed": null,
+    "touch_to_mark": 36
+   },
+   "tab_More": {
+    "touch_to_committed": null,
+    "touch_to_mark": 32
+   },
+   "tab_Home": {
+    "touch_to_committed": null,
+    "touch_to_mark": 23
+   },
+   "tab_Bible": {
+    "touch_to_committed": null,
+    "touch_to_mark": 20
+   }
+  }
+ ]
+}
