@@ -122,6 +122,10 @@ mockModule(mock, sourcePath('services/notifications/index.ts'), {
     events.push('deactivatePushToken');
     duringPushTokenCleanup?.();
   },
+  resumePushRegistration: async (userId: string) => {
+    events.push(`resumePushRegistration:${userId}`);
+    return null;
+  },
 });
 
 // ---------------------------------------------------------------------------
@@ -936,6 +940,29 @@ test('signing out is not blocked by a failing push token cleanup', async () => {
 
   assert.deepEqual(deactivatedTokensFor, []);
   assert.equal(useAuthStore.getState().user, null);
+});
+
+test('a sign-out that cannot end the session on this device re-registers the push token', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+  const storage = supabaseFake.client.auth as unknown as {
+    storage: { removeItem: (key: string) => Promise<void> };
+  };
+  const removeItem = storage.storage.removeItem;
+  storage.storage.removeItem = async () => {
+    throw new Error('keychain refused');
+  };
+
+  try {
+    await assert.rejects(useAuthStore.getState().signOut(), /Could not safely end the session/);
+    await new Promise((resolve) => setImmediate(resolve));
+  } finally {
+    storage.storage.removeItem = removeItem;
+  }
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.deepEqual(deactivatedTokensFor, ['user-a']);
+  assert.deepEqual(events, ['deactivatePushToken', 'resumePushRegistration:user-a']);
 });
 
 test('signing out a guest touches no push token and leaves the generation alone', async () => {
