@@ -29,7 +29,12 @@ import {
   isPlanOfferedToday,
   isSeasonalPlan,
 } from './readingPlanModel';
-import type { ReadingPlan, UserReadingPlanProgress } from './types';
+import type {
+  PlanSessionKey,
+  ReadingPlan,
+  ReadingPlanEntry,
+  UserReadingPlanProgress,
+} from './types';
 
 // ---------------------------------------------------------------------------
 // canSyncReadingPlanRemotely
@@ -39,6 +44,40 @@ test('canSyncReadingPlanRemotely allows stable bundled slugs and UUID-backed pla
   assert.equal(canSyncReadingPlanRemotely('bible-in-30-days'), true);
   assert.equal(canSyncReadingPlanRemotely('550e8400-e29b-41d4-a716-446655440000'), true);
   assert.equal(canSyncReadingPlanRemotely('   '), false);
+});
+
+test('any non-blank plan id can sync, down to the one character the server accepts', () => {
+  assert.equal(canSyncReadingPlanRemotely('x'), true);
+  assert.equal(canSyncReadingPlanRemotely(' x '), true);
+});
+
+test('a legacy server row (UUID plan id, no slug, unset columns) restores with safe defaults', () => {
+  const normalized = normalizeRemoteReadingPlanProgress({
+    id: 'remote-progress-2',
+    user_id: 'user-1',
+    plan_id: ' 550e8400-e29b-41d4-a716-446655440000 ',
+    plan_slug: null,
+    started_at: '2026-04-11T00:00:00.000Z',
+    completed_entries: null,
+    current_day: null,
+    is_completed: null,
+    completed_at: null,
+    synced_at: null,
+  });
+
+  assert.deepEqual(normalized, {
+    id: 'remote-progress-2',
+    user_id: 'user-1',
+    plan_id: '550e8400-e29b-41d4-a716-446655440000',
+    started_at: '2026-04-11T00:00:00.000Z',
+    completed_entries: {},
+    completed_sessions: {},
+    current_day: 1,
+    current_session: null,
+    is_completed: false,
+    completed_at: null,
+    synced_at: '2026-04-11T00:00:00.000Z',
+  });
 });
 
 test('normalizeRemoteReadingPlanProgress restores bundled plan progress from remote plan_slug rows', () => {
@@ -112,6 +151,11 @@ test('isPlanCompleted returns false when duration is zero (unknown plan length)'
   assert.equal(isPlanCompleted(0, 100), false);
 });
 
+test('a one-day plan is complete once its day is read', () => {
+  assert.equal(isPlanCompleted(1, 1), true);
+  assert.equal(isPlanCompleted(1, 0), false);
+});
+
 // ---------------------------------------------------------------------------
 // mergePlanProgress
 // ---------------------------------------------------------------------------
@@ -168,6 +212,21 @@ test('getActivePlanDayNumber uses todays date for calendar-day plans', () => {
 test('completed sequential plans display their final day instead of a nonexistent extra day', () => {
   const plan = makePlan({ duration_days: 7 });
   assert.equal(getActivePlanDayNumber(plan, { current_day: 8 }), 7);
+  // A one-day plan has a length too.
+  assert.equal(getActivePlanDayNumber(makePlan({ duration_days: 1 }), { current_day: 2 }), 1);
+});
+
+test('a sequential plan with no progress yet, or a stored day below 1, shows day 1', () => {
+  const plan = makePlan({ duration_days: 7 });
+
+  assert.equal(getActivePlanDayNumber(plan, null), 1);
+  assert.equal(getActivePlanDayNumber(plan, undefined), 1);
+  assert.equal(getActivePlanDayNumber(plan, { current_day: 0 }), 1);
+  assert.equal(getActivePlanDayNumber(plan, { current_day: -3 }), 1);
+});
+
+test('a sequential plan of unknown length (0 days) shows its current day uncapped', () => {
+  assert.equal(getActivePlanDayNumber(makePlan({ duration_days: 0 }), { current_day: 4 }), 4);
 });
 
 test('getActivePlanDayNumber uses todays weekday for weekly calendar plans', () => {
@@ -660,6 +719,45 @@ test('getDaySessionEntries groups a day into ordered morning and evening buckets
   );
 });
 
+test('getDaySessionEntries keeps every passage of a session, in session order, unnumbered last', () => {
+  const entry = (
+    id: string,
+    sessionKey: PlanSessionKey,
+    sessionOrder: number | null
+  ): ReadingPlanEntry => ({
+    id,
+    plan_id: 'plan-1',
+    day_number: 1,
+    session_key: sessionKey,
+    session_order: sessionOrder,
+    book: 'PSA',
+    chapter_start: 1,
+    chapter_end: null,
+  });
+
+  const sessionGroups = getDaySessionEntries(
+    [
+      entry('1-evening-1', 'evening', 3),
+      entry('1-morning-2', 'morning', 1),
+      entry('1-midday-1', 'midday', 2),
+      entry('1-morning-0', 'morning', null),
+      entry('1-morning-1', 'morning', 2),
+      entry('1-morning-4', 'morning', 1),
+    ],
+    1
+  );
+
+  assert.deepEqual(
+    sessionGroups.map((group) => [group.sessionKey, group.entries.map((item) => item.id)]),
+    [
+      // By session_order, then id; a passage without an order comes after the rest.
+      ['morning', ['1-morning-2', '1-morning-4', '1-morning-1', '1-morning-0']],
+      ['midday', ['1-midday-1']],
+      ['evening', ['1-evening-1']],
+    ]
+  );
+});
+
 test('buildPlanSessionCompletionKey uses the day number for relative plans and date keys for recurring plans', () => {
   const relativePlan = makePlan({
     format: 'multi-session',
@@ -726,6 +824,38 @@ test('two devices that completed the same day agree on one completion time', () 
 
   assert.deepEqual(onA.completed_entries, { '1': '2026-09-20T06:00:00.000Z' });
   assert.deepEqual(onB.completed_entries, onA.completed_entries);
+});
+
+test('completion times written with a UTC offset are compared as instants, not as text', () => {
+  // 11:30 in Kathmandu (05:45 UTC) is earlier than 05:50 UTC, though it sorts later as text.
+  const kathmandu = '2026-09-20T11:30:00+05:45';
+  const utc = '2026-09-20T05:50:00.000Z';
+  const a = makeProgress({
+    completed_entries: { '1': kathmandu },
+    is_completed: true,
+    completed_at: kathmandu,
+  });
+  const b = makeProgress({
+    completed_entries: { '1': utc },
+    is_completed: true,
+    completed_at: utc,
+  });
+
+  for (const merged of [mergePlanProgress(a, b, 'x'), mergePlanProgress(b, a, 'x')]) {
+    assert.deepEqual(merged.completed_entries, { '1': kathmandu });
+    assert.equal(merged.completed_at, kathmandu);
+  }
+});
+
+test('one moment written two ways settles on the same spelling on both devices', () => {
+  // The server writes +00:00 where the phone wrote Z; neither is earlier.
+  const a = makeProgress({ completed_entries: { '1': '2026-09-20T06:00:00+00:00' } });
+  const b = makeProgress({ completed_entries: { '1': '2026-09-20T06:00:00.000Z' } });
+
+  assert.deepEqual(
+    mergePlanProgress(a, b, 'x').completed_entries,
+    mergePlanProgress(b, a, 'x').completed_entries
+  );
 });
 
 test('two completion times for the plan resolve to the earlier on both devices', () => {
@@ -802,6 +932,23 @@ test('the progress payload carries session ticks only when asked to', () => {
   assert.equal(withSessions.current_session, 'evening');
   assert.equal('completed_sessions' in legacy, false);
   assert.equal('current_session' in legacy, false);
+  // Unless the caller says the server has the columns, they are left out.
+  const unstated = buildRemoteReadingPlanProgressPayload(progress, 'user-1');
+  assert.equal('completed_sessions' in unstated, false);
+  assert.equal('current_session' in unstated, false);
+});
+
+test('a row stored before session ticks existed sends an empty tick map and no session', () => {
+  // A several-row upsert names every key as a column and writes NULL for a key left
+  // undefined, so these must be values, not gaps.
+  const progress = makeProgress({ plan_id: 'psalms-30-days' });
+
+  const payload = buildRemoteReadingPlanProgressPayload(progress, 'user-1', true);
+
+  assert.deepEqual(
+    { completed_sessions: payload.completed_sessions, current_session: payload.current_session },
+    { completed_sessions: {}, current_session: null }
+  );
 });
 
 test('mergePlanProgress stamps synced_at with the supplied timestamp', () => {
