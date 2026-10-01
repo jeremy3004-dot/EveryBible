@@ -686,6 +686,72 @@ export const getReaderVerseContentOffset = ({
   return paragraphOffset;
 };
 
+/** The paragraph at the top of the viewport and how far through it the viewport starts. */
+export interface ReaderScrollAnchor {
+  paragraphKey: string;
+  fraction: number;
+}
+
+interface ReaderScrollAnchorInput {
+  paragraphs: readonly Pick<ReaderParagraph, 'key'>[];
+  paragraphHeights: Readonly<Record<string, number>>;
+  contentTopOffset: number;
+}
+
+// What the reader is showing at the top of the screen, as a position inside a paragraph
+// rather than a pixel offset: pixels stop meaning the same verse once the font size
+// changes the paragraph heights. Null when the reader is at the top (nothing to keep) or
+// a paragraph above has not been measured.
+export const getReaderScrollAnchor = ({
+  paragraphs,
+  paragraphHeights,
+  contentTopOffset,
+  scrollOffset,
+}: ReaderScrollAnchorInput & { scrollOffset: number }): ReaderScrollAnchor | null => {
+  if (scrollOffset <= 0) {
+    return null;
+  }
+
+  let paragraphTop = contentTopOffset;
+  for (const paragraph of paragraphs) {
+    const height = paragraphHeights[paragraph.key];
+    if (height == null) {
+      return null;
+    }
+    if (scrollOffset < paragraphTop + height) {
+      return {
+        paragraphKey: paragraph.key,
+        fraction: height > 0 ? (scrollOffset - paragraphTop) / height : 0,
+      };
+    }
+    paragraphTop += height;
+  }
+
+  return null;
+};
+
+/** The scroll offset that puts `anchor` back at the top of the viewport, null while a paragraph above it is unmeasured. */
+export const getReaderScrollAnchorOffset = ({
+  paragraphs,
+  paragraphHeights,
+  contentTopOffset,
+  anchor,
+}: ReaderScrollAnchorInput & { anchor: ReaderScrollAnchor }): number | null => {
+  let paragraphTop = contentTopOffset;
+  for (const paragraph of paragraphs) {
+    const height = paragraphHeights[paragraph.key];
+    if (height == null) {
+      return null;
+    }
+    if (paragraph.key === anchor.paragraphKey) {
+      return Math.max(paragraphTop + anchor.fraction * height, 0);
+    }
+    paragraphTop += height;
+  }
+
+  return null;
+};
+
 export const getNextFollowAlongVisibility = ({
   currentlyVisible,
   nextSessionMode,
