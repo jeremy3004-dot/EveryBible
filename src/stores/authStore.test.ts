@@ -99,10 +99,17 @@ mockModule(mock, '@react-native-community/netinfo', netInfoFake);
 
 const events: string[] = [];
 let bibleResetCount = 0;
+// Set to make the next Bible store reset throw (once), as a failing store reset would.
+let bibleResetError: Error | null = null;
 mockModule(mock, sourcePath('stores/bibleStore.ts'), {
   useBibleStore: {
     getState: () => ({
       resetForSignOut: () => {
+        if (bibleResetError) {
+          const error = bibleResetError;
+          bibleResetError = null;
+          throw error;
+        }
         bibleResetCount += 1;
         events.push('bibleStore.resetForSignOut');
       },
@@ -163,6 +170,7 @@ beforeEach(() => {
   connectivity.isConnected = true;
   events.length = 0;
   bibleResetCount = 0;
+  bibleResetError = null;
   deactivatedTokensFor.length = 0;
   deactivatePushTokenError = null;
   duringPushTokenCleanup = null;
@@ -176,6 +184,7 @@ beforeEach(() => {
     preferences: { ...defaultAuthPreferences },
     preferencesUpdatedAt: null,
     preferencesSyncBase: null,
+    preferenceFieldStamps: {},
     lastSyncedUserId: null,
     authGeneration: 0,
     awaitingTokenRefresh: false,
@@ -266,6 +275,17 @@ test('only preferences, their sync base, their edit stamps and the account marke
   ]);
 });
 
+test('the auth blob is written at persist version 4', () => {
+  // A storage contract: the next build's migration decides from this number what
+  // a stored blob still needs, so a wrong one skips or repeats an upgrade.
+  useAuthStore.getState().setPreferences({ fontSize: 'small' });
+
+  assert.equal(
+    (JSON.parse(mmkv.store.get('auth-storage') ?? '{}') as { version?: unknown }).version,
+    4
+  );
+});
+
 test('a preference edit stamps only the settings whose value changed', () => {
   useAuthStore
     .getState()
@@ -339,6 +359,38 @@ test('new stamps alone are adopted even when the values and sync time are unchan
   assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, { fontSize: stamp });
 });
 
+test('a newer server stamp for one setting is adopted while the other stamps are unchanged', () => {
+  const synced = '2026-06-01T00:00:00.000Z';
+  const stamps = { fontSize: synced, theme: synced };
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, synced, undefined, stamps);
+
+  const newer = { ...stamps, theme: '2026-06-02T00:00:00.000Z' };
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...defaultAuthPreferences }, synced, undefined, newer);
+
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, newer);
+});
+
+// An install from before sync bases has its edit time but no base. A sync that
+// finds the same values and time must still record the server's copy as the
+// base, and its stamps, for the per-field merges that follow.
+test('an install with no sync base records the base and stamps of a sync that changes no value', async () => {
+  const preferences = { ...defaultAuthPreferences, fontSize: 'large' as const };
+  const updatedAt = '2026-06-01T00:00:00.000Z';
+  await rehydrateFrom({ state: { preferences, preferencesUpdatedAt: updatedAt }, version: 4 });
+  assert.equal(useAuthStore.getState().preferencesSyncBase, null);
+
+  useAuthStore
+    .getState()
+    .applySyncedPreferences({ ...preferences }, updatedAt, undefined, { fontSize: updatedAt });
+
+  assert.deepEqual(useAuthStore.getState().preferencesSyncBase, preferences);
+  assert.deepEqual(useAuthStore.getState().preferenceFieldStamps, { fontSize: updatedAt });
+});
+
 test('preference edit stamps survive a restart, drop corrupt entries, and clear on sign-out', async () => {
   await rehydrateFrom({
     state: {
@@ -398,6 +450,12 @@ test('an install that had explicitly not finished onboarding keeps that state', 
   assert.equal(useAuthStore.getState().preferences.onboardingCompleted, false);
 });
 
+test('a version 1 install, also from before the onboarding gate, is not sent through onboarding', async () => {
+  await rehydrateFrom({ state: { preferences: { fontSize: 'large' } }, version: 1 });
+
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, true);
+});
+
 test('a version 2 install gains the newer preference defaults and re-syncs from scratch', async () => {
   await rehydrateFrom({
     state: {
@@ -413,6 +471,8 @@ test('a version 2 install gains the newer preference defaults and re-syncs from 
     defaultAuthPreferences.appearancePalette
   );
   assert.equal(useAuthStore.getState().preferencesUpdatedAt, null);
+  // Version 2 builds had the onboarding gate: only versions 0 and 1 skip it.
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, false);
 });
 
 test('state written by a newer build is accepted rather than discarded', async () => {
@@ -592,6 +652,30 @@ test('a Supabase session is mapped onto the app user and marks the app authentic
   assert.equal(user?.displayName, 'Ada Lovelace');
   assert.equal(user?.photoURL, 'https://cdn/a.png');
   assert.equal(user?.createdAt, Date.parse('2026-02-03T04:05:06.000Z'));
+});
+
+test('an account with no email, name or photo is mapped with each one null, as User promises', () => {
+  useAuthStore.getState().setSession(
+    makeFakeSession({
+      user: makeFakeUser({
+        id: 'user-a',
+        email: undefined,
+        user_metadata: {},
+        created_at: '2026-02-03T04:05:06.000Z',
+      }),
+    })
+  );
+
+  const user = useAuthStore.getState().user;
+  // lastActive is the wall clock at mapping time.
+  assert.deepEqual(user && { ...user, lastActive: 0 }, {
+    uid: 'user-a',
+    email: null,
+    displayName: null,
+    photoURL: null,
+    createdAt: Date.parse('2026-02-03T04:05:06.000Z'),
+    lastActive: 0,
+  });
 });
 
 test('a session swap to another account resets the previous account local data', () => {
@@ -974,6 +1058,83 @@ test('signing out a guest touches no push token and leaves the generation alone'
   assert.equal(useAuthStore.getState().authGeneration, 0);
 });
 
+test('a sign-out meant for an earlier sign-in of the same account leaves the new one signed in', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  const owner = { uid: 'user-a', authGeneration: useAuthStore.getState().authGeneration };
+  // The account signs out and back in before the old continuation asks to end it.
+  useAuthStore.getState().setUser(null);
+  useAuthStore.getState().setUser(appUser('user-a'));
+  useAuthStore.getState().setPreferences({ fontSize: 'large' });
+
+  await useAuthStore.getState().signOut({ expectedOwner: owner });
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  assert.equal(useAuthStore.getState().preferences.fontSize, 'large');
+  assert.deepEqual(deactivatedTokensFor, []);
+});
+
+test('a sign-out superseded before its push cleanup starts leaves the push token alone', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  authHandlers._notifyAllSubscribers = async () => {
+    events.push('supabase.endSession');
+  };
+
+  const signingOut = useAuthStore.getState().signOut();
+  // While the notifications module loads, the account signs out and back in.
+  // Deactivating the token now would silence notifications for the new sign-in.
+  useAuthStore.getState().setUser(null);
+  useAuthStore.getState().setUser(appUser('user-a'));
+  await signingOut;
+
+  assert.deepEqual(deactivatedTokensFor, []);
+  assert.equal(events.includes('supabase.endSession'), false);
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+});
+
+test('a sign-out whose SIGNED_OUT handling failed partway still finishes clearing the account', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  useAuthStore.getState().setPreferences({ fontSize: 'large' });
+  seedPerUserData();
+  authHandlers._notifyAllSubscribers = async () => {
+    // The listener ends the session in the store, then a store reset throws.
+    // authService swallows that, so the store's sign-out completes the reset.
+    bibleResetError = new Error('Bible store reset failed');
+    useAuthStore.getState().setSession(null);
+  };
+
+  await useAuthStore.getState().signOut();
+
+  assert.equal(useAuthStore.getState().user, null);
+  assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
+  assert.equal(perUserDataIsCleared(), true);
+  assert.equal(privateDataScope.getPrivateDataOwner(), null);
+  assert.equal(useAuthStore.getState().authGeneration, 2);
+});
+
+test('signing out while a token refresh is still pending leaves nothing waiting for one', async () => {
+  useAuthStore.getState().setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }), {
+    awaitingTokenRefresh: true,
+  });
+  assert.equal(useAuthStore.getState().awaitingTokenRefresh, true);
+
+  await useAuthStore.getState().signOut();
+
+  assert.equal(useAuthStore.getState().session, null);
+  assert.equal(useAuthStore.getState().awaitingTokenRefresh, false);
+});
+
+test('onboarding is kept through the recovery sign-out only, not a session lost later', async () => {
+  useAuthStore.getState().setUser(appUser('user-a'));
+  useAuthStore.getState().setPreferences({ onboardingCompleted: true });
+  await useAuthStore.getState().signOut({ reason: 'password-recovery' });
+  assert.equal(useAuthStore.getState().preferences.onboardingCompleted, true);
+
+  useAuthStore.getState().setSession(makeFakeSession({ user: makeFakeUser({ id: 'user-b' }) }));
+  useAuthStore.getState().setSession(null);
+
+  assert.deepEqual(useAuthStore.getState().preferences, defaultAuthPreferences);
+});
+
 // ---------------------------------------------------------------------------
 // initialize
 //
@@ -997,8 +1158,9 @@ test('initialize on a build with no backend leaves the app signed out and subscr
 // reader in and emits SIGNED_IN) while startup is still restoring the session:
 // the reset screen can open once the startup timeout lets the app render. The
 // store must hear that sign-in, and the restore, read before it, must not undo it.
-const redeemResetLinkDuringRestore = async (
-  restored: ReturnType<typeof makeFakeSession> | null
+const changeAuthDuringRestore = async (
+  restored: ReturnType<typeof makeFakeSession> | null,
+  change: () => void
 ): Promise<void> => {
   let restoreStarted: () => void = () => {};
   const restoring = new Promise<void>((resolve) => {
@@ -1013,12 +1175,19 @@ const redeemResetLinkDuringRestore = async (
 
   const initializing = useAuthStore.getState().initialize();
   await restoring;
-  const recovery = makeFakeSession({ user: makeFakeUser({ id: 'user-reset' }) });
-  supabaseFake.auth.setSession(recovery);
-  supabaseFake.auth.emit('SIGNED_IN', recovery);
+  change();
   finishRestore();
   await initializing;
 };
+
+const redeemResetLinkDuringRestore = (
+  restored: ReturnType<typeof makeFakeSession> | null
+): Promise<void> =>
+  changeAuthDuringRestore(restored, () => {
+    const recovery = makeFakeSession({ user: makeFakeUser({ id: 'user-reset' }) });
+    supabaseFake.auth.setSession(recovery);
+    supabaseFake.auth.emit('SIGNED_IN', recovery);
+  });
 
 test('a reset link redeemed before startup has subscribed to auth changes still signs the reader in', async () => {
   // Runs before the first successful initialize, while no subscription exists.
@@ -1034,6 +1203,16 @@ test('the session restore read before a reset link was redeemed does not undo th
   await redeemResetLinkDuringRestore(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
 
   assert.equal(useAuthStore.getState().user?.uid, 'user-reset');
+});
+
+test('a sign-out heard while the session was being restored is not undone by that restore', async () => {
+  await changeAuthDuringRestore(makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }), () => {
+    supabaseFake.auth.setSession(null);
+    supabaseFake.auth.emit('SIGNED_OUT', null);
+  });
+
+  assert.equal(useAuthStore.getState().user, null);
+  assert.equal(useAuthStore.getState().isAuthenticated, false);
 });
 
 test('an empty INITIAL_SESSION during the restore does not stop the restored session applying', async () => {
@@ -1283,6 +1462,127 @@ test('foreground restore retries are bounded', async () => {
   const restores = supabaseFake.authCalls.filter((call) => call.method === 'getSession');
   // The launch itself plus three foreground retries, never more.
   assert.equal(restores.length, 4);
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
+const restoreCalls = () => supabaseFake.authCalls.filter((call) => call.method === 'getSession');
+const keychainReadableAgainWith = (uid: string): void => {
+  Object.assign(supabaseFake.auth.handlers, defaultAuthHandlers);
+  supabaseFake.auth.setSession(makeFakeSession({ user: makeFakeUser({ id: uid }) }));
+};
+
+test('a launch that read the session cleanly retries no restore on foreground', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  await useAuthStore.getState().initialize();
+
+  rn.AppState.emit('active');
+  await settle();
+
+  assert.equal(restoreCalls().length, 1);
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+test('a restore retry waits for the app to become active, not any app state change', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+  keychainReadableAgainWith('user-a');
+
+  // Backgrounded, the keychain may still be locked; a retry there is wasted.
+  rn.AppState.emit('inactive');
+  rn.AppState.emit('background');
+  await settle();
+  assert.equal(restoreCalls().length, 1);
+
+  rn.AppState.emit('active');
+  await settle();
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+test('a second foreground while a restore retry is still running starts no other', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+  const finishRetries: Array<() => void> = [];
+  let retryStarted: () => void = () => {};
+  const retryRunning = new Promise<void>((resolve) => {
+    retryStarted = resolve;
+  });
+  authHandlers.getSession = () =>
+    new Promise((resolve) => {
+      finishRetries.push(() => resolve(UNREADABLE_SESSION()));
+      retryStarted();
+    });
+
+  rn.AppState.emit('active');
+  rn.AppState.emit('inactive');
+  rn.AppState.emit('active');
+  await retryRunning;
+  await settle();
+
+  // The launch and one retry.
+  assert.equal(restoreCalls().length, 2);
+  for (const finish of finishRetries) finish();
+  await settle();
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+test('a reader who signs in before the app is next active needs no restore retry', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+  supabaseFake.auth.emit('SIGNED_IN', makeFakeSession({ user: makeFakeUser({ id: 'user-a' }) }));
+
+  rn.AppState.emit('active');
+  await settle();
+  // Signing out later does not revive the launch's retry either.
+  supabaseFake.auth.emit('SIGNED_OUT', null);
+  rn.AppState.emit('active');
+  await settle();
+
+  assert.equal(restoreCalls().length, 1);
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+const RESTORE_THROWS = new Error('runtime config unavailable');
+
+test('a restore retry that throws leaves the remaining retries in place', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+
+  configCheckError = RESTORE_THROWS;
+  rn.AppState.emit('active');
+  await settle();
+  configCheckError = null;
+  keychainReadableAgainWith('user-a');
+  rn.AppState.emit('active');
+  await settle();
+
+  assert.equal(useAuthStore.getState().user?.uid, 'user-a');
+  authStoreModule.resetRestoreRetryForTests();
+});
+
+test('restore retries that throw are bounded too', async () => {
+  authStoreModule.resetRestoreRetryForTests();
+  authHandlers.getSession = UNREADABLE_SESSION;
+  await useAuthStore.getState().initialize();
+
+  configCheckError = RESTORE_THROWS;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    rn.AppState.emit('active');
+    await settle();
+  }
+  configCheckError = null;
+  keychainReadableAgainWith('user-a');
+  rn.AppState.emit('active');
+  await settle();
+
+  // All three retries are spent, so the fourth foreground restores nothing.
+  assert.equal(restoreCalls().length, 1);
+  assert.equal(useAuthStore.getState().user, null);
   authStoreModule.resetRestoreRetryForTests();
 });
 
