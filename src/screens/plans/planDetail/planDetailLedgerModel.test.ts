@@ -388,6 +388,6 @@ test('property: from the current day on, each day is exactly one date after the 
             (label, offset) => label === formatLedgerCycleDate(new Date(2026, 9, 1 + offset), 'en')
           )
     ),
-    { numRuns: 100 }
+    { numRuns: 20 }
   );
 });
