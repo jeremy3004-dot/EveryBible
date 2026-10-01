@@ -639,6 +639,32 @@ test('getUserPlanProgress returns local rows unchanged when the remote result is
   );
 });
 
+test('getUserPlanProgress pushes a plan enrolled offline when the server has no rows yet', async () => {
+  signIn('user-a', 2);
+  storeModule.readingPlansStore.getState().upsertProgress(localProgress('psalms-30-days'));
+  const remoteWrite = new Promise<void>((resolve) => {
+    supabaseFake.respondTo('user_reading_plan_progress', (call) => {
+      if (call.operation === 'upsert') {
+        resolve();
+        return { data: remoteRow({ plan_slug: 'psalms-30-days' }) };
+      }
+      return { data: [] };
+    });
+  });
+
+  const result = await service.getUserPlanProgress();
+  // Bounded wait: without the push this must fail on the assertion, not hang.
+  await Promise.race([remoteWrite, new Promise((resolve) => setTimeout(resolve, 1000))]);
+  await flushBackgroundWork();
+
+  assert.equal(result.success, true);
+  const writes = supabaseFake
+    .callsFor('user_reading_plan_progress')
+    .filter((call) => call.operation === 'upsert');
+  assert.equal(writes.length, 1);
+  assert.equal((writes[0]?.payload as { plan_slug: string }).plan_slug, 'psalms-30-days');
+});
+
 test('getUserPlanProgress falls back to local rows when the query errors', async () => {
   signIn('user-a', 2);
   storeModule.readingPlansStore.getState().upsertProgress(localProgress('psalms-30-days'));
