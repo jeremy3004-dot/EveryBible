@@ -1032,7 +1032,7 @@ export const en = {
     dayChapters_other: '{{count}} chapters · {{books}}',
     noReading: 'No reading on this day',
     noReadingHint: 'Open a chapter to start filling your calendar.',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
   },
   auth: {
     welcomeBack: 'Welcome back',

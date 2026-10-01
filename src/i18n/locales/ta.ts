@@ -50,7 +50,7 @@ export const ta = {
     noReading: 'இந்த நாளில் வாசிப்பு இல்லை',
     noReadingHint: 'உங்கள் நாட்காட்டியை நிரப்பத் தொடங்க ஒரு அத்தியாயத்தைத் திறக்கவும்.',
     previousMonth: 'முந்தைய மாதம்',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'நாள்',
     streakUnit_other: 'நாட்கள்',
   },

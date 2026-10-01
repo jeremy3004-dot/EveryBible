@@ -52,7 +52,7 @@ export const fr = {
     noReading: 'Aucune lecture ce jour-là',
     noReadingHint: 'Ouvrez un chapitre pour commencer à remplir votre calendrier.',
     previousMonth: 'Mois précédent',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_many: 'jours',
     streakUnit_one: 'jour',
     streakUnit_other: 'jours',

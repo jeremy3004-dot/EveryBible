@@ -432,7 +432,6 @@ test('a day read across a stretch of time shows its reading window, spoken with 
   const window = t('readingActivity.sessionWindow', {
     start: '9:00 AM',
     end: '9:20 AM',
-    duration: t('interface.minutesShort', { count: 20 }),
   });
   assert.ok(view.getByText(window));
   assert.ok(view.getByRole('button', { name: new RegExp(window) }));

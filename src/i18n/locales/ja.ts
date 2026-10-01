@@ -50,7 +50,7 @@ export const ja = {
     noReading: 'この日の記録はありません',
     noReadingHint: '章を開いて、カレンダーを埋め始めましょう。',
     previousMonth: '前の月',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: '日',
     streakUnit_other: '日',
   },

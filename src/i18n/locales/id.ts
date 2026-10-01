@@ -50,7 +50,7 @@ export const id = {
     noReading: 'Tidak ada bacaan pada hari ini',
     noReadingHint: 'Buka satu pasal untuk mulai mengisi kalender Anda.',
     previousMonth: 'Bulan sebelumnya',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'hari',
     streakUnit_other: 'hari',
   },

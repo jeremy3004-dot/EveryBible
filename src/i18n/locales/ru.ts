@@ -54,7 +54,7 @@ export const ru = {
     noReading: 'В этот день чтения не было',
     noReadingHint: 'Откройте главу, чтобы начать заполнять календарь.',
     previousMonth: 'Предыдущий месяц',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_few: 'дня',
     streakUnit_many: 'дней',
     streakUnit_one: 'день',

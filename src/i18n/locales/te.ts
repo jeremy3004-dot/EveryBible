@@ -50,7 +50,7 @@ export const te = {
     noReading: 'ఈ రోజున పఠనం లేదు',
     noReadingHint: 'మీ క్యాలెండర్‌ను నింపడం ప్రారంభించడానికి ఒక అధ్యాయాన్ని తెరవండి.',
     previousMonth: 'గత నెల',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'రోజు',
     streakUnit_other: 'రోజులు',
   },

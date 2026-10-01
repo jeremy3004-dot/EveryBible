@@ -50,7 +50,7 @@ export const vi = {
     noReading: 'Không có bài đọc nào trong ngày này',
     noReadingHint: 'Hãy mở một chương để bắt đầu lấp đầy lịch của bạn.',
     previousMonth: 'Tháng trước',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'ngày',
     streakUnit_other: 'ngày',
   },

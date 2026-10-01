@@ -58,7 +58,7 @@ export const ar = {
     noReading: 'لا قراءة في هذا اليوم',
     noReadingHint: 'افتح إصحاحًا لتبدأ بملء تقويمك.',
     previousMonth: 'الشهر السابق',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_few: 'أيام',
     streakUnit_many: 'يومًا',
     streakUnit_one: 'يوم',

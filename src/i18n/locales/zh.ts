@@ -50,7 +50,7 @@ export const zh = {
     noReading: '这一天没有阅读记录',
     noReadingHint: '打开一章，开始填满你的日历。',
     previousMonth: '上个月',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: '天',
     streakUnit_other: '天',
   },
