@@ -50,7 +50,7 @@ export const ko = {
     noReading: '이날은 읽은 기록이 없습니다',
     noReadingHint: '장을 열어 달력을 채워 보세요.',
     previousMonth: '이전 달',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: '일',
     streakUnit_other: '일',
   },

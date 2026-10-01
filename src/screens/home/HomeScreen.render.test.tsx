@@ -565,7 +565,7 @@ test("Share opens the verse-picture editor on today's photograph, verse and refe
   const view = await renderHome();
   const { editor, picture, pictureNode } = await openShareEditor(view);
 
-  assert.ok(picture.getByText(`"${JOHN_3_16}"`));
+  assert.ok(picture.getByText(`“${JOHN_3_16}”`));
   assert.ok(picture.getByText('John 3:16'));
   // Only the verse and its reference: no title or date line above it.
   assert.equal(picture.queryByText(/^Verse of the Day/), null);
@@ -645,8 +645,8 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     assert.equal(flattenStyle(photo.props.imageStyle)?.opacity, undefined);
     const scrim = assertDefined(screen.queryAllByType('LinearGradient')[0], 'scrim');
     assert.deepEqual(scrim.props.colors, [
-      'rgba(12, 11, 9, 0.42)',
-      'rgba(12, 11, 9, 0.05)',
+      'rgba(12, 11, 9, 0.55)',
+      'rgba(12, 11, 9, 0.1)',
       'rgba(12, 11, 9, 0.35)',
       'rgba(12, 11, 9, 0.72)',
       background,
@@ -656,6 +656,78 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
     assert.equal(flattenStyle(screen.getByText(JOHN_3_16).props.style)?.color, '#FDFAF5');
     await view.unmount();
   }
+});
+
+test('the interaction-ready timing log is a development-only line', async (context) => {
+  const lines: string[] = [];
+  context.mock.method(console, 'log', (...args: unknown[]) => lines.push(String(args[0])));
+  const globals = globalThis as {
+    __DEV__?: boolean;
+    requestAnimationFrame?: (cb: (time: number) => void) => number;
+    cancelAnimationFrame?: (id: number) => void;
+  };
+  const rafBefore = globals.requestAnimationFrame;
+  const cancelBefore = globals.cancelAnimationFrame;
+  globals.cancelAnimationFrame = () => {};
+  globals.requestAnimationFrame = (cb) => {
+    cb(0);
+    return 1;
+  };
+  const devBefore = globals.__DEV__;
+  try {
+    for (const dev of [false, true]) {
+      globals.__DEV__ = dev;
+      lines.length = 0;
+      const view = await renderHome();
+      const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
+      await view.fire(scroll, 'onLayout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 800 } },
+      });
+      await view.flush();
+      assert.equal(
+        lines.some((line) => line.includes('Home:interaction-ready')),
+        dev
+      );
+      await view.unmount();
+    }
+  } finally {
+    globals.__DEV__ = devBefore;
+    globals.requestAnimationFrame = rafBefore;
+    globals.cancelAnimationFrame = cancelBefore;
+  }
+});
+
+test('the scrim fades to the page below the verse text, wherever the hero grows to', async () => {
+  const view = await renderHome();
+  const { screen } = heroes(view);
+  const eyebrow = screen.getByText(screenEyebrow('John 3:16'));
+  const hero = hostAncestors(eyebrow).find((node) => node.props.onLayout) as ReactTestInstance;
+  const actionRow = assertDefined(
+    hostAncestors(screen.getByText(t('bible.read'))).find((node) => node.props.onLayout),
+    'action row'
+  );
+  const locations = () =>
+    assertDefined(screen.queryAllByType('LinearGradient')[0], 'scrim').props.locations as number[];
+  const layout = (node: ReactTestInstance, height: number) =>
+    view.fire(node, 'onLayout', { nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } });
+
+  await layout(actionRow, 36);
+  await layout(hero, 500);
+  // 500 less the 9pt overhang is the photograph; the fade is the 36pt pills, the
+  // 12pt gap above them, less the 9pt hanging past the photograph.
+  const photo = 491;
+  const fadeStart = (photo - (36 + 12 - 9)) / photo;
+  assert.ok(Math.abs((locations()[3] ?? 0) - fadeStart) < 1e-9);
+
+  // Large text: a much taller hero keeps the same point-sized fade at its foot.
+  await layout(hero, 900);
+  const tall = locations();
+  assert.ok(Math.abs((tall[3] ?? 0) - (891 - 39) / 891) < 1e-9);
+  assert.ok((tall[3] ?? 0) > 0.95, 'the fade no longer climbs behind the verse');
+
+  // Wrapped pills push the verse up, and the fade with it.
+  await layout(actionRow, 76);
+  assert.ok(Math.abs((locations()[3] ?? 0) - (891 - 79) / 891) < 1e-9);
 });
 
 // ---- Listen -------------------------------------------------------------------

@@ -50,7 +50,7 @@ export const hi = {
     noReading: 'इस दिन कोई पठन नहीं',
     noReadingHint: 'अपना कैलेंडर भरना शुरू करने के लिए एक अध्याय खोलें।',
     previousMonth: 'पिछला महीना',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'दिन',
     streakUnit_other: 'दिन',
   },

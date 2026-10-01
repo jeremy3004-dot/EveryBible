@@ -50,7 +50,7 @@ export const ur = {
     noReading: 'اس دن کوئی مطالعہ نہیں',
     noReadingHint: 'اپنا کیلنڈر بھرنا شروع کرنے کے لیے ایک باب کھولیں۔',
     previousMonth: 'پچھلا مہینہ',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'دن',
     streakUnit_other: 'دن',
   },

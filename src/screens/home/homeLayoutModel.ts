@@ -53,3 +53,25 @@ export function getHomeScreenLayout(
 export function shouldUseCompactHomeStatsLayout(screenWidth: number): boolean {
   return screenWidth < HOME_STATS_COMPACT_LAYOUT_WIDTH;
 }
+
+/** The scrim's stop positions when the hero has not been measured yet. */
+export const HERO_SCRIM_DEFAULT_LOCATIONS = [0, 0.28, 0.55, 0.78, 1] as const;
+
+/**
+ * Where the hero scrim's five stops sit, top (0) to the page colour (1). The
+ * dissolve into the page is pinned to `fadeHeight` points at the photograph's
+ * foot rather than a share of it: the hero grows with the reading size and OS
+ * text size, and a proportional fade would climb up behind the last lines of
+ * white verse text, leaving them white on a cream page.
+ */
+export function getHeroScrimLocations(
+  photoHeight: number | null,
+  fadeHeight: number
+): readonly [number, number, number, number, number] {
+  if (photoHeight === null || photoHeight <= fadeHeight) return HERO_SCRIM_DEFAULT_LOCATIONS;
+  const fadeStart = (photoHeight - fadeHeight) / photoHeight;
+  // Keep the stops ordered on a short hero, where the fade starts early.
+  const shade = Math.min(0.55, fadeStart - 0.1);
+  const clear = Math.min(0.28, shade / 2);
+  return [0, clear, shade, fadeStart, 1];
+}

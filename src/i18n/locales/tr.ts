@@ -50,7 +50,7 @@ export const tr = {
     noReading: 'Bu gün okuma yok',
     noReadingHint: 'Takviminizi doldurmaya başlamak için bir bölüm açın.',
     previousMonth: 'Önceki ay',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'gün',
     streakUnit_other: 'gün',
   },

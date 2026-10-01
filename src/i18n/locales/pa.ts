@@ -50,7 +50,7 @@ export const pa = {
     noReading: 'ਇਸ ਦਿਨ ਕੁਝ ਨਹੀਂ ਪੜ੍ਹਿਆ',
     noReadingHint: 'ਆਪਣਾ ਕੈਲੰਡਰ ਭਰਨਾ ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਇੱਕ ਅਧਿਆਇ ਖੋਲ੍ਹੋ।',
     previousMonth: 'ਪਿਛਲਾ ਮਹੀਨਾ',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'ਦਿਨ',
     streakUnit_other: 'ਦਿਨ',
   },

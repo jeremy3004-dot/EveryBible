@@ -68,7 +68,7 @@ test('a cell’s state is spoken as read, today, both, or not at all', () => {
   assert.equal(describeCellState({ state: 'idle', isToday: false }, t), undefined);
 });
 
-test('a read day is summarised in canonical order with its reading window, and opens its first chapter', () => {
+test('a read day is summarised in canonical order with the span it was read across (no duration), and opens its first chapter', () => {
   const copy = buildSelectedDayCopy({
     dateKey: '2026-09-22',
     day: day({
@@ -86,13 +86,21 @@ test('a read day is summarised in canonical order with its reading window, and o
     copy.summary,
     'readingActivity.dayChapters {"count":3,"books":"Genesis 1, Psalms 21–22"}'
   );
-  assert.equal(
-    copy.window,
-    'readingActivity.sessionWindow {"start":"9:00 AM","end":"9:20 AM","duration":"interface.minutesShort {\\"count\\":20}"}'
-  );
+  assert.equal(copy.window, 'readingActivity.sessionWindow {"start":"9:00 AM","end":"9:20 AM"}');
   assert.equal(copy.hint, null);
   assert.equal(copy.accessibilityLabel, [copy.eyebrow, copy.summary, copy.window].join(', '));
   assert.deepEqual(copy.chapter, { bookId: 'GEN', chapter: 1 });
+});
+
+test('a day spread from morning to night shows its span, never a made-up duration', () => {
+  const copy = buildSelectedDayCopy({
+    dateKey: '2026-09-22',
+    day: day({ lastReadAt: at('2026-09-22T22:19:00.000Z') }),
+    formatter,
+    language: 'en',
+    t,
+  });
+  assert.ok(copy.window && !copy.window.includes('duration'));
 });
 
 test('a day read in one sitting has no window', () => {

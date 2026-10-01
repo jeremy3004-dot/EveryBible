@@ -287,6 +287,18 @@ function passageParagraph(view: View): ReactTestInstance {
 const heroRow = (view: View) =>
   enclosingView(enclosingView(view.getByRole('header', { name: FIRST_LESSON_TITLE() })));
 
+test('each verse number is followed by a plain space so it never touches the words', async () => {
+  const view = await renderLesson();
+
+  const numbers = view
+    .queryAllByType('Text')
+    .map((node) => textContent(node))
+    .filter((text) => /^\d+\s$/.test(text));
+  assert.ok(numbers.length >= 2, 'the story shows its verse numbers');
+  // A thin space (U+2009) collapses to nothing in the mono face on device.
+  for (const number of numbers) assert.match(number, /^\d+ $/);
+});
+
 test('the story text and audio load in the reader’s current translation and locale', async () => {
   const view = await renderLesson();
 

@@ -50,7 +50,7 @@ export const ne = {
     noReading: 'यस दिन कुनै पढाइ भएन',
     noReadingHint: 'आफ्नो पात्रो भर्न सुरु गर्न एउटा अध्याय खोल्नुहोस्।',
     previousMonth: 'अघिल्लो महिना',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'दिन',
     streakUnit_other: 'दिन',
   },

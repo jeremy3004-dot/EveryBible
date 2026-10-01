@@ -50,7 +50,7 @@ export const de = {
     noReading: 'An diesem Tag nichts gelesen',
     noReadingHint: 'Öffne ein Kapitel, um deinen Kalender zu füllen.',
     previousMonth: 'Voriger Monat',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'Tag',
     streakUnit_other: 'Tage',
   },

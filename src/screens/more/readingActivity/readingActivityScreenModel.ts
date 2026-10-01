@@ -1,6 +1,5 @@
 import type { TFunction } from 'i18next';
 import { getBookById, getTranslatedBookName } from '../../../constants/books';
-import { formatListeningTime } from '../../../i18n/interfaceFormatting';
 import {
   formatLocalDateKey,
   parseLocalDateKey,
@@ -73,7 +72,7 @@ export function describeCellState(
 export interface SelectedDayCopy {
   eyebrow: string;
   summary: string;
-  /** "9:00 AM – 9:20 AM · 20 min", for a day read across a stretch of time. */
+  /** "9:00 AM – 9:20 AM", for a day read across a stretch of time. */
   window: string | null;
   /** How to start, when nothing was read that day. */
   hint: string | null;
@@ -115,15 +114,15 @@ export function buildSelectedDayCopy({
           books: summarizeDayChapters(day.chapterKeys, resolveBook),
         })
       : t('readingPlans.dayChapterCount', { count: day.chapterCount });
-  const sessionMinutes = day ? Math.round((day.lastReadAt - day.firstReadAt) / MINUTE_MS) : 0;
-  const window =
-    day && sessionMinutes > 0
-      ? t('readingActivity.sessionWindow', {
-          start: formatTime(day.firstReadAt, language),
-          end: formatTime(day.lastReadAt, language),
-          duration: formatListeningTime(sessionMinutes, t),
-        })
-      : null;
+  // Only the span: last minus first read says nothing about time spent when a
+  // day's chapters were read hours apart.
+  const spansTime = day && Math.round((day.lastReadAt - day.firstReadAt) / MINUTE_MS) > 0;
+  const window = spansTime
+    ? t('readingActivity.sessionWindow', {
+        start: formatTime(day.firstReadAt, language),
+        end: formatTime(day.lastReadAt, language),
+      })
+    : null;
 
   return {
     eyebrow,

@@ -53,7 +53,7 @@ export const pt = {
     noReading: 'Sem leitura neste dia',
     noReadingHint: 'Abra um capítulo para começar a preencher seu calendário.',
     previousMonth: 'Mês anterior',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_many: 'dias',
     streakUnit_one: 'dia',
     streakUnit_other: 'dias',

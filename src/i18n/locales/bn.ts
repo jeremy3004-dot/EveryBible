@@ -50,7 +50,7 @@ export const bn = {
     noReading: 'এই দিনে কোনো পড়া হয়নি',
     noReadingHint: 'ক্যালেন্ডার ভরে তুলতে একটি অধ্যায় খুলুন।',
     previousMonth: 'আগের মাস',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'দিন',
     streakUnit_other: 'দিন',
   },

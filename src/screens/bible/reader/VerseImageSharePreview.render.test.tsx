@@ -48,7 +48,7 @@ const linesOf = (node: ReactTestInstance, count: number) => ({
 test('an English verse card sets the Scripture in Lora italic above its reference, without the translation', async () => {
   const view = await renderCard(' For God so loved the world ');
 
-  const verse = view.getByText('"For God so loved the world"');
+  const verse = view.getByText('“For God so loved the world”');
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, serifFamily(400, true));
   assert.ok(view.getByText('John 3:16'));
 });
@@ -58,21 +58,21 @@ test('a Hindi verse card uses the platform serif, since Lora has no Devanagari g
   // fallback face. The reader and the Home card already route these scripts to the platform serif.
   const view = await renderCard('क्योंकि परमेश्वर ने जगत से ऐसा प्रेम रखा');
 
-  const verse = view.getByText('"क्योंकि परमेश्वर ने जगत से ऐसा प्रेम रखा"');
+  const verse = view.getByText('“क्योंकि परमेश्वर ने जगत से ऐसा प्रेम रखा”');
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, undefined);
 });
 
 test('an Arabic verse card also falls back to the platform serif', async () => {
   const view = await renderCard('لأَنَّهُ هكَذَا أَحَبَّ اللهُ الْعَالَمَ');
 
-  const verse = view.getByText('"لأَنَّهُ هكَذَا أَحَبَّ اللهُ الْعَالَمَ"');
+  const verse = view.getByText('“لأَنَّهُ هكَذَا أَحَبَّ اللهُ الْعَالَمَ”');
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, undefined);
 });
 
 test('Latin text keeps Lora italic whatever language it is labelled', async () => {
   const view = await renderCard('In the beginning');
 
-  const verse = view.getByText('"In the beginning"');
+  const verse = view.getByText('“In the beginning”');
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, serifFamily(400, true));
 });
 
@@ -108,13 +108,32 @@ test('the reference keeps the app’s own chip, whatever colour the verse is set
   assert.deepEqual(failures, []);
 });
 
+test('the reference chip is outlined, so it stays visible over a dark picture', async () => {
+  const { createThemeColors } = await import('../../../contexts/ThemeContext');
+  for (const theme of ['light', 'dark'] as const) {
+    harness.authStore.getState().setPreferences({ theme });
+    const palette = harness.authStore.getState().preferences.appearancePalette as never;
+    const view = await renderCard('For God so loved the world');
+    const reference = view.getByText('John 3:16');
+    const chip = flattenStyle(
+      [reference, ...hostAncestors(reference)].find(
+        (node) => flattenStyle(node.props.style)?.backgroundColor !== undefined
+      )?.props.style
+    );
+    assert.equal(chip?.borderColor, createThemeColors(theme, palette).bibleSecondaryText);
+    assert.ok(Number(chip?.borderWidth) > 0);
+    await view.unmount();
+  }
+  harness.authStore.getState().setPreferences({ theme: 'light' });
+});
+
 test('the chosen face sets the verse: Block is set in Anton capitals', async () => {
   const view = await renderCard('For God so loved the world', {
     ...DEFAULT_VERSE_IMAGE_STYLE,
     fontId: 'block',
   });
 
-  const verse = flattenStyle(view.getByText('"For God so loved the world"').props.style) ?? {};
+  const verse = flattenStyle(view.getByText('“For God so loved the world”').props.style) ?? {};
   assert.equal(verse.fontFamily, 'Anton_400Regular');
   assert.equal(verse.textTransform, 'uppercase');
 });
@@ -125,7 +144,7 @@ test('a Russian verse keeps a chosen face that has Cyrillic, and falls back from
     fontId: 'elegant',
   });
   assert.equal(
-    flattenStyle(elegant.getByText('"В начале сотворил Бог"').props.style)?.fontFamily,
+    flattenStyle(elegant.getByText('“В начале сотворил Бог”').props.style)?.fontFamily,
     'PlayfairDisplay_600SemiBold_Italic'
   );
   await elegant.unmount();
@@ -135,7 +154,7 @@ test('a Russian verse keeps a chosen face that has Cyrillic, and falls back from
     fontId: 'script',
   });
   assert.equal(
-    flattenStyle(script.getByText('"В начале сотворил Бог"').props.style)?.fontFamily,
+    flattenStyle(script.getByText('“В начале сотворил Бог”').props.style)?.fontFamily,
     serifFamily(400, true),
     'Dancing Script has no Cyrillic, so Classic'
   );
@@ -147,14 +166,14 @@ test('a Hindi verse keeps the platform serif whichever face was picked', async (
     fontId: 'script',
   });
 
-  const verse = view.getByText('"क्योंकि परमेश्वर ने जगत से ऐसा प्रेम रखा"');
+  const verse = view.getByText('“क्योंकि परमेश्वर ने जगत से ऐसा प्रेम रखा”');
   assert.equal(flattenStyle(verse.props.style)?.fontFamily, undefined);
 });
 
 test('the chosen colour sets the words, with a dark wash under light words and a light one under Ink', async () => {
   const white = await renderCard('In the beginning');
   const whiteWash = white.queryAllByType('LinearGradient')[0]?.props.colors as string[];
-  assert.equal(flattenStyle(white.getByText('"In the beginning"').props.style)?.color, '#FFFFFF');
+  assert.equal(flattenStyle(white.getByText('“In the beginning”').props.style)?.color, '#FFFFFF');
   await white.unmount();
 
   const ink = await renderCard('In the beginning', {
@@ -162,7 +181,7 @@ test('the chosen colour sets the words, with a dark wash under light words and a
     colorId: 'ink',
   });
   const inkWash = ink.queryAllByType('LinearGradient')[0]?.props.colors as string[];
-  assert.equal(flattenStyle(ink.getByText('"In the beginning"').props.style)?.color, '#1A1914');
+  assert.equal(flattenStyle(ink.getByText('“In the beginning”').props.style)?.color, '#1A1914');
   assert.match(whiteWash[1] ?? '', /^rgba\(10, 9, 7/);
   assert.match(inkWash[1] ?? '', /^rgba\(248, 244, 236/);
 });
@@ -179,7 +198,7 @@ test('a size too big for the picture shrinks to fit, and says it was capped', as
   // The hidden measuring copy carries the same words; the visible verse is the other one.
   const visible = () =>
     view
-      .getAllByText('"For God so loved the world"')
+      .getAllByText('“For God so loved the world”')
       .find((node) => node.props.testID !== 'verse-image-measure')!;
   const box = hostAncestors(visible())[0]!;
   await view.fire(box, 'onLayout', { nativeEvent: { layout: { width: 280, height: 200 } } });
@@ -208,7 +227,7 @@ test('a size that fits is used as asked, and is not reported as capped', async (
     { ...DEFAULT_VERSE_IMAGE_STYLE, size: 30 },
     (capped) => fits.push(capped)
   );
-  const visible = view.getByText('"Jesus wept."');
+  const visible = view.getByText('“Jesus wept.”');
   await view.fire(hostAncestors(visible)[0]!, 'onLayout', {
     nativeEvent: { layout: { width: 280, height: 200 } },
   });
@@ -216,7 +235,7 @@ test('a size that fits is used as asked, and is not reported as capped', async (
   await view.fire(measure, 'onTextLayout', linesOf(measure, 1));
 
   const shown = view
-    .getAllByText('"Jesus wept."')
+    .getAllByText('“Jesus wept.”')
     .find((node) => node.props.testID !== 'verse-image-measure')!;
   assert.equal(Number(flattenStyle(shown.props.style)?.fontSize), 30);
   assert.equal(fits.at(-1), false);
@@ -228,6 +247,6 @@ test('the shared card draws at its own size, whatever the OS text size', async (
 
   // The card is exported as an image of a fixed frame: OS scaling would push the
   // verse past its eight lines at accessibility sizes and cut the shared picture.
-  assert.equal(view.getByText('"For God so loved the world"').props.allowFontScaling, false);
+  assert.equal(view.getByText('“For God so loved the world”').props.allowFontScaling, false);
   assert.equal(view.getByText('John 3:16').props.allowFontScaling, false);
 });

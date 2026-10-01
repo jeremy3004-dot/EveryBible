@@ -50,7 +50,7 @@ export const mr = {
     noReading: 'या दिवशी वाचन नाही',
     noReadingHint: 'तुमची दिनदर्शिका भरायला सुरुवात करण्यासाठी एक अध्याय उघडा.',
     previousMonth: 'मागील महिना',
-    sessionWindow: '{{start}} – {{end}} · {{duration}}',
+    sessionWindow: '{{start}} – {{end}}',
     streakUnit_one: 'दिवस',
     streakUnit_other: 'दिवस',
   },
