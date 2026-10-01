@@ -200,6 +200,13 @@ export function useReminderSettings() {
       if (generation === reminderGeneration && isReminderAuthOwnerCurrent(owner)) {
         setPreferences({ notificationsEnabled: false });
       }
+    } catch (error) {
+      // The reminder is still scheduled, so the switch stays on. Say so rather than
+      // leave a tap that did nothing, and report the failure instead of dropping it.
+      if (generation === reminderGeneration && isReminderAuthOwnerCurrent(owner)) {
+        Alert.alert(t('common.error'), t('common.unexpectedError'));
+      }
+      reportReminderScheduleFailure(error);
     } finally {
       if (generation === reminderGeneration && isReminderAuthOwnerCurrent(owner)) {
         syncPreferences(owner.uid ?? undefined, owner.generation).catch(() => {});
