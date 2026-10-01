@@ -31,10 +31,10 @@ import {
 } from '../../lib/public-atlas-projects';
 import atlasVersionData from '../../lib/public-atlas-version.json';
 import { AtlasLegend, AtlasMapSettings, AtlasGroupRecords } from './PublicAtlasTools';
-import { AtlasStorySteps, type AtlasStoryStats } from './AtlasStorySteps';
+import { AtlasHero } from './AtlasHero';
 import { useStoryCamera } from './useStoryCamera';
 import { homeCopyEn, type HomeCopy } from '../../lib/home-copy';
-import { storyPadding, storyScene, toStoryStep, type StoryStep } from '../../lib/atlas-story';
+import { storyPadding } from '../../lib/atlas-story';
 import type { Map as LibreMap } from 'maplibre-gl';
 
 /* MapLibre is ~1 MB of JavaScript. Loading the map in its own chunk lets the
@@ -83,26 +83,18 @@ const INITIAL_FILTERS: AtlasFilters = DEFAULT_FILTERS;
 const PAGE_SIZE = 30;
 /* Example searches shown under the search box. Each name is a real record. */
 const SEARCH_HINTS = ['Tamang', 'Yoruba', 'Quechua', 'Hmong'];
-const STORY_FILTERS: AtlasFilters = { ...DEFAULT_FILTERS, scripture: 'no-scripture' };
 /* Deep links that open the atlas tools instead of the story. */
 const EXPLORE_HASHES = new Set(['#explore', '#atlas-sources']);
 
 /**
- * The homepage hero. By default the globe is scenery for a short scroll story
- * (story mode): it turns on its own and page scrolling never gets caught by
- * the map. "Explore the atlas" opens the full search-and-browse tool over the
- * whole screen (explore mode).
+ * The homepage hero: the headline beside a slowly turning globe. Wheel and
+ * touch gestures scroll the page rather than the map; the + and − buttons
+ * zoom it. "Explore the atlas", or clicking a dot, opens the full
+ * search-and-browse tool over the whole screen (explore mode).
  */
-export function PublicLanguageAtlas({
-  copy = homeCopyEn,
-  stats,
-}: {
-  copy?: HomeCopy;
-  stats: AtlasStoryStats;
-}) {
+export function PublicLanguageAtlas({ copy = homeCopyEn }: { copy?: HomeCopy }) {
   const [mode, setMode] = useState<'story' | 'explore'>('story');
   const exploring = mode === 'explore';
-  const [step, setStep] = useState<StoryStep>(0);
   const [map, setMap] = useState<LibreMap | null>(null);
   const [viewport, setViewport] = useState({ width: 1440, height: 900, header: 72 });
   const [stageVisible, setStageVisible] = useState(true);
@@ -160,22 +152,6 @@ export function PublicLanguageAtlas({
       media.removeEventListener('change', update);
       window.removeEventListener('resize', update);
     };
-  }, []);
-
-  // Which story step is under the middle of the screen.
-  useEffect(() => {
-    const steps = sectionRef.current?.querySelectorAll<HTMLElement>('[data-story-step]');
-    if (!steps?.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries)
-          if (entry.isIntersecting)
-            setStep(toStoryStep(entry.target.getAttribute('data-story-step') ?? 0));
-      },
-      { rootMargin: '-50% 0px -50% 0px' }
-    );
-    steps.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
   }, []);
 
   // Stop turning the globe once it has scrolled away.
@@ -324,35 +300,10 @@ export function PublicLanguageAtlas({
     [viewport, copy.dir]
   );
   const padding = exploring ? explorePadding : storyPaddingValue;
-  const scene = storyScene(step);
-  const storyNeedRecords = useMemo(
-    () => filterRecords(publicRecords, STORY_FILTERS),
-    [publicRecords]
-  );
-  const appRecordIds = useMemo(
-    () =>
-      new Set(
-        filterProjects(publicRecords, DEFAULT_FILTERS).flatMap((p) =>
-          p.recordId ? [p.recordId] : []
-        )
-      ),
-    [publicRecords]
-  );
-  const stageRecords = exploring
-    ? mapRecords
-    : scene.scripture === 'no-scripture'
-      ? storyNeedRecords
-      : publicRecords;
-  const stageHighlight = exploring
-    ? focusOurs
-      ? highlightedProjectIds
-      : undefined
-    : scene.highlightApp
-      ? appRecordIds
-      : undefined;
-  useStoryCamera(map, {
+  const stageRecords = exploring ? mapRecords : publicRecords;
+  const stageHighlight = exploring && focusOurs ? highlightedProjectIds : undefined;
+  const heroZoom = useStoryCamera(map, {
     active: !exploring,
-    step,
     padding: storyPaddingValue,
     running: stageVisible,
   });
@@ -373,17 +324,12 @@ export function PublicLanguageAtlas({
     setPanel('intro');
     setMode('story');
   }, []);
-  const openSourcesFromStory = useCallback(() => {
-    rememberTrigger();
-    setSelectedProject(null);
-    setSelectedId(null);
-    setPanel('sources');
-    setMode('explore');
-  }, []);
+  // A dot clicked on the hero globe opens that language in the atlas.
   const select = useCallback((id: string) => {
     setSelectedProject(null);
     setSelectedId(id);
     setPanel('intro');
+    setMode('explore');
   }, []);
   const selectGroup = useCallback((ids: string[]) => {
     setSelectedProject(null);
@@ -479,7 +425,6 @@ export function PublicLanguageAtlas({
       className={`public-atlas ${exploring && expanded ? 'public-atlas--expanded' : ''}`}
       data-mode={mode}
       data-dir={copy.dir}
-      data-step={step}
       data-mobile-panel={panel}
       data-project-focus={focusOurs}
       aria-label={copy.hero.exploreCta}
@@ -503,22 +448,20 @@ export function PublicLanguageAtlas({
           highlightedIds={stageHighlight}
           controlsTarget={null}
           onSelectGroup={exploring && mobile ? selectGroup : undefined}
-          showHoverSummary={exploring && !mobile}
+          showHoverSummary={!mobile}
           renderHoverSummary={index && hoverCard ? renderHoverSummary : undefined}
           onMapReady={setMap}
         />
 
-        {/* In story mode the globe is scenery: a tap or click on it opens the
-          atlas instead of reaching the map. Keyboard users have the visible
-          "Explore the atlas" button. */}
         {!exploring && (
-          <button
-            type="button"
-            className="pa-stage-hit"
-            tabIndex={-1}
-            aria-hidden="true"
-            onClick={enterExplore}
-          />
+          <div className="pa-zoom" role="group" aria-label={copy.explore.zoomLabel}>
+            <button type="button" onClick={heroZoom.zoomIn} aria-label={copy.explore.zoomIn}>
+              +
+            </button>
+            <button type="button" onClick={heroZoom.zoomOut} aria-label={copy.explore.zoomOut}>
+              −
+            </button>
+          </div>
         )}
 
         {exploring && (
@@ -819,13 +762,7 @@ export function PublicLanguageAtlas({
           {copy.hero.titleLine1} {copy.hero.titleLine2}
         </h1>
       )}
-      <AtlasStorySteps
-        copy={copy}
-        stats={stats}
-        hidden={exploring}
-        onExplore={enterExplore}
-        onSources={openSourcesFromStory}
-      />
+      <AtlasHero copy={copy} hidden={exploring} onExplore={enterExplore} />
     </section>
   );
 }

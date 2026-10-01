@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'あなたの言葉で聖書を読み、聴くことができます。無料、オフライン対応、広告なし。',
     primaryCta: '無料アプリを入手',
     exploreCta: 'アトラスを見る',
-    scrollHint: 'スクロールして必要を知る',
-  },
-  story: {
-    languages: {
-      eyebrow: '世界の言語',
-      title: 'ひとつひとつの点が、ひとつの言語です。',
-      body: '{{languages}}の言語を、話されている場所ごとに地図に表し、方言や変種も収めています。',
-    },
-    noScripture: {
-      eyebrow: '必要',
-      title: '{{count}}の言語には、知られている聖書がありません。',
-      body: '私たちの情報源には記録がありません。赤い点はどれも、神のことばを待ち望んでいる言語です。',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBibleはすでに{{count}}の言語に対応しています。',
-      body: 'アフリカの中心部からヒマラヤの高地まで届けるために作られ、これからも増えていきます。',
-      cta: 'アプリを見る',
-    },
-    sources: '言語データの出典：Joshua Project、Global Recordings Network、Glottolog。',
-    sourcesLink: '出典と謝辞',
   },
   explore: {
     close: 'ストーリーに戻る',
     searchPlaceholder: '言語や方言を探す…',
     searchLabel: '言語と方言を検索',
+    zoomLabel: '地図のズーム',
+    zoomIn: '拡大',
+    zoomOut: '縮小',
   },
   app: {
     eyebrow: 'アプリ',

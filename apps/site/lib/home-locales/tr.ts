@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Kutsal Kitap’ı kendi dilinizde okuyun ve dinleyin. Ücretsiz, çevrimdışı çalışır ve reklamsız.',
     primaryCta: 'Ücretsiz uygulamayı edinin',
     exploreCta: 'Atlası keşfedin',
-    scrollHint: 'İhtiyacı görmek için kaydırın',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Dünyanın dilleri',
-      title: 'Her nokta bir dildir.',
-      body: '{{languages}} dil; her biri konuşulduğu yerde gösteriliyor, lehçeleri ve çeşitleriyle birlikte.',
-    },
-    noScripture: {
-      eyebrow: 'İhtiyaç',
-      title: '{{count}} dilde bilinen bir Kutsal Yazı yok.',
-      body: 'Kaynaklarımızda hiçbir kayıt yok. Her kırmızı nokta, Tanrı’nın Sözü’nü hâlâ bekleyen bir dildir.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible şimdiden {{count}} dilde konuşuyor.',
-      body: 'Afrika’nın kalbi ve Himalayaların zirveleri için hazırlandı; daha fazlası yolda.',
-      cta: 'Uygulamayı görün',
-    },
-    sources: 'Dil verileri: Joshua Project, Global Recordings Network ve Glottolog.',
-    sourcesLink: 'Kaynaklar ve teşekkürler',
   },
   explore: {
     close: 'Hikâyeye dön',
     searchPlaceholder: 'Bir dil veya lehçe bulun…',
     searchLabel: 'Dil ve lehçe ara',
+    zoomLabel: 'Harita yakınlaştırma',
+    zoomIn: 'Yakınlaştır',
+    zoomOut: 'Uzaklaştır',
   },
   app: {
     eyebrow: 'Uygulama',

@@ -39,7 +39,11 @@ export function DownloadCard({ copy }: { copy: HomeCopy['app']['download'] }) {
   }, []);
 
   const hint =
-    platform === 'ios' ? copy.iosHint : platform === 'android' ? copy.androidHint : copy.desktopHint;
+    platform === 'ios'
+      ? copy.iosHint
+      : platform === 'android'
+        ? copy.androidHint
+        : copy.desktopHint;
 
   return (
     <div className="home-download" id={EVERYBIBLE_DOWNLOAD_ANCHOR}>

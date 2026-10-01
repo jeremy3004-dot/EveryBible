@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: '用你自己的语言阅读和收听圣经。免费、可离线使用、没有广告。',
     primaryCta: '获取免费应用',
     exploreCta: '探索语言地图',
-    scrollHint: '向下滚动，看看这份需要',
-  },
-  story: {
-    languages: {
-      eyebrow: '世界的语言',
-      title: '每一个圆点都是一种语言。',
-      body: '共 {{languages}} 种语言，每一种都标注在使用它的地方，并附有各地的方言和变体。',
-    },
-    noScripture: {
-      eyebrow: '需要',
-      title: '有 {{count}} 种语言没有已知的圣经。',
-      body: '我们的资料来源中没有任何记录。每一个红点都是仍在等候神话语的语言。',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible 已经能用 {{count}} 种语言与人对话。',
-      body: '从非洲腹地到喜马拉雅高地，我们为他们而建，更多语言正在路上。',
-      cta: '了解应用',
-    },
-    sources: '语言数据来自 Joshua Project、Global Recordings Network 和 Glottolog。',
-    sourcesLink: '资料来源与致谢',
   },
   explore: {
     close: '返回故事',
     searchPlaceholder: '查找语言或方言…',
     searchLabel: '搜索语言和方言',
+    zoomLabel: '地图缩放',
+    zoomIn: '放大',
+    zoomOut: '缩小',
   },
   app: {
     eyebrow: '应用',

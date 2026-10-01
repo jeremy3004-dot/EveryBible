@@ -33,17 +33,12 @@ export interface HomeCopy {
     lede: string;
     primaryCta: string;
     exploreCta: string;
-    scrollHint: string;
-  };
-  /** The scroll story told over the pinned globe. */
-  story: {
-    languages: { eyebrow: string; title: string; body: string };
-    noScripture: { eyebrow: string; title: string; body: string };
-    inTheApp: { eyebrow: string; title: string; body: string; cta: string };
-    sources: string;
-    sourcesLink: string;
   };
   explore: {
+    /** The hero globe's + and − buttons. */
+    zoomLabel: string;
+    zoomIn: string;
+    zoomOut: string;
     close: string;
     searchPlaceholder: string;
     searchLabel: string;
@@ -115,30 +110,12 @@ export const homeCopyEn: HomeCopy = {
     lede: 'Read and listen to the Bible in your own language. Free, offline, and without ads.',
     primaryCta: 'Get the free app',
     exploreCta: 'Explore the atlas',
-    scrollHint: 'Scroll to see the need',
-  },
-  story: {
-    languages: {
-      eyebrow: 'The world’s languages',
-      title: 'Every dot is a language.',
-      body: '{{languages}} languages, each mapped where it is spoken, with its dialects and varieties.',
-    },
-    noScripture: {
-      eyebrow: 'The need',
-      title: '{{count}} have no known Scripture.',
-      body: 'None is recorded in our sources. Each red dot is a language still waiting for God’s Word.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible already speaks {{count}}.',
-      body: 'Built for the heart of Africa and the heights of the Himalayas, with more on the way.',
-      cta: 'See the app',
-    },
-    sources: 'Language data from Joshua Project, Global Recordings Network, and Glottolog.',
-    sourcesLink: 'Sources and credits',
   },
   explore: {
-    close: 'Back to the story',
+    zoomLabel: 'Map zoom',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    close: 'Close the atlas',
     searchPlaceholder: 'Find a language or dialect…',
     searchLabel: 'Search languages and dialects',
   },

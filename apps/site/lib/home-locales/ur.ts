@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'بائبل اپنی زبان میں پڑھیں اور سنیں۔ مفت، آف لائن، اور اشتہارات کے بغیر۔',
     primaryCta: 'مفت ایپ حاصل کریں',
     exploreCta: 'اٹلس دیکھیں',
-    scrollHint: 'ضرورت دیکھنے کے لیے نیچے جائیں',
-  },
-  story: {
-    languages: {
-      eyebrow: 'دنیا کی زبانیں',
-      title: 'ہر نقطہ ایک زبان ہے۔',
-      body: '{{languages}} زبانیں، ہر ایک وہیں نقشے پر جہاں وہ بولی جاتی ہے، اپنے لہجوں اور اقسام کے ساتھ۔',
-    },
-    noScripture: {
-      eyebrow: 'ضرورت',
-      title: '{{count}} زبانوں کے پاس کوئی معلوم کلامِ مقدس نہیں۔',
-      body: 'ہمارے ذرائع میں ان کا کوئی ریکارڈ نہیں۔ ہر سرخ نقطہ ایک ایسی زبان ہے جو اب تک خدا کے کلام کی منتظر ہے۔',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible پہلے ہی {{count}} زبانوں میں بولتی ہے۔',
-      body: 'افریقہ کے قلب اور ہمالیہ کی بلندیوں کے لیے بنائی گئی، اور مزید زبانیں آ رہی ہیں۔',
-      cta: 'ایپ دیکھیں',
-    },
-    sources: 'زبانوں کا ڈیٹا Joshua Project، Global Recordings Network اور Glottolog سے لیا گیا ہے۔',
-    sourcesLink: 'ذرائع اور شکریہ',
   },
   explore: {
     close: 'کہانی پر واپس جائیں',
     searchPlaceholder: 'زبان یا لہجہ تلاش کریں…',
     searchLabel: 'زبانیں اور لہجے تلاش کریں',
+    zoomLabel: 'نقشے کا زوم',
+    zoomIn: 'زوم اِن',
+    zoomOut: 'زوم آؤٹ',
   },
   app: {
     eyebrow: 'ایپ',

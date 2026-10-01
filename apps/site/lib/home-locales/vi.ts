@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Đọc và nghe Kinh Thánh bằng chính ngôn ngữ của bạn. Miễn phí, dùng được ngoại tuyến, không quảng cáo.',
     primaryCta: 'Tải ứng dụng miễn phí',
     exploreCta: 'Khám phá bản đồ',
-    scrollHint: 'Cuộn xuống để thấy nhu cầu',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Các ngôn ngữ trên thế giới',
-      title: 'Mỗi chấm là một ngôn ngữ.',
-      body: '{{languages}} ngôn ngữ, mỗi ngôn ngữ được đánh dấu tại nơi người ta nói, kèm theo các phương ngữ và biến thể.',
-    },
-    noScripture: {
-      eyebrow: 'Nhu cầu',
-      title: '{{count}} ngôn ngữ chưa có Kinh Thánh nào được biết đến.',
-      body: 'Không có ghi nhận nào trong các nguồn của chúng tôi. Mỗi chấm đỏ là một ngôn ngữ vẫn đang chờ Lời Đức Chúa Trời.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible đã nói được {{count}} ngôn ngữ.',
-      body: 'Được xây dựng cho trung tâm châu Phi và những miền cao của dãy Himalaya, và sẽ còn thêm nữa.',
-      cta: 'Xem ứng dụng',
-    },
-    sources: 'Dữ liệu ngôn ngữ từ Joshua Project, Global Recordings Network và Glottolog.',
-    sourcesLink: 'Nguồn và ghi nhận',
   },
   explore: {
     close: 'Quay lại câu chuyện',
     searchPlaceholder: 'Tìm một ngôn ngữ hoặc phương ngữ…',
     searchLabel: 'Tìm kiếm ngôn ngữ và phương ngữ',
+    zoomLabel: 'Thu phóng bản đồ',
+    zoomIn: 'Phóng to',
+    zoomOut: 'Thu nhỏ',
   },
   app: {
     eyebrow: 'Ứng dụng',

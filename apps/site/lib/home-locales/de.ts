@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Lies und höre die Bibel in deiner eigenen Sprache. Kostenlos, offline und ohne Werbung.',
     primaryCta: 'Kostenlose App laden',
     exploreCta: 'Atlas erkunden',
-    scrollHint: 'Scrolle, um die Not zu sehen',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Die Sprachen der Welt',
-      title: 'Jeder Punkt ist eine Sprache.',
-      body: '{{languages}} Sprachen, jede dort verzeichnet, wo sie gesprochen wird, mit ihren Dialekten und Varietäten.',
-    },
-    noScripture: {
-      eyebrow: 'Die Not',
-      title: 'Für {{count}} Sprachen ist keine Bibel bekannt.',
-      body: 'In unseren Quellen ist keine verzeichnet. Jeder rote Punkt ist eine Sprache, die noch auf Gottes Wort wartet.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible spricht schon {{count}} Sprachen.',
-      body: 'Gemacht für das Herz Afrikas und die Höhen des Himalaja, weitere folgen.',
-      cta: 'Die App ansehen',
-    },
-    sources: 'Sprachdaten von Joshua Project, Global Recordings Network und Glottolog.',
-    sourcesLink: 'Quellen und Danksagung',
   },
   explore: {
     close: 'Zurück zur Geschichte',
     searchPlaceholder: 'Sprache oder Dialekt finden…',
     searchLabel: 'Sprachen und Dialekte durchsuchen',
+    zoomLabel: 'Kartenzoom',
+    zoomIn: 'Vergrößern',
+    zoomOut: 'Verkleinern',
   },
   app: {
     eyebrow: 'Die App',

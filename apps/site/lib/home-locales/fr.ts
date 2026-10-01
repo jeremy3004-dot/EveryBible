@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Lisez et écoutez la Bible dans votre propre langue. Gratuit, hors ligne et sans publicité.',
     primaryCta: 'Obtenir l’application gratuite',
     exploreCta: 'Explorer l’atlas',
-    scrollHint: 'Faites défiler pour voir le besoin',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Les langues du monde',
-      title: 'Chaque point est une langue.',
-      body: '{{languages}} langues, chacune placée là où elle est parlée, avec ses dialectes et ses variantes.',
-    },
-    noScripture: {
-      eyebrow: 'Le besoin',
-      title: '{{count}} langues n’ont aucune Écriture connue.',
-      body: 'Aucune n’est répertoriée dans nos sources. Chaque point rouge est une langue qui attend encore la Parole de Dieu.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible parle déjà {{count}} langues.',
-      body: 'Conçue pour le cœur de l’Afrique et les hauteurs de l’Himalaya, et bien d’autres sont à venir.',
-      cta: 'Découvrir l’application',
-    },
-    sources: 'Données linguistiques de Joshua Project, Global Recordings Network et Glottolog.',
-    sourcesLink: 'Sources et crédits',
   },
   explore: {
     close: 'Retour au récit',
     searchPlaceholder: 'Trouver une langue ou un dialecte…',
     searchLabel: 'Rechercher des langues et des dialectes',
+    zoomLabel: 'Zoom de la carte',
+    zoomIn: 'Zoom avant',
+    zoomOut: 'Zoom arrière',
   },
   app: {
     eyebrow: 'L’application',

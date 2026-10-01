@@ -32,10 +32,8 @@ const EXPECTED_CODES = [
   'ne',
 ];
 
-/** Strings that may legitimately match English: the brand name, kept in Latin. */
-const SAME_AS_ENGLISH_ALLOWED = new Set<string>([
-  'story.inTheApp.eyebrow', // EveryBible
-]);
+/** Strings that may legitimately match English in every locale (none today). */
+const SAME_AS_ENGLISH_ALLOWED = new Set<string>([]);
 /** A locale may share at most this many other strings with English. */
 const MAX_SAME_AS_ENGLISH = 3;
 /* Words that are genuinely spelled the same in a language, not left untranslated. */

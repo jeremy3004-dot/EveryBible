@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Lee y escucha la Biblia en tu propio idioma. Gratis, sin conexión y sin anuncios.',
     primaryCta: 'Obtén la aplicación gratis',
     exploreCta: 'Explora el atlas',
-    scrollHint: 'Desplázate para ver la necesidad',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Los idiomas del mundo',
-      title: 'Cada punto es un idioma.',
-      body: '{{languages}} idiomas, cada uno ubicado donde se habla, con sus dialectos y variedades.',
-    },
-    noScripture: {
-      eyebrow: 'La necesidad',
-      title: '{{count}} idiomas no tienen Escrituras conocidas.',
-      body: 'Ninguno aparece registrado en nuestras fuentes. Cada punto rojo es un idioma que todavía espera la Palabra de Dios.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible ya habla {{count}} idiomas.',
-      body: 'Pensada para el corazón de África y las alturas del Himalaya, y con más en camino.',
-      cta: 'Conoce la aplicación',
-    },
-    sources: 'Datos de idiomas de Joshua Project, Global Recordings Network y Glottolog.',
-    sourcesLink: 'Fuentes y créditos',
   },
   explore: {
     close: 'Volver a la historia',
     searchPlaceholder: 'Busca un idioma o dialecto…',
     searchLabel: 'Buscar idiomas y dialectos',
+    zoomLabel: 'Zoom del mapa',
+    zoomIn: 'Acercar',
+    zoomOut: 'Alejar',
   },
   app: {
     eyebrow: 'La aplicación',

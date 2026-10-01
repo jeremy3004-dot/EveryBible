@@ -1097,9 +1097,8 @@
 #top {
   padding-top: 0;
 }
-/* Story mode: the section is as tall as the story; the stage holding the map
-   stays pinned while the steps scroll over it. Explore mode lifts the stage
-   into a full-screen layer under the header. */
+/* The hero is one screen: the headline over the globe. Explore mode lifts the
+   stage into a full-screen layer under the header. */
 .public-atlas {
   height: auto;
   min-height: 0;
@@ -1107,8 +1106,7 @@
   isolation: auto;
 }
 .pa-stage {
-  position: sticky;
-  top: 0;
+  position: relative;
   height: 100svh;
   min-height: 560px;
   overflow: hidden;
@@ -1116,7 +1114,7 @@
   background: hsl(var(--background));
 }
 /* The stage leaves the page flow while it is full-screen; hold its place so
-   the story underneath does not shift. */
+   the page underneath does not shift. */
 .public-atlas[data-mode='explore'] {
   padding-top: max(100svh, 560px);
 }
@@ -1447,31 +1445,27 @@
 }
 
 /* ================================================================
-   Story mode: the hero and three scroll steps told over the pinned
-   globe. The steps are pulled up over the stage and let clicks through
-   to it except on their own copy and controls.
+   The hero: headline over the globe. The copy layer is pulled up over
+   the stage and lets clicks through to the globe except on its own
+   copy and controls.
    ================================================================ */
 .pa-steps {
   position: relative;
   z-index: 3;
-  margin-top: -100svh;
+  margin-top: calc(-1 * max(100svh, 560px));
   pointer-events: none;
 }
-.pa-steps :is(a, button, h1, h2, p) {
+.pa-steps :is(a, button, h1, p) {
   pointer-events: auto;
 }
 .pa-step {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 92svh;
+  min-height: max(100svh, 560px);
   padding: calc(var(--header-h) + 24px) var(--pad-x) 64px;
 }
-.pa-step--hero {
-  min-height: 100svh;
-}
-.pa-hero,
-.pa-step-card {
+.pa-hero {
   max-width: min(520px, 40vw);
 }
 .pa-hero .pa-eyebrow {
@@ -1495,8 +1489,7 @@
   line-height: 1.55;
   color: hsl(var(--muted-foreground));
 }
-.pa-hero-actions,
-.pa-step-actions {
+.pa-hero-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1520,118 +1513,53 @@
 .pa-button--primary:active {
   transform: translateY(1px);
 }
-.pa-scroll-hint {
+.public-atlas[data-dir='rtl'] .pa-arrow {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* Zoom for the hero globe; the wheel keeps scrolling the page. */
+.pa-zoom {
   position: absolute;
-  inset-inline-start: var(--pad-x);
-  bottom: 28px;
+  right: var(--pad-x);
+  bottom: 48px;
+  z-index: 4;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font: 500 11px/1 var(--font-mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: hsl(var(--text-faint));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 10px;
+  background: hsl(var(--background) / 0.78);
+  box-shadow: var(--shadow-md), var(--edge-light);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
-.pa-scroll-hint svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  animation: pa-hint 2.4s ease-in-out infinite;
-}
-@keyframes pa-hint {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(4px);
-  }
-}
-.pa-step-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  font: 500 12px/1 var(--font-mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
-}
-.pa-step-eyebrow .pa-dot {
-  width: 10px;
-  height: 10px;
-}
-.pa-dot--need {
-  background: hsl(var(--danger));
-}
-.pa-dot--app {
-  background: hsl(var(--primary));
-}
-.pa-step-card h2 {
-  margin: 16px 0 14px;
-  font: 700 clamp(32px, 3.6vw, 54px) / 1 var(--font-display);
-  letter-spacing: -0.025em;
-  text-wrap: balance;
-}
-.pa-step-card p:not(.pa-step-eyebrow) {
-  margin: 0;
-  max-width: 38ch;
-  font-size: clamp(16px, 1.25vw, 18px);
-  line-height: 1.6;
-  color: hsl(var(--muted-foreground));
-}
-.pa-sources-line {
-  position: absolute;
-  inset-inline: var(--pad-x);
-  bottom: 20px;
-  margin: 0;
-  font-size: 12px;
-  color: hsl(var(--text-faint));
-}
-.pa-sources-line button {
+.pa-zoom button {
+  width: 44px;
+  height: 44px;
   border: 0;
-  padding: 0;
   background: none;
-  color: hsl(var(--muted-foreground));
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: hsl(var(--foreground));
+  font: 500 20px/1 var(--font-ui);
 }
-.pa-sources-line button:hover {
+.pa-zoom button + button {
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+}
+.pa-zoom button:hover {
   color: hsl(var(--primary));
 }
-/* The whole stage is a click target into the atlas while the story runs. */
-.pa-stage-hit {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  border: 0;
-  padding: 0;
-  background: none;
+.pa-zoom button:active {
+  transform: translateY(1px);
 }
-/* The languages in the app light up in brand blue on the app step. */
-.public-atlas[data-mode='story'] .la-project-marker {
-  --project-dot: hsl(var(--primary)) !important;
-  width: 30px;
-  height: 30px;
+.public-atlas[data-dir='rtl'] .pa-zoom {
+  right: auto;
+  left: var(--pad-x);
 }
-.public-atlas[data-mode='story'] .la-project-overlay .la-project-marker {
-  margin: -15px 0 0 -15px;
-}
-.public-atlas[data-mode='story'] .la-project-marker::before {
-  inset: 9px;
-}
-/* The tool chrome belongs to explore mode only. */
 .public-atlas[data-mode='story'] .maplibregl-ctrl-attrib {
   opacity: 0.6;
 }
 
-/* Explore mode: one way back to the story. */
+/* Explore mode: one way back to the homepage. */
 .pa-exit {
   position: absolute;
   left: 50%;
@@ -1656,8 +1584,7 @@
 }
 
 @media (max-width: 1100px) and (min-width: 761px) {
-  .pa-hero,
-  .pa-step-card {
+  .pa-hero {
     max-width: 46vw;
   }
 }
@@ -1671,8 +1598,8 @@
   }
 }
 
-/* Phones: the globe holds the top of the screen, the copy sits below it on
-   a solid panel so dots never run behind the words. */
+/* Phones: the globe holds the top of the screen and the copy sits below it,
+   over a solid band so dots never run behind the words. */
 @media (max-width: 760px) {
   .public-atlas[data-mode='story'] .pa-stage::after,
   .public-atlas[data-dir='rtl'][data-mode='story'] .pa-stage::after {
@@ -1685,22 +1612,11 @@
   }
   .pa-step {
     align-items: flex-end;
-    min-height: 100svh;
-    padding: calc(var(--header-h) + 12px) 16px 40px;
+    padding: calc(var(--header-h) + 12px) 16px 48px;
   }
-  .pa-step--hero {
-    padding-bottom: 64px;
-  }
-  .pa-hero,
-  .pa-step-card {
+  .pa-hero {
     max-width: none;
     width: 100%;
-  }
-  .pa-step-card {
-    padding: 20px;
-    border: 1px solid hsl(var(--border));
-    border-radius: 14px;
-    background: hsl(var(--background) / 0.94);
   }
   .pa-hero h1 {
     margin: 12px 0;
@@ -1712,39 +1628,17 @@
   .pa-hero-actions {
     margin-top: 20px;
   }
-  .pa-step-card h2 {
-    margin: 12px 0 10px;
-    font-size: clamp(28px, 8.4vw, 36px);
-  }
-  .pa-step-card p:not(.pa-step-eyebrow) {
-    font-size: 16px;
-  }
-  .pa-scroll-hint {
-    inset-inline-start: 16px;
-    bottom: 22px;
-  }
-  /* The last step stacks its sources line under the card, clear of the
-     basemap credit in the corner. */
-  .pa-step:has(.pa-sources-line) {
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: stretch;
-    gap: 12px;
-    padding-bottom: 36px;
-  }
-  .pa-sources-line {
-    position: static;
+  /* Top right of the globe, clear of the copy below it. */
+  .pa-zoom {
+    top: calc(var(--header-h) + 12px);
+    right: 16px;
+    bottom: auto;
   }
   .pa-exit {
     bottom: 40px;
   }
   .public-atlas--expanded .pa-exit {
     display: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pa-scroll-hint svg {
-    animation: none;
   }
 }
 
@@ -1760,6 +1654,6 @@
     :lang(te),
     :lang(ta)
   )
-  :is(.pa-eyebrow, .pa-step-eyebrow, .pa-scroll-hint, .pa-button) {
+  :is(.pa-eyebrow, .pa-button) {
   letter-spacing: normal;
 }

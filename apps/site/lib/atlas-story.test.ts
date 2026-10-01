@@ -1,30 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import {
-  formatStoryStats,
-  globeFitZoom,
-  storyPadding,
-  storyScene,
-  storyStats,
-  toStoryStep,
-} from './atlas-story';
-
-test('the story walks from every language, to the need, to the app', () => {
-  assert.equal(storyScene(0).scripture, 'all');
-  assert.equal(storyScene(2).scripture, 'no-scripture');
-  assert.equal(storyScene(2).highlightApp, false);
-  assert.equal(storyScene(3).highlightApp, true);
-  assert.equal(storyScene(3).spin, false, 'the globe stops turning on the app step');
-  assert.ok(storyScene(3).center, 'the app step turns to the region the app serves');
-});
-
-test('unknown step values fall back to the opening scene', () => {
-  assert.equal(toStoryStep('2'), 2);
-  assert.equal(toStoryStep(undefined), 0);
-  assert.equal(toStoryStep('7'), 0);
-  assert.equal(toStoryStep('nope'), 0);
-});
+import { globeFitZoom, storyPadding } from './atlas-story';
 
 test('the globe fit grows by one zoom level when the space doubles', () => {
   const small = globeFitZoom(400, 400, 20);
@@ -48,20 +25,4 @@ test('right-to-left pages mirror the globe to the left of the copy', () => {
   assert.equal(rtl.right, ltr.left);
   assert.equal(rtl.top, ltr.top);
   assert.deepEqual(storyPadding(375, 812, 64, true), storyPadding(375, 812, 64));
-});
-
-test('no known Scripture counts every status the map paints red', () => {
-  const stats = storyStats(
-    {
-      languageCount: 10,
-      statusCounts: { bible: 2, nt: 1, portions: 1, unknown: 3, started: 2, needed: 1 },
-    },
-    4
-  );
-  assert.deepEqual(stats, { languages: 10, noScripture: 6, inApp: 4 });
-});
-
-test('story counts are formatted once, as strings, for the page locale', () => {
-  const formatted = formatStoryStats({ languages: 9770, noScripture: 5574, inApp: 23 }, 'en');
-  assert.deepEqual(formatted, { languages: '9,770', noScripture: '5,574', inApp: '23' });
 });

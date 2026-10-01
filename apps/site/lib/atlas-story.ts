@@ -1,41 +1,7 @@
 /**
- * The homepage tells one short story over the globe before anyone touches the
- * atlas tools: the world's languages, the ones with no known Scripture, and
- * the ones EveryBible already speaks. Each scroll step maps to one scene.
+ * Camera maths for the homepage globe: how far to zoom so the whole globe
+ * fits beside the headline, and where to leave room for it.
  */
-export type StoryStep = 0 | 1 | 2 | 3;
-
-export interface StoryScene {
-  /** Which records the globe shows. */
-  scripture: 'all' | 'no-scripture';
-  /** Light up the languages in the app and fade the rest. */
-  highlightApp: boolean;
-  /** Slowly turn the globe. Off once we stop on a region. */
-  spin: boolean;
-  /** Where to turn to when entering the step; null keeps the current view. */
-  center: [number, number] | null;
-  /** Zoom added on top of the zoom that fits the whole globe. */
-  zoomBoost: number;
-}
-
-/* Africa and the Himalayas, where the app's languages are, both in view. */
-const APP_REGION: [number, number] = [62, 14];
-
-const SCENES: Record<StoryStep, StoryScene> = {
-  0: { scripture: 'all', highlightApp: false, spin: true, center: null, zoomBoost: 0 },
-  1: { scripture: 'all', highlightApp: false, spin: true, center: null, zoomBoost: 0 },
-  2: { scripture: 'no-scripture', highlightApp: false, spin: true, center: null, zoomBoost: 0 },
-  3: { scripture: 'all', highlightApp: true, spin: false, center: APP_REGION, zoomBoost: 0.35 },
-};
-
-export function storyScene(step: StoryStep): StoryScene {
-  return SCENES[step];
-}
-
-export function toStoryStep(value: string | number | undefined): StoryStep {
-  const step = Number(value);
-  return step === 1 || step === 2 || step === 3 ? step : 0;
-}
 
 /** Degrees of longitude per second for the idle spin. */
 export const STORY_SPIN_SPEED = 3;
@@ -87,42 +53,5 @@ export function storyPadding(
     right: rtl ? copySide : farSide,
     bottom: 48,
     left: rtl ? farSide : copySide,
-  };
-}
-
-/**
- * Story counts from the build-time language pages meta, so the numbers are in
- * the server HTML. "No known Scripture" follows the map's own colours: no
- * record, a translation only started, or one still needed.
- */
-export function storyStats(
-  meta: { languageCount: number; statusCounts: Partial<Record<string, number>> },
-  inApp: number
-): { languages: number; noScripture: number; inApp: number } {
-  const { unknown = 0, started = 0, needed = 0 } = meta.statusCounts;
-  return { languages: meta.languageCount, noScripture: unknown + started + needed, inApp };
-}
-
-export interface FormattedStoryStats {
-  languages: string;
-  noScripture: string;
-  inApp: string;
-}
-
-/**
- * Formats the counts once, on the server. Engines ship different ICU data, so
- * the same locale can get native digits in Node and Latin digits in a browser
- * (Nepali in Chrome, Bengali and Marathi in Safari); formatting in the client
- * component would then fail hydration.
- */
-export function formatStoryStats(
-  stats: ReturnType<typeof storyStats>,
-  locale: string
-): FormattedStoryStats {
-  const number = new Intl.NumberFormat(locale);
-  return {
-    languages: number.format(stats.languages),
-    noScripture: number.format(stats.noScripture),
-    inApp: number.format(stats.inApp),
   };
 }

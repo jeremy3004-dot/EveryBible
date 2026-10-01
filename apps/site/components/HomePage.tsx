@@ -2,11 +2,8 @@ import { PublicLanguageAtlas } from './atlas/PublicLanguageAtlas';
 import { HomeBelowAtlas } from './HomeBelowAtlas';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
-import { formatStoryStats, storyStats } from '../lib/atlas-story';
 import type { HomeCopy } from '../lib/home-copy';
 import { homePathFor, type HomeLocaleCodeOrEn } from '../lib/home-locale-meta';
-import { getLanguagePagesMeta } from '../lib/language-pages-data';
-import { projectSnapshot } from '../lib/public-atlas-projects';
 import { buildHomeStructuredData, serializeJsonLd } from '../lib/site-metadata';
 import '../app/atlas.css';
 
@@ -14,17 +11,7 @@ import '../app/atlas.css';
    competed with the fonts and scripts the headline needs, and Chrome delivers
    a preload's body on the main thread (a 30+ ms task while the page
    hydrates). PublicLanguageAtlas fetches it once the page has loaded. */
-export async function HomePage({
-  copy,
-  localeCode,
-}: {
-  copy: HomeCopy;
-  localeCode: HomeLocaleCodeOrEn;
-}) {
-  const stats = formatStoryStats(
-    storyStats(await getLanguagePagesMeta(), projectSnapshot.projects.length),
-    copy.locale
-  );
+export function HomePage({ copy, localeCode }: { copy: HomeCopy; localeCode: HomeLocaleCodeOrEn }) {
   const english = localeCode === 'en';
   return (
     <>
@@ -41,7 +28,7 @@ export async function HomePage({
         dir={english ? undefined : copy.dir}
       />
       <main id="top" lang={copy.locale} dir={copy.dir}>
-        <PublicLanguageAtlas stats={stats} copy={copy} />
+        <PublicLanguageAtlas copy={copy} />
         <HomeBelowAtlas copy={copy} localeCode={localeCode} />
       </main>
       <SiteFooter

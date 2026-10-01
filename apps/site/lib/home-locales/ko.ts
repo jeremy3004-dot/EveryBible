@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: '여러분의 언어로 성경을 읽고 들으세요. 무료이고, 오프라인에서도 쓸 수 있으며, 광고가 없습니다.',
     primaryCta: '무료 앱 받기',
     exploreCta: '언어 지도 둘러보기',
-    scrollHint: '스크롤하여 필요를 확인하세요',
-  },
-  story: {
-    languages: {
-      eyebrow: '세계의 언어',
-      title: '점 하나하나가 하나의 언어입니다.',
-      body: '{{languages}}개의 언어를 사용되는 지역에 표시했으며, 방언과 변종도 함께 담았습니다.',
-    },
-    noScripture: {
-      eyebrow: '필요',
-      title: '{{count}}개 언어에는 알려진 성경이 없습니다.',
-      body: '저희가 참고한 자료에는 기록이 없습니다. 빨간 점 하나하나는 아직 하나님의 말씀을 기다리는 언어입니다.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible은 이미 {{count}}개 언어로 말합니다.',
-      body: '아프리카 중심부에서 히말라야 고지대까지 전하기 위해 만들었으며, 앞으로 더 늘어납니다.',
-      cta: '앱 보기',
-    },
-    sources: '언어 자료 출처: Joshua Project, Global Recordings Network, Glottolog.',
-    sourcesLink: '출처 및 감사의 말',
   },
   explore: {
     close: '이야기로 돌아가기',
     searchPlaceholder: '언어나 방언 찾기…',
     searchLabel: '언어와 방언 검색',
+    zoomLabel: '지도 확대/축소',
+    zoomIn: '확대',
+    zoomOut: '축소',
   },
   app: {
     eyebrow: '앱',

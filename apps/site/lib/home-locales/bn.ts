@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'বাইবেল নিজের ভাষায় পড়ুন ও শুনুন। বিনামূল্যে, অফলাইনে এবং বিজ্ঞাপন ছাড়া।',
     primaryCta: 'বিনামূল্যে অ্যাপ নিন',
     exploreCta: 'মানচিত্র দেখুন',
-    scrollHint: 'প্রয়োজন দেখতে নিচে স্ক্রল করুন',
-  },
-  story: {
-    languages: {
-      eyebrow: 'বিশ্বের ভাষা',
-      title: 'প্রতিটি বিন্দু একটি ভাষা।',
-      body: '{{languages}}টি ভাষা, প্রতিটি যেখানে বলা হয় সেখানেই চিহ্নিত, তার উপভাষা ও রূপভেদসহ।',
-    },
-    noScripture: {
-      eyebrow: 'প্রয়োজন',
-      title: '{{count}}টি ভাষায় কোনো জানা শাস্ত্র নেই।',
-      body: 'আমাদের সূত্রগুলোতে এগুলোর কোনোটিরই নথি নেই। প্রতিটি লাল বিন্দু এমন একটি ভাষা যা এখনও ঈশ্বরের বাক্যের অপেক্ষায় আছে।',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible এখনই {{count}}টি ভাষায় কথা বলে।',
-      body: 'আফ্রিকার হৃদয় ও হিমালয়ের চূড়ার জন্য তৈরি, আরও ভাষা আসছে।',
-      cta: 'অ্যাপটি দেখুন',
-    },
-    sources: 'ভাষার তথ্য Joshua Project, Global Recordings Network ও Glottolog থেকে নেওয়া।',
-    sourcesLink: 'সূত্র ও কৃতজ্ঞতা',
   },
   explore: {
     close: 'গল্পে ফিরে যান',
     searchPlaceholder: 'একটি ভাষা বা উপভাষা খুঁজুন…',
     searchLabel: 'ভাষা ও উপভাষা খুঁজুন',
+    zoomLabel: 'মানচিত্র জুম',
+    zoomIn: 'জুম ইন',
+    zoomOut: 'জুম আউট',
   },
   app: {
     eyebrow: 'অ্যাপ',

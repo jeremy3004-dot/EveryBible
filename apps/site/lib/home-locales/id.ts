@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'Baca dan dengarkan Alkitab dalam bahasa Anda sendiri. Gratis, bisa offline, dan tanpa iklan.',
     primaryCta: 'Dapatkan aplikasi gratis',
     exploreCta: 'Jelajahi atlas',
-    scrollHint: 'Gulir untuk melihat kebutuhannya',
-  },
-  story: {
-    languages: {
-      eyebrow: 'Bahasa-bahasa dunia',
-      title: 'Setiap titik adalah satu bahasa.',
-      body: '{{languages}} bahasa, masing-masing dipetakan di tempat bahasa itu dituturkan, lengkap dengan dialek dan ragamnya.',
-    },
-    noScripture: {
-      eyebrow: 'Kebutuhannya',
-      title: '{{count}} bahasa belum memiliki Alkitab yang diketahui.',
-      body: 'Tidak ada yang tercatat dalam sumber kami. Setiap titik merah adalah bahasa yang masih menantikan Firman Allah.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'EveryBible sudah berbicara dalam {{count}} bahasa.',
-      body: 'Dibuat untuk jantung Afrika dan puncak-puncak Himalaya, dengan lebih banyak lagi yang akan datang.',
-      cta: 'Lihat aplikasinya',
-    },
-    sources: 'Data bahasa dari Joshua Project, Global Recordings Network, dan Glottolog.',
-    sourcesLink: 'Sumber dan penghargaan',
   },
   explore: {
     close: 'Kembali ke cerita',
     searchPlaceholder: 'Cari bahasa atau dialek…',
     searchLabel: 'Cari bahasa dan dialek',
+    zoomLabel: 'Zoom peta',
+    zoomIn: 'Perbesar',
+    zoomOut: 'Perkecil',
   },
   app: {
     eyebrow: 'Aplikasi',
@@ -60,7 +42,9 @@ const copy: HomeCopy = {
     lede: 'Baca atau dengarkan dalam bahasa Anda. Unduh sekali, lalu pakai tanpa sinyal.',
     promises: ['Gratis selamanya', 'Tanpa iklan, tanpa pembelian', 'Bisa dipakai offline'],
     shots: [
-      { alt: 'Layar beranda yang dibuka dengan ayat hari ini, dengan kemajuan bacaan di bawahnya.' },
+      {
+        alt: 'Layar beranda yang dibuka dengan ayat hari ini, dengan kemajuan bacaan di bawahnya.',
+      },
       { alt: 'Aplikasi dalam tema terang dan gelap, berdampingan.' },
       { alt: 'Rencana bacaan untuk setiap masa, dari ritme harian hingga seluruh Alkitab.' },
       { alt: 'Mazmur 23 dengan ayat-ayat yang disorot di pembaca.' },

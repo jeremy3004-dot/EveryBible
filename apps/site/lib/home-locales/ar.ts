@@ -27,32 +27,14 @@ const copy: HomeCopy = {
     lede: 'اقرأ الكتاب المقدس واستمع إليه بلغتك. مجاني، ودون اتصال بالإنترنت، وبلا إعلانات.',
     primaryCta: 'حمّل التطبيق المجاني',
     exploreCta: 'استكشف الأطلس',
-    scrollHint: 'مرّر لترى الحاجة',
-  },
-  story: {
-    languages: {
-      eyebrow: 'لغات العالم',
-      title: 'كل نقطة هي لغة.',
-      body: 'عدد اللغات: {{languages}}، وكل لغة موضوعة على الخريطة حيث يُتحدَّث بها، مع لهجاتها وتنوّعاتها.',
-    },
-    noScripture: {
-      eyebrow: 'الحاجة',
-      title: 'اللغات التي لا كتاب مقدس معروفًا لها: {{count}}',
-      body: 'لا يوجد أي تسجيل لها في مصادرنا. كل نقطة حمراء لغة ما زالت تنتظر كلمة الله.',
-    },
-    inTheApp: {
-      eyebrow: 'EveryBible',
-      title: 'اللغات التي يتحدث بها EveryBible اليوم: {{count}}',
-      body: 'صُمّم لقلب أفريقيا ولقمم الهيمالايا، والمزيد في الطريق.',
-      cta: 'تعرّف على التطبيق',
-    },
-    sources: 'بيانات اللغات من Joshua Project وGlobal Recordings Network وGlottolog.',
-    sourcesLink: 'المصادر والشكر',
   },
   explore: {
     close: 'العودة إلى القصة',
     searchPlaceholder: 'ابحث عن لغة أو لهجة…',
     searchLabel: 'ابحث في اللغات واللهجات',
+    zoomLabel: 'تكبير الخريطة',
+    zoomIn: 'تكبير',
+    zoomOut: 'تصغير',
   },
   app: {
     eyebrow: 'التطبيق',
