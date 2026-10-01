@@ -7,7 +7,10 @@ import { useTheme, type ThemeColors } from '../../../contexts/ThemeContext';
 import { readingPlanEntriesByPlanId } from '../../../data/readingPlans.generated';
 import { radius, spacing, typography } from '../../../design/system';
 import { useDisplayFont } from '../../../hooks/useDisplayFont';
-import { getCurrentPlanDaySummary } from '../../../services/plans/readingPlanActivity';
+import {
+  getCurrentPlanDaySummary,
+  type PlanChapterActivityRecord,
+} from '../../../services/plans/readingPlanActivity';
 import {
   getActivePlanDayNumber,
   getPlanDayCount,
@@ -17,7 +20,6 @@ import {
   isRecurringPlan,
 } from '../../../services/plans/readingPlanModel';
 import type { ReadingPlan, UserReadingPlanProgress } from '../../../services/plans/types';
-import type { ListeningHistoryEntry } from '../../../stores/libraryModel';
 import {
   formatPlanSeasonDates,
   formatProgressPercent,
@@ -31,9 +33,8 @@ import { SwipeablePlanRow } from './SwipeablePlanRow';
 interface ActivePlanCardProps {
   plan: ReadingPlan;
   progress: UserReadingPlanProgress;
-  chaptersRead: Record<string, number>;
-  chaptersListened?: Record<string, number>;
-  listeningHistory: ListeningHistoryEntry[];
+  /** Today's reads and listens, merged once by the section for every card. */
+  todayActivity: PlanChapterActivityRecord[];
   /** The local "now" a recurring plan's day and today's activity are read against. */
   today: Date;
   onPlanPress: (planId: string) => void;
@@ -48,9 +49,7 @@ interface ActivePlanCardProps {
 export const ActivePlanCard = memo(function ActivePlanCard({
   plan,
   progress,
-  chaptersRead,
-  chaptersListened,
-  listeningHistory,
+  todayActivity,
   today,
   onPlanPress,
   onDeletePlan,
@@ -65,9 +64,9 @@ export const ActivePlanCard = memo(function ActivePlanCard({
     plan,
     entries: readingPlanEntriesByPlanId[plan.id] ?? [],
     progress,
-    chaptersRead,
-    chaptersListened,
-    listeningHistory,
+    chaptersRead: {},
+    listeningHistory: [],
+    todayActivity,
     today,
   });
   const progressRatio = getActivePlanProgressRatio(plan, currentDay, today);

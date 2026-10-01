@@ -584,3 +584,20 @@ test('corrupt persisted leave times are dropped on load', async () => {
   assert.deepEqual(store.getState().pendingUnenrollAtByPlanId, { a: '2026-09-01T00:00:00.000Z' });
   assert.deepEqual(store.getState().serverLeftAtByPlanId, { d: '2026-09-01T00:10:00.000Z' });
 });
+
+test('enrolling a plan that already has a progress row keeps that row and its progress', async () => {
+  const mod = await import('./readingPlansStore');
+  const store = mod.createReadingPlansStore(createMemoryStorage());
+  const first = store.getState().enrollPlan('psalms-30-days');
+  store.getState().markDayComplete('psalms-30-days', 1, 30);
+  const before = assertDefined(store.getState().progressByPlanId['psalms-30-days'], 'before');
+
+  // A double tap from a screen whose `progress` was still null.
+  const again = store.getState().enrollPlan('psalms-30-days');
+
+  assert.deepEqual(again, before);
+  assert.equal(again.started_at, first.started_at);
+  assert.equal(again.current_day, 2);
+  assert.deepEqual(store.getState().progressByPlanId['psalms-30-days'], before);
+  assert.deepEqual(store.getState().enrolledPlanIds, ['psalms-30-days']);
+});

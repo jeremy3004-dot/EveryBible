@@ -31,6 +31,13 @@ type ProgressSlice = Pick<
 /** Enrolment rows, day and session completion, and where each plan day was left off. */
 export const createProgressSlice: ReadingPlansSliceCreator<ProgressSlice> = (set, get) => ({
   enrollPlan: (planId) => {
+    // Idempotent: a double tap from a screen whose `progress` was still null must not
+    // replace a row (and the days already ticked on it) with a fresh one.
+    const existing = get().progressByPlanId[planId];
+    if (existing) {
+      return existing;
+    }
+
     // A leave that has not reached the server yet stays queued: dropping it
     // let the server's pre-leave row merge back into the re-join, reviving
     // its start date and completed days. The sync sends the leave first

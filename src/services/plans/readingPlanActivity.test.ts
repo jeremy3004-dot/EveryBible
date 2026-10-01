@@ -22,6 +22,7 @@ import {
   getPlanStepReadChapters,
   getRhythmSessionSegmentAtIndex,
   getScheduledPlanDayDateKey,
+  getTodayChapterActivity,
   isPlanDayResumingMidway,
   isPlanDaySatisfied,
   mergeTodayCompletedChapterActivity,
@@ -1505,4 +1506,31 @@ test('a rhythm leaves out a seasonal plan until its season opens', () => {
     ['item-advent', 'item-passage']
   );
   assert.equal(december.startSegment?.occurrenceKey, '2026-12-01');
+});
+
+test('getCurrentPlanDaySummary reads a day summary from activity merged once by the caller', () => {
+  const planId = 'psalms-30-days';
+  const now = new Date(2026, 8, 12, 12);
+  const base = {
+    entries: assertDefined(readingPlanEntriesByPlanId[planId], `${planId} entries`),
+    progress: makeProgress(planId, { current_day: 1 }),
+    dayNumber: 1,
+    listeningHistory: [],
+    today: now,
+  };
+  const firstTarget = assertDefined(getPlanDayTargetChapterKeys(base.entries, 1)[0], 'target');
+  const chaptersRead = { [firstTarget]: now.getTime() };
+  const merged = getCurrentPlanDaySummary({ ...base, chaptersRead });
+  assert.ok(merged.completedChapterCount > 0);
+
+  // A card handed the shared activity does not walk the read ledger again: the ledger it
+  // is given here is empty, so only the supplied activity can explain the result.
+  const todayActivity = getTodayChapterActivity({
+    chaptersRead,
+    listeningHistory: [],
+    now,
+  });
+  const shared = getCurrentPlanDaySummary({ ...base, chaptersRead: {}, todayActivity });
+
+  assert.deepEqual(shared, merged);
 });

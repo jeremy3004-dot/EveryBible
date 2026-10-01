@@ -27,6 +27,8 @@ export function resolvePlanSessionCompletion(
   today?: Date,
   occurrenceKey?: string
 ): PlanSessionCompletion | null {
+  // One reading of the clock, so the keys below cannot straddle local midnight.
+  const now = today ?? new Date();
   const sessionGroups = getDaySessionEntries(entries, dayNumber);
   const sessionIndex = sessionGroups.findIndex((group) => group.sessionKey === sessionKey);
   if (sessionIndex < 0) {
@@ -38,13 +40,13 @@ export function resolvePlanSessionCompletion(
       (group) =>
         group.sessionKey !== sessionKey &&
         !completedSessions[
-          buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey, today, occurrenceKey)
+          buildPlanSessionCompletionKey(plan, dayNumber, group.sessionKey, now, occurrenceKey)
         ]
     )?.sessionKey ?? null;
 
   return {
-    completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey, today, occurrenceKey),
-    dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber, today, occurrenceKey),
+    completionKey: buildPlanSessionCompletionKey(plan, dayNumber, sessionKey, now, occurrenceKey),
+    dayCompletionKey: getPlanCompletionEntryKey(plan, dayNumber, now, occurrenceKey),
     totalDays: plan.duration_days,
     isFinalSession: nextSessionKey == null,
     advanceDayOnCompletion: !isRecurringPlan(plan),

@@ -125,9 +125,21 @@ export async function getUserPlanProgress(
         const dropped = await identity.runIfCurrent(() => {
           endPlansLeftElsewhere(unenrollments);
         });
-        return dropped.applied
-          ? { success: true, data: stillEnrolled }
-          : stalePlanResult<UserReadingPlanProgress[]>();
+        if (!dropped.applied) {
+          return stalePlanResult<UserReadingPlanProgress[]>();
+        }
+        // A plan enrolled offline has no server row to reconcile with: push it now rather
+        // than waiting for it to be ticked or a full sync to carry it.
+        stillEnrolled
+          .filter((progress) => !tombstonedPlanIds.includes(progress.plan_id))
+          .forEach((progress) => {
+            void pushProgressToRemote(
+              progress,
+              identity.expectedUserId,
+              identity.expectedGeneration
+            );
+          });
+        return { success: true, data: stillEnrolled };
       }
 
       // H3: reconcile without dropping local-only rows.
