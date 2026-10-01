@@ -93,6 +93,20 @@ test('the Date is replaced when the small hours of a new day end, which the cycl
   assert.equal(view.result.getHours(), 8);
 });
 
+test('a screen kept open past the end of the small hours drops the last-night grace', async () => {
+  mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 1, 0) });
+  const { useLocalToday } = await import('./useLocalToday');
+  const view = runtime.mount(useLocalToday);
+  await view.commit();
+  assert.equal(view.result.getHours(), 1);
+
+  // No focus change, no foreground: only the timer can move "now" past 04:00, where a
+  // recurring plan stops treating a tick as last night's.
+  mock.timers.tick(3 * 60 * 60 * 1000 + 1_000);
+  view.rerender();
+  assert.ok(view.result.getHours() >= 4);
+});
+
 test('focus still refreshes the date, and unmounting leaves nothing running', async () => {
   mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 12, 0) });
   const { useLocalToday } = await import('./useLocalToday');

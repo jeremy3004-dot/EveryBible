@@ -7,6 +7,20 @@ import { getMillisecondsUntilNextLocalMidnight } from '../services/bible/dailySc
 const isSmallHours = (date: Date) => date.getHours() < RECURRING_CYCLE_ROLLOVER_GRACE_HOURS;
 
 /**
+ * Time to the next moment a consumer can see "now" change: the end of the small hours
+ * while they last, otherwise local midnight. Built from local components, so a DST day
+ * or a changed zone cannot leave the grace window running long.
+ */
+const getMillisecondsUntilNextBoundary = (now: Date): number => {
+  if (isSmallHours(now)) {
+    const graceEnd = new Date(now);
+    graceEnd.setHours(RECURRING_CYCLE_ROLLOVER_GRACE_HOURS, 0, 0, 0);
+    return Math.max(graceEnd.getTime() - now.getTime(), 1);
+  }
+  return getMillisecondsUntilNextLocalMidnight(now);
+};
+
+/**
  * Same local day and the same side of the small-hours cutoff. A recurring plan reads the
  * hour of "now" for the cycle rollover grace, so a Date from 01:00 cannot stand in for 08:00.
  */
@@ -19,7 +33,7 @@ const isSameLocalMoment = (left: Date, right: Date) =>
 /**
  * "Now" for a screen that shows today's plan day or reading. It is refreshed when
  * the screen regains focus, when the app returns to the foreground and at each
- * local midnight while the screen stays open.
+ * local midnight and end of the small hours while the screen stays open.
  *
  * Focus alone is not enough: a plan left open in the evening and resumed the next
  * morning never loses focus, so the screen went on offering (and ticking)
@@ -44,7 +58,7 @@ export function useLocalToday(): Date {
       midnightTimer = setTimeout(() => {
         refresh();
         armMidnightTimer();
-      }, getMillisecondsUntilNextLocalMidnight());
+      }, getMillisecondsUntilNextBoundary(new Date()));
     };
 
     armMidnightTimer();
