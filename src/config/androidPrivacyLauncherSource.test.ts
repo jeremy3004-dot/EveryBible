@@ -109,6 +109,23 @@ test('Android privacy module switches launcher aliases in a safe order', () => {
   );
 });
 
+test('Android privacy module finds its launcher aliases when the application id has a suffix', () => {
+  // The manifest's ".DefaultLauncherAlias" resolves against the code namespace, while a
+  // side-by-side build (com.everybible.app.qa, .sprint) installs under another application
+  // id. Naming the alias class from the runtime package made setAppIcon throw there, which
+  // failed the fresh-install privacy reset and left every launch on the retry screen.
+  const source = getAndroidPrivacyModuleSource('com.everybible.app');
+
+  assert.match(
+    source,
+    /ComponentName\(reactApplicationContext\.packageName, "com\.everybible\.app\.DefaultLauncherAlias"\)/
+  );
+  assert.match(
+    source,
+    /ComponentName\(reactApplicationContext\.packageName, "com\.everybible\.app\.DiscreetLauncherAlias"\)/
+  );
+});
+
 test('Android privacy package exposes the native privacy module', () => {
   const source = getAndroidPrivacyPackageSource('com.everybible.app');
 

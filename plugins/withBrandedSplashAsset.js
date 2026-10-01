@@ -99,12 +99,14 @@ import com.facebook.react.bridge.ReactMethod
 class ${ANDROID_PRIVACY_MODULE_NAME}(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
+  // The alias classes live in the code namespace; only the ComponentName package is the
+  // installed application id, which differs on suffixed side-by-side builds.
   private val defaultAlias by lazy {
-    ComponentName(reactApplicationContext.packageName, "\${reactApplicationContext.packageName}.DefaultLauncherAlias")
+    ComponentName(reactApplicationContext.packageName, "${packageName}.DefaultLauncherAlias")
   }
 
   private val discreetAlias by lazy {
-    ComponentName(reactApplicationContext.packageName, "\${reactApplicationContext.packageName}.DiscreetLauncherAlias")
+    ComponentName(reactApplicationContext.packageName, "${packageName}.DiscreetLauncherAlias")
   }
 
   override fun getName(): String = "${ANDROID_PRIVACY_MODULE_NAME}"
