@@ -201,10 +201,14 @@ export const completeSession = (
     ? tickEntry(existing.completed_entries, options.dayCompletionKey, now)
     : existing.completed_entries;
   const completedDayCount = Object.keys(completed_entries).length;
+  // A finished plan stays finished when one of its sessions is read again, and keeps the time
+  // it first finished.
+  const wasCompleted = existing.is_completed && options.advanceDayOnCompletion;
   const isCompleted =
-    options.isFinalSession && options.advanceDayOnCompletion
-      ? isPlanCompleted(options.totalDays, completedDayCount)
-      : false;
+    wasCompleted ||
+    (options.isFinalSession &&
+      options.advanceDayOnCompletion &&
+      isPlanCompleted(options.totalDays, completedDayCount));
 
   return {
     ...existing,
@@ -219,7 +223,7 @@ export const completeSession = (
           Math.max(existing.current_day, dayNumber, 1),
     current_session: options.isFinalSession ? null : (options.nextSessionKey ?? sessionKey),
     is_completed: isCompleted,
-    completed_at: isCompleted ? now : null,
+    completed_at: isCompleted ? (wasCompleted ? (existing.completed_at ?? now) : now) : null,
     synced_at: now,
   };
 };
