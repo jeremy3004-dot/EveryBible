@@ -695,10 +695,16 @@ test('concurrent callers share a single recovery pass', async () => {
 
 test('opening any translation waits for pending recovery first', async () => {
   assert.ok(doubles.database.readinessResolver, 'the store registers a readiness hook');
+  // An earlier pass already failed on the stuck deletion, so only a journal entry it has not
+  // seen yet makes a read run recovery again (see bibleStore.textPackRecoveryBackoff).
+  const fresh = 'file:///translations/fresh.db';
+  seedJournal({
+    deletions: [{ operationId: 'fresh:1', translationId: 'fresh', paths: [fresh], updatedAt: 1 }],
+  });
 
   await doubles.database.readinessResolver('bsb');
 
-  assert.deepEqual(doubles.cloud.deletedArtifacts, [STUCK_PATH]);
+  assert.deepEqual(doubles.cloud.deletedArtifacts, [STUCK_PATH, fresh]);
 });
 
 test('reading a recovered pack back does not wait on the recovery that is reading it', async () => {

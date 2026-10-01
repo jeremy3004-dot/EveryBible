@@ -43,7 +43,7 @@ export const createTextPackMaintenanceSlice: BibleSliceCreator<TextPackMaintenan
 
   return {
     reconcileTranslationPacks: async () => {
-      await recoverTextPackJournal(store);
+      await recoverTextPackJournal(store, { force: true });
       const runtimeTranslations = get().translations.filter(
         (translation) => translation.source === 'runtime' && Boolean(translation.textPackLocalPath)
       );

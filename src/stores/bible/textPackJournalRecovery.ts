@@ -4,12 +4,14 @@
  * Every text pack action, and the database readiness resolver, awaits this before touching a
  * pack, so a killed install or delete is settled (adopted, rolled back, or retired) before the
  * store trusts the row again. It runs at most once at a time, and stops running once the
- * journal is empty.
+ * journal is empty. An entry that cannot be retired does not make every read repeat the pass:
+ * until the journal gains an entry or a back-off window passes, only an explicit `force` retries.
  */
 import { readTextPackInstallJournal } from '../../services/bible/textPackInstallJournal';
 import {
   removeTextPackDeletion,
   removeTextPackInstall,
+  type TextPackInstallJournal,
 } from '../../services/bible/textPackInstallJournalModel';
 import { resetTranslationDownloadState } from '../bibleStoreModel';
 import type { BibleStoreAccess } from './bibleStoreTypes';
@@ -26,11 +28,35 @@ import {
   saveTextPackJournal,
 } from './textPackRuntime';
 
+const STUCK_RECOVERY_BACKOFF_MS = 60_000;
+
 let textPackJournalRecovered = false;
 let textPackJournalRecoveryPromise: Promise<void> | null = null;
+// What the last unfinished pass left in the journal, and when, so an unchanged journal is not
+// re-swept before every chapter read.
+let stuckJournalSignature: string | null = null;
+let stuckJournalPassAt = 0;
 
-export async function recoverTextPackJournal(store: BibleStoreAccess): Promise<void> {
+function journalSignature(journal: TextPackInstallJournal): string {
+  return JSON.stringify([
+    Object.values(journal.installs).map((entry) => entry.operationId),
+    Object.values(journal.deletions).map((entry) => entry.operationId),
+  ]);
+}
+
+export async function recoverTextPackJournal(
+  store: BibleStoreAccess,
+  options: { force?: boolean } = {}
+): Promise<void> {
   if (textPackJournalRecovered) {
+    return;
+  }
+  if (
+    !options.force &&
+    stuckJournalSignature !== null &&
+    Date.now() - stuckJournalPassAt < STUCK_RECOVERY_BACKOFF_MS &&
+    journalSignature(readTextPackInstallJournal()) === stuckJournalSignature
+  ) {
     return;
   }
   if (textPackJournalRecoveryPromise) {
@@ -252,6 +278,8 @@ export async function recoverTextPackJournal(store: BibleStoreAccess): Promise<v
     textPackJournalRecovered =
       Object.keys(latestJournal.installs).length === 0 &&
       Object.keys(latestJournal.deletions).length === 0;
+    stuckJournalSignature = textPackJournalRecovered ? null : journalSignature(latestJournal);
+    stuckJournalPassAt = Date.now();
   })().finally(() => {
     textPackJournalRecoveryPromise = null;
   });
