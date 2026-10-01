@@ -17,6 +17,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { BackArrowIcon } from '../../../components/ui/IconButton';
 import { useAudioStore } from '../../../stores/audioStore';
 import { announceForAccessibility } from '../../../utils/a11y';
+import { perfMarkAfterFrame } from '../../../services/diagnostics/perfMarks';
 import type {
   BackgroundMusicChoice,
   PlaybackRate,
@@ -120,6 +121,10 @@ export function AudioOptionsSheet({
     shownPageRef.current = page;
     if (showAudioOptionsSheet) announceForAccessibility(title);
   }, [page, showAudioOptionsSheet, title]);
+
+  useEffect(() => {
+    if (showAudioOptionsSheet) perfMarkAfterFrame('audioSheet:painted');
+  }, [showAudioOptionsSheet]);
 
   return (
     <Modal

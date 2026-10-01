@@ -17,11 +17,19 @@ import {
 import { useTabScreenOptions } from './tabNavigatorParts/useTabScreenOptions';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { lightHaptic } from '../utils/haptics';
+import { arePerfMarksEnabled, perfMarkAfterFrame } from '../services/diagnostics/perfMarks';
 
 // The app shell renders this navigator at boot. Its tab bar (glass capsule,
 // reader-scroll motion, selection pill) and screen options live in ./tabNavigatorParts.
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+
+// Profiling builds only (see services/diagnostics/perfMarks).
+const tabPerfListeners = arePerfMarksEnabled()
+  ? ({ route }: { route: { name: string } }) => ({
+      focus: () => perfMarkAfterFrame('tab:focus', route.name),
+    })
+  : undefined;
 
 function getBibleTabResumeState(): BibleTabResumeState {
   const { useBibleStore } =
@@ -74,7 +82,12 @@ export function TabNavigator() {
   const screenOptions = useTabScreenOptions({ defaultTabBarStyle, getCollapsingTabBarStyle });
 
   return (
-    <Tab.Navigator id="RootTab" tabBar={renderTabBar} screenOptions={screenOptions}>
+    <Tab.Navigator
+      id="RootTab"
+      tabBar={renderTabBar}
+      screenOptions={screenOptions}
+      screenListeners={tabPerfListeners}
+    >
       <Tab.Screen name="Home" component={HomeStack} listeners={{ tabPress: () => lightHaptic() }} />
       <Tab.Screen
         name="Bible"

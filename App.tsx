@@ -43,6 +43,7 @@ import { lockAfterPrivacyLockFailure, usePrivacyLock } from './src/hooks/usePriv
 import { readPrivacyLockHint } from './src/services/privacy/privacyLockHint';
 import { startScreenCaptureProtection } from './src/services/privacy/screenCaptureProtection';
 import { subscribeToAppWindowChanges } from './src/services/privacy/privacyWindowEvents';
+import { arePerfMarksEnabled, perfMark } from './src/services/diagnostics/perfMarks';
 
 // KEEP THIS UNGUARDED. scripts/benchmark-android-startup.py and
 // scripts/android_startup_metrics.py parse `[EB-T] App:module-start` (and
@@ -416,9 +417,13 @@ function OnboardingHost() {
   return LocaleSetupFlow ? <LocaleSetupFlow mode="initial" onComplete={() => undefined} /> : null;
 }
 
+// Profiling builds only: every touch bubbles here, so interaction latency can be
+// measured from the release of a tap to the screen's own after-frame mark.
+const markTouchEnd = arePerfMarksEnabled() ? () => perfMark('touch:end') : undefined;
+
 export default function App() {
   return (
-    <GestureHandlerRootView style={styles.gestureRoot}>
+    <GestureHandlerRootView style={styles.gestureRoot} onTouchEnd={markTouchEnd}>
       {/* Last-resort boundary: a throw in a provider or in AppContent's own hooks
           and effects (deep links, push registration, session analytics) had no
           boundary and was a fatal crash. Its fallback needs neither provider. */}

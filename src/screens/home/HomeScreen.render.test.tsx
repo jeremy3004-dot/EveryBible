@@ -658,7 +658,9 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
   }
 });
 
-test('the interaction-ready timing log is a development-only line', async (context) => {
+// scripts/benchmark-android-startup.py and android_startup_metrics.py read this line
+// from release logcat, so it must print whatever __DEV__ is (see App.tsx module-start).
+test('the interaction-ready timing line prints in release builds too', async (context) => {
   const lines: string[] = [];
   context.mock.method(console, 'log', (...args: unknown[]) => lines.push(String(args[0])));
   const globals = globalThis as {
@@ -685,8 +687,9 @@ test('the interaction-ready timing log is a development-only line', async (conte
       });
       await view.flush();
       assert.equal(
-        lines.some((line) => line.includes('Home:interaction-ready')),
-        dev
+        lines.filter((line) => line.includes('Home:interaction-ready')).length,
+        1,
+        `__DEV__=${dev}`
       );
       await view.unmount();
     }

@@ -85,6 +85,7 @@ import { assertDefined } from '../../utils/assertDefined';
 import { hexWithAlpha } from '../../utils/color';
 import { lightHaptic } from '../../utils/haptics';
 import { createHomeReadyReporter } from '../../services/startup/homeStartupTiming';
+import { perfMark } from '../../services/diagnostics/perfMarks';
 import { DISPLAY_TEXT_MAX_FONT_SCALE } from '../../design/largeTextLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootTabParamList>;
@@ -140,6 +141,7 @@ export function HomeScreen() {
     () =>
       createHomeReadyReporter({
         schedule: (report) => {
+          perfMark('home:first-layout');
           let frame: number | undefined;
           const interaction = InteractionManager.runAfterInteractions(() => {
             frame = requestAnimationFrame(report);
@@ -149,11 +151,8 @@ export function HomeScreen() {
             if (frame !== undefined) cancelAnimationFrame(frame);
           };
         },
-        report: () => {
-          if (typeof __DEV__ !== 'undefined' && __DEV__) {
-            console.log('[EB-T] Home:interaction-ready', Date.now());
-          }
-        },
+        // Unguarded on purpose: the Android startup benchmark reads it from release logcat.
+        report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
       }),
     []
   );

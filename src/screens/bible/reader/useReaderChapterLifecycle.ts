@@ -5,6 +5,7 @@ import { type ChapterPresentationMode } from '../../../services/bible/presentati
 import type { Verse } from '../../../types';
 import { getInitialChapterSessionMode } from '../bibleReaderModel';
 import { invalidateReaderChapterLoad, type CancellableTask } from '../readerChapterLoader';
+import { perfMarkAfterFrame } from '../../../services/diagnostics/perfMarks';
 
 export interface UseReaderChapterLifecycleInput {
   activeAudioBookId: string | null;
@@ -94,6 +95,12 @@ export function useReaderChapterLifecycle({
 
     setPlaybackSequence(playbackSequenceEntriesForAudio);
   }, [playbackSequenceEntriesForAudio, setPlaybackSequence]);
+
+  useEffect(() => {
+    if (hasLoadedRouteChapter) {
+      perfMarkAfterFrame('reader:painted', `${currentTranslation}:${bookId}:${chapter}`);
+    }
+  }, [hasLoadedRouteChapter, bookId, chapter, currentTranslation]);
 
   useEffect(() => {
     void loadChapter();
