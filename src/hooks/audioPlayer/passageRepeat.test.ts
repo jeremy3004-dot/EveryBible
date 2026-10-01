@@ -40,10 +40,13 @@ const JOHN_3 = { 1: 4.92, 2: 10.04, 3: 22.04, 4: 29.3, 5: 37.64, 6: 46.42 };
 const JOHN_4 = { 1: 3.1, 2: 9.5, 3: 15.2, 4: 21.8 };
 const timingRequests: string[] = [];
 let timingsGate: Promise<void> | null = null;
+// A transient failure (offline, timeout): the service answers null for a chapter it has.
+let timingsOffline = false;
 mockModule(mock, sourcePath('services/bible/verseTimestamps.ts'), {
   getChapterTimestamps: async (translationId: string, bookId: string, chapter: number) => {
     timingRequests.push(`${translationId}/${bookId}/${chapter}`);
     if (timingsGate) await timingsGate;
+    if (timingsOffline) return null;
     if (translationId !== 'bsb' || bookId !== 'JHN') return null;
     return chapter === 3 ? JOHN_3 : chapter === 4 ? JOHN_4 : null;
   },
@@ -256,6 +259,22 @@ test('an End of chapter sleep timer stops at the end verse instead of looping', 
     assert.equal(useAudioStore.getState().sleepTimerMinutes, null, 'the timer is used up');
   } finally {
     session.pause = null;
+  }
+});
+
+test('timings that failed to load offline are asked for again once the network is back', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'] });
+  try {
+    timingsOffline = true;
+    assert.equal(await passageRepeat.loadChapterVerseTimings('bsb', 'JHN', 3), null);
+
+    // The network returns while the listener is still on this chapter.
+    timingsOffline = false;
+    t.mock.timers.tick(60_000);
+    assert.equal(passageRepeat.peekChapterVerseTimings('bsb', 'JHN', 3), undefined);
+    assert.deepEqual(await passageRepeat.loadChapterVerseTimings('bsb', 'JHN', 3), JOHN_3);
+  } finally {
+    timingsOffline = false;
   }
 });
 

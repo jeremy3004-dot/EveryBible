@@ -78,7 +78,13 @@ export async function passageRepeatSettled(): Promise<void> {
 // A passage touches few chapters; a handful of entries covers its two ends in a
 // couple of translations.
 const TIMINGS_CACHE_LIMIT = 8;
-const timingsCache = new Map<string, PassageVerseTimings | null>();
+/**
+ * How long "this chapter has no timings" is believed. The service answers null both for a
+ * translation without timings and for a remote timing file it could not reach, so an
+ * answer cached for good would leave a chapter untimed after one offline moment.
+ */
+const NO_TIMINGS_TTL_MS = 30_000;
+const timingsCache = new Map<string, { timings: PassageVerseTimings | null; cachedAt: number }>();
 const timingsLoads = new Map<string, Promise<PassageVerseTimings | null>>();
 
 const chapterKey = (translationId: string, bookId: string, chapter: number) =>
@@ -86,7 +92,13 @@ const chapterKey = (translationId: string, bookId: string, chapter: number) =>
 
 /** Timings already known for a chapter: undefined until they have loaded (null: none). */
 function peekTimings(key: string): PassageVerseTimings | null | undefined {
-  return timingsCache.get(key);
+  const entry = timingsCache.get(key);
+  if (!entry) return undefined;
+  if (entry.timings === null && Date.now() - entry.cachedAt >= NO_TIMINGS_TTL_MS) {
+    timingsCache.delete(key);
+    return undefined;
+  }
+  return entry.timings;
 }
 
 /**
@@ -100,7 +112,7 @@ function loadTimings(
   chapter: number
 ): Promise<PassageVerseTimings | null> {
   const key = chapterKey(translationId, bookId, chapter);
-  const known = timingsCache.get(key);
+  const known = peekTimings(key);
   if (known !== undefined) return Promise.resolve(known);
   const inFlight = timingsLoads.get(key);
   if (inFlight) return inFlight;
@@ -114,7 +126,7 @@ function loadTimings(
         const oldest = timingsCache.keys().next().value;
         if (oldest !== undefined) timingsCache.delete(oldest);
       }
-      timingsCache.set(key, timings);
+      timingsCache.set(key, { timings, cachedAt: Date.now() });
       return timings;
     });
   timingsLoads.set(key, load);
