@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  normalizeClosingQuoteSpacing,
   normalizeVerseFormatting,
+  normalizeVerseFormattingQuotes,
   reconcileVerseFormattingWithText,
   serializeVerseFormatting,
 } from './verseFormatting';
@@ -133,4 +135,74 @@ test('reconcileVerseFormattingWithText bails out when a line is not present in t
   });
   // Never guess: if the lines do not line up, keep what was stored rather than mangle it.
   assert.equal(reconcileVerseFormattingWithText(text, formatting), formatting);
+});
+
+const JOHN_3_3 =
+  'Jesus replied, “Truly, truly, I tell you, no one can see the kingdom of God unless he is born again. ”';
+
+test('normalizeClosingQuoteSpacing removes the stray space before a closing quote', () => {
+  assert.equal(
+    normalizeClosingQuoteSpacing(JOHN_3_3),
+    'Jesus replied, “Truly, truly, I tell you, no one can see the kingdom of God unless he is born again.”'
+  );
+  assert.equal(
+    normalizeClosingQuoteSpacing(
+      '“He was a hairy man, ” they answered, “with a leather belt around his waist.” “It was Elijah the Tishbite,” said the king.'
+    ),
+    '“He was a hairy man,” they answered, “with a leather belt around his waist.” “It was Elijah the Tishbite,” said the king.'
+  );
+});
+
+test('normalizeClosingQuoteSpacing leaves nested quote pairs and clean text untouched', () => {
+  const nested = 'He said, “Go and say, ‘Peace be with you.’ ”';
+  assert.equal(normalizeClosingQuoteSpacing(nested), nested);
+  const nestedOpen = '“‘Peace.’ ” ’ x';
+  assert.equal(normalizeClosingQuoteSpacing(nestedOpen), nestedOpen);
+  const clean = 'He said, “Come.” Then ‘go’ now.';
+  assert.equal(normalizeClosingQuoteSpacing(clean), clean);
+  // An opening quote after a space is not a closing quote.
+  assert.equal(normalizeClosingQuoteSpacing('and ’Tis done'), 'and ’Tis done');
+});
+
+test('normalizeVerseFormattingQuotes merges a quote-only trailing line (Matthew 2:6)', () => {
+  const formatting = {
+    mode: 'poetry' as const,
+    lines: [
+      { text: '‘But you, Bethlehem, in the land of Judah,' },
+      { text: 'are by no means least among the rulers of Judah,', indentLevel: 1 },
+      { text: 'for out of you will come a ruler' },
+      { text: 'who will be the shepherd of My people Israel.’', indentLevel: 1 },
+      { text: '”', indentLevel: 1 },
+    ],
+  };
+  const text =
+    '‘But you, Bethlehem, in the land of Judah, are by no means least among the rulers of Judah, for out of you will come a ruler who will be the shepherd of My people Israel.’ ”';
+  const fixed = reconcileVerseFormattingWithText(
+    normalizeClosingQuoteSpacing(text),
+    normalizeVerseFormattingQuotes(formatting)
+  );
+  assert.deepEqual(
+    fixed?.lines.map((line) => line.text),
+    [
+      '‘But you, Bethlehem, in the land of Judah,',
+      'are by no means least among the rulers of Judah,',
+      'for out of you will come a ruler',
+      'who will be the shepherd of My people Israel.’ ”',
+    ]
+  );
+  assert.equal(fixed?.lines[3]?.indentLevel, 1);
+});
+
+test('normalizeVerseFormattingQuotes cleans spacing inside lines and returns clean input by identity', () => {
+  const dirty = {
+    mode: 'lines' as const,
+    lines: [{ text: 'Go home, ”' }, { text: '’' }],
+  };
+  assert.deepEqual(normalizeVerseFormattingQuotes(dirty), {
+    mode: 'lines',
+    lines: [{ text: 'Go home,” ’' }],
+  });
+  const clean = { mode: 'poetry' as const, lines: [{ text: 'a’ ”' }, { text: 'b' }] };
+  assert.equal(normalizeVerseFormattingQuotes(clean), clean);
+  assert.equal(normalizeVerseFormattingQuotes(undefined), undefined);
 });
