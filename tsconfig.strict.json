@@ -11,6 +11,14 @@
     "src/utils/**/*",
     "src/hooks/**/*",
     "src/constants/**/*",
-    "src/i18n/**/*"
+    "src/i18n/**/*",
+    "src/navigation/**/*",
+    "src/components/**/*",
+    "src/data/**/*",
+    "src/design/**/*",
+    "src/contexts/**/*",
+    "src/config/**/*",
+    "src/testing/**/*",
+    "src/types/**/*"
   ]
 }
