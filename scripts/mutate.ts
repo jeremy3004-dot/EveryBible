@@ -320,10 +320,11 @@ async function mutateFile(
   );
   const coverage = await measureCoverage(relativeFile, original, instrumented, tests, workers);
   const probeOf = new Map(mutants.map((m, index) => [m.id, probes[index] ?? -1]));
-  const reaches = (test: string, mutant: Mutant) => {
-    const hits = coverage.get(test)?.hits;
+  const reachesIn = (measured: Map<string, TestCoverage>, test: string, mutant: Mutant) => {
+    const hits = measured.get(test)?.hits;
     return hits === null || hits === undefined || hits.has(probeOf.get(mutant.id) ?? -1);
   };
+  const reaches = (test: string, mutant: Mutant) => reachesIn(coverage, test, mutant);
 
   // Code the nearest tests never reach may still be exercised further out (a model
   // reached only through a screen's model, say): try the next tests out, once each,
@@ -339,16 +340,18 @@ async function mutateFile(
     .map((test) => test.file)
     .filter((test) => !tests.includes(test))
     .slice(0, MAX_WIDER_TESTS);
-  if (missing.size > 0 && wider.length > 0) {
-    const widerCoverage = await measureCoverage(
+  let widerCoverage: Map<string, TestCoverage> | undefined;
+  const measureWider = async () =>
+    (widerCoverage ??= await measureCoverage(
       relativeFile,
       original,
       instrumented,
       wider,
       workers,
       false
-    );
-    for (const [test, measured] of widerCoverage) {
+    ));
+  if (missing.size > 0 && wider.length > 0) {
+    for (const [test, measured] of await measureWider()) {
       if (measured.hits && [...missing].some((probe) => measured.hits?.has(probe))) {
         coverage.set(test, measured);
         tests.push(test);
@@ -373,23 +376,26 @@ async function mutateFile(
     if (results.length % 50 === 0) console.log(`  … ${results.length}/${mutants.length}`);
   };
 
-  const evaluate = async (worker: Worker, mutant: Mutant): Promise<MutantResult> => {
-    const reason = equivalents[mutant.key];
-    if (reason !== undefined) return { ...mutant, status: 'equivalent', reason };
-    const mutated = applyMutant(original, mutant);
-    if (!isSyntacticallyValid(mutated, relativeFile)) return { ...mutant, status: 'invalid' };
-    const relevant = order.filter((test) => reaches(test, mutant));
-    if (relevant.length === 0) return { ...mutant, status: 'uncovered' };
+  // Runs the mutant against `relevant` until one fails.
+  const runMutant = async (
+    worker: Worker,
+    mutant: Mutant,
+    relevant: string[],
+    measured: Map<string, TestCoverage>
+  ): Promise<MutantResult> => {
     const target = path.join(worker.root, relativeFile);
     const started = Date.now();
-    writeFileSync(target, mutated);
+    writeFileSync(target, applyMutant(original, mutant));
     try {
       for (const test of relevant) {
-        const timeoutMs = coverage.get(test)?.timeoutMs ?? 60_000;
+        const timeoutMs = measured.get(test)?.timeoutMs ?? 60_000;
         const outcome = await runTestFile(worker, test, timeoutMs, {}, options.verbose);
         if (outcome.passed) continue;
-        order.splice(order.indexOf(test), 1);
-        order.unshift(test);
+        const position = order.indexOf(test);
+        if (position >= 0) {
+          order.splice(position, 1);
+          order.unshift(test);
+        }
         if (options.verbose) {
           console.log(`  #${mutant.id} killed by ${test}:\n${outcome.output.slice(-3000)}`);
         }
@@ -406,6 +412,17 @@ async function mutateFile(
     }
   };
 
+  const evaluate = async (worker: Worker, mutant: Mutant): Promise<MutantResult> => {
+    const reason = equivalents[mutant.key];
+    if (reason !== undefined) return { ...mutant, status: 'equivalent', reason };
+    if (!isSyntacticallyValid(applyMutant(original, mutant), relativeFile)) {
+      return { ...mutant, status: 'invalid' };
+    }
+    const relevant = order.filter((test) => reaches(test, mutant));
+    if (relevant.length === 0) return { ...mutant, status: 'uncovered' };
+    return runMutant(worker, mutant, relevant, coverage);
+  };
+
   await Promise.all(
     workers.map(async (worker) => {
       for (let index = next++; index < mutants.length; index = next++) {
@@ -413,6 +430,36 @@ async function mutateFile(
       }
     })
   );
+
+  // The nearest tests are chosen by import distance, so adding a direct test can push a
+  // test further out (a screen's render test, say) out of the selection. Survivors get a
+  // second pass against the tests further out that reach them.
+  const survivors = results.filter((result) => result.status === 'survived');
+  if (survivors.length > 0 && wider.length > 0) {
+    const measured = await measureWider();
+    const extra = wider.filter((test) => !tests.includes(test) && measured.get(test)?.hits);
+    let index = 0;
+    let rescued = 0;
+    await Promise.all(
+      workers.map(async (worker) => {
+        for (let current = index++; current < survivors.length; current = index++) {
+          const survivor = survivors[current] as MutantResult;
+          const relevant = extra.filter((test) => reachesIn(measured, test, survivor));
+          if (relevant.length === 0) continue;
+          const result = await runMutant(worker, survivor, relevant, measured);
+          if (result.status === 'survived') continue;
+          rescued++;
+          results[results.indexOf(survivor)] = result;
+          console.log(`  KILLED further out #${survivor.id} by ${result.killedBy}`);
+        }
+      })
+    );
+    console.log(
+      `  rechecked ${survivors.length} survivors against ${extra.length} tests further out`
+    );
+    if (rescued > 0)
+      tests.push(...extra.filter((test) => results.some((r) => r.killedBy === test)));
+  }
   results.sort((a, b) => a.id - b.id);
   return { results, tests };
 }
