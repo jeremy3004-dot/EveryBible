@@ -149,11 +149,9 @@ export function HomeScreen() {
             if (frame !== undefined) cancelAnimationFrame(frame);
           };
         },
-        report: () => {
-          if (typeof __DEV__ !== 'undefined' && __DEV__) {
-            console.log('[EB-T] Home:interaction-ready', Date.now());
-          }
-        },
+        // Unguarded on purpose: scripts/benchmark-android-startup.py times cold start
+        // to this line in release logcat (see the App:module-start note in App.tsx).
+        report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
       }),
     []
   );

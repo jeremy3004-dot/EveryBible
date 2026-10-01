@@ -658,7 +658,9 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
   }
 });
 
-test('the interaction-ready timing log is a development-only line', async (context) => {
+// scripts/benchmark-android-startup.py reads this line out of release logcat to time
+// cold start to an interactive Home, so it must not be dev-only.
+test('the interaction-ready timing log is written in release builds too', async (context) => {
   const lines: string[] = [];
   context.mock.method(console, 'log', (...args: unknown[]) => lines.push(String(args[0])));
   const globals = globalThis as {
@@ -686,7 +688,8 @@ test('the interaction-ready timing log is a development-only line', async (conte
       await view.flush();
       assert.equal(
         lines.some((line) => line.includes('Home:interaction-ready')),
-        dev
+        true,
+        `__DEV__=${dev}`
       );
       await view.unmount();
     }
