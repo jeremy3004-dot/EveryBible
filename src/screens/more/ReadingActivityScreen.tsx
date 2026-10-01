@@ -18,7 +18,10 @@ import {
   quantizeListeningMs,
   summarizeReadingActivity,
 } from '../../services/progress/readingActivity';
-import { totalListeningMinutes } from '../../services/progress/listeningTime';
+import {
+  combineListeningMinutes,
+  localListeningMinutes,
+} from '../../services/progress/listeningTime';
 import { layout, spacing, typography } from '../../design/system';
 import { describeSyncStatus } from '../../utils/syncStatus';
 import { BackArrowIcon, IconButton } from '../../components/ui';
@@ -45,7 +48,7 @@ export function ReadingActivityScreen() {
   const chaptersRead = useProgressStore((state) => state.chaptersRead);
   const chaptersListened = useProgressStore((state) => state.chaptersListened);
   const chaptersByDate = useProgressStore((state) => state.chaptersByDate);
-  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  const localMinutes = useProgressStore((state) => localListeningMinutes(state.listeningMsByDate));
   // Audio banks listening time every 30 seconds; the calendar only needs each day's
   // chapter equivalent, so it ignores ticks that cross no chapter boundary.
   const listeningDays = useProgressStore(
@@ -101,8 +104,8 @@ export function ReadingActivityScreen() {
     activitySummary.totalChapterReads
   );
   const listeningMinutes = useMemo(
-    () => totalListeningMinutes(listeningMsByDate, engagement?.total_listening_minutes),
-    [engagement?.total_listening_minutes, listeningMsByDate]
+    () => combineListeningMinutes(localMinutes, engagement?.total_listening_minutes),
+    [engagement?.total_listening_minutes, localMinutes]
   );
   const listeningLabel = formatListeningTime(listeningMinutes, t);
 

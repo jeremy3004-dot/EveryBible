@@ -691,6 +691,23 @@ test('a few seconds of listening banked while the screen is open redraw no calen
   );
 });
 
+test('listening banked inside the same minute does not re-render the screen', async () => {
+  useProgressStore.setState({ listeningMsByDate: { '2026-09-17': 9 * 60_000 } });
+  const view = await renderScreen();
+
+  const since = harness.renders.mark();
+  for (let tick = 1; tick <= 4; tick += 1) {
+    await act(async () => {
+      useProgressStore.setState({
+        listeningMsByDate: { '2026-09-17': 9 * 60_000 + tick * 10_000 },
+      });
+    });
+  }
+  await view.flush();
+
+  assert.equal(harness.renders.since(since).length, 0);
+});
+
 test('choosing a day re-renders only the two cells whose selection changed', async () => {
   const view = await renderScreen();
   const isDayCell = (props: Record<string, unknown>) =>

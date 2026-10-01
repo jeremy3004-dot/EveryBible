@@ -19,7 +19,10 @@ import { getCurrentSession, updateUserProfile } from '../../services/auth';
 import { isAccessTokenExpired } from '../../services/auth/authSession';
 import { uploadAvatar } from '../../services/storage/storageService';
 import { withPrivacyLockGrace } from '../../services/privacy/privacyLockGrace';
-import { totalListeningMinutes } from '../../services/progress/listeningTime';
+import {
+  combineListeningMinutes,
+  localListeningMinutes,
+} from '../../services/progress/listeningTime';
 import { getEngagementSummary, refreshEngagement } from '../../services/analytics/analyticsService';
 import type { UserEngagementSummary } from '../../services/supabase/types';
 import { useTheme, type ThemeColors } from '../../contexts/ThemeContext';
@@ -53,7 +56,8 @@ export function ProfileScreen() {
       new Set([...Object.keys(state.chaptersRead), ...Object.keys(state.chaptersListened)]).size
   );
   const streakDays = useProgressStore(selectCurrentStreakDays);
-  const listeningMsByDate = useProgressStore((state) => state.listeningMsByDate);
+  // Audio banks listening every 30 seconds; only the whole-minute total is shown.
+  const localMinutes = useProgressStore((state) => localListeningMinutes(state.listeningMsByDate));
   // Notes and highlights stay on this device and are never uploaded, so the cloud
   // summary's count is stale (or 0); count what My Notes & Highlights lists.
   const annotationCount = useAnnotationStore(
@@ -76,8 +80,8 @@ export function ProfileScreen() {
   // Listening is banked on this device as it plays, and the cloud summary lags it
   // until queued events upload: show the larger, as Reading activity does.
   const listeningMinutes = useMemo(
-    () => totalListeningMinutes(listeningMsByDate, engagement?.total_listening_minutes),
-    [engagement?.total_listening_minutes, listeningMsByDate]
+    () => combineListeningMinutes(localMinutes, engagement?.total_listening_minutes),
+    [engagement?.total_listening_minutes, localMinutes]
   );
 
   // Refresh then fetch engagement summary once on mount when authenticated
