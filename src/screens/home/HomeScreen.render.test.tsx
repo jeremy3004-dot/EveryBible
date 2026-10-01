@@ -206,8 +206,10 @@ beforeEach(() => {
   gatherStore.setState({ completedLessons: {} });
 });
 
-afterEach(() => {
+afterEach(async () => {
   mock.timers.reset();
+  // Loaded here, after the module mocks are installed.
+  (await import('../bible/reader/useVerseImageShare')).forgetLastSharedVerseImage();
 });
 
 async function renderHome() {
@@ -607,18 +609,24 @@ test('the hero share control is an icon-only button named for the verse of the d
   assert.equal(view.getAllByRole('button', { name: t('home.shareVerseOfTheDay') }).length, 1);
 });
 
-test('sharing from the editor captures its picture as a PNG and opens the share sheet', async () => {
+test('sharing from the editor captures its picture as a JPEG and opens the share sheet', async () => {
   const view = await renderHome();
   const { editor } = await openShareEditor(view);
   await shareFromEditor(view, editor);
 
   assert.equal(sharing.captures.length, 1);
   const { options } = assertDefined(sharing.captures[0], 'the first capture');
-  assert.deepEqual(options, { format: 'png', quality: 1, result: 'tmpfile' });
+  assert.deepEqual(options, {
+    format: 'jpg',
+    quality: 0.9,
+    result: 'tmpfile',
+    width: 1080,
+    height: 1000,
+  });
   assert.deepEqual(sharing.sheets, [
     {
       uri: 'file:///tmp/verse-of-the-day.png',
-      options: { dialogTitle: t('groups.share'), mimeType: 'image/png' },
+      options: { dialogTitle: t('groups.share'), mimeType: 'image/jpeg', UTI: 'public.jpeg' },
     },
   ]);
   assert.deepEqual(harness.rn.__recorded.shares, []);

@@ -1,4 +1,4 @@
-import test, { mock } from 'node:test';
+import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { act } from 'react-test-renderer';
 import { within } from '../../testing/render';
@@ -38,6 +38,11 @@ mockPackage(mock, 'react-native-view-shot', {
     captureFiles.add(uri);
     return uri;
   },
+});
+
+afterEach(async () => {
+  // Loaded here, after the module mocks are installed.
+  (await import('./reader/useVerseImageShare')).forgetLastSharedVerseImage();
 });
 
 test('on Android the image is shared once the picker has closed, without an onDismiss', async () => {

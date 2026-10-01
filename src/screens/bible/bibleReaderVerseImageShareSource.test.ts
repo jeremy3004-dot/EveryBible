@@ -56,7 +56,7 @@ test('BibleReaderScreen opens a verse-image background picker and captures the s
 
   assert.match(
     source,
-    /captureRef\(verseImageSharePreviewRef,/,
+    /captureRef\(\s*verseImageSharePreviewRef,/,
     'BibleReaderScreen should capture the preview card when sharing the image'
   );
 

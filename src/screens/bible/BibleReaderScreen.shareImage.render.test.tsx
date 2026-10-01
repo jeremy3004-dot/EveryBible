@@ -27,6 +27,7 @@ const sharing = {
   error: new Error('Failed to share the file'),
   captures: 0,
   releases: [] as string[],
+  captureOptions: [] as unknown[],
 };
 let pendingShare: Promise<void> | null = null;
 let pendingCapture: Promise<string> | null = null;
@@ -54,8 +55,9 @@ mockPackage(mock, 'react-native-view-shot', {
   releaseCapture: (uri: string) => {
     sharing.releases.push(uri);
   },
-  captureRef: async () => {
+  captureRef: async (_ref: unknown, options: unknown) => {
     sharing.captures += 1;
+    sharing.captureOptions.push(options);
     captureStarted();
     return pendingCapture ?? `file:///tmp/verse-${sharing.captures}.png`;
   },
@@ -67,13 +69,16 @@ mockModule(mock, sourcePath('services/diagnostics/crashReportQueue.ts'), {
   },
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Loaded here, after the fixture's module mocks are installed.
+  (await import('./reader/useVerseImageShare')).forgetLastSharedVerseImage();
   sharing.pickerDismissed = false;
   sharing.dropped.length = 0;
   sharing.sheets.length = 0;
   sharing.outcome = 'shared';
   sharing.captures = 0;
   sharing.releases.length = 0;
+  sharing.captureOptions.length = 0;
   pendingShare = null;
   pendingCapture = null;
   pendingAvailability = null;
@@ -460,4 +465,47 @@ test('colour swatches keep a 44pt touch target on a 390pt screen', async () => {
   const slop = swatch.props.hitSlop as { left: number; right: number } | undefined;
   assert.ok(slop, 'the swatch widens its touch target');
   assert.ok(cellWidth + slop.left + slop.right >= 44, `hitSlop ${JSON.stringify(slop)}`);
+});
+
+test('the picture is captured as a capped JPEG file and shared as one', async () => {
+  const view = await renderReader();
+  await shareFromPicker(view);
+
+  assert.deepEqual(sharing.captureOptions, [
+    { format: 'jpg', quality: 0.9, result: 'tmpfile', width: 1080, height: 1000 },
+  ]);
+  const options = assertDefined(sharing.sheets[0], 'sharing.sheets[0]').options as {
+    mimeType: string;
+    UTI: string;
+  };
+  assert.equal(options.mimeType, 'image/jpeg');
+  assert.equal(options.UTI, 'public.jpeg');
+});
+
+test('the previously shared picture is deleted when the next one is captured', async () => {
+  const view = await renderReader();
+  await shareFromPicker(view);
+  const first = assertDefined(sharing.sheets[0], 'sharing.sheets[0]').uri;
+  assert.ok(!sharing.releases.includes(first), 'kept while its recipient may still read it');
+
+  await shareFromPicker(view);
+  assert.ok(sharing.releases.includes(first), 'the old capture no longer piles up in the cache');
+});
+
+test('when the picture and the text share both fail, the reader is told', async () => {
+  sharing.outcome = 'rejected';
+  const view = await renderReader();
+  const originalShare = harness.rn.Share.share;
+  harness.rn.Share.share = async () => {
+    throw new Error('no share target');
+  };
+  try {
+    await shareFromPicker(view);
+  } finally {
+    harness.rn.Share.share = originalShare;
+  }
+
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.title, t('common.error'));
+  assert.equal(harness.rn.__recorded.alerts.at(-1)?.message, t('common.unexpectedError'));
+  assert.equal(reported.length, 2, 'the image failure and the text failure are both reported');
 });
