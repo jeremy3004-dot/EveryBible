@@ -1,10 +1,7 @@
+import type { FormattedStoryStats } from '../../lib/atlas-story';
 import { fillCopy, type HomeCopy } from '../../lib/home-copy';
 
-export interface AtlasStoryStats {
-  languages: number;
-  noScripture: number;
-  inApp: number;
-}
+export type { FormattedStoryStats as AtlasStoryStats } from '../../lib/atlas-story';
 
 /**
  * The hero and the three scroll steps told over the pinned globe. Server
@@ -18,12 +15,11 @@ export function AtlasStorySteps({
   onSources,
 }: {
   copy: HomeCopy;
-  stats: AtlasStoryStats;
+  stats: FormattedStoryStats;
   hidden: boolean;
   onExplore: () => void;
   onSources: () => void;
 }) {
-  const number = new Intl.NumberFormat(copy.locale);
   const { hero, story } = copy;
   return (
     <div className="pa-steps" aria-hidden={hidden || undefined} inert={hidden}>
@@ -62,7 +58,7 @@ export function AtlasStorySteps({
         <div className="pa-step-card">
           <p className="pa-step-eyebrow">{story.languages.eyebrow}</p>
           <h2 id="pa-step-1">{story.languages.title}</h2>
-          <p>{fillCopy(story.languages.body, { languages: number.format(stats.languages) })}</p>
+          <p>{fillCopy(story.languages.body, { languages: stats.languages })}</p>
         </div>
       </section>
 
@@ -72,9 +68,7 @@ export function AtlasStorySteps({
             <i className="pa-dot pa-dot--need" aria-hidden="true" />
             {story.noScripture.eyebrow}
           </p>
-          <h2 id="pa-step-2">
-            {fillCopy(story.noScripture.title, { count: number.format(stats.noScripture) })}
-          </h2>
+          <h2 id="pa-step-2">{fillCopy(story.noScripture.title, { count: stats.noScripture })}</h2>
           <p>{story.noScripture.body}</p>
         </div>
       </section>
@@ -85,9 +79,7 @@ export function AtlasStorySteps({
             <i className="pa-dot pa-dot--app" aria-hidden="true" />
             {story.inTheApp.eyebrow}
           </p>
-          <h2 id="pa-step-3">
-            {fillCopy(story.inTheApp.title, { count: number.format(stats.inApp) })}
-          </h2>
+          <h2 id="pa-step-3">{fillCopy(story.inTheApp.title, { count: stats.inApp })}</h2>
           <p>{story.inTheApp.body}</p>
           <div className="pa-step-actions">
             <a className="pa-button pa-button--primary" href="#app">

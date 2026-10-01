@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { globeFitZoom, storyPadding, storyScene, storyStats, toStoryStep } from './atlas-story';
+import {
+  formatStoryStats,
+  globeFitZoom,
+  storyPadding,
+  storyScene,
+  storyStats,
+  toStoryStep,
+} from './atlas-story';
 
 test('the story walks from every language, to the need, to the app', () => {
   assert.equal(storyScene(0).scripture, 'all');
@@ -52,4 +59,9 @@ test('no known Scripture counts every status the map paints red', () => {
     4
   );
   assert.deepEqual(stats, { languages: 10, noScripture: 6, inApp: 4 });
+});
+
+test('story counts are formatted once, as strings, for the page locale', () => {
+  const formatted = formatStoryStats({ languages: 9770, noScripture: 5574, inApp: 23 }, 'en');
+  assert.deepEqual(formatted, { languages: '9,770', noScripture: '5,574', inApp: '23' });
 });

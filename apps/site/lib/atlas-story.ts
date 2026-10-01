@@ -102,3 +102,27 @@ export function storyStats(
   const { unknown = 0, started = 0, needed = 0 } = meta.statusCounts;
   return { languages: meta.languageCount, noScripture: unknown + started + needed, inApp };
 }
+
+export interface FormattedStoryStats {
+  languages: string;
+  noScripture: string;
+  inApp: string;
+}
+
+/**
+ * Formats the counts once, on the server. Engines ship different ICU data, so
+ * the same locale can get native digits in Node and Latin digits in a browser
+ * (Nepali in Chrome, Bengali and Marathi in Safari); formatting in the client
+ * component would then fail hydration.
+ */
+export function formatStoryStats(
+  stats: ReturnType<typeof storyStats>,
+  locale: string
+): FormattedStoryStats {
+  const number = new Intl.NumberFormat(locale);
+  return {
+    languages: number.format(stats.languages),
+    noScripture: number.format(stats.noScripture),
+    inApp: number.format(stats.inApp),
+  };
+}

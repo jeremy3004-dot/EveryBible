@@ -246,15 +246,37 @@ export function PublicLanguageAtlas({
     return () => window.removeEventListener('hashchange', openFromHash);
   }, []);
 
-  // Explore mode covers the screen; the page underneath stays where it was.
+  // Explore mode covers the screen; the page underneath stays where it was
+  // and leaves the tab order, since it sits hidden behind the layer.
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const exitRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!exploring) return;
     const root = document.documentElement;
     const previous = root.style.overflow;
     root.style.overflow = 'hidden';
+    const section = sectionRef.current;
+    const covered = [
+      ...document.querySelectorAll<HTMLElement>('main > *, footer.site-footer'),
+    ].filter((element) => section && !element.contains(section) && !element.inert);
+    for (const element of covered) element.inert = true;
+    // Phones get the way back, not the search box, so no keyboard pops up.
+    if (window.matchMedia('(max-width: 760px)').matches) exitRef.current?.focus();
+    else {
+      skipSearchFocus.current = true;
+      searchRef.current?.focus({ preventScroll: true });
+    }
     return () => {
       root.style.overflow = previous;
+      for (const element of covered) element.inert = false;
     };
+  }, [exploring]);
+  // Back in the story, focus returns to whatever opened the atlas.
+  useEffect(() => {
+    if (exploring) return;
+    const target = returnFocus.current;
+    returnFocus.current = null;
+    target?.focus({ preventScroll: true });
   }, [exploring]);
 
   const publicRecords = useMemo(
@@ -335,7 +357,14 @@ export function PublicLanguageAtlas({
     running: stageVisible,
   });
 
-  const enterExplore = useCallback(() => setMode('explore'), []);
+  const rememberTrigger = () => {
+    if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body)
+      returnFocus.current = document.activeElement;
+  };
+  const enterExplore = useCallback(() => {
+    rememberTrigger();
+    setMode('explore');
+  }, []);
   const exitExplore = useCallback(() => {
     if (EXPLORE_HASHES.has(window.location.hash))
       window.history.replaceState(null, '', window.location.pathname);
@@ -345,6 +374,7 @@ export function PublicLanguageAtlas({
     setMode('story');
   }, []);
   const openSourcesFromStory = useCallback(() => {
+    rememberTrigger();
     setSelectedProject(null);
     setSelectedId(null);
     setPanel('sources');
@@ -492,7 +522,13 @@ export function PublicLanguageAtlas({
         )}
 
         {exploring && (
-          <button type="button" className="pa-exit" dir={copy.dir} onClick={exitExplore}>
+          <button
+            ref={exitRef}
+            type="button"
+            className="pa-exit"
+            dir={copy.dir}
+            onClick={exitExplore}
+          >
             <span className="pa-arrow" aria-hidden="true">
               ←
             </span>{' '}

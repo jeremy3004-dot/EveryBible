@@ -2,7 +2,7 @@ import { PublicLanguageAtlas } from './atlas/PublicLanguageAtlas';
 import { HomeBelowAtlas } from './HomeBelowAtlas';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
-import { storyStats } from '../lib/atlas-story';
+import { formatStoryStats, storyStats } from '../lib/atlas-story';
 import type { HomeCopy } from '../lib/home-copy';
 import { homePathFor, type HomeLocaleCodeOrEn } from '../lib/home-locale-meta';
 import { getLanguagePagesMeta } from '../lib/language-pages-data';
@@ -21,7 +21,10 @@ export async function HomePage({
   copy: HomeCopy;
   localeCode: HomeLocaleCodeOrEn;
 }) {
-  const stats = storyStats(await getLanguagePagesMeta(), projectSnapshot.projects.length);
+  const stats = formatStoryStats(
+    storyStats(await getLanguagePagesMeta(), projectSnapshot.projects.length),
+    copy.locale
+  );
   const english = localeCode === 'en';
   return (
     <>
