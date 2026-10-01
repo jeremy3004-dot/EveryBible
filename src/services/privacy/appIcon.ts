@@ -1,5 +1,6 @@
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import type { PrivacyAppIconMode } from '../../types';
+import { noPrivacyIconAlertExpected } from './privacyLockGrace';
 
 interface EveryBiblePrivacyModule {
   getCurrentAppIcon: () => Promise<PrivacyAppIconMode>;
@@ -47,6 +48,10 @@ export const setPrivacyAppIcon = async (mode: PrivacyAppIconMode): Promise<boole
     const changed = await nativePrivacyModule.setAppIcon(mode);
     if (changed) {
       notifyIconChanged();
+    }
+    if (Platform.OS !== 'ios') {
+      // Only iOS answers an icon change with an alert for the reader to dismiss.
+      noPrivacyIconAlertExpected();
     }
     return changed;
   } catch (error) {

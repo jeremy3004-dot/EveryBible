@@ -3,6 +3,7 @@ import { AppState, Platform, type AppStateStatus } from 'react-native';
 import {
   getPendingPrivacyLockGraceDeadline,
   getPrivacyLockGraceDeadline,
+  isInactiveUnderIconAlert,
   notePrivacyLockAppState,
   shouldLockForAppStateChange,
   subscribeToPrivacyLockGraceChanges,
@@ -137,7 +138,11 @@ export const usePrivacyLock = () => {
             nextState === 'background' && Platform.OS === 'android'
               ? getPendingPrivacyLockGraceDeadline()
               : null;
-          if (inactiveDeadline !== null) {
+          if (nextState === 'inactive' && isInactiveUnderIconAlert()) {
+            // The icon alert waits for the reader's OK; no timer may lock under it.
+            inactiveLockDeferred = true;
+            clearAwayLock();
+          } else if (inactiveDeadline !== null) {
             inactiveLockDeferred = true;
             deferAwayLock(inactiveDeadline);
           } else if (pendingDeadline !== null) {
