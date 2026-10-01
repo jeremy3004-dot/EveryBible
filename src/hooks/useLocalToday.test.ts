@@ -20,8 +20,26 @@ mockModule(mock, '@react-navigation/native', {
 
 const localKey = (date: Date) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
+// Counts the timer callbacks the hook runs: each one wakes the JS thread.
+const wakeups = { count: 0 };
+let restoreSetTimeout: (() => void) | null = null;
+function countTimerWakeups() {
+  const mockedSetTimeout = globalThis.setTimeout;
+  restoreSetTimeout = () => {
+    globalThis.setTimeout = mockedSetTimeout;
+  };
+  wakeups.count = 0;
+  globalThis.setTimeout = ((handler: () => void, ms?: number) =>
+    mockedSetTimeout(() => {
+      wakeups.count += 1;
+      handler();
+    }, ms)) as typeof setTimeout;
+}
+
 afterEach(() => {
   runtime.unmountAll();
+  restoreSetTimeout?.();
+  restoreSetTimeout = null;
   mock.timers.reset();
 });
 
@@ -93,18 +111,54 @@ test('the Date is replaced when the small hours of a new day end, which the cycl
   assert.equal(view.result.getHours(), 8);
 });
 
-test('a screen kept open past the end of the small hours drops the last-night grace', async () => {
+test('a screen kept open past the end of the small hours drops the last-night grace at 04:00 sharp', async () => {
   mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 1, 0) });
   const { useLocalToday } = await import('./useLocalToday');
   const view = runtime.mount(useLocalToday);
   await view.commit();
-  assert.equal(view.result.getHours(), 1);
+  const lastNight = view.result;
 
   // No focus change, no foreground: only the timer can move "now" past 04:00, where a
   // recurring plan stops treating a tick as last night's.
-  mock.timers.tick(3 * 60 * 60 * 1000 + 1_000);
+  mock.timers.tick(3 * 60 * 60 * 1000 - 1);
   view.rerender();
-  assert.ok(view.result.getHours() >= 4);
+  assert.equal(view.result, lastNight, 'still the small hours at 03:59:59.999');
+
+  mock.timers.tick(1);
+  view.rerender();
+  assert.equal(view.result.getTime(), new Date(2026, 8, 23, 4, 0).getTime());
+});
+
+test('a screen opened in the last millisecond of the small hours still rolls over at 04:00', async () => {
+  mock.timers.enable({
+    apis: ['Date', 'setTimeout'],
+    now: new Date(2026, 8, 23, 3, 59, 59, 999),
+  });
+  const { useLocalToday } = await import('./useLocalToday');
+  const view = runtime.mount(useLocalToday);
+  await view.commit();
+
+  mock.timers.tick(1);
+  view.rerender();
+  assert.equal(view.result.getTime(), new Date(2026, 8, 23, 4, 0).getTime());
+});
+
+test('through the small hours the screen sleeps until they end rather than polling', async () => {
+  mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date(2026, 8, 23, 1, 0) });
+  countTimerWakeups();
+  const { useLocalToday } = await import('./useLocalToday');
+  const view = runtime.mount(useLocalToday);
+  await view.commit();
+
+  // Step the clock a minute at a time, as the hours pass, so a timer that kept re-arming
+  // itself would be seen waking on every step.
+  for (let minute = 0; minute < 3 * 60; minute += 1) {
+    mock.timers.tick(60_000);
+  }
+  view.rerender();
+
+  assert.equal(view.result.getHours(), 4);
+  assert.equal(wakeups.count, 1, 'one wakeup, at 04:00');
 });
 
 test('focus still refreshes the date, and unmounting leaves nothing running', async () => {

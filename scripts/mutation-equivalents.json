@@ -1,4 +1,36 @@
 {
+  "src/hooks/audioPlayer/useSleepTimerCountdown.ts": [
+    {
+      "key": "boolean-literal|false|true|selahActive = false,|useSleepTimerCountdown",
+      "reason": "The only caller, useAudioPlayer, always passes the store's selahActive, so the default is never used"
+    },
+    {
+      "key": "remove-statement|clearTimeout(sleepTimerRef.current);|;|clearTimeout(sleepTimerRef.current);|useSleepTimerCountdown.stopCountdown",
+      "reason": "clearInterval also clears a timeout: React Native, Node and browsers share one timer id pool"
+    },
+    {
+      "key": "remove-statement|sleepTimerRef.current = null;|;|sleepTimerRef.current = null;|useSleepTimerCountdown.stopCountdown",
+      "reason": "The ref is only read to clear it again, and clearing a fired or cleared timer does nothing"
+    },
+    {
+      "key": "remove-statement|stopCountdown();|;|stopCountdown();|useSleepTimerCountdown",
+      "reason": "React runs the previous effect's cleanup (the same stopCountdown) before every re-run, so the ref is already clear"
+    },
+    {
+      "key": "logical-swap|&&||||status === 'playing' || status === 'loading' || (selahActive && status === 'paused');|useSleepTimerCountdown.isRunning",
+      "reason": "The store holds an end time only while the timer runs, so a paused non-Selah input with an end time never reaches the hook"
+    },
+    {
+      "key": "number-literal|0|1|sleepTimerRef.current = setTimeout(tick, Math.max(0, sleepTimerEndTime - Date.now()));|useSleepTimerCountdown",
+      "reason": "Only matters once the deadline has passed: a 0 ms or 1 ms wait is the same single wakeup"
+    }
+  ],
+  "src/hooks/useLocalToday.ts": [
+    {
+      "key": "number-literal|1|0|return Math.max(graceEnd.getTime() - now.getTime(), 1);|getMillisecondsUntilNextBoundary",
+      "reason": "In the small hours, 04:00 the same local day is always at least 1 ms ahead, so floors of 0 and 1 never differ"
+    }
+  ],
   "src/services/audio/download/chapterTransfer.ts": [
     {
       "key": "remove-statement|reject(new AudioDownloadCancelledError());|;|reject(new AudioDownloadCancelledError());|delay",
@@ -221,6 +253,76 @@
     {
       "key": "string-literal|'Sign in cancelled'|''|return authFailure('cancelled', error, 'Sign in cancelled');|mapAppleAuthError",
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
+    }
+  ],
+  "src/services/bible/verseFormatting.ts": [
+    {
+      "key": "logical-swap||||&&|if (!value || typeof value !== 'object' || Array.isArray(value)) {|sanitizeVerseFormattingLine#1",
+      "reason": "Anything that is not a plain object has no string text, so the text check that follows returns the same null"
+    },
+    {
+      "key": "logical-swap|&&||||const base = indentLevel && indentLevel > 0 ? { text, indentLevel } : { text };|sanitizeVerseFormattingLine.base",
+      "reason": "indentLevel is already floored at 0, so 0 and undefined are the only falsy values and both give { text }"
+    },
+    {
+      "key": "relational-boundary|>|>=|const base = indentLevel && indentLevel > 0 ? { text, indentLevel } : { text };|sanitizeVerseFormattingLine.base",
+      "reason": "indentLevel 0 is falsy, so the && short-circuits before the comparison either way"
+    },
+    {
+      "key": "logical-swap||||&&|if (cached !== undefined || verseFormattingCache.has(raw)) {|getCachedVerseFormatting",
+      "reason": "Only differs for a string cached as unusable (undefined): it is re-parsed to the same undefined"
+    },
+    {
+      "key": "remove-statement|parsed = undefined;|;|parsed = undefined;|getCachedVerseFormatting",
+      "reason": "parsed is declared without a value, so it is already undefined in the catch"
+    },
+    {
+      "key": "logical-swap||||&&|if (typeof value !== 'object' || Array.isArray(value)) {|normalizeVerseFormatting",
+      "reason": "An array or primitive has no lines array, so the check that follows returns the same undefined"
+    },
+    {
+      "key": "remove-statement|return undefined;|;|return undefined;|normalizeVerseFormatting#1",
+      "reason": "A primitive has no lines array, so the check that follows returns the same undefined"
+    },
+    {
+      "key": "relational-boundary|>=|>|if (exact >= 0) {|findLineSpan",
+      "reason": "Stored lines are trimmed, so at index 0 the whitespace-tolerant match finds the same span"
+    },
+    {
+      "key": "number-literal|0|1|if (exact >= 0) {|findLineSpan",
+      "reason": "Stored lines are trimmed, so at index 0 the whitespace-tolerant match finds the same span"
+    },
+    {
+      "key": "remove-statement|return [exact, exact + needle.length];|;|return [exact, exact + needle.length];|findLineSpan",
+      "reason": "Only differs when an earlier run differs from the line only in whitespace; stored lines collapse whitespace, so that run is an equally valid match"
+    },
+    {
+      "key": "remove-statement|return null;|;|return null;|findLineSpan",
+      "reason": "Stored lines are never blank (normalizeVerseFormatting drops them), so there is always a word"
+    },
+    {
+      "key": "nullish-drop-default|words[last] ?? ''|words[last]|const tail = /^(.+?)([?!.,;:)\\]’”]+)$/.exec(words[last] ?? '');|findLineSpan.tail",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|const tail = /^(.+?)([?!.,;:)\\]’”]+)$/.exec(words[last] ?? '');|findLineSpan.tail",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "nullish-drop-default|tail[1] ?? ''|tail[1]|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "nullish-drop-default|tail[2] ?? ''|tail[2]|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
+    },
+    {
+      "key": "string-literal|''|'__mutant__'|? `${escapeRegExp(tail[1] ?? '')}\\\\s*${escapeRegExp(tail[2] ?? '')}`|findLineSpan.patterns#1",
+      "reason": "The regex has two required groups and the last word always exists, so these fallbacks are never used"
     }
   ],
   "src/services/plans/readingPlanActivity.ts": [

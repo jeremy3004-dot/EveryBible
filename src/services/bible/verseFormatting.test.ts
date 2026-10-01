@@ -231,3 +231,110 @@ test('normalizeVerseFormattingQuotes cleans spacing inside lines and returns cle
   assert.equal(normalizeVerseFormattingQuotes(clean), clean);
   assert.equal(normalizeVerseFormattingQuotes(undefined), undefined);
 });
+
+test('normalizeVerseFormatting skips a null line and keeps the rest', () => {
+  assert.deepEqual(normalizeVerseFormatting({ mode: 'lines', lines: [null, { text: 'kept' }] }), {
+    mode: 'lines',
+    lines: [{ text: 'kept' }],
+  });
+});
+
+test('normalizeVerseFormatting rejects an object without a lines array', () => {
+  assert.equal(normalizeVerseFormatting({ mode: 'poetry' }), undefined);
+  assert.equal(normalizeVerseFormatting({ mode: 'poetry', lines: 'not a list' }), undefined);
+});
+
+test('normalizeVerseFormatting keeps a prose flag and adds none to other lines', () => {
+  assert.deepEqual(
+    normalizeVerseFormatting({
+      mode: 'poetry',
+      lines: [
+        { text: 'lead-in', prose: true },
+        { text: 'verse line', prose: false },
+      ],
+    }),
+    { mode: 'poetry', lines: [{ text: 'lead-in', prose: true }, { text: 'verse line' }] }
+  );
+});
+
+test('normalizeVerseFormatting drops an indent that is not a finite number', () => {
+  assert.deepEqual(
+    normalizeVerseFormatting({ mode: 'poetry', lines: [{ text: 'a', indentLevel: Infinity }] }),
+    { mode: 'poetry', lines: [{ text: 'a' }] }
+  );
+});
+
+// The reader parses the stored JSON of every verse on every chapter load; the cache
+// reuses one parsed object per string, and stays bounded across a whole Bible read.
+const formattingJson = (id: string) => JSON.stringify({ mode: 'lines', lines: [{ text: id }] });
+
+test('the same stored formatting string parses to the same object every time', () => {
+  const raw = formattingJson('cache identity');
+
+  assert.equal(normalizeVerseFormatting(raw), normalizeVerseFormatting(raw));
+});
+
+test('the formatting cache keeps the 256 most recently used strings', () => {
+  const raws = Array.from({ length: 257 }, (_, index) => formattingJson(`lru ${index}`));
+  const first = raws.slice(0, 256).map((raw) => normalizeVerseFormatting(raw));
+  assert.equal(normalizeVerseFormatting(raws[0]), first[0], 'all 256 still cached');
+
+  // raws[0] was just used again, so the 257th string evicts raws[1], the least recent.
+  normalizeVerseFormatting(raws[256]);
+
+  assert.equal(normalizeVerseFormatting(raws[0]), first[0]);
+  const reparsed = normalizeVerseFormatting(raws[1]);
+  assert.notEqual(reparsed, first[1]);
+  assert.deepEqual(reparsed, first[1]);
+});
+
+test('reconcileVerseFormattingWithText returns formatting unchanged without lines or text', () => {
+  const empty = { mode: 'poetry' as const, lines: [] };
+  const formatting = normalizeVerseFormatting({ mode: 'poetry', lines: [{ text: 'a line' }] });
+
+  assert.equal(reconcileVerseFormattingWithText('Some verse text.', empty), empty);
+  assert.equal(reconcileVerseFormattingWithText(null as unknown as string, formatting), formatting);
+});
+
+test('reconcileVerseFormattingWithText finds a one-word line whose mark has a stray space', () => {
+  const text = 'How long will you love vanity and seek after lies ? Selah';
+  const formatting = normalizeVerseFormatting({
+    mode: 'poetry',
+    lines: [{ text: 'How long will you love vanity and seek after' }, { text: 'lies?' }],
+  });
+
+  assert.deepEqual(reconcileVerseFormattingWithText(text, formatting), {
+    mode: 'poetry',
+    lines: [
+      { text: 'How long will you love vanity and seek after' },
+      { text: 'lies?' },
+      { text: 'Selah', prose: true },
+    ],
+  });
+});
+
+test('reconcileVerseFormattingWithText reinstates one-character runs around the lines', () => {
+  const text = 'O give thanks to the LORD, for He is good. A';
+  const formatting = normalizeVerseFormatting({
+    mode: 'poetry',
+    lines: [{ text: 'give thanks to the LORD, for He is good.' }],
+  });
+
+  assert.deepEqual(reconcileVerseFormattingWithText(text, formatting), {
+    mode: 'poetry',
+    lines: [
+      { text: 'O', prose: true },
+      { text: 'give thanks to the LORD, for He is good.' },
+      { text: 'A', prose: true },
+    ],
+  });
+});
+
+test('normalizeVerseFormattingQuotes fixes a stray quote space inside a line with nothing to fold', () => {
+  const formatting = { mode: 'lines' as const, lines: [{ text: 'you must be born again. ”' }] };
+
+  assert.deepEqual(normalizeVerseFormattingQuotes(formatting), {
+    mode: 'lines',
+    lines: [{ text: 'you must be born again.”' }],
+  });
+});
