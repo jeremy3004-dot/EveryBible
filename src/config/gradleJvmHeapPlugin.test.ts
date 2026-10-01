@@ -6,6 +6,10 @@ import {
   propertiesListToString,
 } from '@expo/config-plugins/build/android/Properties';
 import withGradleJvmHeap from '../../plugins/withGradleJvmHeap';
+import { assertDefined } from '../utils/assertDefined';
+
+const nth = <T>(items: readonly T[], index: number): T =>
+  assertDefined(items[index], `item ${index}`);
 
 type PropertiesItem = ReturnType<typeof parsePropertiesFile>[number];
 
@@ -60,7 +64,7 @@ test('the metaspace cap is raised so release lint and KSP workers do not run out
 
   const result = applyGradleJvmHeap(parsePropertiesFile(PREBUILD_GRADLE_PROPERTIES));
 
-  assert.ok(!jvmArgsOf(result)[0].includes('MaxMetaspaceSize=512m'));
+  assert.ok(!nth(jvmArgsOf(result), 0).includes('MaxMetaspaceSize=512m'));
 });
 
 test('other JVM arguments survive, and any duplicate heap flag is dropped', () => {

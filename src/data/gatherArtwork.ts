@@ -60,7 +60,11 @@ export function getGatherArtworkXml(key: string): string | undefined {
   }
   let xml = loadedGatherArtwork.get(key);
   if (xml === undefined) {
-    xml = GATHER_ARTWORK_LOADERS[key]();
+    const load = GATHER_ARTWORK_LOADERS[key];
+    if (!load) {
+      return undefined;
+    }
+    xml = load();
     loadedGatherArtwork.set(key, xml);
   }
   return xml;

@@ -8,6 +8,7 @@ import { gatherWisdomCategories, WISDOM_LESSON_TITLE_KEYS } from './gatherWisdom
 import { fourFieldsCourses } from './fourFieldsCourses';
 import { parsePassageReference } from '../services/bible/referenceParser';
 import type { BibleReference } from '../types/gather';
+import { assertDefined } from '../utils/assertDefined';
 
 /**
  * Every Gather and Four Fields lesson points at scripture. A reference that
@@ -119,13 +120,13 @@ const expandProseReference = (
 
   const points: { chapter: number; verse?: number }[] = [];
   let chapter = parsed.chapter;
-  for (const part of tail[1].split(/,\s*/)) {
-    const [start, end] = part.split('-');
+  for (const part of assertDefined(tail[1], 'the reference tail').split(/,\s*/)) {
+    const [start = '', end] = part.split('-');
     const readPoint = (token: string, chapterRef: boolean) => {
       if (token.includes(':')) {
-        const [c, v] = token.split(':').map(Number);
-        chapter = c;
-        points.push({ chapter: c, verse: v });
+        const [chapterToken = '', verseToken = ''] = token.split(':');
+        chapter = Number(chapterToken);
+        points.push({ chapter, verse: Number(verseToken) });
       } else if (chapterRef) {
         chapter = Number(token);
         points.push({ chapter });
@@ -241,11 +242,13 @@ const bsbPassageText = (reference: string): string | null => {
   }
   let chapter = parsed.chapter;
   const ranges: string[] = [];
-  for (const part of tail[1].split(/,\s*/)) {
-    const [startToken, endToken] = part.split('-');
+  for (const part of assertDefined(tail[1], 'the reference tail').split(/,\s*/)) {
+    const [startToken = '', endToken] = part.split('-');
     let start = Number(startToken);
     if (startToken.includes(':')) {
-      [chapter, start] = startToken.split(':').map(Number);
+      const [chapterToken = '', verseToken = ''] = startToken.split(':');
+      chapter = Number(chapterToken);
+      start = Number(verseToken);
     }
     const end = endToken === undefined ? start : Number(endToken);
     const startText = bsbText.get(`${parsed.bookId}:${chapter}:${start}`);

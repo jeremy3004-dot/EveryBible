@@ -176,7 +176,7 @@ test('success and warning stay fills, not text colours, on the light page', () =
     assert.ok(
       ratio < AA_TEXT,
       `${token} now clears ${ratio.toFixed(2)}:1 on vellum — if that is intended, drop this guard ` +
-        `and let screens use it as text directly instead of on${token[0].toUpperCase()}${token.slice(1)}Soft`
+        `and let screens use it as text directly instead of on${token.charAt(0).toUpperCase()}${token.slice(1)}Soft`
     );
   }
 });

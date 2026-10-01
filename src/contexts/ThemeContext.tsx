@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { resolveThemeMode, type ThemeMode } from '../design/themeMode';
 import { hexWithAlpha } from '../utils/color';
+import { assertDefined } from '../utils/assertDefined';
 import type { AppearancePaletteId } from '../constants/appearancePalettes';
 import {
   APPEARANCE_PALETTES,
@@ -99,7 +100,7 @@ const themeContext = createContext<ThemeContextValue | null>(null);
 
 const defaultPalette =
   APPEARANCE_PALETTES.find((palette) => palette.id === DEFAULT_APPEARANCE_PALETTE) ??
-  APPEARANCE_PALETTES[0];
+  assertDefined(APPEARANCE_PALETTES[0], 'an appearance palette');
 const defaultPaletteSwatches = defaultPalette.swatches;
 
 // Dark-family accents are light pastels, so a warm near-black reads on top of

@@ -1,4 +1,5 @@
 import { bibleBooks } from '../constants/books';
+import { assertDefined } from '../utils/assertDefined';
 import { CHURCH_YEAR_PLANS } from './churchYearPlans';
 import { LIFE_SITUATION_PLANS, type LifeSituationChapter } from './lifeSituationPlans';
 import type { ReadingPlan, ReadingPlanEntry } from '../services/plans/types';
@@ -275,7 +276,7 @@ function buildSequentialPlan(recipe: BookPlanRecipe): {
   let dayNumber = 1;
 
   recipe.book_order.forEach((bookId, bookIndex) => {
-    const dayCount = daysPerBook[bookIndex];
+    const dayCount = assertDefined(daysPerBook[bookIndex], `a day allocation for ${bookId}`);
     const chapterRanges = chunkIntegers(getBookChapters(bookId), dayCount);
 
     chapterRanges.forEach(([chapterStart, chapterEnd]) => {
