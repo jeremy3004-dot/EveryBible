@@ -593,6 +593,28 @@ test('the weekday headers share the week rows’ seven columns', async () => {
   }
 });
 
+test('coming back to the app on the same day does not redraw the calendar cells', async () => {
+  const view = await renderScreen();
+  const isDayCell = (props: Record<string, unknown>) =>
+    props.accessibilityRole === 'button' &&
+    typeof props.accessibilityLabel === 'string' &&
+    /^[A-Z][a-z]+day, [A-Z][a-z]+ \d+$/.test(props.accessibilityLabel);
+
+  const since = harness.renders.mark();
+  harness.rn.AppState.emit('background');
+  mock.timers.setTime(new Date('2026-09-24T15:00:00.000Z').getTime());
+  harness.rn.AppState.emit('active');
+  await view.flush();
+
+  assert.deepEqual(
+    harness.renders
+      .since(since)
+      .filter((entry) => entry.type === 'Pressable' && isDayCell(entry.props))
+      .map((entry) => entry.props.accessibilityLabel),
+    []
+  );
+});
+
 test('choosing a day re-renders only the two cells whose selection changed', async () => {
   const view = await renderScreen();
   const isDayCell = (props: Record<string, unknown>) =>
