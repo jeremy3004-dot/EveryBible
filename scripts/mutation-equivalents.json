@@ -25,6 +25,24 @@
       "reason": "A cancelled sign-in is silent (isSilentAuthError), so this fallback text is never shown"
     }
   ],
+  "src/stores/bible/textPackInstallModel.ts": [
+    {
+      "key": "relational-boundary|>|>=|progress.bytesTotal && progress.bytesTotal > 0",
+      "reason": "A bytesTotal of 0 is falsy, so the && short-circuits before the comparison either way"
+    },
+    {
+      "key": "nullish-drop-default|progress.bytesDownloaded ?? 0|progress.bytesDownloaded|? clampPercent(((progress.bytesDownloaded ?? 0) / progress.bytesTotal) * 100)",
+      "reason": "undefined / total is NaN, which clampPercent turns into the same 0"
+    },
+    {
+      "key": "relational-boundary|>|>=|: progress.totalVerses > 0",
+      "reason": "0 / 0 is NaN, which clampPercent turns into the same 0 as the else branch"
+    },
+    {
+      "key": "number-literal|0|1|].filter((value): value is string => typeof value === 'string' && value.length > 0)",
+      "reason": "Pack paths are absolute file paths, never a single character"
+    }
+  ],
   "src/stores/privateDataScope.ts": [
     {
       "key": "remove-statement|return null;|;|return null;",
