@@ -373,6 +373,23 @@ test('returning to Home the next day shows the new weekday beside the reference'
   assert.equal(screen.queryByText(screenEyebrow('John 3:16')), null);
 });
 
+test('returning to Home on the same day does not rebuild the heatmap', async () => {
+  progressStore.setState({ chaptersRead: { JHN_1: Date.now() } });
+  const view = await renderHome();
+
+  const since = harness.renders.mark();
+  harness.rn.AppState.emit('background');
+  setToday(new Date(2026, 8, 17, 20, 30));
+  harness.rn.AppState.emit('active');
+  await view.flush();
+  await view.flush();
+
+  const redrawn = harness.renders
+    .since(since)
+    .filter((entry) => String(entry.props.testID ?? '').startsWith('heatmap-day-'));
+  assert.equal(redrawn.length, 0, 'no heatmap square is drawn again');
+});
+
 test('the weekday turns over at midnight while Home stays open', async () => {
   mock.timers.reset();
   mock.timers.enable({
