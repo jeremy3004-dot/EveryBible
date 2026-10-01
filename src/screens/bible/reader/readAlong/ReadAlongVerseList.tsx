@@ -156,6 +156,23 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
     [reduceMotion]
   );
 
+  // A new chapter starts at its top, following again. The last chapter's measured tops
+  // (and a scroll waiting on one) are dropped; the new rows report their own as they lay
+  // out. Declared before the follow effect so a resume that lands in the same commit
+  // waits for those measurements instead of scrolling by stale offsets.
+  const chapterKey = `${track.translationId}:${track.bookId}:${track.chapter}`;
+  const shownChapterKeyRef = useRef(chapterKey);
+  useEffect(() => {
+    if (shownChapterKeyRef.current === chapterKey) return;
+    shownChapterKeyRef.current = chapterKey;
+    verseTopsRef.current = {};
+    pendingVerseRef.current = null;
+    ownsManualScrollRef.current = false;
+    isManualScrollingRef.current = false;
+    lastManualScrollAtRef.current = null;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [chapterKey]);
+
   useEffect(() => {
     if (currentVerse == null || isManualScrollingRef.current) return;
     if (
@@ -164,19 +181,6 @@ export const ReadAlongVerseList = memo(function ReadAlongVerseList({
       return;
     scrollToVerse(currentVerse, true);
   }, [currentVerse, scrollToVerse]);
-
-  // A new chapter starts at its top, following again. Its rows report their own tops
-  // as they lay out, replacing the last chapter's.
-  const chapterKey = `${track.translationId}:${track.bookId}:${track.chapter}`;
-  const shownChapterKeyRef = useRef(chapterKey);
-  useEffect(() => {
-    if (shownChapterKeyRef.current === chapterKey) return;
-    shownChapterKeyRef.current = chapterKey;
-    ownsManualScrollRef.current = false;
-    isManualScrollingRef.current = false;
-    lastManualScrollAtRef.current = null;
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [chapterKey]);
 
   const handleVerseLayout = useCallback(
     (verse: number, top: number) => {

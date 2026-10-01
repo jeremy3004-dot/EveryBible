@@ -1,7 +1,6 @@
 import { StyleSheet, FlatList, Pressable, Text, View } from 'react-native';
 import { spacing, typography } from '../../../design/system';
 import {
-  buildReaderParagraphs,
   canSelectDisplayedVerse,
   getReaderVerseLineHeight,
   getNextFontSizeSheetVisibility,
@@ -74,7 +73,6 @@ export interface ReaderVerseListProps {
   setShowTranslationSheet: Dispatch<SetStateAction<boolean>>;
   sharedTopChromeTop: number;
   verseOffsetsRef: RefObject<Record<number, number>>;
-  verses: Verse[];
 }
 
 /**
@@ -124,7 +122,6 @@ export const ReaderVerseList = memo(function ReaderVerseList({
   setShowTranslationSheet,
   sharedTopChromeTop,
   verseOffsetsRef,
-  verses,
 }: ReaderVerseListProps) {
   const { colors } = useTheme();
 
@@ -145,7 +142,8 @@ export const ReaderVerseList = memo(function ReaderVerseList({
     : scaleValue(12);
   const headingFontSize = scaleValue(typography.readingHeading.fontSize);
 
-  const paragraphs = usePremiumTypography ? premiumReaderParagraphs : buildReaderParagraphs(verses);
+  // The screen builds these once per chapter for both layouts (the same function of `verses`).
+  const paragraphs = premiumReaderParagraphs;
 
   const textStyle = [
     styles.verseText,

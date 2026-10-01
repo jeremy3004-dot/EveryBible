@@ -31,14 +31,8 @@ import {
   planReaderNoteSave,
   type ReaderAnnotationEdits,
 } from '../readerAnnotationEdits';
+import { reportReaderFailure } from './reportReaderFailure';
 import { useVerseImageShare } from './useVerseImageShare';
-
-/** Records a failed verse-image share. The crash queue is loaded only when something failed. */
-function reportVerseImageShareFailure(error: unknown) {
-  void import('../../../services/diagnostics/crashReportQueue')
-    .then(({ reportHandledError }) => reportHandledError('reader.shareImage', error))
-    .catch(() => undefined);
-}
 
 export interface UseVerseSelectionInput {
   annotations: UserAnnotation[];
@@ -210,8 +204,13 @@ export function useVerseSelection({
       return;
     }
 
-    await Clipboard.setStringAsync(selectedVerseShareText);
-    selectionHaptic();
+    try {
+      await Clipboard.setStringAsync(selectedVerseShareText);
+      selectionHaptic();
+    } catch (error) {
+      reportReaderFailure('reader.copyVerses', error);
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+    }
   };
 
   const handleCloseSelectedVerses = () => {
@@ -223,7 +222,12 @@ export function useVerseSelection({
       return;
     }
 
-    await Share.share({ message: selectedVerseShareText });
+    try {
+      await Share.share({ message: selectedVerseShareText });
+    } catch (error) {
+      reportReaderFailure('reader.shareVerses', error);
+      Alert.alert(t('common.error'), t('common.unexpectedError'));
+    }
   };
 
   const handleOpenVerseImageShare = () => {
@@ -246,7 +250,7 @@ export function useVerseSelection({
       setShowVerseImageSheet,
       verseImageSharePreviewRef,
       resetKey: `${currentTranslation}:${bookId}:${chapter}`,
-      reportFailure: reportVerseImageShareFailure,
+      reportFailure: (error) => reportReaderFailure('reader.shareImage', error),
     });
 
   const handleShareSelectedVerseImage = async () => {

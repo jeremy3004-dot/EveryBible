@@ -1125,7 +1125,6 @@ export function BibleReaderScreen() {
         setShowTranslationSheet={setShowTranslationSheet}
         sharedTopChromeTop={sharedTopChromeTop}
         verseOffsetsRef={verseOffsetsRef}
-        verses={verses}
       />
     );
   };
@@ -1197,7 +1196,6 @@ export function BibleReaderScreen() {
             setShowTranslationSheet={setShowTranslationSheet}
             sharedTopChromeTop={sharedTopChromeTop}
             verseOffsetsRef={verseOffsetsRef}
-            verses={verses}
           />
         </Animated.View>
       </GestureDetector>

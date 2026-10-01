@@ -98,7 +98,12 @@ export function useReaderFollowAlongScroll({
 
   // Fetch verse timestamps for the active text-backed audio chapter; clear when chapter changes.
   useEffect(() => {
-    if (!isCurrentAudioChapter || verses.length === 0) return;
+    if (!isCurrentAudioChapter || verses.length === 0) {
+      // The old chapter's timings must not outlive it: the follow-along bridge would
+      // otherwise clamp a resumed position against another chapter's verse times.
+      setChapterTimestamps(null);
+      return;
+    }
 
     let isCancelled = false;
     setChapterTimestamps(null);
