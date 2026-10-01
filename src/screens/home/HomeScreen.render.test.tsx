@@ -658,6 +658,45 @@ test('the hero photograph stays at full strength under a dark scrim that dissolv
   }
 });
 
+test('the interaction-ready timing log is a development-only line', async (context) => {
+  const lines: string[] = [];
+  context.mock.method(console, 'log', (...args: unknown[]) => lines.push(String(args[0])));
+  const globals = globalThis as {
+    __DEV__?: boolean;
+    requestAnimationFrame?: (cb: (time: number) => void) => number;
+    cancelAnimationFrame?: (id: number) => void;
+  };
+  const rafBefore = globals.requestAnimationFrame;
+  const cancelBefore = globals.cancelAnimationFrame;
+  globals.cancelAnimationFrame = () => {};
+  globals.requestAnimationFrame = (cb) => {
+    cb(0);
+    return 1;
+  };
+  const devBefore = globals.__DEV__;
+  try {
+    for (const dev of [false, true]) {
+      globals.__DEV__ = dev;
+      lines.length = 0;
+      const view = await renderHome();
+      const scroll = assertDefined(view.queryAllByType('ScrollView')[0], 'scroll');
+      await view.fire(scroll, 'onLayout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 800 } },
+      });
+      await view.flush();
+      assert.equal(
+        lines.some((line) => line.includes('Home:interaction-ready')),
+        dev
+      );
+      await view.unmount();
+    }
+  } finally {
+    globals.__DEV__ = devBefore;
+    globals.requestAnimationFrame = rafBefore;
+    globals.cancelAnimationFrame = cancelBefore;
+  }
+});
+
 test('the scrim fades to the page below the verse text, wherever the hero grows to', async () => {
   const view = await renderHome();
   const { screen } = heroes(view);

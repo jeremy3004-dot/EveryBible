@@ -147,7 +147,11 @@ export function HomeScreen() {
             if (frame !== undefined) cancelAnimationFrame(frame);
           };
         },
-        report: () => console.log('[EB-T] Home:interaction-ready', Date.now()),
+        report: () => {
+          if (typeof __DEV__ !== 'undefined' && __DEV__) {
+            console.log('[EB-T] Home:interaction-ready', Date.now());
+          }
+        },
       }),
     []
   );
